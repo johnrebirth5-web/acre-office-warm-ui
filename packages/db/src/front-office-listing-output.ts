@@ -307,7 +307,7 @@ function buildShareModeLabel(mode: FrontOfficeListingShareBindingMode) {
   }
 
   if (mode === "client_dossier_context") {
-    return "Client dossier context";
+    return "Client page context";
   }
 
   return "Generic tracked link";
@@ -336,7 +336,7 @@ function buildShareTrackingLabel(input: {
   }
 
   if (input.mode === "client_dossier_context") {
-    return `Send record saved to ${input.clientName || "the selected client"}'s Front Office trail.`;
+    return `Send record saved to ${input.clientName || "the selected client"}'s Front Office record.`;
   }
 
   return "Tracked link created without client-linked send attribution.";
@@ -348,14 +348,14 @@ function buildShareWritebackScopeLabel(input: {
   appointmentTitle: string | null;
 }) {
   if (input.mode === "client_appointment_context") {
-    return `Writeback scope stays on ${input.clientName || "the selected client"} and ${input.appointmentTitle || "the selected appointment"}, so reply pressure and appointment continuity remain on one trail.`;
+    return `Update scope stays on ${input.clientName || "the selected client"} and ${input.appointmentTitle || "the selected appointment"}, so reply pressure and appointment continuity stay in one place.`;
   }
 
   if (input.mode === "client_dossier_context") {
-    return `Writeback scope stays on ${input.clientName || "the selected client"}'s Front Office dossier trail.`;
+    return `Update scope stays on ${input.clientName || "the selected client"}'s Front Office record.`;
   }
 
-  return "Writeback scope is the tracked private link only until you reopen listing output from a dossier or appointment.";
+  return "Update scope is only the tracked private link until you reopen listing follow-up from a client page or appointment.";
 }
 
 function buildShareSendCue(input: {
@@ -364,11 +364,11 @@ function buildShareSendCue(input: {
 }) {
   if (input.channel === FrontOfficeSendChannel.sms) {
     if (input.mode === "client_appointment_context") {
-      return "Best for a quick reaction or confirmation around the active appointment while the tracked link stays attached to the meeting trail.";
+      return "Best for a quick reaction or confirmation around the active appointment while the tracked link stays attached to the meeting record.";
     }
 
     if (input.mode === "client_dossier_context") {
-      return "Best for a quick yes / no reaction while keeping the dossier send trail warm.";
+      return "Best for a quick yes / no reaction while keeping the send history warm on the client page.";
     }
 
     return "Best for a fast manual text touch when you still want the private tracked link copied with the note.";
@@ -376,14 +376,14 @@ function buildShareSendCue(input: {
 
   if (input.channel === FrontOfficeSendChannel.email) {
     if (input.mode === "client_appointment_context") {
-      return "Best when the client needs more framing before or after the appointment, but you still want the send tied back to the meeting loop.";
+      return "Best when the client needs more framing before or after the appointment, but you still want the send tied back to the appointment.";
     }
 
     if (input.mode === "client_dossier_context") {
       return "Best when the client needs summary, context, and a clear next-step ask beside the tracked link.";
     }
 
-    return "Best when the listing needs more framing than a raw link before you attach it to a specific client trail.";
+    return "Best when the listing needs more framing than a raw link before you attach it to a specific client record.";
   }
 
   if (input.mode === "client_appointment_context") {
@@ -391,7 +391,7 @@ function buildShareSendCue(input: {
   }
 
   if (input.mode === "client_dossier_context") {
-    return "Best for WeChat or ad-hoc chat when you only need the private tracked URL but still want the send recorded in the client trail.";
+    return "Best for WeChat or ad-hoc chat when you only need the private tracked URL but still want the send recorded on the client page.";
   }
 
   return "Best when you only need the private tracked URL and will handle the rest of the context in another manual send tool.";
@@ -425,7 +425,7 @@ function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
   if (mode === "client_appointment_context") {
     return {
       kind: "appointment_context" as const,
-      cue: `Use the appointment record for confirmation or reschedule notes, rescue the send from the client trail if it stays unopened after ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, and reopen the shortlist if it goes quiet for a week after the first open.`,
+      cue: `Use the appointment record for confirmation or reschedule notes, rescue the send from the client page if it stays unopened after ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, and reopen the shortlist if it goes quiet for a week after the first open.`,
       unopenedAfterDays: TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS,
       quietAfterOpenAfterDays: TRACKED_SEND_QUIET_AFTER_OPEN_DAYS,
     };
@@ -434,7 +434,7 @@ function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
   if (mode === "client_dossier_context") {
     return {
       kind: "client_context" as const,
-      cue: `If the send stays unopened for ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, reopen the dossier with a tighter follow-up. If it opens and then goes quiet for a week, send the next option from the same trail.`,
+      cue: `If the send stays unopened for ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, reopen the client page with a tighter follow-up. If it opens and then goes quiet for a week, send the next option from the same thread.`,
       unopenedAfterDays: TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS,
       quietAfterOpenAfterDays: TRACKED_SEND_QUIET_AFTER_OPEN_DAYS,
     };
@@ -442,7 +442,7 @@ function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
 
   return {
     kind: "generic_context" as const,
-    cue: "This link is still tracked, but it will not enter a client engagement trail until you reopen listing output from a dossier or appointment context.",
+    cue: "This link is still tracked, but it will not enter a client engagement record until you reopen listing follow-up from a client page or appointment context.",
     unopenedAfterDays: null,
     quietAfterOpenAfterDays: null,
   };
@@ -489,14 +489,14 @@ function buildShareWritebackLabel(input: {
   aiAcceptedActionRecorded: boolean;
 }) {
   if (input.sendRecordId && input.aiAcceptedActionRecorded) {
-    return "Tracked link, send record, and AI acceptance trail saved.";
+    return "Tracked link, send record, and AI acceptance history saved.";
   }
 
   if (input.sendRecordId) {
     return "Tracked link and send record saved.";
   }
 
-  return "Tracked link saved without client-linked writeback.";
+  return "Tracked link saved without a client-linked follow-up record.";
 }
 
 function buildListingUsagePulseTrailState(input: {
@@ -505,7 +505,7 @@ function buildListingUsagePulseTrailState(input: {
 }) {
   if (input.trackedLinkCount <= 0) {
     return {
-      badgeLabel: "Fresh trail",
+      badgeLabel: "Fresh activity",
       badgeTone: "neutral" as const,
       description: "No tracked send has left this listing yet.",
     };
@@ -513,7 +513,7 @@ function buildListingUsagePulseTrailState(input: {
 
   if (input.trackedClickCount <= 0) {
     return {
-      badgeLabel: "Quiet trail",
+      badgeLabel: "Quiet activity",
       badgeTone: "warning" as const,
       description:
         "Tracked sends exist, but the click pulse has not returned yet.",
@@ -522,7 +522,7 @@ function buildListingUsagePulseTrailState(input: {
 
   if (input.trackedClickCount >= input.trackedLinkCount) {
     return {
-      badgeLabel: "Active trail",
+      badgeLabel: "Active activity",
       badgeTone: "success" as const,
       description:
         "Tracked sends are already producing a strong usage pulse in this desk.",
@@ -530,7 +530,7 @@ function buildListingUsagePulseTrailState(input: {
   }
 
   return {
-    badgeLabel: "Warm trail",
+    badgeLabel: "Warm activity",
     badgeTone: "accent" as const,
     description:
       "Tracked sends are returning clicks, but some links are still waiting on a response.",
@@ -541,36 +541,36 @@ function buildListingUsagePulseQuietTrailCue(
   listing: FrontOfficeListingUsagePulseListing,
 ) {
   if (listing.trackedLinkCount <= 0) {
-    return "No quiet trail yet. Start the first tracked send from a dossier or appointment.";
+    return "No quiet send yet. Start the first tracked send from a client page or appointment.";
   }
 
   if (listing.trackedClickCount <= 0) {
-    return "This send trail is still quiet. Tighten the framing or reopen it from the same client or appointment trail.";
+    return "This send is still quiet. Tighten the framing or reopen it from the same client page or appointment.";
   }
 
-  return "This send trail is warm again, so the quiet trail has already been cleared.";
+  return "This send is warm again, so the quiet period has already been cleared.";
 }
 
 function buildListingUsagePulseNextMoveCue(
   listing: FrontOfficeListingUsagePulseListing,
 ) {
   if (listing.trackedLinkCount <= 0) {
-    return "Start the first tracked share so the send trail can be measured.";
+    return "Start the first tracked share so the send activity can be measured.";
   }
 
   if (listing.trackedClickCount <= 0) {
     return listing.latestTrackedShare?.clientHref
-      ? "Reopen the client trail with a tighter reason-to-care."
+      ? "Reopen the client page with a tighter reason-to-care."
       : listing.latestTrackedShare?.appointmentHref
-        ? "Reopen the appointment trail with a quicker reaction path."
-        : "Tighten the copy, then resend from the same trail.";
+        ? "Reopen the appointment with a quicker reaction path."
+        : "Tighten the copy, then resend from the same thread.";
   }
 
   return listing.latestTrackedShare?.clientHref
-    ? "Keep the next touch inside the same client dossier so the warm trail stays attached."
+    ? "Keep the next touch inside the same client page so the warm activity stays attached."
     : listing.latestTrackedShare?.appointmentHref
-      ? "Keep the next touch inside the same appointment loop so the warm trail stays attached."
-      : "Keep the next touch on the same listing trail instead of restarting cold.";
+      ? "Keep the next touch inside the same appointment so the warm activity stays attached."
+      : "Keep the next touch on the same listing follow-up instead of restarting cold.";
 }
 
 function buildListingUsagePulseSendTrailSummary(input: {
@@ -580,30 +580,30 @@ function buildListingUsagePulseSendTrailSummary(input: {
 }) {
   if (input.trackedLinkCount <= 0) {
     return {
-      label: "Fresh send trail",
+      label: "Fresh send activity",
       description:
-        "No tracked send has left this desk yet, so the first next move still needs to be created from a dossier or appointment.",
+        "No tracked send has left this desk yet, so the first next move still needs to be created from a client page or appointment.",
     };
   }
 
   if (input.trackedClickCount <= 0) {
     return {
-      label: "Quiet send trail",
+      label: "Quiet send activity",
       description: `${input.trackedLinkCount} tracked send(s) are still waiting on their first click pulse.`,
     };
   }
 
   if (input.quietTrackedListingCount > 0) {
     return {
-      label: "Mixed send trail",
+      label: "Mixed send activity",
       description: `${input.trackedClickCount} tracked click(s) are flowing, but ${input.quietTrackedListingCount} listing(s) are still quiet.`,
     };
   }
 
   return {
-    label: "Active send trail",
+    label: "Active send activity",
     description:
-      "Tracked clicks are flowing back across the desk, so the send trail is already warm.",
+      "Tracked clicks are flowing back across the desk, so send activity is already warm.",
   };
 }
 
@@ -614,31 +614,31 @@ function buildListingUsagePulseQuietTrailSummary(input: {
 }) {
   if (input.trackedLinkCount <= 0) {
     return {
-      label: "No quiet trails",
+      label: "No quiet sends",
       description:
-        "Nothing is quiet yet because this desk has not created its first tracked trail.",
+        "Nothing is quiet yet because this desk has not created its first tracked send.",
     };
   }
 
   if (input.quietTrackedListingCount > 0) {
     return {
-      label: `${input.quietTrackedListingCount} quiet trail(s)`,
+      label: `${input.quietTrackedListingCount} quiet send(s)`,
       description: `${input.quietTrackedListingCount} tracked listing(s) still need a stronger next touch before the click pulse returns.`,
     };
   }
 
   if (input.trackedClickCount <= 0) {
     return {
-      label: "Quiet trail waiting",
+      label: "Quiet send waiting",
       description:
-        "Tracked sends exist, but no click pulse has returned yet, so the trail is still waiting on a reaction.",
+        "Tracked sends exist, but no click pulse has returned yet, so the send is still waiting on a reaction.",
     };
   }
 
   return {
-    label: "No quiet trails",
+    label: "No quiet sends",
     description:
-      "Every tracked listing has returned a click pulse, so there is no quiet trail left to rescue.",
+      "Every tracked listing has returned a click pulse, so there is no quiet send left to rescue.",
   };
 }
 
@@ -651,7 +651,7 @@ function buildListingUsagePulseSendRiskSummary(input: {
     return {
       label: "No send risk yet",
       description:
-        "No tracked sends have left the desk yet, so the first measured trail still needs to be created before any send-risk needs to be managed.",
+        "No tracked sends have left the desk yet, so the first measured send still needs to be created before any send risk needs to be managed.",
     };
   }
 
@@ -659,21 +659,21 @@ function buildListingUsagePulseSendRiskSummary(input: {
     return {
       label: "High send risk",
       description:
-        "Every tracked send is still waiting on its first click pulse, so the desk needs an immediate rescue move before those trails disappear into quiet follow-up debt.",
+        "Every tracked send is still waiting on its first click pulse, so the desk needs an immediate rescue move before those sends disappear into quiet follow-up debt.",
     };
   }
 
   if (input.quietTrackedListingCount > 0) {
     return {
       label: "Mixed send risk",
-      description: `${input.quietTrackedListingCount} listing(s) still carry quiet-after-send risk even though other trails are already warm, so rescue work should stay visible beside the engaged pulse.`,
+      description: `${input.quietTrackedListingCount} listing(s) still carry quiet-after-send risk even though other sends are already warm, so rescue work should stay visible beside the engaged pulse.`,
     };
   }
 
   return {
     label: "Managed send risk",
     description:
-      "Every tracked listing has already returned a click pulse, so send risk is being managed inside warm trails instead of piling up as silent follow-up debt.",
+      "Every tracked listing has already returned a click pulse, so send risk is being managed inside warm sends instead of piling up as silent follow-up debt.",
   };
 }
 
@@ -688,39 +688,39 @@ function buildListingUsagePulseNextMoveSummary(input: {
     return {
       label: "Start first tracked send",
       description:
-        "Open a dossier or appointment and create the first tracked share so the send trail can be measured.",
+        "Open a client page or appointment and create the first tracked share so send activity can be measured.",
     };
   }
 
   if (input.trackedClickCount <= 0) {
     return {
-      label: "Rescue quiet trail",
+      label: "Rescue quiet send",
       description: input.latestTrackedShare?.clientHref
-        ? "Reopen the client trail with a stronger reason-to-care, then keep the tracked link attached."
+        ? "Reopen the client page with a stronger reason-to-care, then keep the tracked link attached."
         : input.latestTrackedShare?.appointmentHref
-          ? "Reopen the appointment trail with a faster reaction path, then keep the tracked link attached."
-          : "Rescue the same trail with a clearer reason-to-care so the first click pulse can return.",
+          ? "Reopen the appointment with a faster reaction path, then keep the tracked link attached."
+          : "Rescue the same send with a clearer reason-to-care so the first click pulse can return.",
     };
   }
 
   if (input.quietTrackedListingCount > 0) {
     return {
-      label: "Rescue quiet trails",
+      label: "Rescue quiet sends",
       description: input.strongestTrail?.clientHref
-        ? "Use the most engaged trail as the anchor and reopen the quieter listings from the same client dossier."
+        ? "Use the most engaged send as the anchor and reopen the quieter listings from the same client page."
         : input.strongestTrail?.appointmentHref
-          ? "Use the most engaged trail as the anchor and reopen the quieter listings from the same appointment loop."
-          : "Use the most engaged trail as the anchor, then reopen the quieter listings before they cool off.",
+          ? "Use the most engaged send as the anchor and reopen the quieter listings from the same appointment."
+          : "Use the most engaged send as the anchor, then reopen the quieter listings before they cool off.",
     };
   }
 
   return {
-    label: "Keep warm trails moving",
+    label: "Keep active sends moving",
     description: input.latestTrackedShare?.clientHref
-      ? "The send trail is already warm, so stay inside the same client dossier and move the next touch forward from there."
+      ? "The send is already warm, so stay inside the same client page and move the next touch forward from there."
       : input.latestTrackedShare?.appointmentHref
-        ? "The send trail is already warm, so stay inside the same appointment loop and move the next touch forward from there."
-        : "The send trail is already warm, so keep the next touch on the same listing trail instead of restarting cold.",
+        ? "The send is already warm, so stay inside the same appointment and move the next touch forward from there."
+        : "The send is already warm, so keep the next touch on the same listing follow-up instead of restarting cold.",
   };
 }
 
@@ -730,27 +730,27 @@ function buildListingUsagePulseFollowThroughCue(
   const latestShare = listing.latestTrackedShare;
 
   if (!latestShare) {
-    return "No tracked share has been created yet, so this listing is still waiting for its first follow-through trail.";
+    return "No tracked share has been created yet, so this listing is still waiting for its first follow-through history.";
   }
 
   if (latestShare.trackingStatus === "tracked_send_recorded") {
     if (latestShare.appointmentLabel) {
-      return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail from the appointment loop if it goes quiet.`;
+      return `Reopen the ${latestShare.channelLabel.toLowerCase()} send from the appointment if it goes quiet.`;
     }
 
     if (latestShare.clientLabel) {
-      return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail from the client dossier if it goes quiet.`;
+      return `Reopen the ${latestShare.channelLabel.toLowerCase()} send from the client page if it goes quiet.`;
     }
 
-    return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail if it goes quiet.`;
+    return `Reopen the ${latestShare.channelLabel.toLowerCase()} send if it goes quiet.`;
   }
 
   if (latestShare.appointmentLabel) {
-    return "This is still a link-only share. Convert it into a tracked send from the appointment trail next time.";
+    return "This is still a link-only share. Convert it into a tracked send from the appointment next time.";
   }
 
   if (latestShare.clientLabel) {
-    return "This is still a link-only share. Convert it into a tracked send from the client trail next time.";
+    return "This is still a link-only share. Convert it into a tracked send from the client page next time.";
   }
 
   return "This is still a link-only share. Convert it into a tracked send next time so follow-through can be measured.";
@@ -774,8 +774,8 @@ function buildListingUsagePulseCard(
       latestShare.followThroughCue ??
       buildListingUsagePulseFollowThroughCue(listing);
 
-    meta.push(`Send trail · ${trailState.badgeLabel}`);
-    meta.push(`Quiet trail · ${buildListingUsagePulseQuietTrailCue(listing)}`);
+    meta.push(`Send activity · ${trailState.badgeLabel}`);
+    meta.push(`Quiet sends · ${buildListingUsagePulseQuietTrailCue(listing)}`);
     meta.push(`Next move · ${buildListingUsagePulseNextMoveCue(listing)}`);
     meta.push(`Latest share · ${latestShare.sentAtLabel}`);
     meta.push(`Follow-through · ${latestShareFollowThroughCue}`);
@@ -859,7 +859,7 @@ export function buildFrontOfficeListingUsagePulse(
       ? "No tracked links have been created yet, so the desk is still waiting for its first measured send."
       : engagedListingCount <= 0
         ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
-        : `${trackedClickCount} tracked click(s) are flowing across ${engagedListingCount} engaged listing(s), with ${quietTrackedListingCount} quiet tracked trail(s) still waiting on a response.`;
+        : `${trackedClickCount} tracked click(s) are flowing across ${engagedListingCount} engaged listing(s), with ${quietTrackedListingCount} quiet tracked send(s) still waiting on a response.`;
   const sendTrailSummary = buildListingUsagePulseSendTrailSummary({
     trackedLinkCount,
     trackedClickCount,

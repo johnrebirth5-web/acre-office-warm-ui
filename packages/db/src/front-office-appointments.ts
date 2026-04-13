@@ -302,7 +302,7 @@ function strengthenFrontOfficeAppointmentCalendarExportContent(
 
   return content
     .replace(
-      /DESCRIPTION:Manual export from Acre Front Office\.[\s\S]*?Next step: save the follow-up writeback in Acre after you open this draft or export\./,
+      /DESCRIPTION:Manual export from Acre Front Office\.[\s\S]*?Next step: save the follow-up (writeback|update) in Acre after you open this draft or export\./,
       `DESCRIPTION:${strengthenedDescription}`,
     )
     .replace(
@@ -786,10 +786,10 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
 } {
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
-      label: "Closed lane in Acre",
+      label: "Closed in Acre",
       tone: "neutral" as const,
       detail:
-        "This appointment is no longer scheduled, so the coordination lane is read-only unless you create a new plan.",
+        "This appointment is no longer scheduled, so the coordination record is read-only unless you create a new plan.",
       needsNextTouchPlan: false,
     };
   }
@@ -830,7 +830,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
           ? "Touch scheduled"
           : input.externalWorkflow.value ===
-                frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+              frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
             ? "Reschedule requested"
             : "Touch scheduled",
       tone:
@@ -1060,23 +1060,22 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
   timeZone?: string | null;
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
-    "Bridge lane only: Acre logs that the bridge was opened here. The Google, Outlook, ICS, or email draft stays manual, so save the reply due, confirmation pending, reschedule, or promised-touch checkpoint back on this appointment after you send or export.";
+    "Draft only: Acre logs that the draft was opened here. The Google, Outlook, ICS, or email draft stays manual, so save the reply due, confirmation pending, reschedule, or promised-touch checkpoint back on this appointment after you send or export.";
   const buildContinuity = (
     checkpoint: FrontOfficeAppointmentCheckpointSummary,
   ): FrontOfficeAppointmentBridgeContinuity => ({
     label: checkpoint.label,
-    detail:
-      `${checkpoint.detail} The bridge remains manual, so jump back to the same appointment and save the checkpoint in Acre once you finish the draft or export.`,
+    detail: `${checkpoint.detail} The draft remains manual, so jump back to the same appointment and save the checkpoint in Acre once you finish the draft or export.`,
     nextStep: checkpoint.nextStep,
     sourceNote: checkpoint.sourceNote,
-    returnToLabel: "Return to writeback",
+    returnToLabel: "Return to update form",
     returnToDetail:
       "Acre keeps the checkpoint readable here. The outside calendar or inbox draft does not sync it automatically.",
   });
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     const checkpoint = {
-      label: "Reopen before writeback",
+      label: "Reopen before updating",
       detail:
         "This appointment is closed in Acre, so the next reply due, confirmation pending, reschedule, or promised-touch checkpoint must start from a fresh scheduled record.",
       nextStep:
@@ -1088,7 +1087,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
       manualOnlyDetail,
       followUpDetail:
         "This appointment is no longer scheduled in Acre, so any outside follow-up should happen from a replacement or reopened plan instead of a synced provider draft.",
-      followUpCadenceLabel: "Reopen before writeback",
+      followUpCadenceLabel: "Reopen before updating",
       followUpCadenceDetail:
         "This appointment is closed in Acre, so any bridge or follow-up should happen from a fresh scheduled record before a new touch scheduled checkpoint is saved.",
       checkpoint,
@@ -1126,11 +1125,11 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     followUpDetail:
       input.externalWorkflow.value ===
       frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the replacement checkpoint."
+        ? "If the outside plan changes after this export, update the appointment so Acre still reflects the confirmed state or the replacement checkpoint."
         : input.externalWorkflow.value ===
             frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
-          ? "After you use the bridge, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
-          : "After you use the bridge, save whether you are reply due, confirmation pending, confirmed, or still need a touch scheduled checkpoint in Acre.",
+          ? "After you use the draft, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
+          : "After you use the draft, save whether you are reply due, confirmation pending, confirmed, or still need a touch scheduled checkpoint in Acre.",
     followUpCadenceLabel: suggestedPreset
       ? suggestedPreset.label
       : "Recommended next checkpoint",
@@ -1143,7 +1142,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
       ? {
           status: suggestedPreset.suggestedStatus,
           label: suggestedPreset.label,
-          detail: `${suggestedPreset.detail} Load it into the writeback form, then save the next promised checkpoint in Acre.`,
+          detail: `${suggestedPreset.detail} Load it into the update form, then save the next promised checkpoint in Acre.`,
           nextActionAtLabel: suggestedPreset.nextActionAtLabel,
           nextActionAtValue: suggestedPreset.nextActionAtValue,
         }
@@ -1616,7 +1615,8 @@ function buildBridgeHistoryItem(input: {
       detail.startsWith("Acre status:") ||
       detail.startsWith("External coordination:") ||
       detail.startsWith("Next external touch:") ||
-      detail.startsWith("Writeback note:"),
+      detail.startsWith("Writeback note:") ||
+      detail.startsWith("Update note:"),
   );
   const detailParts = bridgeSnapshot
     ? [
@@ -1625,12 +1625,12 @@ function buildBridgeHistoryItem(input: {
           : "",
         bridgeSnapshot.externalStatusLabel
           ? `External coordination: ${bridgeSnapshot.externalStatusLabel}`
-          : "External coordination: No writeback saved yet",
+          : "External coordination: No saved update yet",
         bridgeSnapshot.nextExternalTouchLabel
           ? `Next external touch: ${bridgeSnapshot.nextExternalTouchLabel}`
           : "",
         bridgeSnapshot.externalNote
-          ? `Writeback note: ${bridgeSnapshot.externalNote}`
+          ? `Update note: ${bridgeSnapshot.externalNote}`
           : "",
       ]
         .filter(Boolean)
@@ -1695,7 +1695,7 @@ function buildWritebackHistoryItem(input: {
   return {
     id: input.id,
     kind: "writeback",
-    label: nextLabel ? `Writeback saved: ${nextLabel}` : "Writeback updated",
+    label: nextLabel ? `Update saved: ${nextLabel}` : "Update saved",
     detail: detailParts.join(" · "),
     actorLabel: input.actorLabel,
     createdAtLabel,
@@ -1855,12 +1855,12 @@ function buildFrontOfficeAppointmentBridgeStatus(
 ): FrontOfficeAppointmentBridgeStatus {
   if (!latestAction) {
     return {
-      label: "No external bridge opened",
+      label: "No external draft opened",
       detail:
         "Google Calendar, Outlook, ICS, or email has not been opened from Acre yet.",
       tone: "neutral",
-      actionLabel: "No bridge logged",
-      loggedAtLabel: "No bridge logged",
+      actionLabel: "No draft opened",
+      loggedAtLabel: "No draft opened",
       hasBridgeActivity: false,
     };
   }
@@ -1905,8 +1905,8 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested);
   const bridgeSummary = input.bridgeStatus.hasBridgeActivity
-    ? `Bridge lane: ${input.bridgeStatus.actionLabel} opened ${input.bridgeStatus.loggedAtLabel}.`
-    : "No Google / Outlook / ICS / email bridge logged from Acre yet.";
+    ? `Draft opened: ${input.bridgeStatus.actionLabel} ${input.bridgeStatus.loggedAtLabel}.`
+    : "No Google / Outlook / ICS / email draft has been opened from Acre yet.";
   const nextTouchSummary = input.externalWorkflow.nextActionAt
     ? isExternalTouchDue
       ? `Touch due since ${input.externalWorkflow.nextActionAtLabel}.`
@@ -1953,7 +1953,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
               : "Reply due",
       tone: "danger",
       detail: [
-        `${input.externalWorkflow.label} is still the saved writeback state.`,
+        `${input.externalWorkflow.label} is still the saved update state.`,
         nextTouchSummary,
         bridgeSummary,
         noteSummary,
@@ -1961,7 +1961,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
         .filter(Boolean)
         .join(" "),
       nextStep:
-        "Reach back out now, then update the writeback to confirmed, reschedule requested, or a new touch scheduled checkpoint.",
+        "Reach back out now, then save the appointment as confirmed, reschedule requested, or touch scheduled.",
       requiresExternalResponse,
       isExternalTouchDue: true,
     };
@@ -1973,7 +1973,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
         label: "Reschedule requested",
         tone: "danger",
         detail: [
-          "The latest writeback says this appointment needs a time change.",
+          "The latest update says this appointment needs a time change.",
           nextTouchSummary,
           bridgeSummary,
           noteSummary,
@@ -1998,7 +1998,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "When the client or counterpart replies, write back whether the plan is confirmed, needs a reschedule, or should move to touch scheduled.",
+          "When the client or counterpart replies, save whether the plan is confirmed, needs a reschedule, or should move to touch scheduled.",
         requiresExternalResponse: true,
         isExternalTouchDue: false,
       };
@@ -2007,7 +2007,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
         label: "Reply due",
         tone: "warning",
         detail: [
-          "The current writeback says this appointment still needs an outbound reply.",
+          "The current update says this appointment still needs an outbound reply.",
           nextTouchSummary,
           bridgeSummary,
           noteSummary,
@@ -2039,28 +2039,28 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
     default:
       if (input.bridgeStatus.hasBridgeActivity) {
         return {
-          label: "Writeback pending",
+          label: "Update not saved",
           tone: "warning",
           detail: [
             bridgeSummary,
-          "Acre has a bridge action on file, but no confirmation or reschedule writeback has been saved yet.",
+            "Acre has a draft action on file, but no confirmation or reschedule update has been saved yet.",
           ]
             .filter(Boolean)
             .join(" "),
           nextStep:
-            "After you hear back, save whether the appointment is confirmation pending, confirmed, or being rescheduled.",
+            "After you hear back, save whether the appointment is waiting for confirmation, confirmed, or being rescheduled.",
           requiresExternalResponse: false,
           isExternalTouchDue: false,
         };
       }
 
       return {
-        label: "Ready for first bridge",
+        label: "Ready for first draft",
         tone: "neutral",
         detail:
-          "Acre has the appointment on the calendar, but there is no bridge activity or follow-up writeback saved yet.",
+          "Acre has the appointment on the calendar, but there is no draft activity or follow-up update saved yet.",
         nextStep:
-          "Open Google, Outlook, ICS, or email from this record when the meeting needs outside calendar or email coordination.",
+          "Open Google, Outlook, ICS, or email from this record when the meeting needs outside coordination.",
         requiresExternalResponse: false,
         isExternalTouchDue: false,
       };
@@ -2382,7 +2382,7 @@ function mapAppointmentRecord(
       latestCoordination?.label ?? "No coordination activity yet",
     latestCoordinationDetail: latestCoordination
       ? `${latestCoordination.actorLabel} · ${latestCoordination.createdAtLabel}`
-      : "Bridge opens and writeback saves will appear here once coordination begins.",
+      : "Draft opens and saved updates will appear here once coordination begins.",
     touchPresets,
     coordinationHistory,
     bridgeHistory,
@@ -3080,7 +3080,7 @@ export async function updateFrontOfficeAppointmentStatus(
 
   if (hasStatusUpdateInput && hasExternalUpdateInput) {
     throw new Error(
-      "Submit either an appointment status update or an external coordination writeback, not both.",
+      "Submit either an appointment status update or an external coordination update, not both.",
     );
   }
 
@@ -3566,12 +3566,12 @@ export async function getFrontOfficeAppointmentBridgeResult(
           })}`,
           ...(externalStatusLabel
             ? [`External coordination: ${externalStatusLabel}`]
-            : ["External coordination: No writeback saved yet"]),
+            : ["External coordination: No saved update yet"]),
           ...(externalWorkflow.nextActionAt
             ? [`Next external touch: ${externalWorkflow.nextActionAtLabel}`]
             : []),
           ...(externalWorkflow.note
-            ? [`Writeback note: ${externalWorkflow.note}`]
+            ? [`Update note: ${externalWorkflow.note}`]
             : []),
           ...(appointment.location?.trim()
             ? [`Location: ${appointment.location.trim()}`]

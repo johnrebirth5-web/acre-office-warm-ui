@@ -53,8 +53,7 @@ type AppointmentExternalLinkInput = {
   timeZone?: string | null;
 };
 
-const emailAddressPattern =
-  /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i;
+const emailAddressPattern = /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i;
 
 function normalizeBridgeText(value: string | null | undefined) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -119,7 +118,10 @@ function resolveAppointmentEndAt(startsAt: Date, endsAt?: Date | null) {
 }
 
 function formatCalendarTimestamp(value: Date) {
-  return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return value
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
 }
 
 function escapeIcsValue(value: string) {
@@ -169,8 +171,8 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
     "";
   const lines = [
     "Manual export from Acre Front Office.",
-    "Acre remains the source of truth for appointment status and writeback. No provider sync is implied by this draft.",
-    "Next step: save the follow-up writeback in Acre after you open this draft or export.",
+    "Acre remains the source of truth for appointment status and updates. No provider sync is implied by this draft.",
+    "Next step: save the follow-up update in Acre after you open this draft or export.",
     normalizeBridgeText(input.appointmentTypeLabel)
       ? `Appointment type: ${normalizeBridgeText(input.appointmentTypeLabel)}`
       : "",
@@ -307,7 +309,7 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
     isRescheduleRequest
       ? "If you need to move it, reply with a few times that work better and I will update the plan."
       : "If anything changes or you need to reschedule, reply here and I will adjust the plan.",
-    "After you send this brief, save the confirmation, reschedule, or follow-up writeback in Acre so the next touch stays visible.",
+    "After you send this brief, save the confirmation, reschedule, or follow-up update in Acre so the next touch stays visible.",
     "",
     "Best,",
     "Acre",
@@ -322,10 +324,7 @@ export function buildFrontOfficeAppointmentExternalTargets(
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
   const title = normalizeBridgeText(input.title) || "Appointment";
   const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
-  const location =
-    normalizeBridgeText(input.location) ||
-    meetingUrl ||
-    "";
+  const location = normalizeBridgeText(input.location) || meetingUrl || "";
   const details = buildCalendarDescription(input);
   const googleParams = new URLSearchParams({
     action: "TEMPLATE",
@@ -385,10 +384,7 @@ export function buildFrontOfficeAppointmentCalendarExport(
   const title = normalizeBridgeText(input.title) || "Appointment";
   const description = buildCalendarDescription(input);
   const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
-  const location =
-    normalizeBridgeText(input.location) ||
-    meetingUrl ||
-    "";
+  const location = normalizeBridgeText(input.location) || meetingUrl || "";
   const fileName = `${sanitizeFileStem(title)}-${input.startsAt.toISOString().slice(0, 10)}.ics`;
   const lines = [
     "BEGIN:VCALENDAR",

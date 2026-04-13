@@ -677,9 +677,9 @@ const frontOfficeActivityCleanupFilterLabels: Record<
 > = {
   all: "All personal cleanup",
   follow_up: "Follow-up due",
-  appointment_writeback: "Appointment writeback",
-  send_risk: "Send-trail risk",
-  stale_client: "Stale dossiers",
+  appointment_writeback: "Appointment updates",
+  send_risk: "Send risk",
+  stale_client: "Stale clients",
   duplicate_review: "Duplicate review",
 };
 
@@ -699,9 +699,9 @@ const frontOfficeActivityNoticeStreamFilterLabels: Record<
   FrontOfficeActivityNoticeStreamFilterKey,
   string
 > = {
-  all: "All notice lanes",
-  front_office: "FO actions",
-  back_office: "BO handoff",
+  all: "All notice categories",
+  front_office: "Front Office actions",
+  back_office: "Back Office handoff",
   shared_notice: "Shared office notices",
   reference: "Awareness only",
 };
@@ -1163,12 +1163,12 @@ function buildClientWorkspaceAnchor(input: {
       contextLabel: `${formatCountLabel(followPressureCount, "pressure")} on the active queue`,
       description:
         "Keep the due-today and overdue touches visible before anything else so the Clients page stays execution-first.",
-      primaryActionLabel: "Open follow-first lane",
+      primaryActionLabel: "Open follow-up view",
       primaryActionHref: buildClientWorkspaceHref(
         "follow_first",
         "client-execution-queue",
       ),
-      secondaryActionLabel: "Open cleanup lane",
+      secondaryActionLabel: "Open cleanup view",
       secondaryActionHref: buildClientWorkspaceHref(
         "anchor_now",
         "client-execution-queue",
@@ -1180,29 +1180,29 @@ function buildClientWorkspaceAnchor(input: {
       ),
       returnSectionDescription:
         "Re-enter the same execution queue section so the next-touch order stays visible after cleanup.",
-      returnLabel: "Return to follow-first lane",
+      returnLabel: "Return to follow-up view",
       returnHref: buildClientWorkspaceHref(
         "follow_first",
         "client-execution-queue",
       ),
       returnDescription:
-        "After you clear a record, come back through the same execution lane so the next touch stays visible and the queue does not drift into passive cleanup.",
+        "After you clear a record, come back through the same follow-up view so the next touch stays visible and the queue does not drift into passive cleanup.",
     };
   }
 
   if (anchorGapCount > 0) {
     return {
-      label: "Anchor now",
+      label: "Needs attention",
       tone: "warning" as FrontOfficeTone,
-      contextLabel: `${formatCountLabel(anchorGapCount, "dossier")} still need a visible first-touch anchor`,
+      contextLabel: `${formatCountLabel(anchorGapCount, "client")} still need a first touch or next-touch date`,
       description:
-        "This workspace should stay anchored to a visible first touch or dated next touch instead of drifting into a passive CRM list.",
-      primaryActionLabel: "Open cleanup lane",
+        "Keep each visible client tied to a clear first touch or dated next touch instead of letting the page drift into a passive CRM list.",
+      primaryActionLabel: "Open cleanup view",
       primaryActionHref: buildClientWorkspaceHref(
         "anchor_now",
         "client-execution-queue",
       ),
-      secondaryActionLabel: "Open duplicate lane",
+      secondaryActionLabel: "Open duplicate review",
       secondaryActionHref: buildClientWorkspaceHref(
         "duplicate_review",
         "duplicate-review",
@@ -1214,29 +1214,29 @@ function buildClientWorkspaceAnchor(input: {
       ),
       returnSectionDescription:
         "Re-enter the same cleanup section so the first-touch anchor stays visible alongside duplicate review.",
-      returnLabel: "Return to cleanup lane",
+      returnLabel: "Return to cleanup view",
       returnHref: buildClientWorkspaceHref(
         "anchor_now",
         "client-execution-queue",
       ),
       returnDescription:
-        "Re-enter cleanup lane when a dossier still needs a first touch or a dated next touch; this same workspace anchor stays ready for duplicate review and the next cleanup pass.",
+        "Re-enter cleanup view when a client still needs a first touch or a dated next touch; this same page stays ready for duplicate review and the next cleanup pass.",
     };
   }
 
   if (input.viewingLaneCount > 0) {
     return {
-      label: "Viewing lane",
+      label: "Appointments",
       tone: "accent" as FrontOfficeTone,
-      contextLabel: `${formatCountLabel(input.viewingLaneCount, "dossier")} are in the appointment lane`,
+      contextLabel: `${formatCountLabel(input.viewingLaneCount, "client")} are in appointment follow-up`,
       description:
-        "Keep the showing and follow-up route easy to reopen without losing the surrounding client queue.",
-      primaryActionLabel: "Open viewing lane",
+        "Keep showing and appointment follow-up easy to reopen without losing the surrounding client queue.",
+      primaryActionLabel: "Open appointments view",
       primaryActionHref: buildClientWorkspaceHref(
         "viewing_lane",
         "client-execution-queue",
       ),
-      secondaryActionLabel: "Open follow-first lane",
+      secondaryActionLabel: "Open follow-up view",
       secondaryActionHref: buildClientWorkspaceHref(
         "follow_first",
         "client-execution-queue",
@@ -1248,7 +1248,7 @@ function buildClientWorkspaceAnchor(input: {
       ),
       returnSectionDescription:
         "Re-enter the same viewing section so appointment follow-through stays visible from the same queue anchor.",
-      returnLabel: "Return to viewing lane",
+      returnLabel: "Return to appointments view",
       returnHref: buildClientWorkspaceHref(
         "viewing_lane",
         "client-execution-queue",
@@ -1260,35 +1260,35 @@ function buildClientWorkspaceAnchor(input: {
 
   if (input.boundaryReviewCount > 0) {
     return {
-      label: "Boundary review",
+      label: "Ready for Back Office",
       tone: "warning" as FrontOfficeTone,
-      contextLabel: `${formatCountLabel(input.boundaryReviewCount, "dossier")} are formal enough for FO → BO review`,
+      contextLabel: `${formatCountLabel(input.boundaryReviewCount, "client")} are ready for Back Office review`,
       description:
         "Negotiation, offer, application, and contract-era work should still be easy to reopen here, but the formal record belongs in Back Office.",
-      primaryActionLabel: "Open boundary lane",
+      primaryActionLabel: "Open Back Office review",
       primaryActionHref: buildClientWorkspaceHref(
         "boundary_review",
         "client-execution-queue",
       ),
-      secondaryActionLabel: "Open duplicate lane",
+      secondaryActionLabel: "Open duplicate review",
       secondaryActionHref: buildClientWorkspaceHref(
         "duplicate_review",
         "duplicate-review",
       ),
-      returnSectionLabel: "Boundary review section",
+      returnSectionLabel: "Back Office review section",
       returnSectionHref: buildClientWorkspaceHref(
         "boundary_review",
         "client-execution-queue",
       ),
       returnSectionDescription:
-        "Re-enter the same boundary review section so formal-stage dossiers stay easy to reopen without drifting into the wrong lane.",
-      returnLabel: "Return to boundary lane",
+        "Re-enter the same Back Office review section so formal-stage client records stay easy to reopen without drifting into the wrong view.",
+      returnLabel: "Return to Back Office review",
       returnHref: buildClientWorkspaceHref(
         "boundary_review",
         "client-execution-queue",
       ),
       returnDescription:
-        "Re-open this lane when negotiation, offer, or application work needs another FO -> BO boundary check, then step back to duplicate review or cleanup from the same anchor if the queue still needs attention.",
+        "Re-open this view when negotiation, offer, or application work needs another Front Office to Back Office check, then step back to duplicate review or cleanup from the same anchor if the queue still needs attention.",
     };
   }
 
@@ -1299,12 +1299,12 @@ function buildClientWorkspaceAnchor(input: {
       contextLabel: `${formatCountLabel(input.duplicatePairCount, "pair")} need merge review`,
       description:
         "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear. After each merge, come back through this same duplicate-review slice so the next pair and cleanup re-entry stay easy to reopen.",
-      primaryActionLabel: "Open duplicate lane",
+      primaryActionLabel: "Open duplicate review",
       primaryActionHref: buildClientWorkspaceHref(
         "duplicate_review",
         "duplicate-review",
       ),
-      secondaryActionLabel: "Open cleanup lane",
+      secondaryActionLabel: "Open cleanup view",
       secondaryActionHref: buildClientWorkspaceHref(
         "anchor_now",
         "client-execution-queue",
@@ -1322,7 +1322,7 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate-review",
       ),
       returnDescription:
-        "After a merge completes, reopen this duplicate-review slice to verify the surviving dossier, then step back into cleanup lane if another pair is still waiting.",
+        "After a merge completes, reopen this duplicate-review slice to verify the surviving client record, then step back into cleanup view if another pair is still waiting.",
     };
   }
 
@@ -1331,7 +1331,7 @@ function buildClientWorkspaceAnchor(input: {
     tone: "success" as FrontOfficeTone,
     contextLabel: "No active client pressure",
     description:
-      "The visible client queue is clear enough to reopen intake or widen the route focus from the same workspace.",
+      "The visible client queue is clear enough to reopen intake or widen the current view from the same page.",
     primaryActionLabel: "Open intake review",
     primaryActionHref: buildClientWorkspaceHref(
       "anchor_now",
@@ -1352,7 +1352,7 @@ function buildClientWorkspaceAnchor(input: {
     returnLabel: "Return to intake review",
     returnHref: buildClientWorkspaceHref("anchor_now", "clients-intake-launch"),
     returnDescription:
-      "When new work comes in, come back through intake review so the first touch stays explicit and the same workspace anchor can widen back into cleanup or duplicate review later.",
+      "When new work comes in, come back through intake review so the first touch stays explicit and the same page can widen back into cleanup or duplicate review later.",
   };
 }
 
@@ -1573,14 +1573,16 @@ function buildDuplicateCandidateDetailLabel(candidate: DuplicateCandidate) {
       ? `${candidate._count.frontOfficeSendRecords} tracked send(s)`
       : null,
     candidate._count.transactionContacts > 0
-      ? `${candidate._count.transactionContacts} BO link(s)`
+      ? `${candidate._count.transactionContacts} Back Office link(s)`
       : null,
     candidate.preferredAreas.length > 0
       ? `${candidate.preferredAreas.length} area tag(s)`
       : null,
   ].filter((label): label is string => Boolean(label));
 
-  return labels.join(" · ") || "Light dossier with no linked workflow yet";
+  return (
+    labels.join(" · ") || "Light client record with no linked workflow yet"
+  );
 }
 
 function buildDuplicateRecommendationLabel(
@@ -1608,7 +1610,7 @@ function buildDuplicateRecommendationLabel(
     buildDuplicateCandidateStrengthScore(recommended) >
     buildDuplicateCandidateStrengthScore(duplicate)
   ) {
-    return "Recommended keep: this dossier already carries richer contact context.";
+    return "Recommended keep: this client record already carries richer contact context.";
   }
 
   if (recommended.updatedAt.getTime() !== duplicate.updatedAt.getTime()) {
@@ -1632,7 +1634,7 @@ function buildDuplicateRecord(
     href: isViewerOwned
       ? `/agent/clients/${candidate.id}`
       : `/office/contacts/${candidate.id}`,
-    reviewLabel: isViewerOwned ? "Open FO dossier" : "Open office contact",
+    reviewLabel: isViewerOwned ? "Open client page" : "Open office contact",
     stage: candidate.stage,
     stageTone: mapClientStageTone(candidate.stage),
     sourceLabel: candidate.source?.trim() || "Source not captured",
@@ -1648,7 +1650,7 @@ function buildDuplicateRecord(
     })}`,
     ownerLabel: candidate.ownerLabel,
     scopeLabel: isViewerOwned
-      ? "In your FO queue"
+      ? "In your Front Office queue"
       : "Visible in office CRM scope",
   };
 }
@@ -2066,22 +2068,22 @@ function getFrontOfficeCleanupSectionLabel(input: {
   scopeKey: FrontOfficeActivityCleanupScopeKey;
 }) {
   if (input.kindKey === "appointment_writeback") {
-    return "Calendar writeback cleanup rail";
+    return "Calendar update section";
   }
 
   if (input.kindKey === "send_risk") {
-    return "Tracked send rescue rail";
+    return "Send follow-up section";
   }
 
   if (input.kindKey === "stale_client") {
-    return "Recovery rail";
+    return "Recovery section";
   }
 
   if (input.scopeKey === "follow_up_task") {
-    return "Follow-up rail";
+    return "Follow-up section";
   }
 
-  return "Next-touch rail";
+  return "Next-step section";
 }
 
 function getFrontOfficeNotificationSectionLabel(input: {
@@ -2091,23 +2093,23 @@ function getFrontOfficeNotificationSectionLabel(input: {
 }) {
   if (input.groupKey !== "general_notice") {
     return input.groupKey === "appointment_soon"
-      ? "Meeting countdown rail"
-      : "Calendar writeback rail";
+      ? "Meeting countdown section"
+      : "Calendar update section";
   }
 
   if (input.streamKey === "front_office") {
-    return "FO action rail";
+    return "Front Office action section";
   }
 
   if (input.streamKey === "back_office") {
-    return "BO handoff rail";
+    return "Back Office handoff section";
   }
 
   if (input.streamKey === "shared_notice") {
-    return "Shared office notice rail";
+    return "Shared office notice section";
   }
 
-  return "Awareness-only rail";
+  return "Awareness section";
 }
 
 function getFrontOfficeNotificationActionLabel(input: {
@@ -2122,18 +2124,18 @@ function getFrontOfficeNotificationActionLabel(input: {
 
   if (input.type === NotificationType.appointment_external_touch_due) {
     return input.groupKey === "confirmation_due"
-      ? "Open confirmation writeback"
+      ? "Open confirmation update"
       : input.groupKey === "reschedule_due"
-        ? "Open reschedule writeback"
-        : "Open calendar writeback";
+        ? "Open reschedule update"
+        : "Open calendar update";
   }
 
   if (input.streamKey === "front_office") {
-    return "Open FO action";
+    return "Open Front Office action";
   }
 
   if (input.streamKey === "back_office") {
-    return "Open BO handoff";
+    return "Open Back Office handoff";
   }
 
   if (input.streamKey === "shared_notice") {
@@ -2153,30 +2155,30 @@ function getFrontOfficeNotificationNextStepLabel(input: {
   streamKey: FrontOfficeActivityNotificationStreamKey;
 }) {
   if (input.type === NotificationType.appointment_due_soon) {
-    return "Open the calendar workbench and keep the meeting on track.";
+    return "Open the calendar page and keep the meeting on track.";
   }
 
   if (input.type === NotificationType.appointment_external_touch_due) {
     return input.groupKey === "confirmation_due"
-      ? "Open the calendar writeback lane and record the confirmation."
+      ? "Open the calendar update form and record the confirmation."
       : input.groupKey === "reschedule_due"
-        ? "Open the calendar writeback lane and capture the reschedule follow-up."
-        : "Open the calendar writeback lane and record the next external touch.";
+        ? "Open the calendar update form and capture the reschedule follow-up."
+        : "Open the calendar update form and record the next external touch.";
   }
 
   if (input.streamKey === "front_office") {
-    return "Open the FO action lane and decide the next agent-side follow-through.";
+    return "Open the Front Office action and decide the next follow-through.";
   }
 
   if (input.streamKey === "back_office") {
-    return "Open the BO handoff lane and keep the formal workflow moving.";
+    return "Open the Back Office handoff and keep the formal workflow moving.";
   }
 
   if (input.streamKey === "shared_notice") {
-    return "Open the shared notice lane and keep the office-visible context in view.";
+    return "Open the shared notice and keep the office-visible context in view.";
   }
 
-  return "Open the awareness lane and decide whether this needs action.";
+  return "Open the awareness item and decide whether this needs action.";
 }
 
 function getFrontOfficeNotificationStream(input: {
@@ -2297,7 +2299,7 @@ function getFrontOfficeNotificationScopeLabel(input: {
   if (input.groupKey !== "general_notice") {
     return {
       scopeKey: "calendar_writeback" as const,
-      scopeLabel: "Calendar writeback",
+      scopeLabel: "Calendar update",
     };
   }
 
@@ -2347,7 +2349,7 @@ function getFrontOfficeNotificationPressureState(input: {
       tone: input.notificationTone,
       whyNowLabel:
         input.notificationTone === "danger"
-          ? "The promised confirmation window already slipped, so this appointment now needs a writeback pass before the meeting can stay trustworthy."
+          ? "The promised confirmation window already slipped, so this appointment now needs an update pass before the meeting can stay trustworthy."
           : "The meeting is approaching without an explicit client confirmation in place.",
     };
   }
@@ -2366,7 +2368,7 @@ function getFrontOfficeNotificationPressureState(input: {
       whyNowLabel:
         input.notificationTone === "danger"
           ? "The client already asked to reschedule and the follow-up window has passed."
-          : "The client already asked to reschedule, so this writeback needs a fresh touch before the appointment drifts.",
+          : "The client already asked to reschedule, so this update needs a fresh touch before the appointment drifts.",
     };
   }
 
@@ -2496,11 +2498,11 @@ function getResourceTypeTone(type: ResourceType): FrontOfficeTone {
 function getResourceTypeDescription(type: ResourceType) {
   switch (type) {
     case ResourceType.playbook:
-      return "Step-by-step guidance for live calls, next-touch recovery, showings, and FO-to-BO handoff prep.";
+      return "Step-by-step guidance for live calls, next-touch recovery, showings, and Front Office to Back Office handoff prep.";
     case ResourceType.template:
       return "Copy-ready structure for intros, follow-up, appointment coordination, and shortlist sends.";
     case ResourceType.document:
-      return "Shared forms, reference sheets, and canonical docs that support the active FO execution pass.";
+      return "Shared forms, reference sheets, and canonical docs that support the active Front Office workflow.";
     case ResourceType.training_video:
       return "Short coaching clips for refreshers, onboarding, and fast workflow recovery between live tasks.";
     case ResourceType.vendor_card:
@@ -2549,13 +2551,13 @@ function getResourceTypeDetailLabel(type: ResourceType) {
     case ResourceType.playbook:
       return "Best opened when an agent needs the next call step, objection path, or handoff checklist right now.";
     case ResourceType.template:
-      return "Use this lane when the structure should already exist and the agent only needs to personalize the final send.";
+      return "Use this section when the structure should already exist and the agent only needs to personalize the final send.";
     case ResourceType.document:
       return "Keep the canonical form or reference close without turning this page into a second formal records system.";
     case ResourceType.training_video:
       return "Use for quick refreshers and coaching moments, not as a background automation or hidden progress layer.";
     case ResourceType.vendor_card:
-      return "Use this lane when the job needs a real outside partner, a quick action, and a clear next owner.";
+      return "Use this section when the job needs a real outside partner, a quick action, and a clear next owner.";
     default:
       return "Published Front Office material that can be opened directly from the live workflow.";
   }
@@ -2636,7 +2638,7 @@ function buildFrontOfficeResourcesExecutionPulse(input: {
           tone: "success" as const,
           contextLabel: `${formatCountLabel(input.quickContactVendorCount, "quick-contact vendor")} ready`,
           description:
-            "The vendor desk is already contact-ready, so outside support can be pulled into the same FO execution lane without a second lookup pass.",
+            "The vendor desk is already contact-ready, so outside support can be pulled into the same Front Office workflow without a second lookup pass.",
           readyNowCount: input.quickContactVendorCount,
           referenceOnlyCount,
         }
@@ -4654,7 +4656,7 @@ export async function getFrontOfficeActivitySnapshot(
       const scopeLabel =
         scopeKey === "meeting_countdown"
           ? "Meeting countdown"
-          : "Calendar writeback";
+          : "Calendar update";
       const pressureKey =
         kindLabel === "Reschedule requested"
           ? ("reschedule_requested" as const)
@@ -4729,7 +4731,7 @@ export async function getFrontOfficeActivitySnapshot(
         ],
         whyNowLabel:
           kindLabel === "Reschedule requested"
-            ? "The client already asked to reschedule, so the writeback commitment is louder than the appointment start."
+            ? "The client already asked to reschedule, so the saved update is louder than the appointment start."
             : kindLabel === "Confirmation due" ||
                 kindLabel === "Awaiting confirmation"
               ? "The appointment is approaching without an explicit client confirmation in place."
@@ -4757,14 +4759,14 @@ export async function getFrontOfficeActivitySnapshot(
           kindLabel === "Appointment soon"
             ? "Open calendar item"
             : appointment.client?.id
-              ? "Open appointment writeback rail"
-              : "Open calendar writeback",
+              ? "Open appointment updates"
+              : "Open calendar update",
         nextStepLabel:
           kindLabel === "Appointment soon"
-            ? "Open the calendar workbench and keep the meeting on track."
+            ? "Open the calendar page and keep the meeting on track."
             : appointment.client?.id
-              ? "Open the appointments rail with client context and record the next touch."
-              : "Open the calendar writeback and record the next touch.",
+              ? "Open the appointments section with client context and record the next touch."
+              : "Open the calendar update form and record the next touch.",
         _priority: priority,
         _sortAt:
           nextActionTime != null && nextActionTime < startsAtTime
@@ -4822,8 +4824,9 @@ export async function getFrontOfficeActivitySnapshot(
           task.client.id,
           frontOfficeClientSectionAnchors.appointmentsFollowUp,
         ),
-        actionLabel: "Open follow-up rail",
-        nextStepLabel: "Open the follow-up rail and resolve the overdue task.",
+        actionLabel: "Open follow-up section",
+        nextStepLabel:
+          "Open the follow-up section and resolve the overdue task.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: task.dueAt,
         _clientId: task.client.id,
@@ -4879,8 +4882,8 @@ export async function getFrontOfficeActivitySnapshot(
           client.id,
           frontOfficeClientSectionAnchors.appointmentsFollowUp,
         ),
-        actionLabel: "Open next-touch rail",
-        nextStepLabel: "Open the follow-up rail and choose the next touch.",
+        actionLabel: "Open next-touch section",
+        nextStepLabel: "Open the follow-up section and choose the next touch.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: nextTouchAt,
         _clientId: client.id,
@@ -4939,9 +4942,9 @@ export async function getFrontOfficeActivitySnapshot(
               record.client.id,
               frontOfficeClientSectionAnchors.listingOutput,
             ),
-            actionLabel: "Open listing output rail",
+            actionLabel: "Open listing follow-up",
             nextStepLabel:
-              "Open the listing output rail and decide whether to rescue the send.",
+              "Open the listing follow-up section and decide whether to rescue the send.",
             _priority: 4,
             _sortAt: record.sentAt,
             _clientId: record.client.id,
@@ -5004,9 +5007,9 @@ export async function getFrontOfficeActivitySnapshot(
             record.client.id,
             frontOfficeClientSectionAnchors.listingOutput,
           ),
-          actionLabel: "Open listing output rail",
+          actionLabel: "Open listing follow-up",
           nextStepLabel:
-            "Open the listing output rail and decide whether to rescue the send.",
+            "Open the listing follow-up section and decide whether to rescue the send.",
           _priority: 5,
           _sortAt: lastEngagementAt,
           _clientId: record.client.id,
@@ -5048,7 +5051,7 @@ export async function getFrontOfficeActivitySnapshot(
           ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
           : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
       ],
-      whyNowLabel: `No logged touch has landed on this dossier for ${formatElapsedDayLabel(
+      whyNowLabel: `No logged touch has landed on this client record for ${formatElapsedDayLabel(
         staleDays,
       )}.`,
       sortLabel: client.lastContactAt
@@ -5058,9 +5061,9 @@ export async function getFrontOfficeActivitySnapshot(
         client.id,
         frontOfficeClientSectionAnchors.nextStepRail,
       ),
-      actionLabel: "Open recovery rail",
+      actionLabel: "Open recovery section",
       nextStepLabel:
-        "Open the next-step rail and plan the next recovery touch.",
+        "Open the next-step section and plan the next recovery touch.",
       _priority: tone === "danger" ? 6 : 7,
       _sortAt: staleSince,
       _clientId: client.id,
@@ -5203,7 +5206,7 @@ export async function getFrontOfficeActivitySnapshot(
       countMode: "raw_pressure",
       tone: staleMetricCount > 0 ? "danger" : "neutral",
       helper:
-        "Active dossiers that have gone 15+ days without a logged contact touch.",
+        "Active client records that have gone 15+ days without a logged contact touch.",
     },
     {
       key: "duplicate_review",

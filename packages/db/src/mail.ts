@@ -489,12 +489,12 @@ function buildAppointmentInternalMailThreadContinuity(
   return {
     label: "Internal mail thread opened",
     detail:
-      "Acre created an internal mail thread for the appointment brief so the continuity stays inside the workspace.",
+      "Acre created an internal mail thread for the appointment brief so the continuity stays inside Acre.",
     nextStep:
       "Review the Acre thread, then return to the appointment record and save the next checkpoint.",
     sourceNote:
       "Internal mail continuity only; the outside email remains manual and no provider sync is implied.",
-    returnToLabel: "Return to writeback",
+    returnToLabel: "Return to update form",
     returnToDetail:
       "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
     returnToUrl,
@@ -505,7 +505,8 @@ export function buildAppointmentInternalMailThreadOpenedActivityPayload(
   input: AppointmentInternalMailThreadOpenedActivityInput,
 ): ActivityLogPayload {
   const contextHref = normalizeActionUrl(
-    input.contextHref ?? `/agent/calendar?appointmentId=${input.appointment.id}`,
+    input.contextHref ??
+      `/agent/calendar?appointmentId=${input.appointment.id}`,
   );
 
   return {
@@ -591,7 +592,7 @@ export function buildAppointmentInternalMailThreadResponse(input: {
     actionTargetLabel,
     actionTargetUrl,
     manualOnlyDetail:
-      "The Acre mail thread keeps the appointment email brief inside the workspace; the external send still stays manual and no provider sync is implied.",
+      "The Acre mail thread keeps the appointment email brief inside Acre; the external send still stays manual and no provider sync is implied.",
     continuity: buildAppointmentInternalMailThreadContinuity(actionTargetUrl),
   };
 }
@@ -606,8 +607,7 @@ export function mapAppointmentInternalMailThreadErrorStatus(
   ) {
     return {
       status: 409,
-      hint:
-        "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
+      hint: "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
     };
   }
 
@@ -617,8 +617,7 @@ export function mapAppointmentInternalMailThreadErrorStatus(
   ) {
     return {
       status: 403,
-      hint:
-        "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
+      hint: "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
     };
   }
 

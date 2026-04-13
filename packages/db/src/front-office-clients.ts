@@ -1081,7 +1081,7 @@ function buildLeaseReminderSnapshot(input: {
   }
 
   const timelineTitle = needsAttention
-    ? "Lease renewal follow-up is in the live execution lane"
+    ? "Lease renewal follow-up needs attention now"
     : "Lease timing is already on the calendar";
   const timelineDescription = leaseDates.leaseEndDate
     ? `Reminder ${formatDateLabel(
@@ -1586,7 +1586,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookItem(
           "confirm-decision-makers",
           "Lock the sign-off path",
-          "Ask who needs to review or sign, and when each decision-maker will be available so the BO handoff is not blocked by missing approvals.",
+          "Ask who needs to review or sign, and when each decision-maker will be available so the Back Office handoff is not blocked by missing approvals.",
         ),
       ],
       conversationPrompts: [
@@ -1602,7 +1602,7 @@ function buildFrontOfficePlaybook(input: {
         ),
         buildPlaybookItem(
           "bo-handoff-brief",
-          "BO handoff brief",
+          "Back Office handoff brief",
           "Summarize what the Back Office team needs to know on day one: timeline, terms, blockers, and any personality or communication preferences.",
         ),
       ],
@@ -1615,7 +1615,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookObjection(
           "nervous-about-paperwork",
           "The paperwork feels overwhelming.",
-          "Break the process into the next two concrete actions only, tell them which documents matter first, and explain that the BO file will keep the formal checklist organized once this handoff is opened.",
+          "Break the process into the next two concrete actions only, tell them which documents matter first, and explain that the Back Office file will keep the formal checklist organized once this handoff is opened.",
         ),
       ],
       messageTemplates: [
@@ -1714,7 +1714,7 @@ function buildFrontOfficePlaybook(input: {
     return {
       focusLabel: "Feedback capture",
       focusDescription:
-        "Memory is freshest right after the visit. Use this call to separate polite reactions from real intent and decide whether the next move is a second showing, shortlist, or BO-ready handoff.",
+        "Memory is freshest right after the visit. Use this call to separate polite reactions from real intent and decide whether the next move is a second showing, shortlist, or Back Office-ready handoff.",
       introScript: `Hi ${firstName}, thanks again for seeing the property. I want to grab your reaction while it is still fresh so I can either narrow the shortlist or move quickly on the next step.`,
       callChecklist: [
         buildPlaybookItem(
@@ -1747,7 +1747,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookItem(
           "timing-after-showing",
           "Lock the follow-up window",
-          "Agree on when they will decide between this listing and the backups so the dossier does not drift after the tour.",
+          "Agree on when they will decide between this listing and the backups so the client page does not drift after the tour.",
         ),
       ],
       objectionHandling: [
@@ -1823,7 +1823,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookObjection(
           "stop-for-now",
           "We are stopping for now.",
-          "Respect that clearly, then ask for the best future moment to check back so the dossier has a real nurture date instead of a vague open loop.",
+          "Respect that clearly, then ask for the best future moment to check back so the client record has a real nurture date instead of a vague open loop.",
         ),
         buildPlaybookObjection(
           "working-with-someone-else",
@@ -1858,7 +1858,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookItem(
           "confirm-milestone",
           "Name the immediate next milestone",
-          "Tell the client exactly what is happening next, whether that is paperwork, inspection, approval, deposit, or another BO milestone.",
+          "Tell the client exactly what is happening next, whether that is paperwork, inspection, approval, deposit, or another Back Office milestone.",
         ),
         buildPlaybookItem(
           "confirm-update-channel",
@@ -1875,7 +1875,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookItem(
           "what-happens-next",
           "Explain the process in plain English",
-          "Translate the formal BO step into a client-friendly explanation and confirm they understand what is expected from them.",
+          "Translate the formal Back Office step into a client-friendly explanation and confirm they understand what is expected from them.",
         ),
         buildPlaybookItem(
           "decision-timing",
@@ -1921,7 +1921,7 @@ function buildFrontOfficePlaybook(input: {
     return {
       focusLabel: "Unblock the file",
       focusDescription:
-        "Pending should still feel active. Use the call to name the blocker, the owner, and the next date instead of letting the dossier sit quietly.",
+        "Pending should still feel active. Use the call to name the blocker, the owner, and the next date instead of letting the client record sit quietly.",
       introScript: `Hi ${firstName}, this is ${agentLabel}. I wanted to check what is still blocking the next step so we can either move it now or set a clear date to revisit it.`,
       callChecklist: [
         buildPlaybookItem(
@@ -1932,7 +1932,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookItem(
           "assign-owner",
           "Assign the owner",
-          "Confirm who owns the next move: the client, a decision-maker, the agent, or the BO workflow.",
+          "Confirm who owns the next move: the client, a decision-maker, the agent, or the Back Office workflow.",
         ),
         buildPlaybookItem(
           "set-date",
@@ -1966,7 +1966,7 @@ function buildFrontOfficePlaybook(input: {
         buildPlaybookObjection(
           "not-urgent-right-now",
           "It is not urgent right now.",
-          "Acknowledge that, then ask what date would make it urgent again so the dossier gets a concrete next-touch instead of a vague pause.",
+          "Acknowledge that, then ask what date would make it urgent again so the client record gets a concrete next-touch instead of a vague pause.",
         ),
       ],
       messageTemplates: [
@@ -2301,9 +2301,9 @@ function buildFrontOfficeAiSuggestions(input: {
 
   let statusLabel = "Next touch ready";
   let statusTone: FrontOfficeClientDetailTone = "accent";
-  let statusTitle = "Best next touch from the live dossier";
+  let statusTitle = "Best next touch from the live client page";
   let summary =
-    "Acre can already ground the next touch in the live dossier instead of leaving the agent to guess the right opener.";
+    "Acre can already ground the next touch in the live client page instead of leaving the agent to guess the right opener.";
   let helperText =
     "These drafts are grounded in the appointment, send, follow-up, handoff, and transaction signals already on this record. Nothing auto-sends; edit before using. The shared rule layer adds review-first follow-up, lease, silent-period, and holiday signals before anything is turned into a task.";
   let suggestionKind: FrontOfficeAiFollowUpKind = "generic";
@@ -2394,7 +2394,7 @@ function buildFrontOfficeAiSuggestions(input: {
       tone: "accent",
       reasonLabel: "Built for recap, support, and referral timing",
       subjectLine: "Checking in after the close",
-      body: `Hi ${firstName},\n\nCongratulations again on the close. I wanted to check that everything feels settled and make sure there is nothing you need as move-in continues.\n\nIf it helps, I can also send a clean recap packet from our current dossier so you have the key details in one place. And once you are fully settled, I would love to help anyone you send my way.\n\nBest,\nAcre`,
+      body: `Hi ${firstName},\n\nCongratulations again on the close. I wanted to check that everything feels settled and make sure there is nothing you need as move-in continues.\n\nIf it helps, I can also send a clean recap packet from the current client page so you have the key details in one place. And once you are fully settled, I would love to help anyone you send my way.\n\nBest,\nAcre`,
     });
   } else if (selectedSuggestionKind === "closing") {
     suggestionKind = "closing";
@@ -2571,7 +2571,7 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTone = input.revisitCount > 0 ? "success" : "accent";
     statusTitle = "Follow the signal while the client is still engaged";
     summary =
-      "The send trail already shows engagement, so the next-touch should turn interest into a clearer shortlist, feedback, or booked step.";
+      "The send history already shows engagement, so the next touch should turn interest into a clearer shortlist, feedback, or booked step.";
     followUpSuggestion = buildFrontOfficeAiFollowUpAction({
       kind: "warm_engagement",
       now: input.now,
@@ -2611,9 +2611,10 @@ function buildFrontOfficeAiSuggestions(input: {
     suggestionKind = "handoff";
     statusLabel = "Formal handoff";
     statusTone = "warning";
-    statusTitle = "Use the touch to align the client before the BO handoff";
+    statusTitle =
+      "Use the touch to align the client before the Back Office handoff";
     summary =
-      "The dossier is BO-ready, but the formal file is not live yet, so the next-touch should confirm package, timing, and expectations before handoff.";
+      "The client page is Back Office-ready, but the formal file is not live yet, so the next touch should confirm package, timing, and expectations before handoff.";
     followUpSuggestion = buildFrontOfficeAiFollowUpAction({
       kind: "handoff",
       now: input.now,
@@ -3078,7 +3079,7 @@ function buildFollowUpCue(input: {
         : "Open the Back Office file now",
       description: hasCommittedRecord
         ? "Formal workflow is already live in Back Office. Keep Front Office follow-up supportive, not duplicative."
-        : "This dossier is far enough along that the formal offer or contract record should open in Back Office next.",
+        : "This client page is far enough along that the formal offer or contract record should open in Back Office next.",
       dueLabel: hasCommittedRecord
         ? "Formal workflow already linked"
         : defaultDueLabel,
@@ -3109,7 +3110,7 @@ function buildFollowUpCue(input: {
       tone: "danger",
       label: "Overdue follow-up",
       description:
-        "At least one follow-up task is already overdue. Close it or move the due date before the dossier stalls.",
+        "At least one follow-up task is already overdue. Close it or move the due date before the client record stalls.",
       dueLabel: defaultDueLabel,
       dueAtValue: defaultDueAtValue,
       ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
@@ -3205,7 +3206,7 @@ function buildFollowUpCue(input: {
       tone: "neutral",
       label: "Nurture reminder next",
       description:
-        "This opportunity is marked lost, but the dossier should still carry a respectful future touch.",
+        "This opportunity is marked lost, but the client record should still carry a respectful future touch.",
       dueLabel: defaultDueLabel,
       dueAtValue: defaultDueAtValue,
       ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
@@ -3273,7 +3274,7 @@ function buildFollowUpCue(input: {
       tone: "warning",
       label: "No next touch scheduled",
       description:
-        "This dossier is still active, but no call, text, or email is on the books yet.",
+        "This client page is still active, but no call, text, or email is on the books yet.",
       dueLabel: defaultDueLabel,
       dueAtValue: defaultDueAtValue,
       ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
@@ -3288,7 +3289,7 @@ function buildFollowUpCue(input: {
       tone: "success",
       label: "Next touch is scheduled",
       description:
-        "The dossier already has a future touch or task on the books, so the conversation still has a clear owner.",
+        "The client page already has a future touch or task on the books, so the conversation still has a clear owner.",
       dueLabel: defaultDueLabel,
       dueAtValue: defaultDueAtValue,
       ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
@@ -3302,7 +3303,7 @@ function buildFollowUpCue(input: {
     tone: "accent",
     label: "Set the next touch",
     description:
-      "Use Front Office to keep the next call, text, or showing visible before the dossier cools down.",
+      "Use Front Office to keep the next call, text, or showing visible before the client record cools down.",
     dueLabel: defaultDueLabel,
     dueAtValue: defaultDueAtValue,
     ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
@@ -3351,7 +3352,7 @@ function buildWorkflowSignal(input: {
   let pressureTone: FrontOfficeClientDetailTone = "success";
   let pressureDescription =
     input.nextTouchAt || input.openTaskCount
-      ? "This dossier already has an upcoming touch or task attached, so the workflow is still moving."
+      ? "This client page already has an upcoming touch or task attached, so the workflow is still moving."
       : "Recent activity is still fresh, but the next touch should be scheduled before the client goes quiet.";
 
   if (input.hasOverdueTask) {
@@ -3391,7 +3392,7 @@ function buildWorkflowSignal(input: {
     pressureLabel = "No next touch scheduled";
     pressureTone = "warning";
     pressureDescription =
-      "This client is active but no future follow-up is on the books yet. Add a reminder before the dossier goes stale.";
+      "This client is active but no future follow-up is on the books yet. Add a reminder before the client record goes stale.";
   }
 
   if (input.linkedTransactionStatus === TransactionStatus.closed) {
@@ -3544,7 +3545,7 @@ function buildWorkflowSignal(input: {
       nextStepTitle: "Place a nurture reminder",
       nextStepTone: "neutral",
       nextStepDescription:
-        "This opportunity is marked lost, but the dossier should still carry a future check-in instead of disappearing.",
+        "This opportunity is marked lost, but the client record should still carry a future check-in instead of disappearing.",
       action,
       actionLabel: action.label,
       actionHref: action.href,
@@ -3652,7 +3653,7 @@ function buildWorkflowSignal(input: {
     nextStepTitle: "Set the next call, text, or showing",
     nextStepTone: "accent",
     nextStepDescription:
-      "Front Office should keep the next touch visible by default. Create a follow-up or book the next appointment before leaving this dossier.",
+      "Front Office should keep the next touch visible by default. Create a follow-up or book the next appointment before leaving this client page.",
     action,
     actionLabel: action.label,
     actionHref: action.href,
@@ -3675,7 +3676,7 @@ function getFrontOfficeClientDetailWorkbenchLabel(
     case frontOfficeClientDetailNextStepIds.closingSuggestion:
       return "Closing & win suggestions";
     default:
-      return "Next-step rail";
+      return "Next-step section";
   }
 }
 
@@ -3685,17 +3686,17 @@ function getFrontOfficeClientDetailWorkbenchDescription(
   switch (stepId) {
     case frontOfficeClientDetailNextStepIds.followUp:
     case frontOfficeClientDetailNextStepIds.appointment:
-      return "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination and you want to re-enter from calendar writeback.";
+      return "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination and you want to re-enter from the calendar update form.";
     case frontOfficeClientDetailNextStepIds.listingOutput:
-      return "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.";
+      return "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from listing follow-up.";
     case frontOfficeClientDetailNextStepIds.offerPrep:
-      return "Use this section when negotiation is active, Front Office still owns the client-facing prep, and the same workbench needs to return to Back Office for the formal offer file.";
+      return "Use this section when negotiation is active, Front Office still owns the client-facing prep, and the same page needs to return to Back Office for the formal offer file.";
     case frontOfficeClientDetailNextStepIds.inspectionSupport:
-      return "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker.";
+      return "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same page should reopen the Back Office checklist instead of creating a second tracker.";
     case frontOfficeClientDetailNextStepIds.closingSuggestion:
-      return "Use this section when the deal is closing, closed, or paused, and the same workbench should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.";
+      return "Use this section when the deal is closing, closed, or paused, and the same page should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.";
     default:
-      return "Use this section when you want the dossier to explain the active workbench lane, the current return point, and the next best move.";
+      return "Use this section when you want the client page to explain the active view, the current return point, and the next best move.";
   }
 }
 
@@ -3833,7 +3834,7 @@ function buildNextStepRail(input: {
     decisionTitle =
       "The formal deal is closed, so the next daily work moves back to Front Office";
     decisionDescription =
-      "Back Office remains the system of record for the finished transaction. Use this dossier for recap, referral, testimonial, and post-close care instead of creating a second closing tracker.";
+      "Back Office remains the system of record for the finished transaction. Use this client page for recap, referral, testimonial, and post-close care instead of creating a second closing tracker.";
     decisionMetaLabel = input.closing.boundaryMetaLabel;
     primaryAction = input.closing.primaryAction;
   } else if (input.hasLinkedTransaction) {
@@ -3844,7 +3845,7 @@ function buildNextStepRail(input: {
     decisionTitle =
       "Keep the formal record in Back Office and use Front Office for client-facing support";
     decisionDescription =
-      "Offers, inspection work, signatures, and closing milestones now belong to the shared Back Office record. Keep this dossier focused on the next client touch, recap, and coordination around that formal file.";
+      "Offers, inspection work, signatures, and closing milestones now belong to the shared Back Office record. Keep this client page focused on the next client touch, recap, and coordination around that formal file.";
     decisionMetaLabel = input.inspection.boundaryMetaLabel;
     primaryAction = input.workflow.action;
   } else if (input.isReadyForBackOffice) {
@@ -3852,7 +3853,7 @@ function buildNextStepRail(input: {
     decisionLabel = "Move into Back Office now";
     decisionTone = "warning";
     decisionTitle =
-      "This dossier has crossed the FO / BO boundary and needs a formal file";
+      "This client page has crossed into Back Office-ready work and needs a formal file";
     decisionDescription =
       "Negotiation, application, or offer prep is now formal enough that the next record belongs in Back Office. Keep client-facing context here, but do not create a duplicate offer or inspection tracker inside Front Office.";
     decisionMetaLabel = input.negotiation.boundaryMetaLabel;
@@ -3915,12 +3916,12 @@ function buildNextStepRail(input: {
         ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
         : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const followUpOwnershipLabel = input.hasClosedTransaction
-    ? "FO owns the relationship"
+    ? "Front Office owns the relationship"
     : input.hasLinkedTransaction
-      ? "FO supports BO"
+      ? "Front Office supports Back Office"
       : input.isReadyForBackOffice
-        ? "FO until BO opens"
-        : "Stay in FO";
+        ? "Front Office until Back Office opens"
+        : "Stay in Front Office";
   const followUpOwnershipTone: FrontOfficeClientDetailTone =
     input.hasClosedTransaction
       ? "success"
@@ -3930,16 +3931,16 @@ function buildNextStepRail(input: {
           ? "warning"
           : "accent";
   const followUpDescription = input.hasOverdueTask
-    ? "At least one follow-up task is already overdue. Close the loop or move the due date before the dossier stalls."
+    ? "At least one follow-up task is already overdue. Close the loop or move the due date before the client record stalls."
     : hasOverdueNextTouch
       ? `${nextTouchDetail} Move it forward or confirm that a different next touch now owns the client conversation.`
       : input.nextTouchAt || input.openTaskCount > 0
-        ? `${nextTouchDetail} Keep the next touch explicit so the dossier stays live from one action to the next.`
+        ? `${nextTouchDetail} Keep the next touch explicit so the client record stays live from one action to the next.`
         : input.hasClosedTransaction
           ? "The formal file is already closed, but the relationship still needs a post-close touch, support check-in, or referral ask."
           : input.isReadyForBackOffice
             ? "Client-facing follow-up still belongs here, but the formal offer / contract record should open in Back Office next."
-            : "No next touch is scheduled yet. Put the next call, text, or email on the books before leaving this dossier.";
+            : "No next touch is scheduled yet. Put the next call, text, or email on the books before leaving this client page.";
   const followUpMetaLabel = input.openTaskCount
     ? `${input.openTaskCount} open follow-up task(s)`
     : nextTouchDetail;
@@ -3969,10 +3970,10 @@ function buildNextStepRail(input: {
         : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const appointmentOwnershipLabel =
     input.hasLinkedTransaction && !input.hasClosedTransaction
-      ? "FO support"
+      ? "Front Office support"
       : input.hasClosedTransaction
         ? "Optional support"
-        : "Stay in FO";
+        : "Stay in Front Office";
   const appointmentOwnershipTone: FrontOfficeClientDetailTone =
     input.hasLinkedTransaction && !input.hasClosedTransaction
       ? "accent"
@@ -3989,7 +3990,7 @@ function buildNextStepRail(input: {
         timeZone: input.timeZone ?? null,
       })} · ${input.latestUpcomingAppointment.externalStatusDetail}`
     : isViewingCompleted
-      ? "The tour already happened. Capture feedback, confirm the shortlist, and decide whether the next move is another showing, a send, or BO handoff."
+      ? "The tour already happened. Capture feedback, confirm the shortlist, and decide whether the next move is another showing, a send, or a Back Office handoff."
       : isViewingScheduled
         ? "Use the calendar to confirm the time, address, access, and follow-up timing before the showing starts."
         : input.hasLinkedTransaction
@@ -3997,7 +3998,7 @@ function buildNextStepRail(input: {
           : "Use appointments for showings, consultations, and decision calls once the next touch is clear.";
   const appointmentMetaLabel = input.latestUpcomingAppointment
     ? `External state · ${input.latestUpcomingAppointment.externalStatusLabel}`
-    : "Open the shared Front Office calendar from this dossier";
+    : "Open the shared Front Office calendar from this client page";
 
   const listingStatusLabel = input.latestSendRecord
     ? input.latestSendRecord.openCount > 1
@@ -4025,10 +4026,10 @@ function buildNextStepRail(input: {
   const listingOwnershipLabel = input.hasClosedTransaction
     ? "Optional support"
     : input.hasLinkedTransaction
-      ? "FO support"
+      ? "Front Office support"
       : input.isReadyForBackOffice
         ? "Support, not source of truth"
-        : "Stay in FO";
+        : "Stay in Front Office";
   const listingOwnershipTone: FrontOfficeClientDetailTone =
     input.hasLinkedTransaction
       ? "accent"
@@ -4063,7 +4064,7 @@ function buildNextStepRail(input: {
         : "Tracked listing output keeps client interest measurable before you escalate into formal offer work.";
   const listingMetaLabel = input.sendCount
     ? `${input.sendCount} tracked send(s) · ${input.openedSendCount} opened · ${input.revisitCount} revisit(s)`
-    : "Open listing output from this dossier";
+    : "Open listing follow-up from this client page";
 
   const offerOwnershipKey = input.hasLinkedTransaction
     ? frontOfficeClientDetailOwnershipKeys.backOffice
@@ -4071,10 +4072,10 @@ function buildNextStepRail(input: {
       ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
       : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const offerOwnershipLabel = input.hasLinkedTransaction
-    ? "BO source of truth"
+    ? "Back Office source of truth"
     : input.isReadyForBackOffice
-      ? "Move to BO now"
-      : "Stay in FO";
+      ? "Move to Back Office now"
+      : "Stay in Front Office";
   const offerOwnershipTone: FrontOfficeClientDetailTone =
     input.hasLinkedTransaction
       ? "success"
@@ -4088,9 +4089,9 @@ function buildNextStepRail(input: {
       ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
       : frontOfficeClientDetailOwnershipKeys.inactive;
   const inspectionOwnershipLabel = input.hasLinkedTransaction
-    ? "BO source of truth"
+    ? "Back Office source of truth"
     : input.isReadyForBackOffice
-      ? "Needs BO first"
+      ? "Needs Back Office first"
       : "Not active yet";
   const inspectionOwnershipTone: FrontOfficeClientDetailTone =
     input.hasLinkedTransaction
@@ -4107,11 +4108,11 @@ function buildNextStepRail(input: {
         ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
         : frontOfficeClientDetailOwnershipKeys.inactive;
   const closingOwnershipLabel = input.hasClosedTransaction
-    ? "Return to FO"
+    ? "Return to Front Office"
     : input.hasLinkedTransaction
-      ? "BO milestone"
+      ? "Back Office milestone"
       : input.isReadyForBackOffice
-        ? "Needs BO first"
+        ? "Needs Back Office first"
         : "Not active yet";
   const closingOwnershipTone: FrontOfficeClientDetailTone =
     input.hasClosedTransaction
@@ -4174,40 +4175,40 @@ function buildNextStepRail(input: {
   );
 
   const followUpReturnDescription = input.hasClosedTransaction
-    ? "Use this rail when post-close support, recap, or referral follow-up should reopen from the same client record instead of a finished formal file."
+    ? "Use this section when post-close support, recap, or referral follow-up should reopen from the same client record instead of a finished formal file."
     : input.hasLinkedTransaction
-      ? "Use this rail when calls, reminders, and client-facing follow-up still need to stay on the dossier while Back Office owns the formal file."
+      ? "Use this section when calls, reminders, and client-facing follow-up still need to stay on the client page while Back Office owns the formal file."
       : input.isReadyForBackOffice
-        ? "Use this rail when the next touch is still client-facing, but the dossier also needs to prepare for a formal Back Office handoff."
-        : "Use this rail when calls, reminders, confirmations, or next-touch tasks need to reopen from the same client workbench.";
+        ? "Use this section when the next touch is still client-facing, but the client page also needs to prepare for a formal Back Office handoff."
+        : "Use this section when calls, reminders, confirmations, or next-touch tasks need to reopen from the same client page.";
   const appointmentReturnDescription = input.latestUpcomingAppointment
-    ? "Use this rail when calendar writeback needs to keep the same appointment focus and the dossier should reopen the exact next touch."
+    ? "Use this section when the calendar update form needs to keep the same appointment focus and the client page should reopen the exact next touch."
     : isViewingCompleted
-      ? "Use this rail when the showing already happened and the dossier should reopen feedback capture before the client goes cold."
+      ? "Use this section when the showing already happened and the client page should reopen feedback capture before the client goes cold."
       : isViewingScheduled
-        ? "Use this rail when showing logistics, confirmations, or reschedules need to come back into the same calendar workbench."
+        ? "Use this section when showing logistics, confirmations, or reschedules need to come back into the same calendar page."
         : input.hasLinkedTransaction
-          ? "Use this rail when client coordination around a live deal still needs to reopen from the same calendar workbench, not a second Back Office milestone tracker."
-          : "Use this rail when live client coordination should return from calendar writeback into the same appointment lane.";
+          ? "Use this section when client coordination around a live deal still needs to reopen from the same calendar page, not a second Back Office milestone tracker."
+          : "Use this section when live client coordination should return from the calendar update form into the same appointment section.";
   const listingReturnDescription = input.latestSendRecord
     ? input.latestSendRecord.openCount > 0
-      ? "Use this rail when tracked engagement or revisit signals need to bring the dossier back into the listing workbench before another send goes out."
-      : "Use this rail when the last send still needs follow-through and the dossier should return to the listing workbench instead of generating a fresh shortlist blindly."
+      ? "Use this section when tracked engagement or revisit signals need to bring the client page back into listing follow-up before another send goes out."
+      : "Use this section when the last send still needs follow-through and the client page should return to listing follow-up instead of generating a fresh shortlist blindly."
     : input.hasClosedTransaction
-      ? "Use this rail when recap or future re-entry needs the prior send history without reopening formal deal work."
+      ? "Use this section when recap or future re-entry needs the prior send history without reopening formal deal work."
       : input.isReadyForBackOffice
-        ? "Use this rail when a tracked send helps the conversation or handoff, but the formal record still needs to open in Back Office next."
-        : "Use this rail when a tracked send, resend, or follow-through action needs to come back into the listing workbench.";
+        ? "Use this section when a tracked send helps the conversation or handoff, but the formal record still needs to open in Back Office next."
+        : "Use this section when a tracked send, resend, or follow-through action needs to come back into listing follow-up.";
   const offerReturnDescription = input.hasLinkedTransaction
-    ? "Use this rail when offer intent is active, but the formal steps belong in the Back Office record and Front Office needs to keep the client-ready recap and return point aligned with that file."
+    ? "Use this section when offer intent is active, but the formal steps belong in the Back Office record and Front Office needs to keep the client-ready recap and return point aligned with that file."
     : input.isReadyForBackOffice
-      ? "Use this rail when the dossier has crossed into formal offer prep and the next move is to open the Back Office file without losing client context or the same return point."
+      ? "Use this section when the client page has crossed into formal offer prep and the next move is to open the Back Office file without losing client context or the same return point."
       : offerReturnPoint.description;
   const inspectionReturnDescription = input.hasLinkedTransaction
-    ? "Use this rail when the formal transaction is live and the same client record needs client-facing support without duplicating the Back Office tracker or the client-ready summary."
+    ? "Use this section when the formal transaction is live and the same client record needs client-facing support without duplicating the Back Office tracker or the client-ready summary."
     : inspectionReturnPoint.description;
   const closingReturnDescription = input.hasClosedTransaction
-    ? "Use this rail when a closed deal needs post-close re-entry, recap, or relationship follow-through from the same Front Office workbench and the same client-ready story."
+    ? "Use this section when a closed deal needs post-close re-entry, recap, or relationship follow-through from the same Front Office page and the same client-ready story."
     : closingReturnPoint.description;
 
   const items: FrontOfficeClientDetailNextStepRailItem[] = [
@@ -5149,9 +5150,9 @@ export async function getFrontOfficeClientDetail(
   });
   const negotiationOfferCount = negotiationOffersSnapshot?.offers.length ?? 0;
   const negotiationBoundaryLabel = negotiationTransactionId
-    ? "BO workspace live"
+    ? "Back Office live"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Ready for BO handoff"
+      ? "Ready for Back Office"
       : "Front Office prep";
   const negotiationBoundaryTone: FrontOfficeClientDetailTone =
     negotiationTransactionId
@@ -5161,8 +5162,8 @@ export async function getFrontOfficeClientDetail(
         : "accent";
   const negotiationPrimaryActionLabel = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? "Open BO offers"
-      : "Start BO offer tracking"
+      ? "Open Back Office offers"
+      : "Start Back Office offer tracking"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "Open Back Office create flow"
       : workflow.actionLabel;
@@ -5193,11 +5194,11 @@ export async function getFrontOfficeClientDetail(
       : "Keep offer prep in Front Office until the file is ready";
   const negotiationBoundaryDescription = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there. Front Office should stay client-facing, keep the recap aligned, and point back to that file.`
-      : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers workspace instead of creating a second Front Office record, and use this dossier as the return point."
+      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office record, so comparison, documents, and signatures stay anchored there. Front Office should stay client-facing, keep the recap aligned, and point back to that file.`
+      : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers record instead of creating a second Front Office record, and use this client page as the return point."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should open in Back Office, while Front Office keeps the coaching, client-ready explanation, and return point together."
-      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before the formal Back Office offer workflow opens and the dossier becomes the recap anchor.";
+      ? "Stage, appointments, send history, and handoff context are already lined up. The next formal offer record should open in Back Office, while Front Office keeps the coaching, client-ready explanation, and return point together."
+      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before the formal Back Office offer workflow opens and the client page becomes the recap anchor.";
   const negotiationBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5220,38 +5221,38 @@ export async function getFrontOfficeClientDetail(
       : `Current stage · ${client.stage}`;
   const negotiationNextMoveLabel = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? "Open the linked BO offer file"
-      : "Start the formal BO offer file"
+      ? "Open the linked Back Office offer file"
+      : "Start the formal Back Office offer file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "Move the offer into Back Office now"
       : "Keep shaping the offer in Front Office";
   const negotiationNextMoveDescription = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? "Price, contingencies, signatures, and expiration control belong in the shared Back Office workspace now. Front Office should stay client-facing, keep the return point visible, and point back to that file."
-      : "The file is already BO-ready, so the first formal step should be a Back Office offer record instead of a duplicate note, with this dossier remaining the client-facing return."
+      ? "Price, contingencies, signatures, and expiration control belong in the shared Back Office record now. Front Office should stay client-facing, keep the return point visible, and point back to that file."
+      : "The file is already Back Office-ready, so the first formal step should be a Back Office offer record instead of a duplicate note, with this client page remaining the client-facing return."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "The client is ready for formal tracking, so open the shared offer workspace before the terms drift or get duplicated, and keep the client-ready summary consistent."
-      : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking and the dossier can hand off cleanly.";
+      ? "The client is ready for formal tracking, so open the shared offer record before the terms drift or get duplicated, and keep the client-ready summary consistent."
+      : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking and the client page can hand off cleanly.";
   const negotiationOperatorLabel = negotiationTransactionId
-    ? "FO coaches; BO owns the formal offer file"
+    ? "Front Office coaches; Back Office owns the formal offer file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "FO prepares the handoff; BO should open the file"
+      ? "Front Office prepares the handoff; Back Office should open the file"
       : "Front Office owns prep and decision support";
   const negotiationOperatorDescription = negotiationTransactionId
-    ? "Keep client conversation, explanation, and comparison work here, but treat the offer itself as a Back Office record and the dossier as the client-facing companion."
+    ? "Keep client conversation, explanation, and comparison work here, but treat the offer itself as a Back Office record and the client page as the client-facing companion."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This dossier should hand the actual offer terms to Back Office instead of creating a second track, while still preserving the client-ready story."
-      : "Use this lane for response shaping, objections, and readiness checks while the deal is still being clarified and the return point stays in Front Office.";
+      ? "This client page should hand the actual offer terms to Back Office instead of creating a second track, while still preserving the client-ready story."
+      : "Use this section for response shaping, objections, and readiness checks while the deal is still being clarified and the return point stays in Front Office.";
   const negotiationEmptyStateTitle = negotiationTransactionId
     ? "No formal offers yet"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "No BO offer workspace started yet"
+      ? "No Back Office offer record started yet"
       : "Still in Front Office prep";
   const negotiationEmptyStateDescription = negotiationTransactionId
-    ? "Once the first Back Office offer is created, it will appear here with status, price, expiration, and direct links into the shared offer workspace while the dossier remains the client-ready summary."
+    ? "Once the first Back Office offer is created, it will appear here with status, price, expiration, and direct links into the shared offer record while the client page remains the client-ready summary."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This client is at a BO-ready stage, but the formal transaction and offer workspace have not been opened yet, so the dossier is still the place to keep the recap coherent."
-      : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep with the same dossier as the return point.";
+      ? "This client is at a Back Office-ready stage, but the formal transaction and offer record have not been opened yet, so the client page is still the place to keep the recap coherent."
+      : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep with the same client page as the return point.";
   const inspectionBoundaryLabel = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
       ? "Inspection-era live"
@@ -5277,9 +5278,9 @@ export async function getFrontOfficeClientDetail(
   const inspectionBoundaryDescription = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
       ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window. Front Office stays the explanation layer and the same recap surface, not a duplicate checklist."
-      : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file or a separate FO tracker."
+      : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file or a separate Front Office tracker."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist, and the dossier should stay the client-facing reference."
+      ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist, and the client page should stay the client-facing reference."
       : "Keep the client in Front Office follow-up, showing, and negotiation prep until the formal contract file is opened and the next return point becomes the shared record.";
   const inspectionBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
@@ -5303,39 +5304,39 @@ export async function getFrontOfficeClientDetail(
       : `Current stage · ${client.stage}`;
   const inspectionNextMoveLabel = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0
-      ? "Clear BO tasks first"
+      ? "Clear Back Office tasks first"
       : inspectionPendingSignatureCount > 0
         ? "Open signatures in Back Office"
         : inspectionPendingIncomingUpdateCount > 0
-          ? "Review the incoming BO updates"
+          ? "Review the incoming Back Office updates"
           : "Open the formal contract file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "Open the formal contract file"
       : "Keep inspection support in Front Office only";
   const inspectionNextMoveDescription = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0
-      ? "The shared transaction record already has checklist pressure, so clear the live BO tasks before anything else and leave the dossier as the explanation layer."
+      ? "The shared transaction record already has checklist pressure, so clear the live Back Office tasks before anything else and leave the client page as the explanation layer."
       : inspectionPendingSignatureCount > 0
         ? "Signature work now lives in the shared transaction, so the next move is to handle the formal paperwork there and keep the client-ready view in sync."
         : inspectionPendingIncomingUpdateCount > 0
-          ? "The contract file is live, and the next actionable signal is the incoming-update queue inside Back Office while the dossier keeps the summary visible."
+          ? "The contract file is live, and the next actionable signal is the incoming-update queue inside Back Office while the client page keeps the summary visible."
           : "The inspection-era file is live, but there is no immediate pressure, so keep the formal record ready and the client-facing summary visible on the same return point."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "The client is BO-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker or a second recap surface."
-      : "Use this lane only for recap and coordination until a formal contract file exists and the return point can stay consistent.";
+      ? "The client is Back Office-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker or a second recap surface."
+      : "Use this section only for recap and coordination until a formal contract file exists and the return point can stay consistent.";
   const inspectionOperatorLabel = negotiationTransactionId
-    ? "FO explains; BO owns tasks, signatures, and updates"
+    ? "Front Office explains; Back Office owns tasks, signatures, and updates"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "FO prepares the handoff; BO should own the file"
+      ? "Front Office prepares the handoff; Back Office should own the file"
       : "Front Office keeps the client visible";
   const inspectionOperatorDescription = negotiationTransactionId
-    ? "Keep the client-facing explanation in this dossier, but let the checklist, signature queue, and incoming review live in Back Office while this page stays the reference view."
+    ? "Keep the client-facing explanation on this client page, but let the checklist, signature queue, and incoming review live in Back Office while this page stays the reference view."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Use this lane to prepare the handoff, but do not duplicate the contract workflow in Front Office or break the client-ready recap."
-      : "Inspection support stays in Front Office until the formal file opens and the same dossier can point back to it.";
+      ? "Use this section to prepare the handoff, but do not duplicate the contract workflow in Front Office or break the client-ready recap."
+      : "Inspection support stays in Front Office until the formal file opens and the same client page can point back to it.";
   const inspectionPrimaryActionLabel = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
-      ? "Open BO tasks"
+      ? "Open Back Office tasks"
       : inspectionPendingSignatureCount > 0
         ? "Open signatures"
         : inspectionPendingIncomingUpdateCount > 0
@@ -5411,10 +5412,10 @@ export async function getFrontOfficeClientDetail(
       : "Still in Front Office prep";
   const inspectionEmptyStateDescription = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
-      ? "Open tasks, pending signatures, and incoming review items will show up here when the shared transaction workspace needs action, while the dossier keeps the client-facing recap aligned."
-      : "Open the formal transaction record to finish acceptance / contract setup. Inspection-era checklist support will become meaningful once the BO file is carrying the live milestones and this dossier can mirror them."
+      ? "Open tasks, pending signatures, and incoming review items will show up here when the shared transaction record needs action, while the client page keeps the client-facing recap aligned."
+      : "Open the formal transaction record to finish acceptance / contract setup. Inspection-era checklist support will become meaningful once the Back Office file is carrying the live milestones and this client page can mirror them."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This client is BO-ready, but the formal contract workspace has not been opened yet, so the client-ready view still belongs in Front Office."
+      ? "This client is Back Office-ready, but the formal contract record has not been opened yet, so the client-ready view still belongs in Front Office."
       : "Inspection support is intentionally deferred until the client reaches formal contract work and the same return point can stay in sync.";
   const inspectionItems = negotiationTransactionId
     ? [
@@ -5423,7 +5424,7 @@ export async function getFrontOfficeClientDetail(
           title: task.title,
           statusLabel: formatTransactionTaskStatusLabel(task.status),
           statusTone: mapTransactionTaskTone(task.status, task.dueAt, now),
-          contextLabel: task.checklistGroup?.trim() || "BO checklist",
+          contextLabel: task.checklistGroup?.trim() || "Back Office checklist",
           description: [
             formatTaskDueLabel(task.dueAt, now, input.timeZone),
             task.assigneeMembership
@@ -5440,7 +5441,7 @@ export async function getFrontOfficeClientDetail(
             task.dueAt && task.dueAt.getTime() < now.getTime()
               ? "Needs attention now"
               : "Open Back Office checklist item",
-          actionLabel: "Open BO tasks",
+          actionLabel: "Open Back Office tasks",
           href: buildTransactionWorkspaceHref(
             negotiationTransactionId,
             "transaction-tasks",
@@ -5468,7 +5469,8 @@ export async function getFrontOfficeClientDetail(
           ]
             .filter(Boolean)
             .join(" · "),
-          metaLabel: request.form?.name?.trim() || "Shared BO signature flow",
+          metaLabel:
+            request.form?.name?.trim() || "Shared Back Office signature flow",
           actionLabel: "Open signatures",
           href: buildTransactionWorkspaceHref(
             negotiationTransactionId,
@@ -5566,8 +5568,8 @@ export async function getFrontOfficeClientDetail(
           : negotiationTransactionId
             ? "The formal file is active, and Front Office should reference that shared Back Office record for the next move instead of creating a second close-out surface or a second recap."
             : isFrontOfficeStageReadyForBackOffice(client.stage)
-              ? "The client is BO-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance and keep the dossier as the client-facing version."
-              : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue from the same dossier.";
+              ? "The client is Back Office-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance and keep the client page as the client-facing version."
+              : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue from the same client page.";
   const closingBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5617,21 +5619,21 @@ export async function getFrontOfficeClientDetail(
   const closingOperatorLabel = hasCancelledTransaction
     ? "Front Office resets the conversation"
     : hasClosedTransaction
-      ? "FO owns the relationship; BO owns the finished record"
+      ? "Front Office owns the relationship; Back Office owns the finished record"
       : negotiationTransactionId
-        ? "FO supports the wrap-up; BO owns the formal record"
+        ? "Front Office supports the wrap-up; Back Office owns the formal record"
         : isFrontOfficeStageReadyForBackOffice(client.stage)
-          ? "FO prepares the close; BO should own the file"
+          ? "Front Office prepares the close; Back Office should own the file"
           : "Front Office is still in pre-win mode";
   const closingOperatorDescription = hasCancelledTransaction
-    ? "Use this lane for respectful re-entry, future planning, or alternate options instead of treating the cancelled file like a live win."
+    ? "Use this section for respectful re-entry, future planning, or alternate options instead of treating the cancelled file like a live win."
     : hasClosedTransaction
       ? "Keep post-close care in Front Office while the authoritative transaction record remains in Back Office."
       : negotiationTransactionId
-        ? "The wrap-up should keep pointing to the formal BO record, not create a second closing tracker in Front Office or split the recap away from it."
+        ? "The wrap-up should keep pointing to the formal Back Office record, not create a second closing tracker in Front Office or split the recap away from it."
         : isFrontOfficeStageReadyForBackOffice(client.stage)
           ? "Prepare the close here, but hand the formal deal file to Back Office when it opens and preserve the same client-ready view."
-          : "Use this lane only for pre-win prep and keep the formal record dormant until the deal exists.";
+          : "Use this section only for pre-win prep and keep the formal record dormant until the deal exists.";
   const closingTransactionStatusLabel = inspectionTransactionRecord
     ? formatTransactionStatusLabel(inspectionTransactionRecord.status)
     : "No linked transaction";
@@ -5702,10 +5704,10 @@ export async function getFrontOfficeClientDetail(
     : hasClosedTransaction
       ? "The formal win is already recorded, and the next recommendations should keep the relationship active after close while the client-ready summary keeps pointing back to the same file."
       : negotiationTransactionId
-        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance tied to the shared Back Office record and the same return point."
+        ? "As closing dates, move-in timing, or transaction outcomes settle, the client page will turn those signals into wrap-up guidance tied to the shared Back Office record and the same return point."
         : isFrontOfficeStageReadyForBackOffice(client.stage)
           ? "Open the formal Back Office deal first. Closing suggestions are intentionally downstream of that shared transaction record and should mirror the same client-facing view."
-          : "Closing and win suggestions stay dormant until the client reaches a formal deal stage and the dossier can hand off cleanly.";
+          : "Closing and win suggestions stay dormant until the client reaches a formal deal stage and the client page can hand off cleanly.";
   const closingSuggestions: FrontOfficeClientDetailClosingItem[] =
     hasCancelledTransaction
       ? [
@@ -5734,7 +5736,7 @@ export async function getFrontOfficeClientDetail(
             statusTone: "neutral",
             contextLabel: "Re-entry plan",
             description:
-              "If the client restarts, the fastest recovery path is to reopen listing output from this same dossier instead of rebuilding context from scratch.",
+              "If the client restarts, the fastest recovery path is to reopen listing output from this same client page instead of rebuilding context from scratch.",
             metaLabel: `${sendCount} tracked send(s) already attached to this client`,
             actionLabel: "Open listing output",
             href: buildFrontOfficeListingsHref({
@@ -5769,8 +5771,8 @@ export async function getFrontOfficeClientDetail(
               statusTone: "accent",
               contextLabel: "Client-facing recap",
               description:
-                "The current dossier can already generate a clean client summary PDF for move-in, milestone, or thank-you communication without duplicating the Back Office record.",
-              metaLabel: `${sendCount} tracked send(s) already live on this dossier`,
+                "The current client page can already generate a clean client summary PDF for move-in, milestone, or thank-you communication without duplicating the Back Office record.",
+              metaLabel: `${sendCount} tracked send(s) already live on this client page`,
               actionLabel: "Download client PDF",
               href: buildClientPdfHref(client.id),
               opensInNewTab: true,
@@ -5830,7 +5832,7 @@ export async function getFrontOfficeClientDetail(
                 description: nextTouchAt
                   ? formatRelativeDueLabel(nextTouchAt, now, input.timeZone)
                   : "Do not wait until after close to think about the next client relationship touch, because the formal record should already point to it.",
-                metaLabel: `${openTaskCount} FO follow-up task(s) still open`,
+                metaLabel: `${openTaskCount} Front Office follow-up task(s) still open`,
                 actionLabel: "Create follow-up",
                 href: "#front-office-follow-up-form",
                 opensInNewTab: false,
@@ -5842,7 +5844,7 @@ export async function getFrontOfficeClientDetail(
                 statusTone: "accent",
                 contextLabel: "Client-facing recap",
                 description:
-                  "The dossier can already export a clean client summary PDF, so wrap-up communication does not need a separate manual document or a second formal file.",
+                  "The client page can already export a clean client summary PDF, so wrap-up communication does not need a separate manual document or a second formal file.",
                 metaLabel: closingBoundaryMetaLabel,
                 actionLabel: "Download client PDF",
                 href: buildClientPdfHref(client.id),
@@ -5857,7 +5859,7 @@ export async function getFrontOfficeClientDetail(
                     "Open the formal Back Office file before planning the close",
                   statusLabel: "Required first",
                   statusTone: "warning",
-                  contextLabel: "BO boundary",
+                  contextLabel: "Back Office ready",
                   description:
                     "Closing and win guidance depend on the shared transaction record, so the first move is still to open the formal Back Office file.",
                   metaLabel: closingBoundaryMetaLabel,
@@ -6262,25 +6264,25 @@ export async function getFrontOfficeClientDetail(
         }),
       });
       const bridgeNextStepLabel = bridgeStatus?.hasBridgeActivity
-        ? "Open calendar writeback"
+        ? "Open calendar update"
         : externalWorkflow.value === "confirmed"
-          ? "Open calendar writeback after confirmation"
+          ? "Open calendar update after confirmation"
           : externalWorkflow.value === "reschedule_requested"
-            ? "Bridge the reschedule, then open calendar writeback"
+            ? "Bridge the reschedule, then open calendar update"
             : externalWorkflow.value === "needs_follow_up" ||
                 externalWorkflow.value === "confirmation_pending"
-              ? "Keep the bridge moving, then open calendar writeback"
-              : "Open calendar writeback after the next external touch";
+              ? "Keep the draft moving, then open calendar update"
+              : "Open calendar update after the next external touch";
       const bridgeNextStepDetail = bridgeStatus?.hasBridgeActivity
-        ? "The bridge has already been logged, so the next touch should be recorded in the calendar route instead of starting a second coordination surface."
+        ? "The draft has already been logged, so the next touch should be recorded in the calendar route instead of starting a second coordination surface."
         : externalWorkflow.value === "confirmed"
           ? "The outside status is settled enough that the calendar route should capture the next touch and keep the focus on this appointment."
           : externalWorkflow.value === "reschedule_requested"
-            ? "Once the new time or reply is confirmed, move straight into calendar writeback with the same appointment focus."
+            ? "Once the new time or reply is confirmed, move straight into the calendar update form with the same appointment focus."
             : externalWorkflow.value === "needs_follow_up" ||
                 externalWorkflow.value === "confirmation_pending"
-              ? "Use the bridge action first, then come back to calendar writeback when the outside reply is ready to record."
-              : "Calendar writeback should happen after the next external touch, not as a separate coordination page.";
+              ? "Use the draft action first, then come back to the calendar update form when the outside reply is ready to record."
+              : "The calendar update should happen after the next external touch, not as a separate coordination page.";
       const externalLinks = buildFrontOfficeAppointmentExternalLinks({
         appointmentId: appointment.id,
         title: appointment.title,
