@@ -74,6 +74,10 @@ export async function PATCH(
         selectedAssetIds?: string[];
         coverAssetId?: string | null;
         agentNote?: string;
+        contactName?: string;
+        contactTitle?: string;
+        contactPhone?: string;
+        contactEmail?: string;
       }
     | null;
   const { packId } = await props.params;
@@ -92,6 +96,10 @@ export async function PATCH(
         ? body?.coverAssetId
         : undefined,
     agentNote: body?.agentNote,
+    contactName: body?.contactName,
+    contactTitle: body?.contactTitle,
+    contactPhone: body?.contactPhone,
+    contactEmail: body?.contactEmail,
   });
 
   if (!detail) {

@@ -305,6 +305,10 @@ export function resolveListingStudioPosterCoverAssetId(
 export function buildListingStudioPosterHref(input: {
   packId: string;
   draft: ListingStudioPosterDraft;
+  contactName?: string;
+  contactTitle?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   download?: boolean;
   print?: boolean;
 }) {
@@ -318,6 +322,19 @@ export function buildListingStudioPosterHref(input: {
 
   if (input.draft.coverAssetId) {
     params.set("coverAssetId", input.draft.coverAssetId);
+  }
+
+  if (input.contactName !== undefined) {
+    params.set("contactName", input.contactName);
+  }
+  if (input.contactTitle !== undefined) {
+    params.set("contactTitle", input.contactTitle);
+  }
+  if (input.contactPhone !== undefined) {
+    params.set("contactPhone", input.contactPhone);
+  }
+  if (input.contactEmail !== undefined) {
+    params.set("contactEmail", input.contactEmail);
   }
 
   if (input.download) {
