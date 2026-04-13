@@ -29,10 +29,10 @@ function buildMaterialStatusLabel(input: {
   featuredCaseCount: number;
 }) {
   if (input.featuredCaseCount > 0) {
-    return "Packet-ready";
+    return "Share-ready";
   }
 
-  return input.portraitReady ? "Profile-ready" : "Lean packet";
+  return input.portraitReady ? "Profile-ready" : "Basic materials";
 }
 
 export default async function AgentListingsPage(props: AgentListingsPageProps) {
@@ -74,13 +74,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Use this workspace as a material center for profile sheets, contact blocks, and proof add-ons beside the tracked listing lane. Keep the route manual, visible, and FO-owned."
+      description="Use this page to keep listing follow-up, profile materials, contact details, and proof points together without exposing internal workflow language."
       eyebrow="Listings"
       layoutClassName="front-office-listings-layout"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this page for listing recommendations, appointment follow-up, tracked-send rescue, clear next steps, and profile/contact/proof packaging."
+          subtitle="Use this page for listing recommendations, appointment follow-up, re-engagement, clear next steps, and agent materials."
           title="Listing follow-up"
         >
           <FrontOfficeListingsOutputClient
@@ -95,7 +95,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Quick read on how ready this workspace is for tracked outbound send work right now."
+            subtitle="Quick read on how ready this page is for listing follow-up right now."
             title="Outbound signals"
           >
             <ListPageStatsGrid className="front-office-listings-rail-stats">
@@ -133,13 +133,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <StatCard
                 className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={routeState.routeStatusDescription}
-                label="Route"
+                label="Context"
                 tone={routeState.diagnostics.length ? "default" : "accent"}
                 value={routeState.routeStatusLabel}
               />
               <StatCard
                 className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint="current writeback mode for this route"
+                hint="current save behavior for this follow-up view"
                 label="Mode"
                 tone="accent"
                 value={routeState.modeLabel}
@@ -147,7 +147,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <StatCard
                 className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={routeState.focusedRouteLaneDescription}
-                label="Lane"
+                label="Focus"
                 tone={
                   routeState.focusedRouteLane === "send-rescue"
                     ? "default"
@@ -164,7 +164,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <StatCard
                 className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={routeState.preferredSupportLaneDescription}
-                label="Package lane"
+                label="Support copy"
                 value={routeState.preferredSupportLaneLabel}
               />
             </ListPageStatsGrid>
@@ -199,14 +199,14 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <StatCard
                 className="front-office-listings-rail-stat"
                 hint={usagePulse.sendTrailDescription}
-                label="Send trail"
+                label="Active shares"
                 tone={usagePulse.trackedLinkCount > 0 ? "accent" : "default"}
                 value={usagePulse.sendTrailLabel}
               />
               <StatCard
                 className="front-office-listings-rail-stat"
                 hint={usagePulse.quietTrailDescription}
-                label="Quiet trail"
+                label="Needs follow-up"
                 tone={
                   usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"
                 }
@@ -229,7 +229,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={usagePulse.latestTrackedShare.clientHref}
                       >
-                        Open bound dossier
+                        Open client page
                       </FrontOfficeLink>
                     ) : null}
                     {usagePulse.latestTrackedShare?.appointmentHref ? (
@@ -237,7 +237,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={usagePulse.latestTrackedShare.appointmentHref}
                       >
-                        Open bound appointment
+                        Open appointment
                       </FrontOfficeLink>
                     ) : null}
                     {usagePulse.strongestTrail?.clientHref ? (
@@ -245,7 +245,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={usagePulse.strongestTrail.clientHref}
                       >
-                        Open strongest dossier
+                        Open best client page
                       </FrontOfficeLink>
                     ) : null}
                     {usagePulse.strongestTrail?.appointmentHref ? (
@@ -253,7 +253,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={usagePulse.strongestTrail.appointmentHref}
                       >
-                        Open strongest appointment
+                        Open best appointment
                       </FrontOfficeLink>
                     ) : null}
                   </>
@@ -268,13 +268,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     <span>{usagePulse.sendTrailLabel}</span>
                     <span>{usagePulse.quietTrailLabel}</span>
                     <span>
-                      Follow-through ·{" "}
+                      Next step ·{" "}
                       {usagePulse.latestTrackedShare?.followThroughCue ??
                         usagePulse.nextMoveDescription}
                     </span>
                   </>
                 }
-                title="Rescue lane"
+                title="Needs re-engagement"
               />
               {usagePulse.strongestTrail ? (
                 <FrontOfficeRailItem
@@ -285,7 +285,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                           className="office-inline-link front-office-inline-link"
                           href={usagePulse.strongestTrail.clientHref}
                         >
-                          Open bound dossier
+                          Open client page
                         </FrontOfficeLink>
                       ) : null}
                       {usagePulse.strongestTrail.appointmentHref ? (
@@ -293,7 +293,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                           className="office-inline-link front-office-inline-link"
                           href={usagePulse.strongestTrail.appointmentHref}
                         >
-                          Open bound appointment
+                          Open appointment
                         </FrontOfficeLink>
                       ) : null}
                     </>
@@ -304,22 +304,21 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   meta={
                     <>
                       <span>
-                        Follow-through ·{" "}
-                        {usagePulse.strongestTrail.followThroughCue}
+                        Next step · {usagePulse.strongestTrail.followThroughCue}
                       </span>
                       {usagePulse.strongestTrail.meta.map((item) => (
                         <span key={item}>{item}</span>
                       ))}
                     </>
                   }
-                  title="Strongest trail"
+                  title="Best signal"
                 />
               ) : (
                 <FrontOfficeRailItem
                   badgeLabel="Fresh desk"
                   badgeTone="neutral"
                   description="No tracked listing has moved far enough to create a usage pulse yet."
-                  title="Strongest trail"
+                  title="Best signal"
                 />
               )}
               {usagePulse.latestTrackedShare ? (
@@ -331,7 +330,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                           className="office-inline-link front-office-inline-link"
                           href={usagePulse.latestTrackedShare.clientHref}
                         >
-                          Open bound dossier
+                          Open client page
                         </FrontOfficeLink>
                       ) : null}
                       {usagePulse.latestTrackedShare.appointmentHref ? (
@@ -339,7 +338,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                           className="office-inline-link front-office-inline-link"
                           href={usagePulse.latestTrackedShare.appointmentHref}
                         >
-                          Open bound appointment
+                          Open appointment
                         </FrontOfficeLink>
                       ) : null}
                     </>
@@ -350,7 +349,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   meta={
                     <>
                       <span>
-                        Follow-through ·{" "}
+                        Next step ·{" "}
                         {usagePulse.latestTrackedShare.followThroughCue}
                       </span>
                       {usagePulse.latestTrackedShare.meta.map((item) => (
@@ -384,8 +383,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Keep recipient binding, appointment loop, focused lane, draft lane, route hygiene, and package pairing visible before the listing leaves this desk."
-            title="Workspace context"
+            subtitle="Keep the client or appointment context, saved view, draft state, and support copy visible before you share a listing."
+            title="Current context"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -404,7 +403,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={snapshot.targetClient.href}
                       >
-                        Open client dossier
+                        Open client page
                       </FrontOfficeLink>
                     ) : null}
                     {routeState.hasDraftAssist ? (
@@ -412,7 +411,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={routeState.contextHref}
                       >
-                        Dismiss draft assist
+                        Clear draft help
                       </FrontOfficeLink>
                     ) : null}
                     {routeState.diagnostics.length ? (
@@ -420,7 +419,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={routeState.cleanHref}
                       >
-                        Open clean route
+                        Reset view
                       </FrontOfficeLink>
                     ) : null}
                   </>
@@ -441,8 +440,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     </>
                   ) : (
                     <span>
-                      Open from a dossier or appointment to turn the focused
-                      lane into a real send trail.
+                      Open this page from a client or appointment to keep the
+                      next step attached to a real record.
                     </span>
                   )
                 }
@@ -466,7 +465,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 badgeLabel={routeState.stableReentryLabel}
                 badgeTone="accent"
                 description={routeState.stableReentryDescription}
-                title="Saved route"
+                title="Saved view"
               />
               {snapshot.targetAppointment ? (
                 <FrontOfficeRailItem
@@ -500,7 +499,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={routeState.contextHref}
                       >
-                        Clear draft lane
+                        Clear draft
                       </FrontOfficeLink>
                     ) : null}
                     {routeState.diagnostics.length ? (
@@ -508,7 +507,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={routeState.cleanHref}
                       >
-                        Open clean route
+                        Reset view
                       </FrontOfficeLink>
                     ) : null}
                   </>
@@ -522,7 +521,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     <span>{routeState.routeStatusDescription}</span>
                   </>
                 }
-                title="Route hygiene and draft guardrails"
+                title="View cleanup"
               />
               <FrontOfficeRailItem
                 action={
@@ -530,7 +529,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     className="office-inline-link front-office-inline-link"
                     href={`${routeState.stableHref}#agent-send-package`}
                   >
-                    Open send package
+                    Open send kit
                   </FrontOfficeLink>
                 }
                 badgeLabel={routeState.preferredSupportLaneLabel}
@@ -549,7 +548,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     </span>
                   </>
                 }
-                title="Companion package lane"
+                title="Support copy"
               />
               {draftAssist ? (
                 <FrontOfficeRailItem
@@ -563,7 +562,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   }
                   badgeLabel="AI draft"
                   badgeTone="accent"
-                  description="A deep-linked draft is active here. Copying the matching channel will keep the assisted copy but still append a tracked private listing link."
+                  description="A saved draft is active here. Copying the matching channel keeps the assisted copy while still appending the tracked private listing link."
                   meta={
                     <>
                       <span>
@@ -573,7 +572,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                       <span>{draftAssist.title}</span>
                     </>
                   }
-                  title="Deep-linked draft assist is in scope"
+                  title="Draft help is loaded"
                 />
               ) : null}
               {routeState.diagnostics.map((diagnostic) => (
@@ -591,8 +590,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           <SectionCard
             id="agent-send-package"
             className="office-list-card"
-            subtitle="Profile sheet, contact block, and proof add-on stay together here so each listing can leave with identity and context, not as a detached profile toy."
-            title="Agent material center"
+            subtitle="Profile, contact, and proof materials stay together here so each listing leaves with identity and context."
+            title="Agent materials"
           >
             <FrontOfficeAgentMaterialWindow
               material={snapshot.agentMaterial}
@@ -601,7 +600,6 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               targetClient={snapshot.targetClient}
             />
           </SectionCard>
-
         </>
       }
       pageClassName="front-office-listings-page"

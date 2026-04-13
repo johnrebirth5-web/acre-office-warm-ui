@@ -84,16 +84,16 @@ function buildMaterialBundle(input: {
 }) {
   if (input.targetClient && input.targetAppointment) {
     return {
-      title: `Appointment packet for ${input.targetClient.fullName}`,
+      title: `Appointment send kit for ${input.targetClient.fullName}`,
       description:
-        "Use this packet when the listing needs to travel with profile, contact, proof, and route continuity instead of as a naked link.",
+        "Use this when the listing should travel with profile, contact, proof, and appointment context instead of as a bare link.",
       steps: [
         {
           id: "bundle-profile",
           badgeLabel: "Profile",
           badgeTone: "accent" as const,
           title: "Lead with the profile sheet",
-          description: `Tie the send back to ${input.targetClient.stage} and ${input.targetAppointment.title} so the follow-up stays visible in one trail.`,
+          description: `Tie the send back to ${input.targetClient.stage} and ${input.targetAppointment.title} so the follow-up stays visible in one place.`,
         },
         {
           id: "bundle-contact",
@@ -101,7 +101,7 @@ function buildMaterialBundle(input: {
           badgeTone: "success" as const,
           title: "Keep contact details with it",
           description:
-            "Lead with the short intro and direct contact lane so the client can reply quickly without losing the tracked link context.",
+            "Lead with the short intro and direct contact details so the client can reply quickly without losing the tracked link context.",
         },
         {
           id: "bundle-proof",
@@ -111,14 +111,14 @@ function buildMaterialBundle(input: {
           description:
             input.material.featuredCaseCount > 0
               ? "Include one recent closing if the client still needs confidence before or after the appointment."
-              : "Use the business card and profile identity so the packet still carries credibility even without featured closings.",
+              : "Use the business card and profile identity so the materials still carry credibility even without featured closings.",
         },
         {
           id: "bundle-route",
-          badgeLabel: "Route",
+          badgeLabel: "Next step",
           badgeTone: "accent" as const,
-          title: "Keep the route attached",
-          description: `${input.routeState.focusedRouteLaneLabel} stays the safest handoff path, and the stable link keeps the same appointment context ready for the next manual send.`,
+          title: "Keep the next step attached",
+          description: `${input.routeState.focusedRouteLaneLabel} stays the safest path here, and the saved view keeps the same appointment context ready for the next follow-up.`,
         },
       ],
     };
@@ -126,9 +126,9 @@ function buildMaterialBundle(input: {
 
   if (input.targetClient) {
     return {
-      title: `Client packet for ${input.targetClient.fullName}`,
+      title: `Client send kit for ${input.targetClient.fullName}`,
       description:
-        "Keep the listing, profile sheet, contact block, agent proof, and route together so the client can move from interest into the next touch without extra explanation.",
+        "Keep the listing, profile sheet, contact block, proof, and next-step context together so the client can move forward without extra explanation.",
       steps: [
         {
           id: "bundle-profile",
@@ -136,7 +136,7 @@ function buildMaterialBundle(input: {
           badgeTone: "accent" as const,
           title: "Open with the profile sheet",
           description:
-            "Use the profile sheet when the client needs more framing, or the tracked listing when you want a quick reaction beside the route context.",
+            "Use the profile sheet when the client needs more framing, or the tracked listing when you want a quick reaction beside the current context.",
         },
         {
           id: "bundle-contact",
@@ -144,7 +144,7 @@ function buildMaterialBundle(input: {
           badgeTone: "success" as const,
           title: "Keep contact details nearby",
           description:
-            "If the packet is forwarded or reopened later, the contact details should still travel with it.",
+            "If the materials are forwarded or reopened later, the contact details should still travel with them.",
         },
         {
           id: "bundle-proof",
@@ -154,23 +154,23 @@ function buildMaterialBundle(input: {
           description:
             input.material.featuredCaseCount > 0
               ? "Use a featured closing when the client is active but needs confidence, not on every first touch."
-              : "You have no featured closing package yet, so lead with identity and a clear next-step ask instead.",
+              : "You do not have a featured closing ready yet, so lead with identity and a clear next-step ask instead.",
         },
         {
           id: "bundle-route",
-          badgeLabel: "Route",
+          badgeLabel: "Next step",
           badgeTone: "accent" as const,
-          title: "Keep the route attached",
-          description: `${input.routeState.focusedRouteLaneLabel} keeps the next touch in the same outbound trail instead of restarting from a raw listing link.`,
+          title: "Keep the next step attached",
+          description: `${input.routeState.focusedRouteLaneLabel} keeps the next touch in the same follow-up view instead of restarting from a raw listing link.`,
         },
       ],
     };
   }
 
   return {
-    title: "Generic outbound packet",
+    title: "General send kit",
     description:
-      "When no client context is selected, keep profile, contact, proof, and route materials organized so the next tracked send can become client-linked without rebuilding the packet from scratch.",
+      "When no client is selected, keep profile, contact, proof, and follow-up materials organized so the next tracked share can become client-linked without rebuilding everything from scratch.",
     steps: [
       {
         id: "bundle-profile",
@@ -178,7 +178,7 @@ function buildMaterialBundle(input: {
         badgeTone: "accent" as const,
         title: "Start with the profile sheet",
         description:
-          "Generic mode still tracks the link, but it does not create a client send trail until you reopen listing output from a dossier or appointment.",
+          "Tracked-link mode still tracks the share, but it does not create a client history until you reopen this page from a client or appointment.",
       },
       {
         id: "bundle-contact",
@@ -196,15 +196,15 @@ function buildMaterialBundle(input: {
         description:
           input.material.featuredCaseCount > 0
             ? "Featured cases are best used after there is already some engagement, not as a replacement for basic context."
-            : "Build the send around agent identity first while the proof package is still light.",
+            : "Build the send around agent identity first while the proof set is still light.",
       },
       {
         id: "bundle-route",
-        badgeLabel: "Route",
+        badgeLabel: "Next step",
         badgeTone: "accent" as const,
-        title: "Keep the route attached",
+        title: "Keep the next step attached",
         description:
-          "Generic mode still keeps the tracked link active, but it should stay manual until a client or appointment binding appears.",
+          "Tracked-link mode keeps the share active, but it should stay manual until a client or appointment is attached.",
       },
     ],
   };
@@ -238,7 +238,7 @@ function buildProofSheetText(material: FrontOfficeAgentMaterialSnapshot) {
   if (!material.featuredCases.length) {
     return [
       "Proof add-on",
-      "No featured closing package is ready yet, so keep the packet centered on identity and the next-step ask.",
+      "No featured closing set is ready yet, so keep the send kit centered on identity and the next-step ask.",
       "Use the business card and intro copy as the credibility layer until a recent closing is ready.",
     ].join("\n");
   }
@@ -281,7 +281,7 @@ function buildClosingHistoryText(material: FrontOfficeAgentMaterialSnapshot) {
     return [
       "Closing history",
       `${material.displayName} has ${material.recentClosedCount} recent closings in the current snapshot.`,
-      "No featured cases are packaged yet, so lead with the profile sheet and business card until a stronger proof strip is ready.",
+      "No featured cases are ready yet, so lead with the profile sheet and business card until a stronger proof strip is available.",
     ].join("\n");
   }
 
@@ -317,7 +317,7 @@ function buildLandingPageBriefText(input: {
     featuredCase
       ? `Featured case: ${featuredCase.label} · ${featuredCase.priceLabel} · ${featuredCase.closingLabel}`
       : "Featured case: build the landing page around identity and direct contact until a stronger closing proof is ready.",
-    `Call to action: Contact ${input.material.displayName} at ${input.material.phone || "the published phone line"} or ${input.material.email || "the published email address"} for the next showing, packet, or route-aware follow-up.`,
+    `Call to action: Contact ${input.material.displayName} at ${input.material.phone || "the published phone line"} or ${input.material.email || "the published email address"} for the next showing, materials request, or follow-up.`,
   ].join("\n");
 }
 
@@ -325,7 +325,7 @@ function buildCaseStudyReelText(material: FrontOfficeAgentMaterialSnapshot) {
   if (!material.featuredCases.length) {
     return [
       "Case-study reel",
-      `${material.displayName} does not have a featured case reel packaged yet.`,
+      `${material.displayName} does not have a featured case reel ready yet.`,
       "Until a featured closing is ready, keep the showcase stack centered on the landing brief, intro poster, and direct contact block.",
     ].join("\n");
   }
@@ -346,18 +346,18 @@ function buildRouteSheetText(input: {
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
 }) {
   const routeContext = input.targetAppointment
-    ? `Route context: appointment-linked to ${input.targetAppointment.title} for ${input.targetClient?.fullName ?? "the current client"}.`
+    ? `Current context: appointment-linked to ${input.targetAppointment.title} for ${input.targetClient?.fullName ?? "the current client"}.`
     : input.targetClient
-      ? `Route context: client-linked to ${input.targetClient.fullName} while ${input.targetClient.stage} stays active.`
-      : `Route context: ${input.routeState.modeContextLabel}.`;
+      ? `Current context: client-linked to ${input.targetClient.fullName} while ${input.targetClient.stage} stays active.`
+      : `Current context: ${input.routeState.modeContextLabel}.`;
 
   return [
-    "Route block",
+    "Follow-up summary",
     routeContext,
-    `Primary lane: ${input.routeState.focusedRouteLaneLabel}`,
-    `Support package: ${input.routeState.preferredSupportLaneLabel}`,
-    `Saved route: ${input.routeState.stableReentryLabel}`,
-    `Next manual action: ${input.routeState.focusedRouteLaneActionLabel}`,
+    `Current focus: ${input.routeState.focusedRouteLaneLabel}`,
+    `Support copy: ${input.routeState.preferredSupportLaneLabel}`,
+    `Saved view: ${input.routeState.stableReentryLabel}`,
+    `Next action: ${input.routeState.focusedRouteLaneActionLabel}`,
   ].join("\n");
 }
 
@@ -368,7 +368,7 @@ function buildOutboundPacketText(input: {
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
 }) {
   return [
-    "Outbound packet",
+    "Send kit",
     buildRouteSheetText(input),
     buildProfileSheetText(input.material),
     buildContactSheetText(input.material),
@@ -425,7 +425,7 @@ function buildMaterialPreviewCards(input: {
       badgeTone: "success" as const,
       title: "Contact block",
       description:
-        "Keep the phone, email, and business card beside the packet so the next manual touch is easy to continue.",
+        "Keep the phone, email, and business card next to the send kit so the next touch is easy to continue.",
       preview: contactSheetText,
       copyLabel: "Copy contact block",
       copyValue: contactSheetText,
@@ -437,21 +437,21 @@ function buildMaterialPreviewCards(input: {
       title: "Proof add-on",
       description:
         input.material.featuredCaseCount > 0
-          ? "Use this proof strip only when the packet needs an extra confidence layer."
-          : "Keep this strip light until a featured closing is ready to travel with the packet.",
+          ? "Use this proof strip only when the send kit needs an extra confidence layer."
+          : "Keep this strip light until a featured closing is ready to travel with the send kit.",
       preview: proofSheetText,
       copyLabel: "Copy proof add-on",
       copyValue: proofSheetText,
     },
     {
       id: "route-block",
-      badgeLabel: "Route",
+      badgeLabel: "Follow-up",
       badgeTone: "accent" as const,
-      title: "Route block",
+      title: "Follow-up summary",
       description:
-        "Keep the lane, support package, and saved route visible so the send can be reopened without rebuilding context.",
+        "Keep the current focus, support copy, and saved view visible so you can reopen the same context without rebuilding it.",
       preview: routeSheetText,
-      copyLabel: "Copy route block",
+      copyLabel: "Copy follow-up summary",
       copyValue: routeSheetText,
     },
     {
@@ -460,7 +460,7 @@ function buildMaterialPreviewCards(input: {
       badgeTone: "accent" as const,
       title: "Intro poster",
       description:
-        "Use this when the send needs a more outward-facing profile summary instead of only the packet internals.",
+        "Use this when the send needs a more outward-facing profile summary instead of only the internal materials.",
       preview: introPosterText,
       copyLabel: "Copy intro poster",
       copyValue: introPosterText,
@@ -499,7 +499,7 @@ function buildMaterialPreviewCards(input: {
           : ("warning" as const),
       title: "Case-study reel",
       description:
-        "Use this when the next public-facing packet needs a fuller closing reel instead of one short proof strip.",
+        "Use this when the next public-facing profile needs a fuller closing reel instead of one short proof strip.",
       preview: caseStudyReelText,
       copyLabel: "Copy case-study reel",
       copyValue: caseStudyReelText,
@@ -526,7 +526,7 @@ function buildSmsSupportPackage(input: {
     ? `Context: Use this with the tracked listing when following up on ${input.targetAppointment.title} (${input.targetAppointment.startsAtLabel}).`
     : input.targetClient
       ? `Context: Use this with the tracked listing while ${input.targetClient.fullName} is still in ${input.targetClient.stage}.`
-      : "Context: Use this with the tracked listing when you need a quick intro plus identity in the same manual send.";
+      : "Context: Use this with the tracked listing when you need a quick intro plus identity in the same follow-up.";
 
   return `${input.material.introTextMessage.trim()}\n\n${contextLine}\n${buildFeaturedProofLine(input.material)}\n\nBusiness card\n${input.material.businessCardText}`;
 }
@@ -548,18 +548,18 @@ function buildEmailSupportPackage(input: {
 function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
   if (props.routeState.preferredSupportLane === "sms") {
     return {
-      badgeLabel: "SMS companion",
+      badgeLabel: "SMS support",
       badgeTone: "accent" as const,
-      title: "SMS companion packet is the active companion",
+      title: "SMS support message is preferred",
       description: props.routeState.preferredSupportLaneDescription,
     };
   }
 
   if (props.routeState.preferredSupportLane === "email") {
     return {
-      badgeLabel: "Email companion",
+      badgeLabel: "Email support",
       badgeTone: "accent" as const,
-      title: "Email companion packet is the active companion",
+      title: "Email support message is preferred",
       description: props.routeState.preferredSupportLaneDescription,
     };
   }
@@ -567,7 +567,7 @@ function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
   return {
     badgeLabel: "Keep both ready",
     badgeTone: "warning" as const,
-    title: "Keep both companion packets ready",
+    title: "Keep both support messages ready",
     description: props.routeState.preferredSupportLaneDescription,
   };
 }
@@ -579,7 +579,7 @@ function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
       badgeTone: "success" as const,
       title: "Appointment context",
       description:
-        "The stable route, preferred support package, and packet mode are all aligned to the appointment trail, so the next manual send can stay reviewable instead of restarting from a raw listing link.",
+        "The saved view, preferred support copy, and current mode are all aligned to the appointment thread, so the next touch can stay organized instead of restarting from a raw listing link.",
     };
   }
 
@@ -589,7 +589,7 @@ function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
       badgeTone: "accent" as const,
       title: "Client context",
       description:
-        "The stable route and packet mode are aligned to the client trail, so you can keep the next manual send in the same execution lane without pretending anything auto-sent.",
+        "The saved view and current mode are aligned to the client history, so you can keep the next touch in the same place without pretending anything was auto-sent.",
     };
   }
 
@@ -598,7 +598,7 @@ function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
     badgeTone: "warning" as const,
     title: "Tracked link context",
     description:
-      "The stable route keeps the tracked link reusable while the preferred support package and packet mode stay manual, reviewable, and FO-owned.",
+      "The saved view keeps the tracked link reusable while the support copy and current mode stay manual and easy to review.",
   };
 }
 
@@ -609,12 +609,12 @@ function buildPreferredSupportPackage(input: {
 }) {
   if (input.routeState.preferredSupportLane === "sms") {
     return {
-      label: "Preferred companion",
-      title: "SMS companion package",
+      label: "Preferred support",
+      title: "SMS support message",
       copyButtons: [
         {
-          copyLabel: "Copy preferred package",
-          title: "SMS companion package",
+          copyLabel: "Copy preferred message",
+          title: "SMS support message",
           value: input.smsSupportPackage,
         },
       ],
@@ -623,12 +623,12 @@ function buildPreferredSupportPackage(input: {
 
   if (input.routeState.preferredSupportLane === "email") {
     return {
-      label: "Preferred companion",
-      title: "Email companion package",
+      label: "Preferred support",
+      title: "Email support message",
       copyButtons: [
         {
-          copyLabel: "Copy preferred package",
-          title: "Email companion package",
+          copyLabel: "Copy preferred message",
+          title: "Email support message",
           value: input.emailSupportPackage,
         },
       ],
@@ -637,16 +637,16 @@ function buildPreferredSupportPackage(input: {
 
   return {
     label: "Keep both ready",
-    title: "SMS and email companion packages",
+    title: "SMS and email support messages",
     copyButtons: [
       {
-        copyLabel: "Copy SMS package",
-        title: "SMS companion package",
+        copyLabel: "Copy SMS message",
+        title: "SMS support message",
         value: input.smsSupportPackage,
       },
       {
-        copyLabel: "Copy email package",
-        title: "Email companion package",
+        copyLabel: "Copy email message",
+        title: "Email support message",
         value: input.emailSupportPackage,
       },
     ],
@@ -674,10 +674,10 @@ function buildLaunchpadDraftAssist(input: {
   const subjectLine =
     input.channel === "email"
       ? input.targetAppointment
-        ? `${input.targetAppointment.title} listing packet`
+        ? `${input.targetAppointment.title} listing follow-up`
         : input.targetClient
-          ? `${input.targetClient.fullName} listing packet`
-          : "Listing packet"
+          ? `${input.targetClient.fullName} listing follow-up`
+          : "Listing follow-up"
       : "";
 
   return {
@@ -705,10 +705,9 @@ function buildMaterialLaunchLinks(input: {
       id: "sms-launch",
       label:
         preferredLane === "sms" ? "Open preferred SMS draft" : "Open SMS draft",
-      note:
-        preferredLane === "sms" ? "Preferred companion" : "SMS companion",
+      note: preferredLane === "sms" ? "Preferred support" : "SMS support",
       description:
-        "Reopen the same listings page with the SMS companion already loaded into the draft section.",
+        "Reopen the same listings page with the SMS support message already loaded into the draft section.",
       href: buildAgentListingsHref({
         clientId: input.targetClient?.id ?? null,
         appointmentId: input.targetAppointment?.id ?? null,
@@ -728,10 +727,9 @@ function buildMaterialLaunchLinks(input: {
         preferredLane === "email"
           ? "Open preferred email draft"
           : "Open email draft",
-      note:
-        preferredLane === "email" ? "Preferred companion" : "Email companion",
+      note: preferredLane === "email" ? "Preferred support" : "Email support",
       description:
-        "Reopen the same listings page with the email companion already loaded into the draft section.",
+        "Reopen the same listings page with the email support message already loaded into the draft section.",
       href: buildAgentListingsHref({
         clientId: input.targetClient?.id ?? null,
         appointmentId: input.targetAppointment?.id ?? null,
@@ -787,10 +785,12 @@ function buildMaterialReadinessItems(
       id: "portrait",
       label: "Portrait asset",
       stateLabel: props.material.portraitReady ? "Ready" : "Missing",
-      tone: props.material.portraitReady ? ("success" as const) : ("warning" as const),
+      tone: props.material.portraitReady
+        ? ("success" as const)
+        : ("warning" as const),
       detail: props.material.portraitReady
         ? "The profile sheet can lead with a face-ready identity block."
-        : "Lead with the profile sheet copy, but refresh the portrait before treating this as a polished public-facing packet.",
+        : "Lead with the profile sheet copy, but refresh the portrait before treating this as a polished public-facing profile.",
     },
     {
       id: "contact",
@@ -798,8 +798,8 @@ function buildMaterialReadinessItems(
       stateLabel: hasContactBlock ? "Published" : "Needs review",
       tone: hasContactBlock ? ("success" as const) : ("warning" as const),
       detail: hasContactBlock
-        ? "Phone and/or email are available, so the packet can carry a reply path beside the tracked listing."
-        : "Business card copy exists, but the direct reply path is still too thin for a stronger outbound packet.",
+        ? "Phone and/or email are available, so the materials can carry a clear reply path beside the tracked listing."
+        : "Business card copy exists, but the direct reply path is still too thin for a stronger outbound follow-up.",
     },
     {
       id: "proof",
@@ -808,14 +808,14 @@ function buildMaterialReadinessItems(
       tone: hasProofPackage ? ("accent" as const) : ("warning" as const),
       detail: hasProofPackage
         ? "A featured closing is ready when the client needs confidence after the first touch."
-        : "Keep the packet centered on profile and contact until a stronger proof case is ready.",
+        : "Keep the send kit centered on profile and contact until a stronger proof case is ready.",
     },
     {
       id: "route",
-      label: "Route attachment",
+      label: "Follow-up context",
       stateLabel: props.routeState.focusedRouteLaneLabel,
       tone: "accent" as const,
-      detail: `The packet stays tied to ${props.routeState.focusedRouteLaneLabel}, so the next manual send can reopen in the same section.`,
+      detail: `The materials stay aligned to ${props.routeState.focusedRouteLaneLabel}, so the next touch can reopen in the same place.`,
     },
   ] satisfies MaterialReadinessItem[];
 }
@@ -825,8 +825,8 @@ function buildMaterialReadinessCopyText(input: {
   modeLabel: string;
 }) {
   return [
-    "Asset readiness board",
-    `Packet mode: ${input.modeLabel}`,
+    "Readiness board",
+    `Current mode: ${input.modeLabel}`,
     ...input.items.map(
       (item) => `${item.label}: ${item.stateLabel}\n${item.detail}`,
     ),
@@ -848,8 +848,8 @@ function buildMaterialSendPlan(input: {
   const steps = [
     {
       id: "send-plan-launch",
-      label: "Open the preferred draft lane",
-      detail: `${preferredLaunch.label} keeps the outbound draft attached to ${input.props.routeState.focusedRouteLaneLabel} instead of dropping into a broad listings desk.`,
+      label: "Open the preferred draft",
+      detail: `${preferredLaunch.label} keeps the draft attached to ${input.props.routeState.focusedRouteLaneLabel} instead of dropping back into a broad listings page.`,
     },
     {
       id: "send-plan-identity",
@@ -863,15 +863,14 @@ function buildMaterialSendPlan(input: {
       detail:
         input.props.material.featuredCaseCount > 0
           ? "Use the proof add-on after there is already interest, objection, or appointment follow-up pressure."
-          : "Skip the proof strip for now and keep the packet centered on identity plus the next-step ask.",
+          : "Skip the proof strip for now and keep the send kit centered on identity plus the next-step ask.",
     },
     {
       id: "send-plan-reentry",
-      label: "Reopen through the same route",
-      detail:
-        input.props.targetAppointment
-          ? "After the send or reply, reopen the same route lane so the appointment loop and next writeback stay in one manual trail."
-          : "After the send or reply, reopen the same route lane so the next touch stays in one manual, reviewable trail.",
+      label: "Reopen the same saved view",
+      detail: input.props.targetAppointment
+        ? "After the send or reply, reopen the same view so the appointment loop and next step stay together."
+        : "After the send or reply, reopen the same view so the next touch stays in one clear history.",
     },
   ];
 
@@ -881,13 +880,15 @@ function buildMaterialSendPlan(input: {
       : input.props.targetClient
         ? "Client send plan"
         : "Tracked-link send plan",
-    description: `This packet stays manual, but it now has a clear execution order for ${contextLabel}.`,
+    description: `This send kit stays manual, but it now has a clear execution order for ${contextLabel}.`,
     steps,
     copyValue: [
       "Recommended send plan",
       `Context: ${contextLabel}`,
-      `Preferred draft lane: ${preferredLaunch.label}`,
-      ...steps.map((step, index) => `${index + 1}. ${step.label}\n${step.detail}`),
+      `Preferred draft: ${preferredLaunch.label}`,
+      ...steps.map(
+        (step, index) => `${index + 1}. ${step.label}\n${step.detail}`,
+      ),
     ].join("\n\n"),
     preferredLaunchHref: preferredLaunch.href,
     preferredLaunchLabel: preferredLaunch.label,
@@ -896,14 +897,14 @@ function buildMaterialSendPlan(input: {
 
 function buildMaterialCopyDetail(props: FrontOfficeAgentMaterialWindowProps) {
   if (props.targetAppointment && props.targetClient) {
-    return `Use it beside ${props.targetAppointment.title} so the listing, identity, and appointment continuity stay in one manual send loop for ${props.targetClient.fullName}.`;
+    return `Use it beside ${props.targetAppointment.title} so the listing, identity, and appointment continuity stay together for ${props.targetClient.fullName}.`;
   }
 
   if (props.targetClient) {
-    return `Use it beside the tracked listing so ${props.targetClient.fullName}'s next touch carries identity, context, and proof in one manual send.`;
+    return `Use it beside the tracked listing so ${props.targetClient.fullName}'s next touch carries identity, context, and proof in one clear package.`;
   }
 
-  return "Use it beside the tracked listing so the next outbound touch does not travel as a naked link.";
+  return "Use it beside the tracked listing so the next outbound touch does not travel as a bare link.";
 }
 
 export function FrontOfficeAgentMaterialWindow(
@@ -988,7 +989,7 @@ export function FrontOfficeAgentMaterialWindow(
       await copyTextToClipboard(value);
       setFeedback({
         tone: "success",
-        message: `${label} copied. The next listing send can use it immediately.`,
+        message: `${label} copied. You can use it in the next listing follow-up right away.`,
         detail: buildMaterialCopyDetail(props),
       });
     } catch {
@@ -1046,7 +1047,9 @@ export function FrontOfficeAgentMaterialWindow(
                   <span>{card.description}</span>
                 </div>
                 <Button
-                  onClick={() => void handleCopy(card.copyLabel, card.copyValue)}
+                  onClick={() =>
+                    void handleCopy(card.copyLabel, card.copyValue)
+                  }
                   size="sm"
                   type="button"
                   variant="ghost"
@@ -1063,17 +1066,17 @@ export function FrontOfficeAgentMaterialWindow(
 
         <div className="front-office-agent-material-actions">
           <Button
-            onClick={() =>
-              void handleCopy("Outbound packet", outboundPacketText)
-            }
+            onClick={() => void handleCopy("Send kit", outboundPacketText)}
             size="sm"
             type="button"
             variant="secondary"
           >
-            Copy outbound packet
+            Copy send kit
           </Button>
           <Button
-            onClick={() => void handleCopy("Showcase bundle", showcaseBundleText)}
+            onClick={() =>
+              void handleCopy("Showcase bundle", showcaseBundleText)
+            }
             size="sm"
             type="button"
             variant="secondary"
@@ -1083,7 +1086,9 @@ export function FrontOfficeAgentMaterialWindow(
           {preferredSupportPackage.copyButtons.map((copyButton) => (
             <Button
               key={`top-${copyButton.title}-${copyButton.copyLabel}`}
-              onClick={() => void handleCopy(copyButton.title, copyButton.value)}
+              onClick={() =>
+                void handleCopy(copyButton.title, copyButton.value)
+              }
               size="sm"
               type="button"
               variant="secondary"
@@ -1146,14 +1151,17 @@ export function FrontOfficeAgentMaterialWindow(
           </Button>
           <Button
             onClick={() =>
-              void handleCopy("Route block", routeBlockCard?.copyValue ?? "")
+              void handleCopy(
+                "Follow-up summary",
+                routeBlockCard?.copyValue ?? "",
+              )
             }
             size="sm"
             type="button"
             variant="ghost"
             disabled={!routeBlockCard}
           >
-            Copy route block
+            Copy follow-up summary
           </Button>
         </div>
 
@@ -1169,10 +1177,10 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Context</strong>
+          <strong>Current context</strong>
           <span>
-            Keep the saved route, preferred support package, and packet mode
-            visible before you launch any manual send.
+            Keep the saved view, preferred support copy, and current mode
+            visible before you open any draft.
           </span>
         </div>
         <div className="office-queue-list">
@@ -1185,7 +1193,8 @@ export function FrontOfficeAgentMaterialWindow(
                 >
                   Open saved view
                 </FrontOfficeLink>
-                {props.routeState.stableHref !== props.routeState.contextHref ? (
+                {props.routeState.stableHref !==
+                props.routeState.contextHref ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.contextHref}
@@ -1203,13 +1212,13 @@ export function FrontOfficeAgentMaterialWindow(
                 ) : null}
                 <Button
                   onClick={() =>
-                    void handleCopy("Outbound packet", outboundPacketText)
+                    void handleCopy("Send kit", outboundPacketText)
                   }
                   size="sm"
                   type="button"
                   variant="secondary"
                 >
-                  Copy outbound packet
+                  Copy send kit
                 </Button>
               </div>
             }
@@ -1250,8 +1259,8 @@ export function FrontOfficeAgentMaterialWindow(
             meta={
               <span>
                 {props.routeState.preferredSupportLane === "mixed"
-                  ? "Copy one or both companions before you launch."
-                  : "Use the companion package that matches the active route."}
+                  ? "Copy one or both support messages before you open the draft."
+                  : "Use the support message that matches the current follow-up view."}
               </span>
             }
             title={preferredSupportPackage.title}
@@ -1262,7 +1271,7 @@ export function FrontOfficeAgentMaterialWindow(
                 <Button
                   onClick={() =>
                     void handleCopy(
-                      "Asset readiness board",
+                      "Readiness board",
                       materialReadinessCopyText,
                     )
                   }
@@ -1316,14 +1325,14 @@ export function FrontOfficeAgentMaterialWindow(
                 </Button>
               </div>
             }
-            badgeLabel="Asset readiness"
+            badgeLabel="Readiness"
             badgeTone={
               materialReadinessItems.some((item) => item.tone === "warning")
                 ? "warning"
                 : "success"
             }
             context={props.routeState.modeLabel}
-            description="Check whether portrait, contact, proof, and route attachment are ready before you turn this packet into a live manual send."
+            description="Check whether portrait, contact, proof, and follow-up context are ready before you use these materials in a live follow-up."
             meta={
               <span>
                 {materialReadinessItems
@@ -1331,7 +1340,7 @@ export function FrontOfficeAgentMaterialWindow(
                   .join(" · ")}
               </span>
             }
-            title="Asset readiness board"
+            title="Readiness board"
           />
           <QueueItem
             action={
@@ -1375,23 +1384,23 @@ export function FrontOfficeAgentMaterialWindow(
                   type="button"
                   variant="ghost"
                   disabled={!closingHistoryCard}
-                  >
-                    Copy closing history
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      void handleCopy(
-                        "Case-study reel",
-                        caseStudyReelCard?.copyValue ?? "",
-                      )
-                    }
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                    disabled={!caseStudyReelCard}
-                  >
-                    Copy case-study reel
-                  </Button>
+                >
+                  Copy closing history
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Case-study reel",
+                      caseStudyReelCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={!caseStudyReelCard}
+                >
+                  Copy case-study reel
+                </Button>
                 <Button
                   onClick={() =>
                     void handleCopy(
@@ -1408,16 +1417,16 @@ export function FrontOfficeAgentMaterialWindow(
                 </Button>
               </div>
             }
-            badgeLabel="Showcase pack"
+            badgeLabel="Showcase set"
             badgeTone="accent"
             context={`${props.material.recentClosedCount} recent closings`}
-            description="Use the outward-facing intro poster and closing history when the next send needs a clearer public-facing agent profile instead of only a route-bound packet."
+            description="Use the intro poster and closing history when the next share needs a clearer public-facing agent profile instead of only private follow-up materials."
             meta={
               <span>
                 Intro poster · Landing brief · Closing history · Case-study reel
               </span>
             }
-            title="Profile showcase assets"
+            title="Profile showcase materials"
           />
           <QueueItem
             action={
@@ -1465,12 +1474,8 @@ export function FrontOfficeAgentMaterialWindow(
             badgeLabel="Landing prep"
             badgeTone="accent"
             context={`${props.material.titleLabel} · ${props.material.officeLabel}`}
-            description="This keeps a future-facing profile/landing package ready in manual form, even before Acre owns a full public dynamic profile system."
-            meta={
-              <span>
-                Hero copy · Proof reel · Contact CTA
-              </span>
-            }
+            description="This keeps a future-facing profile page package ready to use, even before Acre has a full public profile system."
+            meta={<span>Hero copy · Proof reel · Contact CTA</span>}
             title="Profile landing-page brief"
           />
           <QueueItem
@@ -1490,7 +1495,7 @@ export function FrontOfficeAgentMaterialWindow(
             badgeLabel="Draft links"
             badgeTone="accent"
             context={props.routeState.focusedRouteLaneLabel}
-            description="These links reopen the same listings page with the companion package already loaded into the draft section. Acre still only preloads copy; it does not send anything automatically."
+            description="These links reopen the same listings page with the support message already loaded into the draft section. Acre only preloads copy here; it does not send anything automatically."
             meta={
               <span>
                 {launchLinks.map((launchLink) => launchLink.note).join(" · ")}
@@ -1509,7 +1514,10 @@ export function FrontOfficeAgentMaterialWindow(
                 </FrontOfficeLink>
                 <Button
                   onClick={() =>
-                    void handleCopy("Recommended send plan", materialSendPlan.copyValue)
+                    void handleCopy(
+                      "Recommended send plan",
+                      materialSendPlan.copyValue,
+                    )
                   }
                   size="sm"
                   type="button"
@@ -1519,13 +1527,13 @@ export function FrontOfficeAgentMaterialWindow(
                 </Button>
                 <Button
                   onClick={() =>
-                    void handleCopy("Outbound packet", outboundPacketText)
+                    void handleCopy("Send kit", outboundPacketText)
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
                 >
-                  Copy packet
+                  Copy send kit
                 </Button>
               </div>
             }
@@ -1546,7 +1554,7 @@ export function FrontOfficeAgentMaterialWindow(
                 <Button
                   onClick={() =>
                     void handleCopy(
-                      "Route block",
+                      "Follow-up summary",
                       routeBlockCard?.copyValue ?? "",
                     )
                   }
@@ -1555,30 +1563,28 @@ export function FrontOfficeAgentMaterialWindow(
                   variant="ghost"
                   disabled={!routeBlockCard}
                 >
-                  Copy route block
+                  Copy follow-up summary
                 </Button>
                 <Button
                   onClick={() =>
-                    void handleCopy("Packet", outboundPacketText)
+                    void handleCopy("Send kit", outboundPacketText)
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
                 >
-                  Copy packet
+                  Copy send kit
                 </Button>
               </div>
             }
             badgeLabel={props.routeState.modeLabel}
             badgeTone="accent"
             context={bundle.title}
-            description={`${bundle.description} The packet mode is kept manual and reviewable at every step.`}
+            description={`${bundle.description} The send kit stays manual and easy to review at every step.`}
             meta={
-              <span>
-                {bundle.steps.map((step) => step.title).join(" · ")}
-              </span>
+              <span>{bundle.steps.map((step) => step.title).join(" · ")}</span>
             }
-            title={`${props.routeState.modeLabel} packet mode`}
+            title={`${props.routeState.modeLabel} mode`}
           />
           <QueueItem
             action={
@@ -1589,17 +1595,13 @@ export function FrontOfficeAgentMaterialWindow(
                 >
                   {props.routeState.focusedRouteLaneActionLabel}
                 </FrontOfficeLink>
-                ) : null
+              ) : null
             }
             badgeLabel={executionLaneOverview.badgeLabel}
             badgeTone={executionLaneOverview.badgeTone}
             context={executionLaneOverview.title}
             description={props.routeState.focusedRouteLanePanelDescription}
-            meta={
-              <span>
-                {executionLaneOverview.meta}
-              </span>
-            }
+            meta={<span>{executionLaneOverview.meta}</span>}
             title={`${executionLaneOverview.actionLabel} checklist`}
           />
           <QueueItem
