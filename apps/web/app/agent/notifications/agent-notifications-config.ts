@@ -54,15 +54,15 @@ export const activityViewOptions: Array<{
 export function getActivityViewFocusLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Self-owned cleanup, duplicate review, and send rescue";
+      return "Your overdue follow-up and duplicate review";
     case "team_cleanup":
-      return "Visible-scope leadership cleanup and send-trail risk";
+      return "Team overdue follow-up and quiet activity";
     case "appointment_reminders":
-      return "Calendar writeback, confirmations, reschedules, and reminder pressure";
+      return "Appointment confirmations, reschedules, and next steps";
     case "general_notices":
-      return "Front Office actions, Back Office handoff, shared notices, and awareness-only items";
+      return "Notices, office updates, and formal workflow items";
     default:
-      return "Overview of cleanup, reminders, team pressure, and notices";
+      return "Follow-up, appointments, team pressure, and notices";
   }
 }
 
@@ -86,30 +86,30 @@ export function getActivityViewSectionTargetLabel(
 export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Resolve the loudest cleanup item, then reopen reminders or notices if they become louder.";
+      return "Handle the most overdue follow-up first, then return to reminders or notices if needed.";
     case "team_cleanup":
-      return "Intervene on the loudest visible-scope item, then return to personal cleanup.";
+      return "Address the most urgent team item, then return to your own follow-up.";
     case "appointment_reminders":
-      return "Open the calendar writeback lane and record the next touch.";
+      return "Open the appointment and record the next step.";
     case "general_notices":
-      return "Open the notice lane and route the next move to FO or BO.";
+      return "Open the notice and decide whether it needs agent work or formal workflow.";
     default:
-      return "Open the loudest lane first, then keep the current slice stable in the URL.";
+      return "Start with the most urgent item, then keep the same filters in place.";
   }
 }
 
 export function getActivityViewOperatorCue(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Work owner-owned cleanup first, then reopen reminders or notices once the drift is under control.";
+      return "Finish your own overdue follow-up first, then come back to reminders or notices.";
     case "team_cleanup":
-      return "Use visible-scope intervention only when a lead or office admin decision is needed.";
+      return "Use this view when the team needs help, not just for your own queue.";
     case "appointment_reminders":
-      return "Keep the lane on calendar writeback until confirmation, reschedule, or promised touch is handled.";
+      return "Keep the appointment open until the confirmation, reschedule, or next step is recorded.";
     case "general_notices":
-      return "Route the next move to FO, BO, shared visibility, or awareness-only handling.";
+      return "Use notices to separate direct action from updates that only need visibility.";
     default:
-      return "Triage the loudest lane first, then keep the route stable until the pass is closed.";
+      return "Review the most urgent area first, then keep the current filters steady while you work.";
   }
 }
 
@@ -118,15 +118,15 @@ export function getActivityViewTriageOrderLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Resolve owner cleanup before widening the route.";
+      return "Clear your overdue follow-up before widening the view.";
     case "team_cleanup":
-      return "Handle visible-scope pressure before returning to owner cleanup.";
+      return "Handle team pressure before returning to your own work.";
     case "appointment_reminders":
-      return "Finish calendar writeback before reopening broader notices.";
+      return "Finish the appointment update before switching back to notices.";
     case "general_notices":
-      return "Route notices before circling back to calendar pressure.";
+      return "Review notices before circling back to appointment follow-up.";
     default:
-      return "Personal cleanup → team pressure → calendar writeback → notice routing.";
+      return "My follow-up -> team pressure -> appointments -> notices.";
   }
 }
 
@@ -138,7 +138,7 @@ export const cleanupFilterOptions: Array<{
   { value: "follow_up", label: "Follow-up due" },
   { value: "appointment_writeback", label: "Appointment writeback" },
   { value: "send_risk", label: "Send-trail risk" },
-  { value: "stale_client", label: "Stale dossiers" },
+  { value: "stale_client", label: "Stale clients" },
   { value: "duplicate_review", label: "Duplicate review" },
 ];
 
@@ -151,31 +151,31 @@ export const personalCleanupTrackConfig: Array<{
     key: "follow_up",
     label: "Follow-up due",
     description:
-      "Client-owned next touches that have already become due inside your personal FO queue.",
+      "Follow-up that is already due for your own clients.",
   },
   {
     key: "appointment_writeback",
     label: "Appointment writeback",
     description:
-      "Confirmation, reschedule, and promised external-touch cleanup that still needs owner follow-through.",
+      "Appointment updates that still need confirmation, reschedule, or a saved next step.",
   },
   {
     key: "send_risk",
     label: "Send-trail risk",
     description:
-      "Tracked sends in your own queue that never opened or went quiet after the last signal.",
+      "Tracked sends that never opened or went quiet after the last signal.",
   },
   {
     key: "stale_client",
-    label: "Stale dossiers",
+    label: "Stale clients",
     description:
-      "Self-owned dossiers that have gone stale enough to need an explicit recovery pass.",
+      "Clients that have gone quiet long enough to need a recovery pass.",
   },
   {
     key: "duplicate_review",
     label: "Duplicate review",
     description:
-      "Foundation cleanup that should be resolved before the next send, task, or appointment touches the wrong dossier.",
+      "Possible duplicates that should be resolved before more work lands on the wrong client record.",
   },
 ];
 
@@ -203,11 +203,11 @@ export const noticeStreamFilterOptions: Array<{
   value: AgentNotificationStreamFilter;
   label: string;
 }> = [
-  { value: "all", label: "All notice lanes" },
-  { value: "front_office", label: "FO actions" },
-  { value: "back_office", label: "BO handoff" },
-  { value: "shared_notice", label: "Shared office notices" },
-  { value: "reference", label: "Awareness only" },
+  { value: "all", label: "All notices" },
+  { value: "front_office", label: "Agent actions" },
+  { value: "back_office", label: "Formal workflow" },
+  { value: "shared_notice", label: "Office updates" },
+  { value: "reference", label: "Reference only" },
 ];
 
 export const leadershipCleanupFilterOptions: Array<{
@@ -266,27 +266,27 @@ export const generalNoticeLaneConfig: Array<{
 }> = [
   {
     key: "front_office",
-    label: "Front Office actions",
+    label: "Agent actions",
     description:
-      "Use these when the next step still belongs in agent-side execution.",
+      "Use these when the next step still belongs with the agent.",
   },
   {
     key: "back_office",
-    label: "Back Office handoff",
+    label: "Formal workflow",
     description:
-      "Use these when the next action belongs in formal transaction or operations workflows.",
+      "Use these when the next action belongs in the formal transaction or operations workflow.",
   },
   {
     key: "shared_notice",
-    label: "Shared office notices",
+    label: "Office updates",
     description:
-      "These keep office-wide visibility close without turning them into personal follow-through mutations.",
+      "Use these for office-wide updates that do not belong in your personal follow-up list.",
   },
   {
     key: "reference",
-    label: "Awareness only",
+    label: "Reference only",
     description:
-      "These are meant to stay visible and informative, not force a read-state workflow.",
+      "Use these for information you may want to see without turning it into a task.",
   },
 ];
 
@@ -309,9 +309,9 @@ export const teamCleanupGroupConfig: Array<{
   },
   {
     key: "stale_client",
-    label: "15+ day stale dossiers",
+    label: "15+ day stale clients",
     description:
-      "Visible-scope dossiers with enough inactivity to need leadership attention.",
+      "Clients with enough inactivity to need leadership attention.",
   },
 ];
 
@@ -450,15 +450,15 @@ export function getActivityViewAnchor(activityView: AgentActivityView) {
 export function getActivityViewBridgeLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Bridge to appointment reminders or duplicate review when the cleanup rail is clear.";
+      return "Move to appointments or duplicate review once your overdue follow-up is under control.";
     case "team_cleanup":
-      return "Bridge back to personal cleanup once the visible-scope lane is quiet.";
+      return "Return to your own follow-up once team pressure settles.";
     case "appointment_reminders":
-      return "Bridge to notice routing after the calendar writeback pass.";
+      return "Return to notices after the appointment update is saved.";
     case "general_notices":
-      return "Bridge back to appointment reminders if the next touch is calendar-owned.";
+      return "Return to appointments if the next step belongs on the calendar.";
     default:
-      return "Bridge into the highest-pressure lane, then return to this overview slice.";
+      return "Follow the most urgent area first, then return to this overview.";
   }
 }
 
@@ -467,14 +467,14 @@ export function getActivityViewNextMoveChipLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Clear cleanup first";
+      return "Clear follow-up first";
     case "team_cleanup":
       return "Handle team pressure";
     case "appointment_reminders":
       return "Record next touch";
     case "general_notices":
-      return "Route next notice";
+      return "Review next notice";
     default:
-      return "Open top lane";
+      return "Open top item";
   }
 }

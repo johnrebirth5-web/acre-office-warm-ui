@@ -15,13 +15,13 @@ export const frontOfficeClientDossierSectionIds = {
 } as const;
 
 export const frontOfficeClientDossierSectionLabels = {
-  nextStepRail: "Next-step rail",
+  nextStepRail: "Next steps",
   appointmentsFollowUp: "Appointments & follow-up",
   listingOutput: "Listing output",
   offerPrep: "Offer & negotiation",
   inspectionSupport: "Inspection & contract support",
   closingSuggestion: "Closing & win suggestions",
-  backOfficeContext: "Back Office handoff",
+  backOfficeContext: "Formal workflow",
 } as const;
 
 export const frontOfficeClientDossierSectionDescriptions = {
@@ -34,11 +34,11 @@ export const frontOfficeClientDossierSectionDescriptions = {
   offerPrep:
     "Use this section when negotiation is active, Front Office still owns the client-facing coaching, and the same file needs to connect to the formal Back Office offer record without losing the client-ready recap.",
   inspectionSupport:
-    "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same file should reopen the Back Office checklist instead of creating a second tracker.",
+    "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and this page should reopen the Back Office checklist instead of creating a second tracker.",
   closingSuggestion:
-    "Use this section when the deal is closing, closed, or paused, and the same file should turn the formal outcome into a next move, a post-close touch, or a respectful restart plan while keeping the client-ready view aligned with the same source of truth.",
+    "Use this section when the deal is closing, closed, or paused, and this page should turn the formal outcome into a next move, a post-close touch, or a respectful restart plan.",
   backOfficeContext:
-    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including which work still belongs in Front Office, which work is already committed to the shared file, and what the client-ready summary should show next.",
+    "Use this section when you need to explain why the formal Back Office record should take over, which work still belongs in Front Office, and what the client-ready summary should show next.",
 } as const;
 
 export type FrontOfficeClientActionDescriptor = {

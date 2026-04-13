@@ -68,15 +68,15 @@ function buildActivityFocusDescription(
 ) {
   switch (value) {
     case "personal_cleanup":
-      return "Focus on your own follow-up cleanup first, then widen back into reminders and notices once the urgent items are under control.";
+      return "Focus on your own overdue follow-up first, then widen back to reminders and notices once the urgent work is under control.";
     case "team_cleanup":
-      return "Use this view when team-wide overdue work matters more than your personal queue.";
+      return "Use this view when team-wide overdue work matters more than your own list.";
     case "appointment_reminders":
       return "Stay here when the next move is a confirmation, reschedule, or appointment follow-up.";
     case "general_notices":
-      return "Use this view when the next move is a notice, shared visibility update, or handoff instead of personal cleanup.";
+      return "Use this view when the next move is a notice, office update, or formal workflow item instead of personal follow-up.";
     default:
-      return "This page keeps cleanup, reminders, team pressure, and notices in one place while letting you narrow the view without losing your place.";
+      return "This page keeps follow-up, appointments, team pressure, and notices in one place while letting you narrow the view without losing your place.";
   }
 }
 
@@ -195,7 +195,7 @@ export default async function AgentNotificationsPage(
 
   return (
     <FrontOfficePageTemplate
-      description="Keep self-owned cleanup, visible team pressure, calendar writeback, and broader notice follow-through in one Front Office route without blurring the Back Office boundary."
+      description="Review follow-up, appointments, team pressure, and notices in one place."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -214,7 +214,7 @@ export default async function AgentNotificationsPage(
           <SectionCard
             className="office-list-card"
             subtitle={buildActivityFocusDescription(initialActivityView)}
-            title="Current route focus"
+            title="Current focus"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -236,13 +236,13 @@ export default async function AgentNotificationsPage(
                     </span>
                   </>
                 }
-                title="Keep this section target stable"
+                title="Keep this view in place"
               />
               <FrontOfficeRailItem
                 badgeLabel={cleanupFilterLabel}
                 badgeTone="warning"
                 context={`${personalCleanupCount} personal cleanup item(s)`}
-                description="Use the cleanup lane when the next move is to repair owner-owned FO drift on one dossier before you reopen calendar writeback or broader notices."
+                description="Use this view when one client needs direct follow-up before you move back to appointments or notices."
                 meta={
                   <>
                     <span>{snapshot.summary.urgentCleanupCount} urgent</span>
@@ -264,7 +264,7 @@ export default async function AgentNotificationsPage(
                 )}
                 badgeTone="accent"
                 context={`${appointmentReminderCards.length} appointment reminder(s)`}
-                description="Calendar writeback stays separate from broader notices so confirmation, reschedule, and promised-touch work can reopen as one clean command slice."
+                description="Keep confirmations, reschedules, and promised next steps together so appointment work stays easy to scan."
                 meta={
                   <>
                     <span>
@@ -284,7 +284,7 @@ export default async function AgentNotificationsPage(
               <FrontOfficeRailItem
                 badgeLabel={noticeLaneLabel}
                 context={`${generalNoticeCards.length} general notice(s)`}
-                description="General notices keep FO actions, BO handoff signals, shared office visibility, and awareness-only messages separated instead of collapsing them into one queue pile."
+                description="Separate notices that need action from office updates and information-only alerts."
                 meta={
                   <>
                     <span>{readStateLabel}</span>
@@ -304,7 +304,7 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="Client-linked appointments now surface in the cleanup queue above. This rail keeps shared office notices, meetings, and RSVP context close by without mixing them into the same command stack."
+            subtitle="This keeps shared office events and RSVPs close by without mixing them into your follow-up list."
             title="Upcoming office events"
           >
             <div className="office-queue-list">
@@ -355,7 +355,7 @@ export default async function AgentNotificationsPage(
                   Open full queue
                 </FrontOfficeLink>
               }
-              subtitle="Team leads and office admins should still be able to scan overdue tasks, stale clients, and quiet send trails from the same activity center they already use for personal cleanup. The full queue now lives in the main activity stack below."
+              subtitle="Team leads and office admins can scan overdue tasks, stale clients, and quiet send activity from the same page they already use for follow-up."
               title={`${dashboardSnapshot.leadershipQueue.scopeLabel} overview`}
             >
               <ListPageStatsGrid>
@@ -408,8 +408,8 @@ export default async function AgentNotificationsPage(
                     className="front-office-inline-empty"
                     description={
                       initialTeamCleanupFilter === "all"
-                        ? "No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
-                        : "No team cleanup items match the current leadership-pressure filter."
+                        ? "No overdue tasks, stale clients, or quiet send activity are visible in your leadership scope right now."
+                        : "No team items match the current filter."
                     }
                     title="Leadership queue is clear"
                   />
@@ -420,7 +420,7 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="A quick snapshot of overdue follow-up and reminders."
+            subtitle="A quick snapshot of overdue follow-up and appointment reminders."
             title="Cleanup summary"
           >
             <FrontOfficeCleanupDigestCard

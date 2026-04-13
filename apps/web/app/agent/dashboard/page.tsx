@@ -43,8 +43,8 @@ function getClientReviewActionLabel(stage: string, isZh: boolean) {
       ? "继续录入复核"
       : "Continue intake review"
     : isZh
-      ? "打开客户工作台"
-      : "Open client workspace";
+      ? "打开客户记录"
+      : "Open client record";
 }
 
 type ClientWorkbenchView =
@@ -105,8 +105,8 @@ function getDashboardQueueAction(input: {
             ? "立即锚定租约提醒"
             : "Anchor lease now"
           : isZh
-            ? "打开租约工作道"
-            : "Open lease lane",
+            ? "打开租约提醒"
+            : "Open lease reminders",
     };
   }
 
@@ -168,8 +168,8 @@ function getDashboardCommandLeadText(input: {
   }
 
   return isZh
-    ? "当前没有哪条工作道明显高于其他。先把实时队列和录入辅助保持在视野里，直到出现一个更明确的下一步。"
-    : "No lane is elevated above the rest right now. Keep the live queue and intake assist in view until a grounded next move appears.";
+    ? "当前没有哪一项明显高于其他。先把实时队列和录入辅助保持在视野里，直到出现更明确的下一步。"
+    : "Nothing stands clearly above the rest right now. Keep the live queue and intake assist in view until a clearer next move appears.";
 }
 
 function formatSignedDelta(value: number) {
@@ -335,7 +335,7 @@ function buildDashboardLaunchpadItems(input: {
         : leadingLeaseReminder.reminderLabel,
       href: leaseAction?.href ?? leadingLeaseReminder.href,
       actionLabel:
-        leaseAction?.actionLabel ?? (isZh ? "打开客户 dossier" : "Open client dossier"),
+        leaseAction?.actionLabel ?? (isZh ? "打开客户记录" : "Open client record"),
     });
   }
 
@@ -373,7 +373,7 @@ function buildDashboardLaunchpadItems(input: {
       title: `Open ${leadingBackOfficeItem.title}'s formal workflow`,
       description: handoffAction
         ? `${leadingBackOfficeItem.description} ${handoffAction.whyNowLabel}`
-        : `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and only open the formal record when the package is genuinely ready.`,
+        : `${leadingBackOfficeItem.description} Only open the formal record when the package is genuinely ready.`,
       metaLabel: handoffAction
         ? handoffAction.nextStepLabel
         : leadingBackOfficeItem.contextLabel,
@@ -435,7 +435,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: isZh ? "审查" : "Review",
       badgeTone: "warning",
       title: isZh ? "查看重复记录" : "Review duplicates",
-      description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Reopen the merge lane before more work lands so intake and follow-up stay on one surviving dossier.`,
+      description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Review them before more work lands so intake and follow-up stay on one surviving client record.`,
       metaLabel: isZh
         ? "重复比较和合并仍留在客户队列内"
         : "Duplicate compare and merge stays in the client queue",
@@ -453,8 +453,8 @@ function buildDashboardLaunchpadItems(input: {
         ? "用审查优先的录入方式捕获下一条线索"
         : "Capture the next lead with review-first intake",
       description: isZh
-        ? "当实时通话、截图或粘贴聊天需要变成真实 dossier 时，用录入辅助来处理。Acre 在创建任何内容前仍会等待你的审查，也不会声称自己已有 provider 级导入或微信双向同步。"
-        : "Use intake assist when a live call, screenshot, or pasted chat needs to become a real dossier. Acre still waits for your review before anything is created, and it does not claim provider-backed ingestion or WeChat sync.",
+        ? "当实时通话、截图或粘贴聊天需要变成真实客户记录时，用录入辅助来处理。Acre 在创建任何内容前仍会等待你的审查。"
+        : "Use intake assist when a live call, screenshot, or pasted chat needs to become a real client record. Acre still waits for your review before anything is created.",
       metaLabel: input.clientsSnapshot
         ? `${input.clientsSnapshot.summary.liveContacts} live contact(s) in your current scope`
         : isZh
@@ -715,11 +715,11 @@ export default async function AgentDashboardPage() {
     .slice(0, 4);
   const honestStateText = canUseAi
     ? isZh
-      ? "Acre 会把实时跟进、已跟踪的发送/点击历史、审查优先的 AI 规则层与建议，以及明确的 FO -> BO 交接都摆在这里。它仍不会自动发送、隐藏自动化、声称拥有双向同步，或宣称已有 provider 级 / 微信导入。"
-      : "Acre surfaces live follow-up, tracked send/click history, a review-first AI rule layer and suggestions, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion."
+      ? "Acre 会把实时跟进、已跟踪的发送/点击历史、审查优先的 AI 建议，以及是否需要进入正式流程的信息都摆在这里。它仍不会自动发送，也不会把自动化藏起来。"
+      : "Acre surfaces live follow-up, tracked send/click history, review-first AI suggestions, and clear signals about when formal workflow is needed. It still does not auto-send or hide automation."
     : isZh
-      ? "Acre 会把实时跟进、已跟踪的发送/点击历史，以及明确的 FO -> BO 交接都摆在这里。它仍不会自动发送、隐藏自动化、声称拥有双向同步，或宣称已有 provider 级 / 微信导入。"
-      : "Acre surfaces live follow-up, tracked send/click history, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion.";
+      ? "Acre 会把实时跟进、已跟踪的发送/点击历史，以及是否需要进入正式流程的信息都摆在这里。它仍不会自动发送，也不会把自动化藏起来。"
+      : "Acre surfaces live follow-up, tracked send/click history, and clear signals about when formal workflow is needed. It still does not auto-send or hide automation.";
   const primaryLaneLabel =
     executionOrder[0]?.label ??
     (canViewClients
@@ -857,8 +857,8 @@ export default async function AgentDashboardPage() {
               className="office-list-card"
               subtitle={
                 isZh
-                  ? "先清掉上面的实时压力，再使用这里。录入始终保持审查优先：重复预警可见，OCR / transcript 辅助不会自动创建任何内容，Acre 也不会声称已有 provider 级导入或微信集成。"
-                  : "Use this after you clear the live pressure above. Intake stays review-first: duplicate warnings are visible, OCR / transcript assist does not auto-create anything, and Acre is not claiming provider-backed ingestion or WeChat integration."
+                  ? "先清掉上面的实时压力，再使用这里。录入始终保持审查优先：重复预警可见，OCR / transcript 辅助不会自动创建任何内容。"
+                  : "Use this after you clear the live pressure above. Intake stays review-first: duplicate warnings are visible and OCR / transcript assist does not auto-create anything."
               }
               title={isZh ? "准备接新工作时再打开录入辅助" : "Intake assist when you are ready to capture new work"}
             >
@@ -866,8 +866,8 @@ export default async function AgentDashboardPage() {
               <StatCard
                   hint={
                     isZh
-                      ? "当前客户范围里可见的 Front Office 实时 dossier"
-                      : "live Front Office dossiers visible in your current client scope"
+                      ? "当前客户范围里可见的实时客户记录"
+                      : "live client records visible in your current client scope"
                   }
                   label={isZh ? "实时联系人" : "Live contacts"}
                   value={clientsSnapshot.summary.liveContacts}
@@ -938,8 +938,8 @@ export default async function AgentDashboardPage() {
                   context={`${clientsSnapshot.summary.liveContacts} live contact(s)`}
                   description={
                     isZh
-                      ? "当你需要阶段视图、下一触达排序，以及对现有 dossier 继续复核的真实队列时，直接跳进完整客户列表。"
-                      : "Jump into the full client list when you need the stage view, next-touch ordering, and the real queue for continuing review across existing dossiers."
+                      ? "当你需要阶段视图、下一触达排序，以及继续复核现有客户记录时，直接跳进完整客户列表。"
+                      : "Jump into the full client list when you need the stage view, next-touch ordering, and the real queue for continuing review across existing client records."
                   }
                   meta={
                     <span>
@@ -984,8 +984,8 @@ export default async function AgentDashboardPage() {
                   }
                   description={
                     isZh
-                      ? "创建时出现的重复预警仍然保持审查优先：在真正合并之前，客户列表里的专用工作道仍是比较 dossier 的地方。"
-                      : "Keep create-time duplicate warnings review-first: the dedicated lane in the client list is still the place to compare dossiers before you merge anything."
+                      ? "创建时出现的重复预警仍然保持审查优先：在真正合并之前，客户列表里的专用视图仍是比较客户记录的地方。"
+                      : "Keep create-time duplicate warnings review-first: the dedicated view in the client list is still the place to compare client records before you merge anything."
                   }
                   meta={
                     <span>{isZh ? "重复审查仍保留在客户队列里。" : "Duplicate review stays in the client queue."}</span>
@@ -1225,8 +1225,8 @@ export default async function AgentDashboardPage() {
                   <EmptyState
                     description={
                       isZh
-                        ? "当你接受仪表盘或 dossier 里的 AI 建议后，产生的任务和已跟踪发送结果都会汇总到这里。"
-                        : "Once you accept dashboard or dossier AI suggestions, the resulting task and tracked-send outcomes will roll up here."
+                        ? "当你接受仪表盘或客户页里的 AI 建议后，产生的任务和已跟踪发送结果都会汇总到这里。"
+                        : "Once you accept dashboard or client-page AI suggestions, the resulting task and tracked-send outcomes will roll up here."
                     }
                     title={
                       isZh
@@ -1266,8 +1266,8 @@ export default async function AgentDashboardPage() {
             }
             subtitle={
               isZh
-                ? "把这里当作仍需要人工判断的 dossier 快速指挥图。完整清理、合并和详细复核仍然保留在客户工作区里。"
-                : "Use this as a fast command map for dossiers that still need operator judgment. Full cleanup, merge, and detailed review still stay in the client workspace."
+                ? "把这里当作仍需要人工判断的客户记录快速总览。完整清理、合并和详细复核仍然保留在客户列表里。"
+                : "Use this as a fast overview for client records that still need human judgment. Full cleanup, merge, and detailed review still stay in the client list."
             }
             title={isZh ? "实时客户队列" : "Live client queue"}
           >
@@ -1294,8 +1294,8 @@ export default async function AgentDashboardPage() {
                   className="front-office-inline-empty"
                   description={
                     isZh
-                      ? "先从录入辅助或客户队列开始。当这个范围里出现实时 dossier 流动后，阶段分布就会显示出来。"
-                      : "Start with intake assist or the client queue. Stage distribution appears once live dossiers are moving in this scope."
+                      ? "先从录入辅助或客户队列开始。当这个范围里出现实时客户记录后，阶段分布就会显示出来。"
+                      : "Start with intake assist or the client queue. Stage distribution appears once live client records are moving in this scope."
                   }
                   title={isZh ? "还没有客户阶段分布" : "No client stages yet"}
                 />
@@ -1620,11 +1620,11 @@ export default async function AgentDashboardPage() {
                       {isZh ? "打开房源跟进" : "Open listing follow-up"}
                     </Link>
                   }
-                  description={
-                    isZh
-                      ? "从房源输出或客户 dossier 开始，创建第一条客户关联发送记录。之后打开和再次访问都会显示在这里。"
-                      : "Start from listing output or a client dossier to create the first client-linked send record. Opens and revisits will show here after that."
-                  }
+                    description={
+                      isZh
+                        ? "从房源输出或客户记录开始，创建第一条客户关联发送记录。之后打开和再次访问都会显示在这里。"
+                        : "Start from listing output or a client record to create the first client-linked send record. Opens and revisits will show here after that."
+                    }
                   title={isZh ? "还没有客户关联发送" : "No client-linked sends yet"}
                 />
               )}
@@ -1712,8 +1712,8 @@ export default async function AgentDashboardPage() {
               }
               subtitle={
                 isZh
-                  ? "先用这条指挥工作道扫描逾期任务、沉寂客户和安静发送轨迹，再决定是否有人需要跳进办公室正式记录。"
-                  : "Use this command lane to scan overdue tasks, stale clients, and quiet send trails before anyone has to jump into a direct office record."
+                  ? "先在这里扫描逾期任务、沉寂客户和安静发送轨迹，再决定是否有人需要跳进正式办公室记录。"
+                  : "Use this section to scan overdue tasks, stale clients, and quiet send activity before anyone has to jump into a formal office record."
               }
               title={snapshot.leadershipQueue.scopeLabel}
             >
@@ -1775,8 +1775,8 @@ export default async function AgentDashboardPage() {
                     className="front-office-inline-empty"
                     description={
                       isZh
-                        ? "当前没有可见的逾期任务、沉寂客户或安静发送轨迹压力。"
-                        : "No overdue task, stale-client, or quiet send-trail pressure is visible right now."
+                        ? "当前没有可见的逾期任务、沉寂客户或安静发送压力。"
+                        : "No overdue tasks, stale clients, or quiet send activity are visible right now."
                     }
                     title={isZh ? "领导队列已清空" : "Leadership queue is clear"}
                   />
@@ -1854,7 +1854,7 @@ export default async function AgentDashboardPage() {
                   className="office-inline-link front-office-inline-link"
                   href={buildClientWorkbenchHref("viewing_lane")}
                 >
-                  {isZh ? "打开租约工作道" : "Open lease lane"}
+                  {isZh ? "打开租约提醒" : "Open lease reminders"}
                 </FrontOfficeLink>
               ) : undefined
             }
@@ -1895,7 +1895,7 @@ export default async function AgentDashboardPage() {
                           className="office-inline-link front-office-inline-link"
                           href={item.href}
                         >
-                          {isZh ? "打开客户 dossier" : "Open client dossier"}
+                          {isZh ? "打开客户记录" : "Open client record"}
                         </FrontOfficeLink>
                       }
                     badgeLabel={item.statusLabel}

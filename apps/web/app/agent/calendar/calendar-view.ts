@@ -42,13 +42,13 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
   },
   day: {
     description:
-      "Use a true day agenda: appointments stay ordered by start time so today's calendar reads like a time-first schedule instead of a lane board.",
+      "Use a true day agenda: appointments stay ordered by start time so today's calendar reads like a schedule.",
     label: "Day agenda",
     routeCopy: "Day agenda",
   },
   week: {
     description:
-      "Use a true week agenda: appointments stay grouped by date and ordered by start time so the calendar feels like a weekly schedule instead of a lane board.",
+      "Use a true week agenda: appointments stay grouped by date and ordered by start time so the calendar feels like a weekly schedule.",
     label: "Week agenda",
     routeCopy: "Week agenda",
   },
@@ -96,13 +96,13 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
   },
   bridge_logged: {
     description:
-      "Focus on appointments where Acre already logged the bridge and the next writeback step is to reopen the saved plan.",
-    label: "Bridge logged",
-    routeCopy: "Bridge opened",
+      "Focus on appointments where an external draft or export was already opened and the next step still needs to be saved here.",
+    label: "Draft opened",
+    routeCopy: "Draft opened",
   },
   writeback_pending: {
     description:
-      "Focus on appointments where the bridge was opened, but no confirmation or reschedule writeback has been saved yet.",
+      "Focus on appointments where an external draft was opened, but no confirmation, reschedule, or next step has been saved yet.",
     label: "Writeback pending",
     routeCopy: "Writeback pending",
   },

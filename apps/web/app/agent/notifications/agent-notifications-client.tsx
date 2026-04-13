@@ -674,7 +674,7 @@ export function AgentNotificationsClient({
       key: "personal_cleanup" as const,
       label: "Personal cleanup",
       description:
-        "Self-owned follow-up, send rescue, stale dossier cleanup, appointment updates, and duplicate review stay together in one section.",
+        "Your overdue follow-up, quiet send activity, stale clients, appointment updates, and duplicate review stay together in one section.",
       count: personalCleanupCount,
       tone: personalCleanupTone,
       ownerLabel: "Ownership · Assigned to you",
@@ -703,7 +703,7 @@ export function AgentNotificationsClient({
             key: "team_cleanup" as const,
             label: "Team cleanup",
             description:
-              "Visible-scope overdue tasks, stale dossiers, and quiet send trails stay readable here without hiding who owns the underlying record.",
+              "Visible-scope overdue tasks, stale clients, and quiet send activity stay readable here without hiding who owns the underlying record.",
             count: teamCleanupCount,
             tone: teamCleanupTone,
             ownerLabel: `Scope · ${leadershipQueue.scopeLabel}`,
@@ -1393,7 +1393,7 @@ export function AgentNotificationsClient({
               key: "duplicate-review",
               label: "Review duplicates",
               description:
-                "Merge duplicate dossiers before the next send or appointment so tracked history, follow-up, and handoff context stay on one surviving record.",
+                "Review duplicates before the next send or appointment so tracked history and follow-up stay on one surviving client record.",
               href: buildDuplicateReviewHref(),
               tone: "accent",
               badgeLabel: "Duplicate review",
@@ -1536,7 +1536,7 @@ export function AgentNotificationsClient({
                           key: "duplicate-review-all",
                           label: "Review duplicates",
                           description:
-                            "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
+                            "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong client record.",
                           href: buildDuplicateReviewHref(),
                           tone: "accent",
                           badgeLabel: "Duplicate review",
@@ -2520,8 +2520,8 @@ export function AgentNotificationsClient({
           id="cleanup-center"
           subtitle={
             isOverviewMode
-              ? "Personal cleanup stays self-owned. Overview shows the first few items so the page stays scan-first; open the full list when you need the rest of the queue."
-              : "Personal cleanup stays self-owned. Surface the loudest issue per client first, then continue directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
+              ? "Personal cleanup stays assigned to you. The overview shows the first few items so the page stays easy to scan; open the full list when you need the rest."
+              : "Personal cleanup stays assigned to you. Surface the loudest issue per client first, then continue directly into follow-up, appointment updates, quiet send activity, stale clients, or duplicate review."
           }
           title="Personal cleanup"
         >
@@ -2613,9 +2613,9 @@ export function AgentNotificationsClient({
                 }
                 description={
                   activeCleanupFilter === "duplicate_review"
-                    ? "Use the Clients duplicate-review lane for this pass. The client cleanup queue above is intentionally muted while duplicate review is in focus."
+                    ? "Use the Clients duplicate-review view for this pass. The regular cleanup queue is intentionally muted while duplicate review is in focus."
                     : activeCleanupFilter === "all"
-                      ? "When follow-ups, tracked sends, appointments, external writeback deadlines, or duplicate review start applying pressure, the highest-priority cleanup items will stack here first."
+                      ? "When follow-up, tracked sends, appointments, saved next-step deadlines, or duplicate review start applying pressure, the highest-priority items will stack here first."
                       : `No personal cleanup items match ${activeCleanupFilterLabel.toLowerCase()} right now.`
                 }
                 title="No cleanup pressure right now"
@@ -2657,8 +2657,8 @@ export function AgentNotificationsClient({
           id="team-cleanup-pressure"
           subtitle={
             isOverviewMode
-              ? "Leadership cleanup stays visible-scope, not owner-blind. Overview keeps the first few team pressure items close while the full queue remains one click away."
-              : "Leadership cleanup stays visible-scope, not owner-blind. This section keeps overdue shared tasks, stale dossiers, and quiet send trails together so leads and office admins can decide where to intervene next."
+              ? "Leadership cleanup stays visible across the team. The overview keeps the first few team items close while the full queue stays one click away."
+              : "Leadership cleanup stays visible across the team. This section keeps overdue shared tasks, stale clients, and quiet send activity together so leads and office admins can decide where to step in next."
           }
           title="Team cleanup"
         >
@@ -2670,7 +2670,7 @@ export function AgentNotificationsClient({
               value={leadershipQueue.overdueTaskCount}
             />
             <StatCard
-              hint="active visible-scope dossiers with 15+ days of inactivity"
+              hint="active visible-scope clients with 15+ days of inactivity"
               label="15+ day stale"
               tone={leadershipQueue.staleClientCount > 0 ? "accent" : "default"}
               value={leadershipQueue.staleClientCount}
@@ -2774,8 +2774,8 @@ export function AgentNotificationsClient({
               }
               description={
                 activeLeadershipFilter === "all"
-                  ? "No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
-                  : "No team cleanup items match the current leadership-pressure filter."
+                  ? "No overdue tasks, stale clients, or quiet send activity are visible inside your leadership scope right now."
+                  : "No team items match the current filter."
               }
               title="Leadership queue is clear"
             />
@@ -2796,7 +2796,7 @@ export function AgentNotificationsClient({
           <SectionCard
             className="office-list-card"
             id="duplicate-review"
-            subtitle="Duplicate review stays separate from the live cleanup list so agents can reconcile dossiers before the next follow-up, send, or appointment."
+            subtitle="Duplicate review stays separate from the live cleanup list so agents can reconcile client records before the next follow-up, send, or appointment."
             title="Duplicate review"
           >
             <EmptyState

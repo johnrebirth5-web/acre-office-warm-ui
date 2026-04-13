@@ -134,7 +134,7 @@ function getChatListStrategyDescription(
   }
 
   if (snapshot.email) {
-    return "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the dossier is more complete than it is.";
+    return "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the client record is more complete than it is.";
   }
 
   return "No direct contact path is captured yet, so finish the contact record before trying to execute the playbook or send anything outbound.";
@@ -330,7 +330,7 @@ export default async function AgentClientDetailPage(
       badgeTone: entry.tone,
       context: entry.actorLabel,
       description:
-        entry.noteLabel || "Stage updated in the Front Office dossier.",
+        entry.noteLabel || "Stage updated in the Front Office client record.",
       metaLabel: entry.changedAtLabel,
       sortAt: entry.changedAtValue,
       priority: 2,
@@ -437,7 +437,7 @@ export default async function AgentClientDetailPage(
     return [
       {
         href: item.returnPoint.href,
-        label: "Review dossier block",
+        label: "Review current section",
       },
       {
         href: item.actionHref,
@@ -449,10 +449,10 @@ export default async function AgentClientDetailPage(
 
   return (
     <FrontOfficePageTemplate
-      eyebrow="Client dossier"
+      eyebrow="Client record"
       main={
         <>
-          <SectionCard
+            <SectionCard
             actions={
               <FrontOfficeClientActionGroup
                 actions={[
@@ -475,18 +475,18 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-overview"
-            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, cleanup, or PDF follow-up can continue from the same client file instead of a fresh admin form.`}
+            subtitle={`${currentSectionLabel} is the current focus, and the rest of the client page stays one jump away so calendar, listing, cleanup, or PDF follow-up can continue from the same client file.`}
             title="Overview"
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="current workflow pressure driving the active dossier"
+                hint="current workflow pressure driving the active client record"
                 label="Workflow pressure"
                 tone="accent"
                 value={snapshot.workflow.pressureLabel}
               />
               <StatCard
-                hint="the current next-touch cue this dossier is surfacing"
+                hint="the current next-touch cue this client record is surfacing"
                 label="Follow-up cue"
                 tone="accent"
                 value={snapshot.followUpCue.label}
@@ -501,7 +501,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint="where the record sits across FO execution and BO formal work"
-                label="Back Office handoff"
+                label="Formal workflow"
                 tone="accent"
                 value={snapshot.nextStepRail.decisionLabel}
               />
@@ -533,7 +533,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.summary.upcomingAppointmentCount}
               />
               <StatCard
-                hint="draft or ready Back Office handoffs"
+                hint="draft or ready formal workflow entries"
                 label="BO handoffs"
                 tone="accent"
                 value={snapshot.summary.openHandoffCount}
@@ -585,7 +585,7 @@ export default async function AgentClientDetailPage(
                   key: "pdf",
                   label: "Client-ready PDF",
                   tone: "neutral",
-                  title: "Export a recap that mirrors the live dossier",
+                  title: "Export a recap that mirrors the live client record",
                   description:
                     "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work or breaking continuity.",
                   meta: (
@@ -677,7 +677,7 @@ export default async function AgentClientDetailPage(
           <SectionCard
             className="office-list-card"
             id="front-office-client-lease-reminder"
-            subtitle="Lease renewal and remarketing dates should live beside the live client dossier, not inside a separate spreadsheet."
+            subtitle="Lease renewal and remarketing dates should live beside the live client record, not inside a separate spreadsheet."
             title="Lease-date reminder"
           >
             <FrontOfficeClientLeaseReminderClient snapshot={snapshot} />
@@ -697,7 +697,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-execution-timeline"
-            subtitle="Action items surface first, then scheduled work, then recent history so the dossier reads like a live execution chain instead of a static profile."
+            subtitle="Action items surface first, then scheduled work, then recent history so the client record reads like a live execution chain instead of a static profile."
             title="Execution timeline"
           >
             <div className="front-office-placeholder-note">
@@ -726,7 +726,7 @@ export default async function AgentClientDetailPage(
                 ))
               ) : (
                 <EmptyState
-                  description="Stage moves, sends, appointments, and BO handoff events will appear here as this dossier keeps moving."
+                  description="Stage moves, sends, appointments, and formal workflow events will appear here as this client record keeps moving."
                   title="No execution timeline yet"
                 />
               )}
@@ -765,7 +765,7 @@ export default async function AgentClientDetailPage(
                       ? "Daily coordination still stays in Front Office"
                       : "Daily next touches and meetings stay in Front Office",
                     description: primaryHandoff
-                      ? "Even with a live transaction file, calls, confirmations, reschedules, and client-facing reminders should keep moving from this dossier."
+                      ? "Even with a live transaction file, calls, confirmations, reschedules, and client-facing reminders should keep moving from this client page."
                       : "Use follow-up tasks, next-touch dates, and appointment scheduling here before the work becomes a formal offer or contract file.",
                   },
                   {
@@ -1070,7 +1070,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.negotiation.offerCount}
               />
               <StatCard
-                hint="offers that are close to expiration in the shared BO workspace"
+                hint="offers that are close to expiration in the shared formal workflow"
                 label="Expiring soon"
                 value={snapshot.negotiation.expiringSoonCount}
               />
@@ -1300,7 +1300,7 @@ export default async function AgentClientDetailPage(
                   tone: primaryHandoff ? primaryHandoff.tone : "warning",
                   title: "Formal contract work stays in Back Office",
                   description:
-                    "Open tasks, signatures, and incoming update review should stay on the shared Back Office transaction instead of turning this dossier into a second inspection checklist.",
+                    "Open tasks, signatures, and incoming update review should stay on the shared Back Office transaction instead of turning this client page into a second inspection checklist.",
                   actions: [primaryHandoffAction],
                 },
                 {
@@ -1393,7 +1393,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.closing.boundaryLabel}
               />
               <StatCard
-                hint="formal shared transaction state currently attached to this dossier and owned by Back Office"
+                hint="formal shared transaction state currently attached to this client record and owned by Back Office"
                 label="Deal status"
                 value={snapshot.closing.transactionStatusLabel}
               />
@@ -1577,7 +1577,7 @@ export default async function AgentClientDetailPage(
                   )
                 }
                 className="office-list-card"
-                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, shared rule layer, and operational playbook, but still leaves the final wording and send decision to the agent."
+                subtitle="Acre grounds the next-touch suggestion in the current client record and shared guidance, but the final wording and send decision still belong to the agent."
                 title="AI next-touch suggestions"
               >
                 <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />
@@ -1587,14 +1587,14 @@ export default async function AgentClientDetailPage(
 
           {canUseAi ? (
             <div id="front-office-ai-outcomes">
-              <SectionCard
-                className="office-list-card"
-                subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so the agent can see whether the suggestion actually moved execution through the same playbook."
-                title="Accepted AI actions & outcomes"
+            <SectionCard
+              className="office-list-card"
+              subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so you can see whether the suggestion actually helped move the client forward."
+              title="Accepted AI actions & outcomes"
               >
                 <ListPageStatsGrid>
                   <StatCard
-                    hint="accepted follow-up or tracked-send actions tied to this dossier"
+                    hint="accepted follow-up or tracked-send actions tied to this client record"
                     label="Accepted actions"
                     value={snapshot.aiAcceptedActions.acceptedCount}
                   />
@@ -1672,7 +1672,7 @@ export default async function AgentClientDetailPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
+            subtitle="Phone strategy and copy-ready outreach stay inside the active client record."
             title="Chat List & phone strategy"
           >
             <FrontOfficeClientGuidanceQueue
@@ -1737,8 +1737,8 @@ export default async function AgentClientDetailPage(
           <SectionCard
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.nextStepRail}
-            subtitle="This rail should make the daily decision obvious: keep moving inside Front Office, or cross into the formal Back Office record without duplicating anything."
-            title="Next-step rail"
+            subtitle="This section should make the daily decision obvious: keep moving here, or open the formal workflow without duplicating work."
+            title="Next steps"
           >
             <FrontOfficeClientGuidanceQueue
               items={[
@@ -1803,7 +1803,7 @@ export default async function AgentClientDetailPage(
                   title:
                     "Export the same execution story as a client-facing PDF",
                   description:
-                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office or changing continuity.",
+                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without turning admin work into duplicate notes here.",
                   meta: (
                     <span>
                       Use it for recap, alignment, and post-meeting
@@ -1825,16 +1825,16 @@ export default async function AgentClientDetailPage(
                     : "BO not active",
                   tone: primaryHandoff?.tone ?? "neutral",
                   title: primaryHandoff
-                    ? `${primaryHandoff.stageLabel} is the current formal lane`
-                    : "Back Office is not active yet",
+                    ? `${primaryHandoff.stageLabel} is the current formal workflow`
+                    : "Formal workflow is not active yet",
                   description: primaryHandoff
                     ? primaryHandoff.summary
-                    : "Stay in Front Office until negotiation, application, offer, or contract work needs a formal, auditable file.",
+                    : "Stay here until negotiation, application, offer, or contract work needs a formal record.",
                   meta: (
                     <span>
                       {primaryHandoff
                         ? primaryHandoff.updatedAtLabel
-                        : "Use Back Office only when the work becomes formal, auditable, or finance-driven."}
+                        : "Open Back Office only when the work becomes formal, auditable, or finance-driven."}
                     </span>
                   ),
                   actions: [primaryHandoffAction],
@@ -1843,12 +1843,12 @@ export default async function AgentClientDetailPage(
             />
 
             <div className="front-office-placeholder-note">
-              <strong>Execution chain</strong>
+              <strong>Working order</strong>
               <p>
-                Open the matching dossier block first. Use the second jump only
-                when the work needs calendar scheduling, listing output, the
-                shared Back Office record, or a PDF export that should mirror
-                the same lane.
+                Open the matching section first. Use the second jump only when
+                the work needs calendar scheduling, listing output, the shared
+                formal record, or a PDF export that should mirror the same
+                story.
               </p>
             </div>
 
@@ -1936,8 +1936,8 @@ export default async function AgentClientDetailPage(
           <SectionCard
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.backOfficeContext}
-            subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it or treating the handoff as a second file, while the client-ready summary keeps pointing back to that source of truth."
-            title="Back Office context"
+            subtitle="Once formal transaction work starts, this page should point to the shared Back Office record instead of duplicating it."
+            title="Formal workflow"
           >
             <FrontOfficeClientGuidanceQueue
               items={[
@@ -1946,9 +1946,9 @@ export default async function AgentClientDetailPage(
                   label: snapshot.nextStepRail.decisionLabel,
                   tone: snapshot.nextStepRail.decisionTone,
                   title:
-                    "Front Office stays execution-first; Back Office stays formal",
+                    "Front Office keeps the client work moving; Back Office holds the formal record",
                   description:
-                    "Use this rail to see when the client is still in FO follow-up versus when the next step needs a formal, auditable BO record.",
+                    "Use this section to see when the client still needs agent follow-up here and when the next step belongs in the formal workflow.",
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
                   actions: [primaryHandoffAction],
                 },
@@ -1957,10 +1957,10 @@ export default async function AgentClientDetailPage(
                   label: snapshot.followUpCue.label,
                   tone: snapshot.followUpCue.tone,
                   title:
-                    "Client-facing next touches still stay in Front Office",
+                    "Client-facing next steps still stay here",
                   description: primaryHandoff
-                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this dossier while the authoritative record stays in Back Office."
-                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and queue-based next touches still belong here until the work becomes formal and needs a shared record.",
+                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this client page while the authoritative record stays in Back Office."
+                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and next-touch follow-up still belong here until the work becomes formal and needs a shared record.",
                   meta: <span>{snapshot.contract.handoff.summary}</span>,
                   actions: [followUpPrimaryAction],
                 },
@@ -1991,8 +1991,8 @@ export default async function AgentClientDetailPage(
                 ))
               ) : (
                 <EmptyState
-                  description="When this client reaches negotiation, offer, application, or contract-style stages, the BO handoff queue will show up here."
-                  title="No Back Office handoff yet"
+                  description="When this client reaches negotiation, offer, application, or contract-style stages, the formal workflow queue will show up here."
+                  title="No formal workflow yet"
                 />
               )}
             </div>
@@ -2026,7 +2026,7 @@ export default async function AgentClientDetailPage(
                       Open Back Office
                     </Link>
                   }
-                  description="Linked transaction records will appear here after the formal BO workflow begins."
+                  description="Linked transaction records will appear here after the formal workflow begins."
                   title="No linked transactions"
                 />
               )}
@@ -2043,7 +2043,7 @@ export default async function AgentClientDetailPage(
           />
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip
-            label="Boundary"
+            label="Workflow"
             tone="accent"
             value={snapshot.nextStepRail.decisionLabel}
           />
@@ -2070,7 +2070,7 @@ export default async function AgentClientDetailPage(
             value={snapshot.summary.upcomingAppointmentCount}
           />
           <SummaryChip
-            label="BO handoffs"
+            label="Formal files"
             tone="accent"
             value={snapshot.summary.openHandoffCount}
           />

@@ -57,7 +57,7 @@ function buildManualConfirmationReason(input: {
   if (!input.allowsDirectFollowUpCreation && crossesBackOfficeBoundary) {
     return input.compact
       ? "A human still decides whether this becomes a formal BO transition or stays a client-facing clarification."
-      : "Acre can point to the FO -> BO boundary, but it cannot confirm that package readiness, client intent, or office ownership actually changed off-record. A human still decides whether this becomes a formal Back Office transition or stays a Front Office clarification.";
+      : "Acre can point to the formal workflow boundary, but it cannot confirm that package readiness, client intent, or office ownership actually changed off-record. A human still decides whether this becomes a formal Back Office transition or stays a client-facing clarification.";
   }
 
   if (!input.allowsDirectFollowUpCreation) {
@@ -88,8 +88,8 @@ function buildAcceptedOutcomeReason(input: {
 
   if (crossesBackOfficeBoundary) {
     return input.compact
-      ? "No new accepted action is recorded until you review the FO -> BO transition."
-      : "Because one-click is paused at the FO -> BO boundary, Acre is not recording a new accepted action yet. The next auditable event is your review of the formal handoff path, not a hidden task creation.";
+      ? "No new accepted action is recorded until you review the formal workflow transition."
+      : "Because one-click is paused at the formal workflow boundary, Acre is not recording a new accepted action yet. The next auditable event is your review of the formal transition path, not a hidden task creation.";
   }
 
   return input.compact
@@ -103,17 +103,17 @@ function buildExplainabilityMeta(input: {
   rankingSignals: string[];
 }) {
   return [
-    "Grounded in live record state",
+    "Grounded in the current record",
     input.rankingSignals.length
-      ? "Accepted history changed priority"
-      : "Priority follows live record pressure",
-    `Boundary · ${input.boundaryLabel}`,
+      ? "Recent history changed priority"
+      : "Priority follows the current record",
+    `Current workflow · ${input.boundaryLabel}`,
     input.allowsDirectFollowUpCreation
-      ? "One-click · creates shared task only"
-      : "One-click · paused for review",
+      ? "One-click · creates a shared follow-up only"
+      : "One-click · review first",
     input.allowsDirectFollowUpCreation
-      ? "Accepted outcome · tracked after explicit acceptance"
-      : "Accepted outcome · waiting on human review",
+      ? "Outcome · tracked after you accept it"
+      : "Outcome · waits for your review",
     "No auto-send",
   ];
 }
@@ -203,7 +203,7 @@ export function FrontOfficeAiExplainabilitySurface(props: {
       {props.helperText ? (
         <div className="front-office-ai-explainability-block">
           <span className="front-office-ai-explainability-kicker">
-            Execution judgment
+            Suggested next step
           </span>
           <p>{props.helperText}</p>
           <div className="list-row-meta front-office-record-meta">
@@ -218,13 +218,13 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <div className="front-office-ai-explainability-block front-office-playbook-surface">
           <div className="front-office-ai-explainability-head">
             <span className="front-office-ai-explainability-kicker">
-              Operational playbook
+              Suggested playbook
             </span>
             <StatusBadge tone="accent">Do / prepare / watch</StatusBadge>
           </div>
           <p>
             {props.playbookSummary ??
-              "Acre turns the rule layer into step cards so the next move, the prep, and the watchpoint stay visible before anyone accepts a follow-up."}
+              "Acre turns the current guidance into step cards so the next move, preparation, and watchpoint stay visible before anyone accepts a follow-up."}
           </p>
           <div className="front-office-playbook-grid">
             {playbookSteps.map((step) => (
@@ -271,13 +271,13 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <div className="front-office-ai-explainability-block">
           <div className="front-office-ai-explainability-head">
             <span className="front-office-ai-explainability-kicker">
-              Strategy / rule layer
+              Strategy summary
             </span>
-            <StatusBadge tone="accent">Review-first</StatusBadge>
+            <StatusBadge tone="accent">Review first</StatusBadge>
           </div>
           <p>{props.strategySummary}</p>
           <ExplainabilitySignals
-            emptyMessage="No shared strategy signals are surfaced yet, so Acre is still falling back to the live dossier trail and its standard safety boundary."
+            emptyMessage="No extra strategy signals are surfaced yet, so Acre is still leaning on the current record and its normal safety checks."
             signals={props.strategySignals ?? []}
           />
         </div>
@@ -287,13 +287,12 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <div className="front-office-ai-explainability-block front-office-playbook-surface">
           <div className="front-office-ai-explainability-head">
             <span className="front-office-ai-explainability-kicker">
-              Rule drafts / review pack
+              Ready-to-review drafts
             </span>
             <StatusBadge tone="accent">Copy-ready</StatusBadge>
           </div>
           <p>
-            Each surfaced rule now carries a review checklist and a copy-ready
-            draft so the next touch can stay manual, grounded, and explicit.
+            Each draft includes a review checklist so the next message can stay manual and explicit.
           </p>
           {copyFeedback ? <p>{copyFeedback}</p> : null}
           <div className="front-office-playbook-grid">
@@ -342,17 +341,17 @@ export function FrontOfficeAiExplainabilitySurface(props: {
             Why this surfaced now
           </span>
           <ExplainabilitySignals
-            emptyMessage="Acre is still grounding this in the live record: current stage, timing window, and open workflow pressure all support a next step even when one signal is not dominant yet."
+            emptyMessage="Acre is still grounding this in the current record: stage, timing, and open work all support a next step even when one signal is not dominant yet."
             signals={props.whyNowSignals}
           />
         </article>
 
         <article className="front-office-ai-explainability-card">
           <span className="front-office-ai-explainability-kicker">
-            How accepted history changed priority
+            What recent history changed
           </span>
           <ExplainabilitySignals
-            emptyMessage="No accepted-action history is materially changing rank yet, so Acre is following live-record pressure plus default safety guardrails instead of claiming a learned preference."
+            emptyMessage="No recent accepted action is materially changing the ranking yet, so Acre is following current pressure plus its normal safety rules."
             signals={props.rankingSignals}
           />
         </article>
@@ -367,7 +366,7 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <article className="front-office-ai-explainability-card">
           <div className="front-office-ai-explainability-head">
             <span className="front-office-ai-explainability-kicker">
-              Execution boundary
+              Current workflow
             </span>
             <StatusBadge tone={props.boundaryTone}>
               {props.boundaryLabel}
@@ -388,7 +387,7 @@ export function FrontOfficeAiExplainabilitySurface(props: {
 
         <article className="front-office-ai-explainability-card">
           <span className="front-office-ai-explainability-kicker">
-            Why manual confirmation still matters
+            Why review still matters
           </span>
           <p>{manualConfirmationReason}</p>
         </article>

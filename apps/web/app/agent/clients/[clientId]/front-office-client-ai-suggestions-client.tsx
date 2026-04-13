@@ -97,10 +97,10 @@ function buildExecutionAssistantSummary(input: {
     input.canCreateSuggestedFollowUp &&
     input.aiSuggestions.followUpSuggestion
   ) {
-    return `${input.aiSuggestions.primaryActionReason} Playbook: ${input.playbookSummary}. If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""}, record this as an agent-approved AI action, and wait for the later task outcome before learning from it.`;
+    return `${input.aiSuggestions.primaryActionReason} Suggested approach: ${input.playbookSummary}. If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""} and wait for the later task outcome before learning from it.`;
   }
 
-  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Shared strategy: ${input.aiStrategy.summaryLabel}. Playbook: ${input.playbookSummary}. Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
+  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Strategy summary: ${input.aiStrategy.summaryLabel}. Suggested approach: ${input.playbookSummary}. Acre will wait for your review before recording a new accepted action.`;
 }
 
 function buildExecutionAssistantMeta(input: {
@@ -114,13 +114,13 @@ function buildExecutionAssistantMeta(input: {
     `Recommended move · ${input.primaryActionLabel}`,
     input.aiStrategy.summaryLabel,
     input.playbookSummary,
-    `Boundary · ${input.aiSuggestions.boundaryLabel}`,
+    `Current workflow · ${input.aiSuggestions.boundaryLabel}`,
     input.canCreateSuggestedFollowUp
-      ? "One-click · shared task only"
-      : "One-click · paused for review",
+      ? "One-click · shared follow-up only"
+      : "One-click · review first",
     input.canCreateSuggestedFollowUp
-      ? "Accepted outcome · tracked after explicit click"
-      : "Accepted outcome · no new acceptance yet",
+      ? "Outcome · tracked after you accept it"
+      : "Outcome · waiting on review",
     "No auto-send",
   ];
 }
@@ -286,7 +286,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                 </Button>
               ) : (
                 <Button disabled size="sm" type="button" variant="secondary">
-                  One-click paused
+                  Review first
                 </Button>
               )}
               {aiSuggestions.primaryActionOpensInNewTab ? (
@@ -332,7 +332,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                       className="office-inline-link"
                       href={rule.openDossierHref}
                     >
-                      Open dossier
+                      Open client page
                     </FrontOfficeLink>
                   </>
                 }
@@ -357,7 +357,7 @@ export function FrontOfficeClientAiSuggestionsClient(
 
         <div className="front-office-ai-explainability-block">
           <span className="front-office-ai-explainability-kicker">
-            Execution assistant
+            Suggested next step
           </span>
           <p>{executionAssistantSummary}</p>
           <div className="list-row-meta front-office-record-meta">
@@ -411,6 +411,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                     {draft.channelLabel} · {draft.reasonLabel}
                   </span>
                   <span>Manual send only · Acre only prepares the draft</span>
+                  
                 </div>
                 <div className="front-office-playbook-actions">
                   {directAction ? (

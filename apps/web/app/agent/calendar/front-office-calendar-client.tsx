@@ -248,7 +248,7 @@ const coordinationFilterOptions = [
   { value: "confirmed", label: "Confirmed" },
   { value: "reschedule_requested", label: "Reschedule requested" },
   { value: "touch_due", label: "Touch due" },
-  { value: "bridge_logged", label: "Bridge opened" },
+  { value: "bridge_logged", label: "Draft opened" },
   { value: "writeback_pending", label: "Writeback pending" },
 ];
 
@@ -879,7 +879,7 @@ function readReturnToLabel(returnTo: string) {
   const pathname = returnTo.split("?")[0]?.split("#")[0] ?? returnTo;
 
   if (pathname.startsWith("/agent/clients/")) {
-    return "Return to client dossier";
+    return "Back to client page";
   }
 
   if (pathname.startsWith("/agent/listings")) {
@@ -895,10 +895,10 @@ function readReturnToLabel(returnTo: string) {
   }
 
   if (pathname.startsWith("/office/transactions")) {
-    return "Return to Back Office";
+    return "Back to formal workflow";
   }
 
-  return "Return to previous view";
+  return "Back to previous view";
 }
 
 function hasActiveQueueFilters(filterState: FilterState) {
@@ -1003,7 +1003,7 @@ export function FrontOfficeCalendarClient(
     { value: "confirmed", label: isZh ? "已确认" : "Confirmed" },
     { value: "reschedule_requested", label: isZh ? "请求改期" : "Reschedule requested" },
     { value: "touch_due", label: isZh ? "触达已到期" : "Touch due" },
-    { value: "bridge_logged", label: isZh ? "已打开桥接" : "Bridge opened" },
+    { value: "bridge_logged", label: isZh ? "已打开草稿" : "Draft opened" },
     { value: "writeback_pending", label: isZh ? "待回写" : "Writeback pending" },
   ];
   const followUpFilterOptions = [
@@ -1145,8 +1145,8 @@ export function FrontOfficeCalendarClient(
         : "";
   const agendaWindowSubtitle = agendaViewMode
     ? isZh
-      ? "按时间先后排列，并按日期分组显示。桥接、回写和外部检查点仍然保留在同一条预约记录里，不会假装有 provider 级双向同步。"
-      : "Appointments are ordered by start time and grouped by date. Bridge actions, writebacks, and external checkpoints still stay on the same appointment record, without pretending provider-level two-way sync exists."
+      ? "按时间先后排列，并按日期分组显示。外部草稿、回写和下一步都会保留在同一条预约记录里。"
+      : "Appointments are ordered by start time and grouped by date. External drafts, updates, and next steps stay on the same appointment record."
     : "";
   const hasQueueFilters = hasActiveQueueFilters(filterState);
   const returnToLabel = readReturnToLabel(filterState.returnTo);
@@ -1168,7 +1168,7 @@ export function FrontOfficeCalendarClient(
       ? `Focus · ${
           focusedAppointment?.title ??
           (focusState.mode === "missing"
-            ? "requested appointment missing"
+            ? "requested appointment unavailable"
             : "locked appointment")
         }`
       : "Focus · auto",
@@ -1176,13 +1176,13 @@ export function FrontOfficeCalendarClient(
   ].filter(Boolean) as string[];
   const routeStateHeading =
     focusState.mode === "missing"
-      ? "The route still carries an appointment deep link that Acre can no longer resolve."
+      ? "This view still points to an appointment that is no longer available."
       : focusState.mode === "locked_outside_queue"
         ? `${activeCalendarViewConfig.routeCopy} with a pinned appointment`
         : filterState.appointmentId
           ? `${activeCalendarViewConfig.routeCopy} with a specific appointment pinned`
           : hasQueueFilters
-            ? `${activeCalendarViewConfig.routeCopy} is pinned by route filters and will reopen in the same state.`
+            ? `${activeCalendarViewConfig.routeCopy} with saved filters`
             : activeCalendarViewConfig.routeCopy;
   const routeStateDescriptionParts = [
     activeCalendarViewConfig.description,
@@ -1193,13 +1193,13 @@ export function FrontOfficeCalendarClient(
       ? `Listing context is scoped to ${selectedListingLabel}.`
       : "Listing context is not narrowed yet.",
     focusState.mode === "missing"
-      ? "Clear the focus lock or return to the source page if this deep link is stale."
+      ? "Clear the pinned appointment or return to the previous page if this link is stale."
       : filterState.appointmentId
-        ? "The appointment focus stays in the URL so the same record can reopen below."
-        : "The detail panel defaults to the next visible appointment until you lock a specific record.",
+        ? "The selected appointment stays in the URL so the same record can reopen below."
+        : "The detail panel defaults to the next visible appointment until you pin a specific record.",
     returnToLabel
-      ? `${returnToLabel} stays preserved while you adjust filters inside this shell.`
-      : "If another page sends you here with a relative return path, Acre will preserve it while the shell state changes.",
+      ? `${returnToLabel} stays preserved while you adjust filters here.`
+      : "If another page sends you here, Acre will preserve the return path while your filters change.",
   ];
 
   function buildAppointmentFocusHref(
@@ -1562,7 +1562,7 @@ export function FrontOfficeCalendarClient(
               className="office-inline-link front-office-inline-link"
               href={buildContextAwareHref(appointment.clientHref, appointment.id)}
             >
-              {isZh ? "客户 dossier" : "Client dossier"}
+              {isZh ? "客户页" : "Client page"}
             </FrontOfficeLink>
           ) : null}
           {appointment.listingOutputHref ? (
@@ -1779,8 +1779,8 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message: payload?.appointment?.title?.trim()
-          ? `${payload.appointment.title} scheduled. Acre will keep the new appointment pinned below with the same client/listing route context in view while the calendar refreshes.`
-          : "Appointment scheduled. Acre will keep it pinned below with the same route context while the calendar refreshes.",
+          ? `${payload.appointment.title} scheduled. Acre will keep the new appointment pinned below while the calendar refreshes.`
+          : "Appointment scheduled. Acre will keep it pinned below while the calendar refreshes.",
       });
       setFormState(
         buildEmptyFormState(
@@ -1905,7 +1905,7 @@ export function FrontOfficeCalendarClient(
         message: checkpointContinuation
           ? `Appointment writeback saved. ${checkpointContinuation}`
           : draft.nextActionAt
-            ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised checkpoint deadline and the same route context in view.`
+            ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the saved next-step date in view.`
             : "Appointment writeback saved.",
       });
       clearSavedWritebackDraft(appointment.id);
@@ -2123,7 +2123,7 @@ export function FrontOfficeCalendarClient(
           tone: "error",
           message: buildApiErrorMessage(
             payload,
-            "Could not open the Acre mail thread.",
+            "Could not open the Acre email draft.",
           ),
         });
         return true;
@@ -2142,18 +2142,18 @@ export function FrontOfficeCalendarClient(
       const returnLinkLabel =
         payload.actionTargetLabel ??
         payload.continuity?.returnToLabel ??
-        "Return to appointment";
+        "Back to appointment";
 
       setFeedback({
         tone: "success",
         message: [
-          `${payload.actionLabel ?? "Internal mail thread"} opened.`,
+          `${payload.actionLabel ?? "Email draft"} opened.`,
           payload.continuity?.detail ??
-            "Acre created the appointment brief as an internal continuity copy and logged the handoff in the activity log so the thread stays inside the workspace.",
+            "Acre prepared the appointment brief and logged the action here so the next step stays visible on this appointment.",
           payload.manualOnlyDetail ??
-            "The external email stays manual and no provider sync is implied.",
+            "The external email still stays manual.",
           payload.continuity?.nextStep ??
-            "Open the Acre thread, review the brief, then return to the appointment record and save the next checkpoint.",
+            "Open the draft, review the brief, then return to the appointment and save the next step.",
           payload.continuity?.returnToDetail ?? null,
           (payload.continuity?.returnToUrl ?? payload.actionTargetUrl)
             ? `Return link preserved: ${returnLinkLabel}.`
@@ -2169,7 +2169,7 @@ export function FrontOfficeCalendarClient(
     } catch {
       setFeedback({
         tone: "error",
-        message: "Could not open the Acre mail thread.",
+        message: "Could not open the Acre email draft.",
       });
       return true;
     }
@@ -2210,7 +2210,7 @@ export function FrontOfficeCalendarClient(
           tone: "error",
           message: buildApiErrorMessage(
             payload,
-            "Could not open the external bridge.",
+            "Could not open the external draft.",
           ),
         });
         return;
@@ -2222,9 +2222,9 @@ export function FrontOfficeCalendarClient(
         (checkpoint
           ? {
               ...checkpoint,
-              returnToLabel: "Return to writeback",
+              returnToLabel: "Back to appointment",
               returnToDetail:
-                "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre.",
+                "Return to the same appointment after the draft or export finishes, then save the next step in Acre.",
             }
           : null);
 
@@ -2264,7 +2264,7 @@ export function FrontOfficeCalendarClient(
             null,
           continuity?.returnToDetail ?? null,
           primedPresetLabel
-            ? `${primedPresetLabel} is already loaded into the writeback draft as the next promised checkpoint.`
+            ? `${primedPresetLabel} is already loaded as the next saved step.`
             : null,
         ]
           .filter(Boolean)
@@ -2274,7 +2274,7 @@ export function FrontOfficeCalendarClient(
         appointmentId: appointment.id,
         actionLabel: payload.actionLabel,
         manualOnlyDetail:
-          payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+          payload.manualOnlyDetail ?? "This action was recorded here only.",
         followUpDetail:
           payload.followUpDetail ?? "Save the checkpoint form below.",
         followUpCadenceLabel:
@@ -2299,7 +2299,7 @@ export function FrontOfficeCalendarClient(
             "Save the checkpoint form below.",
           nextStep: payload.followUpDetail ?? "Save the checkpoint form below.",
           sourceNote:
-            payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+            payload.manualOnlyDetail ?? "This action was recorded here only.",
         },
         continuity,
         suggestedWriteback: payload.suggestedWriteback ?? null,
@@ -2321,7 +2321,7 @@ export function FrontOfficeCalendarClient(
     } catch {
       setFeedback({
         tone: "error",
-        message: "Could not open the external bridge.",
+        message: "Could not open the external draft.",
       });
     } finally {
       setBridgeState(null);
@@ -2460,8 +2460,8 @@ export function FrontOfficeCalendarClient(
               label={isZh ? "外部联系人" : "External contact"}
               helper={
                 isZh
-                  ? "如果参加者不是已关联的客户记录，就填这里。若你希望启用邮件简报桥接和 Acre 邮件线程连续性，也请在这里带上邮箱。"
-                  : "Use this if the attendee is not the linked client record. Include an email here if you want the email brief bridge and Acre mail-thread continuity available."
+                  ? "如果参加者不是已关联的客户记录，就填这里。若你希望启用邮件简报和 Acre 邮件草稿，也请在这里带上邮箱。"
+                  : "Use this if the attendee is not the linked client record. Include an email here if you want the email brief and Acre email draft available."
               }
             >
               <TextInput
@@ -2790,8 +2790,8 @@ export function FrontOfficeCalendarClient(
           </Badge>
           <Badge tone="warning">
             {isZh
-              ? `已打开桥接 ${props.snapshot.filteredSummary.bridgePendingCount}`
-              : `Bridge opened ${props.snapshot.filteredSummary.bridgePendingCount}`}
+              ? `已打开草稿 ${props.snapshot.filteredSummary.bridgePendingCount}`
+              : `Draft opened ${props.snapshot.filteredSummary.bridgePendingCount}`}
           </Badge>
           <Badge tone="warning">
             {isZh ? "待回写" : "Writeback pending"}{" "}
@@ -2898,7 +2898,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            {isZh ? "已打开桥接" : "Bridge opened"}
+            {isZh ? "已打开草稿" : "Draft opened"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("writeback_pending")}
@@ -2929,8 +2929,8 @@ export function FrontOfficeCalendarClient(
         className="office-list-card"
         subtitle={
           isZh
-            ? "在这个焦点面板里查看桥接工作道、更新检查点工作道，并让承诺中的下一次触达保持可读，同时不暗示存在 provider 级同步。"
-            : "Use the focused panel to review the bridge lane, update the checkpoint lane, and keep the promised next touch readable without implying provider-owned sync."
+            ? "在这个焦点面板里查看外部草稿、更新下一步状态，并让承诺中的下一次触达保持清晰可见。"
+            : "Use the focused panel to review external drafts, update the next step, and keep the promised follow-up clearly visible."
         }
         title={isZh ? "焦点预约" : "Focus appointment"}
       >
@@ -2945,16 +2945,16 @@ export function FrontOfficeCalendarClient(
                   {focusState.mode === "default"
                     ? "The detail panel is following the next visible appointment by default."
                     : focusState.mode === "locked_outside_queue"
-                      ? "This appointment is pinned from the route even though the current queue slice hides it."
-                      : "This appointment is pinned directly in the route state."}
+                      ? "This appointment is pinned even though the current filters hide it."
+                      : "This appointment is pinned directly in the URL."}
                 </strong>
                 <p>
                   {selectedClientLabel
-                    ? `Client scope is currently ${selectedClientLabel}. `
-                    : "The client scope is still broad. "}
+                    ? `Client filter is currently ${selectedClientLabel}. `
+                    : "The client filter is still broad. "}
                   {filterState.appointmentId
-                    ? "The appointmentId remains in the URL until you clear the focus lock."
-                    : "Lock a specific appointment to create a durable deep link back to this same detail panel."}
+                    ? "The appointment stays in the URL until you clear the focus lock."
+                    : "Pin a specific appointment if you want a durable link back to this same detail panel."}
                 </p>
                 <div className="front-office-record-meta">
                   <span>{focusedAppointment.clientLabel}</span>
@@ -2964,15 +2964,15 @@ export function FrontOfficeCalendarClient(
               </div>
               <div className="front-office-ai-explainability-card">
                 <span className="front-office-ai-explainability-kicker">
-                  Navigation shell
+                  Saved return link
                 </span>
                 <strong>
-                  {returnToLabel || "No upstream return path was supplied"}
+                  {returnToLabel || "No return link was supplied"}
                 </strong>
                 <p>
                   {returnToLabel
-                    ? "Use the preserved return path to step back without losing the calendar slice you reopened here."
-                    : "Direct visits can still move through the client dossier, listing output, or a new route-locked focus link from this shell."}
+                    ? "Use the saved return link to step back without losing the filters you reopened here."
+                    : "Direct visits can still move through the client page, listing output, or a pinned appointment link from here."}
                 </p>
                 <div className="front-office-calendar-actions">
                   {filterState.returnTo ? (
@@ -3085,7 +3085,7 @@ export function FrontOfficeCalendarClient(
                     <span>{focusedAppointment.latestCoordinationDetail}</span>
                   </>
                 }
-                title={isZh ? "协调工作道" : "Coordination lane"}
+                title={isZh ? "协调状态" : "Coordination status"}
               />
               <QueueItem
                 badgeLabel={focusedAppointment.nextTouchPressureLabel}
@@ -3100,7 +3100,7 @@ export function FrontOfficeCalendarClient(
                     </span>
                   </>
                 }
-                title={isZh ? "检查点工作道" : "Checkpoint lane"}
+                title={isZh ? "下一步状态" : "Next step status"}
               />
             </div>
 
@@ -3113,7 +3113,7 @@ export function FrontOfficeCalendarClient(
                     focusedAppointment.id,
                   )}
                 >
-                  {isZh ? "打开客户 dossier" : "Open client dossier"}
+                  {isZh ? "打开客户页" : "Open client page"}
                 </FrontOfficeLink>
               ) : null}
               {focusedAppointment.listingOutputHref ? (
@@ -3144,13 +3144,13 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-ai-explainability is-compact">
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      {isZh ? "桥接工作道" : "Bridge lane"}
+                      {isZh ? "外部草稿" : "External draft"}
                     </span>
                     <strong>{focusedAppointment.bridgeActionLabel}</strong>
                     <p>
                       {isZh
-                        ? "Google、Outlook、ICS 和邮件动作都只会从这个预约打开草稿或导出，并把桥接轨迹记录在这里。下一步仍然是跳回这条预约，把待回复、待确认、改期或已安排触达等检查点回写到 Acre。"
-                        : "Google, Outlook, ICS, and email actions only open drafts or exports from this appointment and log that bridge trail here. The next move is still to jump back to the same appointment and save the reply due, confirmation pending, reschedule, or touch scheduled checkpoint back into Acre."}
+                        ? "Google、Outlook、ICS 和邮件动作都只会从这条预约打开草稿或导出，并把这次动作记录在这里。下一步仍然是回到这条预约，把待回复、待确认、改期或已安排触达等状态更新回 Acre。"
+                        : "Google, Outlook, ICS, and email actions only open drafts or exports from this appointment and record that action here. The next move is still to return to this appointment and save the reply, confirmation, reschedule, or next-touch update back into Acre."}
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.bridgeStatusLabel}</span>
@@ -3159,13 +3159,13 @@ export function FrontOfficeCalendarClient(
                   </div>
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      {isZh ? "检查点工作道" : "Checkpoint lane"}
+                      {isZh ? "下一步状态" : "Next step status"}
                     </span>
                     <strong>{focusedAppointment.externalStatusLabel}</strong>
                     <p>
                       {isZh
-                        ? "快捷协调动作和已保存的回写只会更新 Acre 可读的协调记录。下一步是继续把承诺中的检查点保留在同一条预约记录里可见。它们不会自动发邮件、不会创建后台任务，也不会替你安排 provider 事件。"
-                        : "Quick coordination actions and saved writebacks only update Acre&apos;s readable coordination record. The next move is to keep the promised checkpoint visible here on the same appointment record. They do not auto-send email, create background jobs, or schedule provider events for you."}
+                        ? "快捷协调动作和已保存的回写只会更新 Acre 可读的预约记录。下一步是把承诺中的下一次触达继续保留在这条预约里。它们不会自动发邮件，也不会替你安排外部日历事件。"
+                        : "Quick coordination actions and saved updates only change Acre's readable appointment record. The next move is to keep the promised next step visible on this same appointment. They do not auto-send email or schedule outside calendar events for you."}
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.followUpPlanLabel}</span>
@@ -3179,8 +3179,8 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-calendar-actions">
                   <p className="front-office-record-supporting">
                     {isZh
-                      ? "桥接动作会在新标签页里打开草稿或导出。下面的历史会记录你是从 Acre 打开的桥接，下一步仍然是回到这里，把检查点回写在同一条预约上。它仍不会声称外部日历或邮箱已经自动同步回来。"
-                      : "Bridge actions open a draft or export in a new tab. The history below records that you opened the bridge from Acre, and the next move is to return here and write the checkpoint back on this same appointment. It still does not claim the outside calendar or inbox synced back automatically."}
+                      ? "这些动作会在新标签页里打开草稿或导出。下面的历史会记录你从 Acre 打开了什么，下一步仍然是回到这里，把更新写回这条预约。"
+                      : "These actions open a draft or export in a new tab. The history below records what you opened from Acre, and the next move is still to return here and save the update on this appointment."}
                   </p>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -3248,14 +3248,14 @@ export function FrontOfficeCalendarClient(
                       bridgeState.action === "email_brief"
                         ? "Opening..."
                         : isZh
-                          ? "打开 Acre 邮件线程"
-                          : "Open Acre mail thread"}
+                          ? "打开 Acre 邮件草稿"
+                          : "Open Acre email draft"}
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
                       {isZh
-                        ? "这条预约还没有保存邮件目标，因此 Acre 邮件线程和外部邮件简报暂时不可用。"
-                        : "No email target is saved on this appointment yet, so the Acre mail thread and external email brief are not available."}
+                        ? "这条预约还没有保存邮件目标，因此 Acre 邮件草稿暂时不可用。"
+                        : "No email target is saved on this appointment yet, so the Acre email draft is not available."}
                     </p>
                   )}
                 </div>
@@ -3319,13 +3319,13 @@ export function FrontOfficeCalendarClient(
                         </span>
                         <span>
                           {bridgeOutcome.continuity?.returnToLabel ??
-                            (isZh ? "返回回写区" : "Return to writeback")}
+                            (isZh ? "返回预约" : "Back to appointment")}
                         </span>
                         <span>
                           {bridgeOutcome.continuity?.returnToDetail ??
                             (isZh
-                              ? "在草稿或导出完成后跳回同一条预约，然后把检查点保存到 Acre。"
-                              : "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre.")}
+                              ? "在草稿或导出完成后跳回同一条预约，然后把下一步保存到 Acre。"
+                              : "Return to the same appointment after the draft or export finishes, then save the next step in Acre.")}
                         </span>
                         <span>
                           {bridgeOutcome.resultKind === "calendar_export"
@@ -3334,20 +3334,19 @@ export function FrontOfficeCalendarClient(
                         </span>
                       </>
                     }
-                    title={isZh ? "桥接之后" : "After the bridge"}
+                    title={isZh ? "打开草稿后" : "After opening the draft"}
                   />
                 ) : null}
 
                 <div className="front-office-calendar-writeback">
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Checkpoint shortcuts
+                      Quick updates
                     </span>
                     <p className="front-office-record-supporting">
-                      These quick actions update Acre&apos;s writeback only and
-                      keep the next checkpoint visible on this same appointment.
-                      They do not send mail, change Google or Outlook, or claim
-                      any background sync.
+                      These quick actions only update Acre and keep the next
+                      step visible on this same appointment. They do not send
+                      mail or change Google or Outlook for you.
                     </p>
                   </div>
                   <div className="front-office-calendar-actions">
@@ -3375,13 +3374,12 @@ export function FrontOfficeCalendarClient(
                   <div className="front-office-calendar-writeback">
                     <div className="front-office-calendar-writeback-head">
                       <span className="front-office-calendar-writeback-label">
-                        Checkpoint presets
+                        Saved next-step presets
                       </span>
                       <p className="front-office-record-supporting">
-                        Use these to save a suggested status plus checkpoint
-                        details directly into Acre, then return to the same
-                        appointment when the bridge is done. They do not send
-                        mail or update Google / Outlook in the background.
+                        Use these to save a suggested status plus next-step
+                        details directly into Acre. They do not send mail or
+                        update Google or Outlook in the background.
                       </p>
                     </div>
                     <div className="front-office-calendar-actions">
@@ -3409,7 +3407,7 @@ export function FrontOfficeCalendarClient(
                 >
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      {isZh ? "检查点工作道" : "Checkpoint lane"}
+                      {isZh ? "下一步状态" : "Next step status"}
                     </span>
                     <div className="front-office-calendar-badges">
                       <StatusBadge tone={focusedAppointment.coordinationTone}>
@@ -3421,8 +3419,8 @@ export function FrontOfficeCalendarClient(
                     </div>
                     <p className="front-office-record-supporting">
                       {isZh
-                        ? "把 Acre 外部发生了什么，以及下一次回复、确认、改期或触达检查点应该何时重新回到同一条预约记录里，都保存下来。"
-                        : "Save what happened outside Acre and when the next reply, confirmation, reschedule, or touch checkpoint should come back into view on this same appointment record."}
+                        ? "把 Acre 外部发生了什么，以及下一次回复、确认、改期或触达应该何时重新回到这条预约记录里，都保存下来。"
+                        : "Save what happened outside Acre and when the next reply, confirmation, reschedule, or follow-up should come back into view on this appointment."}
                     </p>
                   </div>
                   <div className="front-office-calendar-writeback-fields">
@@ -3562,8 +3560,8 @@ export function FrontOfficeCalendarClient(
                   latestBridgeHistory
                     ? `${latestBridgeHistory.label} · ${latestBridgeHistory.detail}`
                     : isZh
-                      ? "从 Acre 打开 Google、Outlook、ICS 或邮件简报来启动桥接轨迹；如果你有邮件权限，Acre 会先尝试把简报放进内部邮件线程，再回退到外部草稿。"
-                      : "Open Google, Outlook, ICS, or the email brief from Acre to start the bridge trail; if you have mail access, Acre will try to place the brief in an internal mail thread first and then fall back to the external draft."
+                      ? "从 Acre 打开 Google、Outlook、ICS 或邮件简报来开始外部草稿；如果你有邮件权限，Acre 会先尝试准备邮件草稿，再回退到外部草稿。"
+                      : "Open Google, Outlook, ICS, or the email brief from Acre to start an external draft; if you have mail access, Acre will try to prepare the email draft first and then fall back to the outside draft."
                 }
                 meta={
                   latestBridgeHistory ? (
@@ -3936,7 +3934,7 @@ export function FrontOfficeCalendarClient(
                           appointment.id,
                         )}
                       >
-                        {isZh ? "客户 dossier" : "Client dossier"}
+                        {isZh ? "客户页" : "Client page"}
                       </FrontOfficeLink>
                     ) : null}
                     {appointment.listingOutputHref ? (

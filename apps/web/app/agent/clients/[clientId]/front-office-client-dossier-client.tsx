@@ -240,9 +240,9 @@ function resolveSectionFocusState(
       };
     case frontOfficeClientDossierSectionIds.backOfficeContext:
       return {
-        label: "Back Office handoff",
+        label: "Formal workflow",
         description:
-          "Use this section when the dossier needs to explain why Back Office should take the formal record or when cleanup and handoff routes return here from another section.",
+          "Use this section when the next step belongs in the formal workflow or when another section points back here.",
         href: `#${frontOfficeClientDossierSectionIds.backOfficeContext}`,
       };
     case frontOfficeClientDossierSectionIds.nextStepRail:
@@ -476,7 +476,7 @@ export function FrontOfficeClientDossierClient(
       setFeedback({
         tone: "success",
         message:
-          "Follow-up created. The dossier will refresh with the new task and next-touch signal.",
+          "Follow-up created. The client page will refresh with the new task and next-touch signal.",
       });
       setFormState(buildEmptyFormState());
       startTransition(() => {
@@ -624,7 +624,7 @@ export function FrontOfficeClientDossierClient(
 
       <ListPageStatsGrid>
         <StatCard
-          hint="shared Front Office follow-up tasks still open on this dossier"
+          hint="shared Front Office follow-up tasks still open on this client record"
           label="Open queue"
           tone="accent"
           value={props.snapshot.summary.openTaskCount}
@@ -1152,7 +1152,7 @@ export function FrontOfficeClientDossierClient(
               <strong>Recently resolved</strong>
               <p>
                 Keep the last completed or canceled tasks visible here so the
-                next touch does not repeat work the dossier already closed.
+                next touch does not repeat work this client record already closed.
               </p>
             </div>
             <div className="office-queue-list">

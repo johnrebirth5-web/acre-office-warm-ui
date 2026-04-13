@@ -35,7 +35,7 @@ export default async function ListingStudioPublicSharePage(
       <div className="listing-studio-share-page">
         <section className="listing-studio-share-hero">
           <div className="listing-studio-share-copy">
-            <span className="office-eyebrow">Acre listing packet</span>
+            <span className="office-eyebrow">Acre listing</span>
             <h1>{snapshot.headline}</h1>
             <p>{snapshot.summary}</p>
             <div className="listing-studio-share-price">{snapshot.priceLabel}</div>

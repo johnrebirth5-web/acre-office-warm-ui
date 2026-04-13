@@ -133,7 +133,7 @@ export function FrontOfficeClientLeaseReminderClient(
       setFeedback({
         tone: "success",
         message:
-          "Lease reminder saved. The dossier and dashboard will refresh with the new renewal timing.",
+          "Lease reminder saved. The client page and dashboard will refresh with the new renewal timing.",
       });
       startTransition(() => {
         router.refresh();
@@ -197,9 +197,9 @@ export function FrontOfficeClientLeaseReminderClient(
         <QueueItem
           badgeLabel={props.snapshot.nextStepRail.decisionLabel}
           badgeTone={props.snapshot.nextStepRail.decisionTone}
-          description="Use this reminder to drive the client conversation in Front Office. Formal transaction, contract, or admin work still belongs in Back Office once the file becomes formal."
+          description="Use this reminder to drive the client conversation here. Formal transaction, contract, or admin work should move to Back Office only when it becomes official."
           meta={<span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>}
-          title="Back Office handoff"
+          title="Formal workflow"
         />
       </div>
 
@@ -253,7 +253,7 @@ export function FrontOfficeClientLeaseReminderClient(
         >
           <div className="office-form-grid">
             <FormField
-              helper="Optional, but recommended so Acre can anchor the renewal window to a real lease date."
+              helper="Optional, but recommended so the renewal window can stay tied to a real lease date."
               label="Lease end date"
             >
               <TextInput
@@ -265,7 +265,7 @@ export function FrontOfficeClientLeaseReminderClient(
             </FormField>
 
             <FormField
-              helper="Leave blank to let Acre auto-schedule the reminder 45 days before lease end."
+              helper="Leave blank to use the default reminder 45 days before lease end."
               label="Lease reminder date"
             >
               <TextInput

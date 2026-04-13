@@ -263,22 +263,22 @@ function buildRecommendedActionLabel(reasons: string[]) {
   );
 
   if (hasEmail && hasPhone) {
-    return "Operator start: open the visible record first, compare contact info, next touch, and source, then keep create closed unless this is truly a different lead.";
+    return "Open the existing record first, compare contact info, next step, and source, and only create a new lead if it is clearly different.";
   }
 
   if (hasContactInfoMatch) {
-    return "Operator start: open the visible record first, compare contact info, stage, and next touch, then keep duplicate review open only if this is the same person.";
+    return "Open the existing record first, compare contact info, stage, and next step, then review duplicates only if it looks like the same person.";
   }
 
   if (hasNameMatch) {
-    return "Operator check: compare phone, email, stage, and preferred areas in the visible record before you create anything new.";
+    return "Compare phone, email, stage, and preferred areas in the existing record before creating anything new.";
   }
 
   if (hasAreaOverlap || hasSourceMatch) {
-    return "Operator check: open the visible record first, then compare preferred areas, source, and next touch before deciding whether to create a separate dossier.";
+    return "Open the existing record first, then compare preferred areas, source, and next step before deciding whether to create a separate client record.";
   }
 
-  return "Operator check: review the visible record first, then compare contact details, stage, and next touch before creating a separate dossier.";
+  return "Review the existing record first, then compare contact details, stage, and next step before creating a separate client record.";
 }
 
 export function buildFrontOfficeLeadDuplicatePreview(input: {
