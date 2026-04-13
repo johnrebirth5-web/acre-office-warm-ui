@@ -29,6 +29,46 @@ function normalizeText(value: string | null, fallback: string) {
   return trimmed && trimmed.length ? trimmed : fallback;
 }
 
+function readContactOverride(url: URL, key: string) {
+  if (!url.searchParams.has(key)) {
+    return undefined;
+  }
+
+  const value = url.searchParams.get(key);
+  return value === null ? "" : value.trim();
+}
+
+function applyPosterContactOverrides(
+  detail: NonNullable<Awaited<ReturnType<typeof getStudioListingPackDetail>>>,
+  request: NextRequest,
+) {
+  const url = new URL(request.url);
+  const contactName = readContactOverride(url, "contactName");
+  const contactTitle = readContactOverride(url, "contactTitle");
+  const contactPhone = readContactOverride(url, "contactPhone");
+  const contactEmail = readContactOverride(url, "contactEmail");
+
+  if (
+    contactName === undefined &&
+    contactTitle === undefined &&
+    contactPhone === undefined &&
+    contactEmail === undefined
+  ) {
+    return detail;
+  }
+
+  return {
+    ...detail,
+    pack: {
+      ...detail.pack,
+      contactName: contactName === undefined ? detail.pack.contactName : contactName,
+      contactTitle: contactTitle === undefined ? detail.pack.contactTitle : contactTitle,
+      contactPhone: contactPhone === undefined ? detail.pack.contactPhone : contactPhone,
+      contactEmail: contactEmail === undefined ? detail.pack.contactEmail : contactEmail,
+    },
+  };
+}
+
 function buildPosterDraftFromRequest(
   detail: NonNullable<Awaited<ReturnType<typeof getStudioListingPackDetail>>>,
   request: NextRequest,
@@ -73,8 +113,9 @@ export async function GET(
     return NextResponse.json({ error: "Packet not found." }, { status: 404 });
   }
 
-  const draft = buildPosterDraftFromRequest(detail, request);
-  const html = renderListingStudioPosterHtml(detail, draft, {
+  const detailWithContactOverrides = applyPosterContactOverrides(detail, request);
+  const draft = buildPosterDraftFromRequest(detailWithContactOverrides, request);
+  const html = renderListingStudioPosterHtml(detailWithContactOverrides, draft, {
     baseUrl: request.nextUrl.origin,
     autoPrint: new URL(request.url).searchParams.get("print") === "1",
   });
