@@ -25,6 +25,24 @@ export type ListingStudioPosterDraft = {
   coverAssetId: string | null;
 };
 
+export type ListingStudioMarketingKitVariant = {
+  id: string;
+  label: string;
+  note: string;
+  text: string;
+};
+
+export type ListingStudioMarketingKitSection = {
+  title: string;
+  subtitle: string;
+  variants: ListingStudioMarketingKitVariant[];
+};
+
+export type ListingStudioMarketingKit = {
+  sections: ListingStudioMarketingKitSection[];
+  summaryLine: string;
+};
+
 type ListingStudioPacketTarget = {
   href: string;
   label: string;
@@ -75,6 +93,14 @@ function normalizeText(value: string | null | undefined, fallback: string) {
   const trimmed = value?.trim();
 
   return trimmed && trimmed.length ? trimmed : fallback;
+}
+
+function joinWithLineBreaks(lines: Array<string | null | undefined>) {
+  return lines.filter(Boolean).join("\n");
+}
+
+function joinWithSpaces(lines: Array<string | null | undefined>) {
+  return lines.filter(Boolean).join(" ");
 }
 
 function buildPosterPacketTarget(detail: StudioListingDetailSnapshot): ListingStudioPacketTarget {
@@ -398,6 +424,157 @@ export function buildListingStudioPosterCopyText(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export function buildListingStudioMarketingKit(
+  detail: StudioListingDetailSnapshot,
+  draft: ListingStudioPosterDraft,
+): ListingStudioMarketingKit {
+  const packetTarget = buildPosterPacketTarget(detail);
+  const locationLine = normalizeText(detail.locationLine, detail.addressLine);
+  const headline = normalizeText(draft.headline, detail.title);
+  const summary = normalizeText(
+    draft.subheadline,
+    detail.descriptionText ?? locationLine,
+  );
+  const cta = normalizeText(draft.cta, "Reply for the full packet.");
+  const contactName = normalizeText(detail.pack.contactName, "Acre listing studio");
+  const contactTitle = normalizeText(detail.pack.contactTitle, "Listing presentation");
+  const contactPhone = normalizeText(detail.pack.contactPhone, "Phone not published");
+  const contactEmail = normalizeText(detail.pack.contactEmail, "Email not published");
+  const bulletSummary = detail.pack.bulletPoints.length
+    ? detail.pack.bulletPoints.slice(0, 3).join(" / ")
+    : "Reply for the full packet";
+  const factSummary = detail.facts.length
+    ? detail.facts.slice(0, 3).map((fact) => `${fact.label}: ${fact.value}`).join(" / ")
+    : detail.priceLabel;
+  const packetPath = packetTarget.href;
+
+  return {
+    summaryLine: joinWithSpaces([
+      headline,
+      locationLine,
+      detail.priceLabel,
+      "manual Acre marketing kit",
+    ]),
+    sections: [
+      {
+        title: "Social captions",
+        subtitle: "Short, copy-ready lines for new-listing posts, reposts, and story shares.",
+        variants: [
+          {
+            id: "caption-short",
+            label: "Short caption",
+            note: "Fast post",
+            text: joinWithSpaces([
+              headline,
+              "in",
+              locationLine,
+              "—",
+              detail.priceLabel,
+              "Reply for the Acre packet.",
+            ]),
+          },
+          {
+            id: "caption-social",
+            label: "Social caption",
+            note: "Balanced post",
+            text: joinWithSpaces([
+              "Just listed:",
+              headline,
+              summary,
+              cta,
+            ]),
+          },
+          {
+            id: "caption-share",
+            label: "Share caption",
+            note: "Scan-ready",
+            text: joinWithLineBreaks([
+              `${detail.priceLabel} | ${locationLine}`,
+              bulletSummary,
+              `Scan the Acre packet for photos, facts, and showing details: ${packetPath}`,
+            ]),
+          },
+        ],
+      },
+      {
+        title: "Listing blurbs",
+        subtitle: "Longer copy for newsletters, listing descriptions, and brokerage updates.",
+        variants: [
+          {
+            id: "blurb-paragraph",
+            label: "Paragraph blurb",
+            note: "Narrative",
+            text: joinWithSpaces([
+              headline,
+              "is packaged as a manual Acre marketing kit for easy sharing.",
+              detail.priceLabel,
+              "in",
+              locationLine,
+              summary,
+              "The packet keeps the latest facts, selected visuals, and scan path in one reviewable export.",
+            ]),
+          },
+          {
+            id: "blurb-facts",
+            label: "Fact-led blurb",
+            note: "Bullet-led",
+            text: joinWithLineBreaks([
+              `Highlights: ${bulletSummary}.`,
+              `Facts: ${factSummary}.`,
+              `Contact: ${contactName}, ${contactTitle}, ${contactPhone}, ${contactEmail}.`,
+            ]),
+          },
+        ],
+      },
+      {
+        title: "Follow-up notes",
+        subtitle: "Message and email versions for post-tour, warm-lead, and reminder follow-up.",
+        variants: [
+          {
+            id: "followup-text",
+            label: "Text follow-up",
+            note: "Short reply",
+            text: joinWithSpaces([
+              "Hi there, sharing the Acre packet for",
+              headline + ".",
+              "It includes the latest facts, selected visuals, and the scan path.",
+              cta,
+            ]),
+          },
+          {
+            id: "followup-email",
+            label: "Email follow-up",
+            note: "Long form",
+            text: joinWithLineBreaks([
+              `Subject: ${headline} packet`,
+              "",
+              "Hi there,",
+              "",
+              `I'm sharing the Acre packet for ${headline}. It includes the latest facts, selected visuals, and a reviewable scan path.`,
+              "",
+              cta,
+              "",
+              `Best,`,
+              contactName,
+            ]),
+          },
+          {
+            id: "followup-reminder",
+            label: "Reminder note",
+            note: "Gentle nudge",
+            text: joinWithSpaces([
+              "Quick reminder:",
+              headline,
+              "is still ready in the Acre packet with photos, facts, and the manual scan path.",
+              "Reply if you'd like a tighter version for text or email.",
+            ]),
+          },
+        ],
+      },
+    ],
+  };
 }
 
 function buildPosterFacts(detail: StudioListingDetailSnapshot) {
