@@ -1,7 +1,10 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@acre/ui";
+
+const RETURN_TO_DASHBOARD_DELAY_MS = 1200;
 
 export function ListingStudioExtensionApprovalClient(props: {
   challengeToken: string;
@@ -9,8 +12,25 @@ export function ListingStudioExtensionApprovalClient(props: {
   const [status, setStatus] = useState<"idle" | "submitting" | "approved" | "error">("idle");
   const [message, setMessage] = useState("");
   const hasAttemptedRef = useRef(false);
+  const redirectTimeoutRef = useRef<number | null>(null);
+  const router = useRouter();
+
+  function clearRedirectTimeout() {
+    if (redirectTimeoutRef.current !== null) {
+      window.clearTimeout(redirectTimeoutRef.current);
+      redirectTimeoutRef.current = null;
+    }
+  }
+
+  function scheduleDashboardReturn() {
+    clearRedirectTimeout();
+    redirectTimeoutRef.current = window.setTimeout(() => {
+      router.replace("/listing-studio/dashboard?extensionConnection=approved");
+    }, RETURN_TO_DASHBOARD_DELAY_MS);
+  }
 
   function approve() {
+    clearRedirectTimeout();
     setStatus("submitting");
     setMessage("");
 
@@ -32,13 +52,14 @@ export function ListingStudioExtensionApprovalClient(props: {
         }
 
         setStatus("approved");
-        setMessage("Extension connected. You can return to Acre.");
+        setMessage("Extension approved. Returning to Listing Studio...");
         try {
           window.localStorage.setItem(
             "acre-listing-studio-extension-approved-at",
             Date.now().toString(),
           );
         } catch {}
+        scheduleDashboardReturn();
       } catch (error) {
         setStatus("error");
         setMessage(error instanceof Error ? error.message : "Approval failed.");
@@ -53,6 +74,12 @@ export function ListingStudioExtensionApprovalClient(props: {
 
     hasAttemptedRef.current = true;
     approve();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearRedirectTimeout();
+    };
   }, []);
 
   return (

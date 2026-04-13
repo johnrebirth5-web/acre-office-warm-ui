@@ -57,6 +57,8 @@ export function ListingStudioExtensionConnectAction(
   const hasPendingPostInstallConnectRef = useRef(false);
   const hasTriggeredAutoConnectRef = useRef(false);
   const hasReloadedForPostInstallRef = useRef(false);
+  const hasFreshApprovalReturnRef = useRef(false);
+  const hasConsumedApprovalReturnRef = useRef(false);
 
   function setPostInstallConnectPending() {
     try {
@@ -137,6 +139,16 @@ export function ListingStudioExtensionConnectAction(
       hasPendingPostInstallConnectRef.current = false;
     }
 
+    try {
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.get("extensionConnection") === "approved") {
+        hasFreshApprovalReturnRef.current = true;
+        setStatusMessage("Approval complete. Finalizing browser connection...");
+        currentUrl.searchParams.delete("extensionConnection");
+        window.history.replaceState({}, "", currentUrl.toString());
+      }
+    } catch {}
+
     bridgeReadyTimeoutRef.current = window.setTimeout(() => {
       if (bridgeReadyRef.current) {
         return;
@@ -160,8 +172,13 @@ export function ListingStudioExtensionConnectAction(
         clearBridgeTimeout();
         bridgeReadyRef.current = true;
         setBridgeReady(true);
-        setStatusMessage("");
-        sendExtensionRequest("GET_CONFIG");
+        if (hasFreshApprovalReturnRef.current && !hasConsumedApprovalReturnRef.current) {
+          hasConsumedApprovalReturnRef.current = true;
+          sendExtensionRequest("CHECK_CONNECTION_STATUS");
+        } else {
+          setStatusMessage("");
+          sendExtensionRequest("GET_CONFIG");
+        }
         return;
       }
 

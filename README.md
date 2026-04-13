@@ -58,6 +58,7 @@
     - dashboard 未安装状态会直接打开 Chrome Web Store 的 `Add to Chrome`
     - `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 现在只作为公开商店链接的覆盖配置，不再是启用一键安装的前提
     - 安装完成后，回到原来的 `Listing Studio dashboard` 标签页，页面会自动刷新并继续浏览器连接流程
+    - 批准页现在会自动提交授权，并在成功后自动返回 `Listing Studio dashboard`
   - 当前公开隐私页：
     - `/legal/listing-studio-extension-privacy`
   - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存

@@ -23,8 +23,9 @@ export default function ListingStudioExtensionInstallPage() {
               <strong>Install on this browser first</strong>
               <p>
                 After the extension is installed, return to your Listing Studio
-                tab. Acre will detect the extension and continue the browser
-                connection flow automatically.
+                tab. Acre will detect the extension, continue the browser
+                connection flow automatically, and finish approval without
+                another manual button click.
               </p>
             </div>
             <div className="listing-studio-install-actions">
@@ -73,7 +74,8 @@ export default function ListingStudioExtensionInstallPage() {
               <strong>Acre finishes the browser connection</strong>
               <p>
                 The dashboard will detect the extension, refresh once if
-                needed, and continue the connection flow.
+                needed, open the approval page, then return here once the
+                browser is linked.
               </p>
             </div>
           </div>
