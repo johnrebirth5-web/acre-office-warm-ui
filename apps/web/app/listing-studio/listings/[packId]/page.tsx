@@ -27,12 +27,6 @@ export default async function ListingStudioDetailPage(
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing packet</span>
           <h2>{detail.title}</h2>
-          <p>
-            Review the imported facts, refine the customer-facing copy, and
-            generate a poster, share page, or PDF from the same Acre packet
-            with editable contact details, a clearer distribution summary, and
-            a scan-ready live packet path.
-          </p>
         </div>
       </section>
       <ListingStudioDetailClient detail={detail} />

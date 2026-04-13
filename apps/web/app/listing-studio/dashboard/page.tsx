@@ -30,10 +30,6 @@ export default async function ListingStudioDashboardPage() {
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
           <h2>Save listings and share them fast.</h2>
-          <p>
-            Use the Chrome extension to save a StreetEasy or Zillow listing, then
-            come back here to edit, share, or export it.
-          </p>
         </div>
       </section>
 

@@ -9,10 +9,6 @@ export default function ListingStudioExtensionInstallPage() {
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
           <h2>Install the Chrome extension</h2>
-          <p>
-            Add Acre Listing Studio to this browser, then return to Listing
-            Studio and Acre will finish the browser connection flow.
-          </p>
         </div>
       </section>
 

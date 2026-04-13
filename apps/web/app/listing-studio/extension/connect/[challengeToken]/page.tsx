@@ -18,11 +18,6 @@ export default async function ListingStudioExtensionConnectPage(
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
           <h2>Approve Chrome extension access</h2>
-          <p>
-            This approval links the Acre Chrome extension to your current
-            organization workspace so supported listing pages can save directly
-            into Listing Studio.
-          </p>
         </div>
       </section>
 

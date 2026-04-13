@@ -39,10 +39,6 @@ export default async function ListingStudioListingsPage(
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
           <h2>Saved listing packets</h2>
-          <p>
-            Browse every listing captured by the extension, refine the packet,
-            and open the public share or PDF from the detail page.
-          </p>
         </div>
       </section>
 
