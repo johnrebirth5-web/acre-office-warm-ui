@@ -24,7 +24,7 @@ This audit is based on the current documented product baseline in:
 
 Audit date:
 
-- `2026-04-08`
+- `2026-04-13`
 
 ## Status legend
 
@@ -42,11 +42,14 @@ Audit date:
   - reminders
   - appointments
   - listings output
+  - agent material support
+  - first poster / template generator
   - resources
   - notifications
   - FO to BO handoff
   - tracked send/open/click layer
   - AI next-touch assistance
+  - first rule-layer reminder guidance
 - The current FO gaps are mainly:
   - intake acceleration
   - CRM cleanup tooling
@@ -71,9 +74,10 @@ Audit date:
 | `CRM / dossier center` | `Partial / MVP` | Real client dossier, visible-scope duplicate review / merge, and a first browser-side OCR / transcript intake assist are live; the intake review now explicitly separates recognized vs review-first vs omitted fields, groups them into batchable execution sections, and prioritizes unresolved/manual-confirmation sections before calmer recognized blocks, duplicate warnings now steer agents into existing-record review first, `/agent/clients` now supports route-persistent `clientView` lane focus, and the dossier now reuses lane-aware calendar / listings re-entry plus anchored section-focus guidance across appointment cards, send records, AI accepted actions, and the next-step rail, but deeper provider-backed intake acceleration and broader office-wide cleanup depth are still follow-up work. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
-| `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, in-app reminder pressure, and a first Google / Outlook / ICS / email bridge are live; those bridge actions now log back into Acre, appointments carry an agent-managed external follow-up / confirmation / reschedule state, agents can now set the next promised external touch deadline directly on the appointment, the calendar focus view now exposes an explicit `After the bridge` checkpoint plus suggested-writeback load path, the route now supports stable `calendarView` aliases for the main coordination lanes including explicit `Externally confirmed`, `Touch scheduled`, and `Writeback pending` slices, calendar save / bridge flows now preserve the active lane when Acre can prove it, dossier appointment cards now expose direct calendar-writeback reopen links and bridge-next-step copy, and that deadline now reconciles into the shared inbox as a time-sensitive reminder, but full external calendar sync is still not. |
+| `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, in-app reminder pressure, and a first Google / Outlook / ICS / email bridge are live; those bridge actions now log back into Acre, appointments carry an agent-managed external follow-up / confirmation / reschedule state, agents can now set the next promised external touch deadline directly on the appointment, the calendar focus view now exposes an explicit `After the bridge` checkpoint plus suggested-writeback load path, the route now supports stable `calendarView` aliases for the main coordination lanes including explicit `Externally confirmed`, `Touch scheduled`, and `Writeback pending` slices, the live calendar now also supports true `day` and `week` agenda views grouped by date/time, calendar save / bridge flows preserve the active lane when Acre can prove it, dossier appointment cards expose direct calendar-writeback reopen links and bridge-next-step copy, and that deadline reconciles into the shared inbox as a time-sensitive reminder, but full external calendar sync is still not. |
 | `Listings and output` | `Live core` | Tracked private links, send records, opens, revisits, and listing-output workflow are live, `/agent/listings` now carries a route-persistent focused `lane` contract for `send rescue`, `follow-through`, and `draft lane` re-entry instead of behaving like one generic outbound desk, and the live workspace now surfaces a lane-execution checklist so the active rescue / follow-through / draft path reads like an operator plan rather than URL state alone. |
-| `Agent material window` | `Partial / MVP` | Live beside listing output, but not yet the broader dynamic profile / landing-page vision. |
+| `Agent material window` | `Partial / MVP` | Live beside listing output with a clearer `profile / contact / proof` package for outbound support, but it is still not yet the broader dynamic profile / landing-page vision or a full asset-management center. |
+| `Marketing template generator` | `Partial / MVP` | `Listing Studio` now has a first poster / template generator that can switch between editorial, open-house, social-square, and factsheet layouts, preview the generated layout, copy poster text, and open printable / downloadable HTML output, but it is still a manual Acre-owned export path rather than Canva-backed generation, PNG rendering, or a broader marketing operations center. |
 | `Document center / training center / vendor pool` | `Partial / MVP` | Resources and vendor shortcuts are live, but not every target-state training or watch-progress behavior is complete. |
 | `Activity center` | `Partial / MVP` | `/agent/notifications` now acts as a unified FO `Activity + Cleanup Center` for cleanup pressure, duplicate review, notices, shared office events, appointment writeback pressure, and leader-visible team cleanup pressure, including a dedicated appointment-reminder block for `confirmation due`, `reschedule follow-up`, `external touch due`, and `appointment soon`, basic single/bulk read-state controls, URL-persistent reminder/read-state filters, a dedicated main-stack team-cleanup section for leadership scopes, URL-persistent team-pressure filtering for overdue tasks vs stale dossiers vs send-trail risk, a route-persistent focus-area view for personal cleanup vs team cleanup vs reminder vs notice slices, lane-level `next step` guidance, stronger workbench-language cleanup actions, shared section labels on cleanup/reminder/notice cards, and focused re-entry into clients duplicate-review, dossier section anchors, and client-aware calendar writeback lanes, but deeper office-wide cleanup depth and external-system depth remain follow-up work. |
 | `Tracked links / send records / click data` | `Live core` | This `Phase 1.5` tracking layer is live and wired back into dossier and dashboard context. |
@@ -81,7 +85,7 @@ Audit date:
 | `Inspection / contract-support bridge` | `Live core` | FO dossier exposes BO tasks, signatures, and incoming-update context when a formal file exists. |
 | `PDF export` | `Live core` | Client-facing summary export exists from the dossier. |
 | `Closing / deal-win suggestions` | `Live core` | FO dossier can surface post-close and re-entry suggestions off BO outcome context. |
-| `AI next-touch suggestions and queue` | `Live core` | Dossier and dashboard AI suggestions, accepted-action tracking, outcome ranking, explainability, safe escalation, and FO/BO boundary guardrails are live. |
+| `AI next-touch suggestions and queue` | `Live core` | Dossier and dashboard AI suggestions, accepted-action tracking, outcome ranking, explainability, safe escalation, FO/BO boundary guardrails, and a first shared rule-layer strategy contract for `follow-up`, `silent period`, `holiday`, and `lease` guidance are live. |
 | `FO -> BO handoff boundary` | `Live core` | Explicit handoff draft and BO transaction prefill contract are live. |
 
 ## Front Office gaps still not fully covered
@@ -91,10 +95,10 @@ Audit date:
 - `OCR-assisted intake from WeChat screenshots` is now only partially covered: a browser-side OCR / transcript beta exists in quick intake, but there is still no provider-backed ingestion pipeline, no WeChat integration, and no office-wide import workflow
 - complete `external calendar / email systems` integration is still missing beyond the current export-style bridge plus logged bridge-action writeback and agent-managed external follow-up state
 - duplicate cleanup no longer stops at the current agent-owned queue, but `/agent/clients` still is not yet a fully unified office-wide cleanup center
-- the later `Phase 3` line is still largely open:
-  - automated content generation
+- the later `Phase 3` line is still largely open even though the first manual poster/template workflow is now live:
+  - stronger automated content generation beyond manual HTML poster export
   - enterprise WeChat exploration
-  - agent dynamic profile / landing page
+  - broader agent dynamic profile / landing page behavior
   - monetizable value-add packages
 
 ### Current FO priority conclusion
@@ -103,6 +107,7 @@ The next FO implementation work should remain focused on:
 
 - deeper external calendar / email integration beyond the current export bridge plus logged bridge-action writeback and appointment external-status layer
 - workflow hardening on top of the now-explainable AI layer
+- turning the new material window + poster generator into a broader reusable outbound asset workflow without pretending Canva sync or rendered social export already exist
 - remaining CRM quality-of-life gaps such as deeper OCR-assisted intake and broader office-wide cleanup depth
 
 It should not jump straight to heavier background automation or auto-send behavior first.

@@ -1,7 +1,7 @@
 import { canAccessListingStudio } from "@acre/auth";
 import { getStudioListingPackDetail } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
-import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import {
   buildListingStudioPosterDraft,
   buildListingStudioPosterFileName,
