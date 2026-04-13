@@ -62,13 +62,16 @@ function buildClientWorkbenchHref(
   return `/agent/clients?clientView=${clientView}${hash ? `#${hash}` : ""}`;
 }
 
-function getDashboardQueueAction(input: {
-  actionId: string;
-  href: string;
-  actionLabel: string;
-  count: number;
-  canViewClients: boolean;
-}, isZh: boolean) {
+function getDashboardQueueAction(
+  input: {
+    actionId: string;
+    href: string;
+    actionLabel: string;
+    count: number;
+    canViewClients: boolean;
+  },
+  isZh: boolean,
+) {
   if (!input.canViewClients) {
     return {
       href: input.href,
@@ -148,10 +151,13 @@ function formatTodayActionLabel(count: number, isZh: boolean) {
       : `${count} actions need attention today`;
 }
 
-function getDashboardCommandLeadText(input: {
-  snapshot: FrontOfficeDashboardSnapshot;
-  primaryLaunchpadItem: DashboardLaunchpadItem | null;
-}, isZh: boolean) {
+function getDashboardCommandLeadText(
+  input: {
+    snapshot: FrontOfficeDashboardSnapshot;
+    primaryLaunchpadItem: DashboardLaunchpadItem | null;
+  },
+  isZh: boolean,
+) {
   if (
     input.snapshot.leadershipQueue.visible &&
     input.snapshot.summary.leadershipPressureCount > 0
@@ -269,8 +275,8 @@ function buildDashboardLaunchpadItems(input: {
       description: leadingLeadershipItem
         ? `${leadingLeadershipItem.title} is the clearest pressure point right now. ${leadingLeadershipItem.whyNowLabel}`
         : isZh
-          ? "团队/办公室清理压力已经直接显示在 Front Office 里，所以漏掉的跟进和安静的发送轨迹不会被 Back Office 工作淹没。"
-          : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet send trails do not hide behind Back Office work.",
+          ? "团队/办公室清理压力已经直接显示在 Front Office 里，所以漏掉的跟进和安静的分享不会被 Back Office 工作淹没。"
+          : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet shares do not hide behind Back Office work.",
       metaLabel: leadershipAction
         ? `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s) · ${leadershipAction.nextStepLabel}`
         : `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
@@ -291,7 +297,9 @@ function buildDashboardLaunchpadItems(input: {
       id: "follow-up",
       badgeLabel: isZh ? "现在处理" : "Do now",
       badgeTone: "warning",
-      title: isZh ? "清掉实时下一触达压力" : "Clear the live next-touch pressure",
+      title: isZh
+        ? "清掉实时下一触达压力"
+        : "Clear the live next-touch pressure",
       description: followUpLead
         ? `${followUpLead.fullName} is the clearest first touch. ${
             input.snapshot.summary.followUpDueCount > 0
@@ -335,7 +343,8 @@ function buildDashboardLaunchpadItems(input: {
         : leadingLeaseReminder.reminderLabel,
       href: leaseAction?.href ?? leadingLeaseReminder.href,
       actionLabel:
-        leaseAction?.actionLabel ?? (isZh ? "打开客户记录" : "Open client record"),
+        leaseAction?.actionLabel ??
+        (isZh ? "打开客户记录" : "Open client record"),
     });
   }
 
@@ -360,8 +369,7 @@ function buildDashboardLaunchpadItems(input: {
           : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
       href: commitmentAction?.href ?? "/agent/calendar",
       actionLabel:
-        commitmentAction?.actionLabel ??
-        (isZh ? "打开日历" : "Open calendar"),
+        commitmentAction?.actionLabel ?? (isZh ? "打开日历" : "Open calendar"),
     });
   }
 
@@ -414,7 +422,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: isZh ? "可发送" : "Send-ready",
       badgeTone: "success",
       title: isZh ? "打开房源跟进" : "Open listing follow-up",
-      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail after you send, and the next-step rail keeps the send-risk trail explicit.`,
+      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the activity after you send, and the next-step view keeps share risk visible.`,
       metaLabel:
         input.snapshot.listingOutput.trackedLinkCount > 0
           ? `${input.snapshot.listingOutput.trackedLinkCount} tracked link(s) already created`
@@ -490,8 +498,8 @@ function buildDashboardHeroStats(input: {
       : "Send-ready listings";
   const sendSignalHint = input.snapshot.listingOutput.recentEngagement.length
     ? isZh
-      ? "值得现在处理的已跟踪打开或安静发送轨迹"
-      : "tracked opens or quiet send trails worth working now"
+      ? "值得现在处理的已跟踪打开或安静分享"
+      : "tracked opens or quiet shares worth working now"
     : isZh
       ? "已激活库存，适合发起可跟踪外联"
       : "active inventory ready for tracked outreach";
@@ -501,7 +509,9 @@ function buildDashboardHeroStats(input: {
           {
             label: isZh ? "团队/办公室压力" : "Leadership pressure",
             value: input.snapshot.summary.leadershipPressureCount,
-            hint: isZh ? "当前可见的团队或办公室清理信号" : "visible team or office cleanup signals",
+            hint: isZh
+              ? "当前可见的团队或办公室清理信号"
+              : "visible team or office cleanup signals",
             tone:
               input.snapshot.summary.leadershipPressureCount > 0
                 ? ("accent" as const)
@@ -512,14 +522,18 @@ function buildDashboardHeroStats(input: {
     {
       label: isZh ? "跟进压力" : "Follow-up pressure",
       value: followUpPressureCount,
-      hint: isZh ? "已到期触达或已逾期的共享跟进任务" : "due touches or overdue shared follow-up tasks",
+      hint: isZh
+        ? "已到期触达或已逾期的共享跟进任务"
+        : "due touches or overdue shared follow-up tasks",
       tone:
         followUpPressureCount > 0 ? ("accent" as const) : ("default" as const),
     },
     {
       label: isZh ? "今日约定事项" : "Today commitments",
       value: input.snapshot.summary.todayCommitmentCount,
-      hint: isZh ? "今天发生的预约或共享办公室事项" : "appointments or shared office commitments landing today",
+      hint: isZh
+        ? "今天发生的预约或共享办公室事项"
+        : "appointments or shared office commitments landing today",
       tone:
         input.snapshot.summary.todayCommitmentCount > 0
           ? ("accent" as const)
@@ -534,7 +548,9 @@ function buildDashboardHeroStats(input: {
     {
       label: isZh ? "需要 Back Office" : "Needs Back Office",
       value: input.snapshot.summary.needsBackOfficeCount,
-      hint: isZh ? "现在需要进入正式工作流的记录" : "records that now need formal workflow",
+      hint: isZh
+        ? "现在需要进入正式工作流的记录"
+        : "records that now need formal workflow",
       tone:
         input.snapshot.summary.needsBackOfficeCount > 0
           ? ("accent" as const)
@@ -546,7 +562,9 @@ function buildDashboardHeroStats(input: {
     stats.splice(2, 0, {
       label: isZh ? "租约提醒" : "Lease reminders",
       value: input.snapshot.summary.leaseReminderCount,
-      hint: isZh ? "续租或搬迁窗口已临近到期" : "renewal or move windows already due soon",
+      hint: isZh
+        ? "续租或搬迁窗口已临近到期"
+        : "renewal or move windows already due soon",
       tone: "accent" as const,
     });
   }
@@ -555,7 +573,9 @@ function buildDashboardHeroStats(input: {
     stats.push({
       label: isZh ? "AI 建议" : "AI suggestions",
       value: input.snapshot.summary.aiSuggestionCount,
-      hint: isZh ? "等待批准的落地型下一触达建议" : "grounded next-touch ideas waiting for approval",
+      hint: isZh
+        ? "等待批准的落地型下一触达建议"
+        : "grounded next-touch ideas waiting for approval",
       tone:
         input.snapshot.summary.aiSuggestionCount > 0
           ? ("accent" as const)
@@ -687,10 +707,13 @@ export default async function AgentDashboardPage() {
     isZh,
   });
   const todayActionCount = snapshot.summary.todayActionCount;
-  const commandLeadText = getDashboardCommandLeadText({
-    snapshot,
-    primaryLaunchpadItem,
-  }, isZh);
+  const commandLeadText = getDashboardCommandLeadText(
+    {
+      snapshot,
+      primaryLaunchpadItem,
+    },
+    isZh,
+  );
   const leadingAiItem = snapshot.aiQueue.items[0] ?? null;
   const leadershipCleanupHref =
     "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
@@ -860,10 +883,14 @@ export default async function AgentDashboardPage() {
                   ? "先清掉上面的实时压力，再使用这里。录入始终保持审查优先：重复预警可见，OCR / transcript 辅助不会自动创建任何内容。"
                   : "Use this after you clear the live pressure above. Intake stays review-first: duplicate warnings are visible and OCR / transcript assist does not auto-create anything."
               }
-              title={isZh ? "准备接新工作时再打开录入辅助" : "Intake assist when you are ready to capture new work"}
+              title={
+                isZh
+                  ? "准备接新工作时再打开录入辅助"
+                  : "Intake assist when you are ready to capture new work"
+              }
             >
               <ListPageStatsGrid>
-              <StatCard
+                <StatCard
                   hint={
                     isZh
                       ? "当前客户范围里可见的实时客户记录"
@@ -921,8 +948,16 @@ export default async function AgentDashboardPage() {
                       ? "从这里开始一条新录入，或重新打开下面的辅助卡，把仍待审查的截图 / transcript 建议处理完，再决定是否创建。"
                       : "Start a new capture here or reopen the assist card below to finish any screenshot or transcript suggestions that are still pending review before create."
                   }
-                  meta={<span>{isZh ? "创建只会使用当前表单里的实时值。" : "Create only uses the live form values."}</span>}
-                  title={isZh ? "继续录入辅助复核" : "Continue intake assist review"}
+                  meta={
+                    <span>
+                      {isZh
+                        ? "创建只会使用当前表单里的实时值。"
+                        : "Create only uses the live form values."}
+                    </span>
+                  }
+                  title={
+                    isZh ? "继续录入辅助复核" : "Continue intake assist review"
+                  }
                 />
                 <FrontOfficeRailItem
                   action={
@@ -947,7 +982,9 @@ export default async function AgentDashboardPage() {
                       item(s) are already due there.
                     </span>
                   }
-                  title={isZh ? "查看实时客户队列" : "Review the live client queue"}
+                  title={
+                    isZh ? "查看实时客户队列" : "Review the live client queue"
+                  }
                 />
                 <FrontOfficeRailItem
                   action={
@@ -988,9 +1025,15 @@ export default async function AgentDashboardPage() {
                       : "Keep create-time duplicate warnings review-first: the dedicated view in the client list is still the place to compare client records before you merge anything."
                   }
                   meta={
-                    <span>{isZh ? "重复审查仍保留在客户队列里。" : "Duplicate review stays in the client queue."}</span>
+                    <span>
+                      {isZh
+                        ? "重复审查仍保留在客户队列里。"
+                        : "Duplicate review stays in the client queue."}
+                    </span>
                   }
-                  title={isZh ? "跟随重复记录提示处理" : "Follow the duplicate cue"}
+                  title={
+                    isZh ? "跟随重复记录提示处理" : "Follow the duplicate cue"
+                  }
                 />
               </div>
 
@@ -1072,13 +1115,16 @@ export default async function AgentDashboardPage() {
           >
             <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => {
-                const action = getDashboardQueueAction({
-                  actionId: item.id,
-                  href: item.href,
-                  actionLabel: item.actionLabel,
-                  count: item.count,
-                  canViewClients,
-                }, isZh);
+                const action = getDashboardQueueAction(
+                  {
+                    actionId: item.id,
+                    href: item.href,
+                    actionLabel: item.actionLabel,
+                    count: item.count,
+                    canViewClients,
+                  },
+                  isZh,
+                );
                 const laneStatus = getActionLaneStatus(item, isZh);
 
                 return (
@@ -1117,13 +1163,13 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-            subtitle={
-              isZh
-                ? "基于当前记录，给出可以直接跟进的建议。"
-                : "Suggested follow-ups based on the current record history."
-            }
-            title={isZh ? "AI 跟进建议" : "AI follow-up suggestions"}
-          >
+              subtitle={
+                isZh
+                  ? "基于当前记录，给出可以直接跟进的建议。"
+                  : "Suggested follow-ups based on the current record history."
+              }
+              title={isZh ? "AI 跟进建议" : "AI follow-up suggestions"}
+            >
               <ListPageStatsGrid>
                 <StatCard
                   hint="grounded AI suggestion and rule-layer opportunities currently visible in this dashboard scope"
@@ -1148,7 +1194,9 @@ export default async function AgentDashboardPage() {
                   ? "通过这一层追踪你接受建议之后真正发生了什么：哪些动作变成了真实跟进或已跟踪发送，哪些仍然需要继续处理。"
                   : "Use this trust layer to see what happened after you accepted a suggestion: which action became a real follow-up or tracked send, and which ones still need help."
               }
-              title={isZh ? "AI 已接受动作与结果" : "AI accepted actions & outcomes"}
+              title={
+                isZh ? "AI 已接受动作与结果" : "AI accepted actions & outcomes"
+              }
             >
               <ListPageStatsGrid>
                 <StatCard
@@ -1257,9 +1305,7 @@ export default async function AgentDashboardPage() {
                       "duplicate-review",
                     )}
                   >
-                    {isZh
-                      ? "查看重复记录"
-                      : "Review duplicates"}
+                    {isZh ? "查看重复记录" : "Review duplicates"}
                   </FrontOfficeLink>
                 </>
               ) : undefined
@@ -1345,7 +1391,9 @@ export default async function AgentDashboardPage() {
                       ? "当客户活动开始流入共享 CRM 后，最新的活跃记录就会显示在这里。"
                       : "When client activity starts flowing into the shared CRM, the latest active records will appear here."
                   }
-                  title={isZh ? "还没有活跃客户记录" : "No active client records"}
+                  title={
+                    isZh ? "还没有活跃客户记录" : "No active client records"
+                  }
                 />
               )}
             </div>
@@ -1448,7 +1496,9 @@ export default async function AgentDashboardPage() {
                       ? "当前还没有安排事项。使用日历来放入下一次预约或承诺中的后续跟进。"
                       : "Nothing is on deck yet. Use the calendar to stage the next appointment or promised follow-up."
                   }
-                  title={isZh ? "还没有安排任何事项" : "No commitments scheduled"}
+                  title={
+                    isZh ? "还没有安排任何事项" : "No commitments scheduled"
+                  }
                 />
               )}
             </div>
@@ -1466,18 +1516,28 @@ export default async function AgentDashboardPage() {
             <ListPageStatsGrid>
               <StatCard
                 hint={
-                  isZh ? "当前范围内的活跃或热门房源" : "active or hot listings in scope"
+                  isZh
+                    ? "当前范围内的活跃或热门房源"
+                    : "active or hot listings in scope"
                 }
                 label={isZh ? "可发送房源" : "Send-ready listings"}
                 value={snapshot.listingOutput.activeListingCount}
               />
               <StatCard
-                hint={isZh ? "你已经创建的跟踪链接" : "tracked links already created by you"}
+                hint={
+                  isZh
+                    ? "你已经创建的跟踪链接"
+                    : "tracked links already created by you"
+                }
                 label={isZh ? "跟踪链接" : "Tracked links"}
                 value={snapshot.listingOutput.trackedLinkCount}
               />
               <StatCard
-                hint={isZh ? "你的跟踪链接上的点击记录" : "clicks recorded on your tracked links"}
+                hint={
+                  isZh
+                    ? "你的跟踪链接上的点击记录"
+                    : "clicks recorded on your tracked links"
+                }
                 label={isZh ? "跟踪点击" : "Tracked clicks"}
                 value={snapshot.listingOutput.trackedClickCount}
               />
@@ -1491,7 +1551,11 @@ export default async function AgentDashboardPage() {
                 value={snapshot.listingOutput.sendRecordCount}
               />
               <StatCard
-                hint={isZh ? "至少被打开过一次的发送记录" : "send records that have at least one open"}
+                hint={
+                  isZh
+                    ? "至少被打开过一次的发送记录"
+                    : "send records that have at least one open"
+                }
                 label={isZh ? "已打开发送" : "Opened sends"}
                 value={snapshot.listingOutput.openedSendCount}
               />
@@ -1572,7 +1636,11 @@ export default async function AgentDashboardPage() {
                       ? "当共享房源模型里有库存后，活跃房源会显示在这里。"
                       : "Active listings will appear here once inventory is available in the shared listing model."
                   }
-                  title={isZh ? "当前范围内没有房源库存" : "No listing inventory in scope"}
+                  title={
+                    isZh
+                      ? "当前范围内没有房源库存"
+                      : "No listing inventory in scope"
+                  }
                 />
               )}
             </div>
@@ -1620,12 +1688,14 @@ export default async function AgentDashboardPage() {
                       {isZh ? "打开房源跟进" : "Open listing follow-up"}
                     </Link>
                   }
-                    description={
-                      isZh
-                        ? "从房源输出或客户记录开始，创建第一条客户关联发送记录。之后打开和再次访问都会显示在这里。"
-                        : "Start from listing output or a client record to create the first client-linked send record. Opens and revisits will show here after that."
-                    }
-                  title={isZh ? "还没有客户关联发送" : "No client-linked sends yet"}
+                  description={
+                    isZh
+                      ? "从房源输出或客户记录开始，创建第一条客户关联发送记录。之后打开和再次访问都会显示在这里。"
+                      : "Start from listing output or a client record to create the first client-linked send record. Opens and revisits will show here after that."
+                  }
+                  title={
+                    isZh ? "还没有客户关联发送" : "No client-linked sends yet"
+                  }
                 />
               )}
             </div>
@@ -1689,7 +1759,11 @@ export default async function AgentDashboardPage() {
                       ? "当前没有任何内容需要正式 BO 档案。继续处理实时 FO 队列，直到某个资料包、签署或交易真正需要可审计归属。"
                       : "Nothing needs a formal BO file right now. Keep working the live FO queue until a package, signature, or transaction truly needs auditable ownership."
                   }
-                  title={isZh ? "当前没有正式工作流待处理" : "Nothing waiting for formal workflow"}
+                  title={
+                    isZh
+                      ? "当前没有正式工作流待处理"
+                      : "Nothing waiting for formal workflow"
+                  }
                 />
               )}
             </div>
@@ -1720,14 +1794,18 @@ export default async function AgentDashboardPage() {
               <ListPageStatsGrid>
                 <StatCard
                   hint={
-                    isZh ? "已经逾期的共享跟进任务" : "open shared follow-up tasks already overdue"
+                    isZh
+                      ? "已经逾期的共享跟进任务"
+                      : "open shared follow-up tasks already overdue"
                   }
                   label={isZh ? "逾期任务" : "Overdue tasks"}
                   value={snapshot.leadershipQueue.overdueTaskCount}
                 />
                 <StatCard
                   hint={
-                    isZh ? "15 天以上没有活动的活跃客户" : "active clients with 15+ days of inactivity"
+                    isZh
+                      ? "15 天以上没有活动的活跃客户"
+                      : "active clients with 15+ days of inactivity"
                   }
                   label={isZh ? "15+ 天沉寂" : "15+ day stale"}
                   value={snapshot.leadershipQueue.staleClientCount}
@@ -1738,7 +1816,7 @@ export default async function AgentDashboardPage() {
                       ? "最近被跟踪但从未打开或已经沉寂的发送"
                       : "latest tracked sends that were never opened or have gone quiet"
                   }
-                  label={isZh ? "发送轨迹风险" : "Send-trail risk"}
+                  label={isZh ? "分享风险" : "Share risk"}
                   value={snapshot.leadershipQueue.engagementRiskCount}
                 />
               </ListPageStatsGrid>
@@ -1778,7 +1856,9 @@ export default async function AgentDashboardPage() {
                         ? "当前没有可见的逾期任务、沉寂客户或安静发送压力。"
                         : "No overdue tasks, stale clients, or quiet send activity are visible right now."
                     }
-                    title={isZh ? "领导队列已清空" : "Leadership queue is clear"}
+                    title={
+                      isZh ? "领导队列已清空" : "Leadership queue is clear"
+                    }
                   />
                 )}
               </div>
@@ -1813,13 +1893,13 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.notifications.map((notification) => (
                   <FrontOfficeRailItem
                     action={
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={notification.href}
-                        >
-                          {isZh ? "打开通知" : "Open notice"}
-                        </FrontOfficeLink>
-                      }
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={notification.href}
+                      >
+                        {isZh ? "打开通知" : "Open notice"}
+                      </FrontOfficeLink>
+                    }
                     badgeLabel={notification.typeLabel}
                     badgeTone="accent"
                     description={notification.body}
@@ -1891,13 +1971,13 @@ export default async function AgentDashboardPage() {
                 snapshot.leaseReminders.items.map((item) => (
                   <FrontOfficeRailItem
                     action={
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={item.href}
-                        >
-                          {isZh ? "打开客户记录" : "Open client record"}
-                        </FrontOfficeLink>
-                      }
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={item.href}
+                      >
+                        {isZh ? "打开客户记录" : "Open client record"}
+                      </FrontOfficeLink>
+                    }
                     badgeLabel={item.statusLabel}
                     badgeTone={item.tone}
                     description={item.detailLabel}
@@ -1942,13 +2022,13 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.resources.map((resource) => (
                   <FrontOfficeRailItem
                     action={
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={resource.href}
-                        >
-                          {isZh ? "打开资源" : "Open resource"}
-                        </FrontOfficeLink>
-                      }
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={resource.href}
+                      >
+                        {isZh ? "打开资源" : "Open resource"}
+                      </FrontOfficeLink>
+                    }
                     badgeLabel={resource.typeLabel}
                     description={resource.summary}
                     key={resource.id}
@@ -2042,7 +2122,9 @@ export default async function AgentDashboardPage() {
               <ListPageStatsGrid>
                 <StatCard
                   hint={
-                    isZh ? "当前可见 FO 范围内的成员" : "members in the visible FO scope"
+                    isZh
+                      ? "当前可见 FO 范围内的成员"
+                      : "members in the visible FO scope"
                   }
                   label={isZh ? "可见成员" : "Visible members"}
                   value={resourcePulse.visibleMembershipCount}
@@ -2073,14 +2155,18 @@ export default async function AgentDashboardPage() {
                 />
                 <StatCard
                   hint={
-                    isZh ? "供应商电话、邮件或站点点击" : "vendor call, email, or site clicks"
+                    isZh
+                      ? "供应商电话、邮件或站点点击"
+                      : "vendor call, email, or site clicks"
                   }
                   label={isZh ? "供应商点击" : "Vendor clicks"}
                   value={resourcePulse.vendorClickCount}
                 />
                 <StatCard
                   hint={
-                    isZh ? "最近一次共享跟踪活动" : "latest shared tracked activity"
+                    isZh
+                      ? "最近一次共享跟踪活动"
+                      : "latest shared tracked activity"
                   }
                   label={isZh ? "最近共享触达" : "Last shared touch"}
                   value={resourcePulse.lastInteractionLabel}
@@ -2116,7 +2202,11 @@ export default async function AgentDashboardPage() {
                         ? "当当前可见团队开始在这个 hub 里真实工作后，已跟踪的资源搜索、培训进度和供应商使用情况就会浮现在这里。"
                         : "Tracked resource search, training progress, and vendor use will start surfacing here once the visible bench works this hub live."
                     }
-                    title={isZh ? "还没有共享操作员脉冲" : "No shared operator pulse yet"}
+                    title={
+                      isZh
+                        ? "还没有共享操作员脉冲"
+                        : "No shared operator pulse yet"
+                    }
                   />
                 )}
 
@@ -2189,7 +2279,9 @@ export default async function AgentDashboardPage() {
                       ? "当共享供应商目录可用后，这个办公室范围内的推荐供应商会显示在这里。"
                       : "Featured vendors for this office scope will appear here when the shared vendor directory is available."
                   }
-                  title={isZh ? "还没有供应商快捷入口" : "No vendor shortcuts yet"}
+                  title={
+                    isZh ? "还没有供应商快捷入口" : "No vendor shortcuts yet"
+                  }
                 />
               )}
             </div>

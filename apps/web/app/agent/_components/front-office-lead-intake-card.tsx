@@ -258,23 +258,23 @@ function buildAssistServerProvenanceLabel(
 
   if (provenance.transcript.present && provenance.image.present) {
     return provenance.rawText.fallbackUsed
-      ? "Source trail: transcript fallback after local-only OCR"
+      ? "Source input: transcript fallback after local OCR"
       : provenance.rawText.ocrIncluded
-        ? "Source trail: transcript + local-only OCR"
-        : "Source trail: transcript + screenshot upload";
+        ? "Source input: transcript + local OCR"
+        : "Source input: transcript + screenshot upload";
   }
 
   if (provenance.image.present) {
     return provenance.rawText.ocrIncluded
-      ? "Source trail: local-only OCR"
-      : "Source trail: screenshot upload only";
+      ? "Source input: local OCR"
+      : "Source input: screenshot upload only";
   }
 
   if (provenance.transcript.present) {
-    return "Source trail: transcript only";
+    return "Source input: transcript only";
   }
 
-  return "Source trail: no intake source recorded";
+  return "Source input: no intake source recorded";
 }
 
 function buildAssistServerOcrLabel(
@@ -303,7 +303,9 @@ function buildAssistServerWarningLabel(
     return "";
   }
 
-  const warnings = metadata.warnings.slice(0, 2).map((warning) => warning.label);
+  const warnings = metadata.warnings
+    .slice(0, 2)
+    .map((warning) => warning.label);
 
   return `Warnings: ${warnings.join(" · ")}`;
 }
@@ -358,7 +360,7 @@ function buildCreateLeadErrorFeedback(
   if (responseStatus === 409 || payload?.errorCode === "duplicate_lead") {
     return (
       payload?.error ??
-      "Potential duplicate clients were found inside your visible CRM scope. Open the closest existing record first, compare contact info and stage, then use the duplicate review lane if this is the same lead. Create a separate dossier only if this is truly a different person."
+      "Potential duplicate clients were found inside your visible CRM scope. Open the closest existing record first, compare contact info and stage, then use duplicate review if this is the same lead. Create a separate record only if this is truly a different person."
     );
   }
 
@@ -374,7 +376,7 @@ function buildCreateLeadErrorFeedback(
   if (payload?.errorCode === "front_office_create_forbidden") {
     return (
       payload?.error ??
-      "You do not have permission to create Front Office leads from this workspace."
+      "You do not have permission to create Front Office leads from this page."
     );
   }
 
@@ -394,7 +396,7 @@ function buildCreateLeadErrorFeedback(
   if (payload?.errorCode === "invalid_request_body") {
     return (
       payload?.error ??
-      "Acre needs a valid live intake payload before it can create the dossier."
+      "Acre needs a valid live intake payload before it can create the client record."
     );
   }
 
@@ -502,7 +504,7 @@ function buildDuplicateNextStepLabels(reasons: string[]) {
     return [
       "Open the existing record first",
       "Compare phone, email, and preferred areas",
-      "Create a new dossier only if this is truly different",
+      "Create a new record only if this is truly different",
     ];
   }
 
@@ -547,7 +549,7 @@ function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
       return {
         label: "Qualification",
         description:
-          "Batch source, stage, and intent together after identity is clear so the intake lands in the right active work lane without rereading the full transcript.",
+          "Batch source, stage, and intent together after identity is clear so the intake lands in the right active follow-up view without rereading the full transcript.",
       };
     case "context":
       return {
@@ -1169,7 +1171,7 @@ export function FrontOfficeLeadIntakeCard(
     "/agent/clients?clientView=duplicate_review#duplicate-review";
   const duplicateReviewLabel =
     props.sourceSurface === "clients"
-      ? "Open duplicate review lane"
+      ? "Open duplicate review"
       : "Open duplicate review queue";
   const initialFormDefaultsRef = useRef<LeadFormState>(buildEmptyFormState());
   const [formDefaults, setFormDefaults] = useState<LeadFormState>(
@@ -1687,7 +1689,9 @@ export function FrontOfficeLeadIntakeCard(
       });
       const feedbackParts: string[] = [];
       const ocrLabel = buildAssistServerOcrLabel(payload.metadata);
-      const provenanceLabel = buildAssistServerProvenanceLabel(payload.metadata);
+      const provenanceLabel = buildAssistServerProvenanceLabel(
+        payload.metadata,
+      );
       const warningLabel = buildAssistServerWarningLabel(payload.metadata);
 
       if (ocrLabel) {
@@ -2123,10 +2127,10 @@ export function FrontOfficeLeadIntakeCard(
             <span>
               {props.sourceSurface === "dashboard"
                 ? "Dashboard entry"
-                : "Clients workspace entry"}
+                : "Clients page entry"}
             </span>
-            <span>Creates a real FO dossier</span>
-            <span>Keeps BO handoff boundary intact</span>
+            <span>Creates a real client record</span>
+            <span>Keeps formal Back Office handoff separate</span>
           </div>
         </div>
 
@@ -2135,21 +2139,21 @@ export function FrontOfficeLeadIntakeCard(
           onSubmit={handleSubmit}
         >
           <div className="front-office-lead-intake-assist">
-          <div className="front-office-lead-intake-assist-copy">
-              <strong>Source-tracked transcript review</strong>
+            <div className="front-office-lead-intake-assist-copy">
+              <strong>Transcript review</strong>
               <p>
-                Drop in a WeChat screenshot or paste the chat thread. Acre
-                keeps the source trail explicit, labels local OCR and fallback
-                separately, starts with unresolved identity, groups the rest
-                into section batches, and waits for manual confirmation before
-                anything touches the live intake form.
+                Drop in a WeChat screenshot or paste the chat thread. Acre shows
+                the source clearly, labels OCR and fallback separately, starts
+                with unresolved identity, groups the rest into review sections,
+                and waits for manual confirmation before anything touches the
+                live intake form.
               </p>
               <div className="front-office-record-meta">
-                <span>Transcript + OCR provenance</span>
+                <span>Transcript + OCR source</span>
                 <span>Fallbacks are labeled</span>
-                <span>Unresolved identity first</span>
-                <span>Then batch the rest</span>
-                <span>Preview-only stays manual</span>
+                <span>Identity comes first</span>
+                <span>Then review the rest</span>
+                <span>Preview stays manual</span>
                 <span>Local Tesseract OCR only</span>
                 <span>No auto-create or auto-send</span>
               </div>
@@ -2648,8 +2652,8 @@ export function FrontOfficeLeadIntakeCard(
                   Acre checks visible-scope collisions from{" "}
                   {duplicatePreviewSourceSummary} before you submit. Open the
                   closest existing record first, compare contact info and stage,
-                  and only create a separate dossier if this is truly a
-                  different lead.
+                  and only create a separate record if this is truly a different
+                  lead.
                 </p>
               </div>
 
@@ -2930,7 +2934,7 @@ export function FrontOfficeLeadIntakeCard(
               className="office-inline-link front-office-inline-link"
               href={`/agent/clients/${createdClient.id}`}
             >
-              Open client workspace
+              Open client page
             </FrontOfficeLink>
           </div>
         ) : null}
@@ -2942,8 +2946,8 @@ export function FrontOfficeLeadIntakeCard(
               <p>
                 Acre found existing records in the CRM scope you can currently
                 see. Open the closest match first, compare contact info, stage,
-                and next touch, then jump into the duplicate review lane if this
-                is the same lead. Nothing has been merged or created yet.
+                and next touch, then jump into duplicate review if this is the
+                same lead. Nothing has been merged or created yet.
               </p>
             </div>
 
@@ -3007,7 +3011,7 @@ export function FrontOfficeLeadIntakeCard(
                 type="button"
                 variant="secondary"
               >
-                Create separate dossier anyway
+                Create separate record anyway
               </Button>
               <Button
                 disabled={isBusy}

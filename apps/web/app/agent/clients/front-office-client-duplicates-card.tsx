@@ -100,7 +100,7 @@ function buildMergeRisk(pair: FrontOfficeClientDuplicatePair) {
 
   if (!keepIsLight && !duplicateIsLight) {
     return {
-      label: "Both dossiers active",
+      label: "Both records active",
       tone: "warning" as const,
       description:
         "Both sides already carry live workflow context, so confirm the keep choice before Acre consolidates history.",
@@ -121,7 +121,7 @@ function buildMergeRisk(pair: FrontOfficeClientDuplicatePair) {
       label: "Single-signal match",
       tone: "warning" as const,
       description:
-        "Acre only matched one exact field here, so compare both dossiers carefully before you remove one.",
+        "Acre only matched one exact field here, so compare both records carefully before you remove one.",
     };
   }
 
@@ -129,26 +129,23 @@ function buildMergeRisk(pair: FrontOfficeClientDuplicatePair) {
     label: "Ready after review",
     tone: "success" as const,
     description:
-      "Multiple exact-match signals point to one surviving dossier, so the merge should mostly consolidate attached history.",
+      "Multiple exact-match signals point to one surviving record, so the merge should mostly consolidate attached history.",
   };
 }
 
 function buildKeepSummary(pair: FrontOfficeClientDuplicatePair) {
-  return `${pair.rationaleLabel} Current keep dossier snapshot: ${pair.recommendedClient.detailLabel}.`;
+  return `${pair.rationaleLabel} Current keep record snapshot: ${pair.recommendedClient.detailLabel}.`;
 }
 
 function buildMergeCarryForwardSummary(pair: FrontOfficeClientDuplicatePair) {
-  return `${pair.recommendedClient.fullName} stays as the only Front Office dossier. If ${pair.duplicateClient.fullName} still owns linked appointments, follow-up tasks, tracked sends, AI action history, handoff drafts, or Back Office contact pointers, Acre moves that history onto the surviving dossier before removing the duplicate record.`;
+  return `${pair.recommendedClient.fullName} stays as the only Front Office client record. If ${pair.duplicateClient.fullName} still owns linked appointments, follow-up tasks, tracked sends, AI action history, handoff drafts, or Back Office contact pointers, Acre moves that history onto the surviving record before removing the duplicate.`;
 }
 
 function buildMergeFailureDetail(pair: FrontOfficeClientDuplicatePair) {
   return `Why Acre was keeping ${pair.recommendedClient.fullName}: ${pair.rationaleLabel}`;
 }
 
-function buildClientWorkbenchHref(
-  view: ClientWorkbenchView,
-  anchorId: string,
-) {
+function buildClientWorkbenchHref(view: ClientWorkbenchView, anchorId: string) {
   return `/agent/clients?clientView=${view}#${anchorId}`;
 }
 
@@ -185,16 +182,16 @@ export function FrontOfficeClientDuplicatesCard(props: {
     if (!response.ok || !payload?.result) {
       setFeedback({
         tone: "error",
-        title: payload?.error ?? "Could not merge these FO dossiers",
+        title: payload?.error ?? "Could not merge these Front Office records",
         message: [
           payload?.detail ??
-            "Acre stopped before removing the duplicate dossier, so both dossiers are still intact.",
-          "Both dossiers are still intact.",
+            "Acre stopped before removing the duplicate record, so both records are still intact.",
+          "Both records are still intact.",
         ].join(" "),
         detail: buildMergeFailureDetail(pair),
         nextStep:
           payload?.nextStep ??
-          "Refresh duplicate review, reopen both dossiers, and confirm the keep choice before trying again.",
+          "Refresh duplicate review, reopen both records, and confirm the keep choice before trying again.",
         actions: [
           {
             href: buildClientWorkbenchHref(
@@ -220,7 +217,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
     setFeedback({
       tone: "success",
       title: `Merged into ${payload.result.targetFullName}`,
-      message: `Why Acre kept ${payload.result.targetFullName}: ${pair.rationaleLabel} ${payload.result.sourceFullName} is no longer a separate FO dossier.`,
+      message: `Why Acre kept ${payload.result.targetFullName}: ${pair.rationaleLabel} ${payload.result.sourceFullName} is no longer a separate Front Office record.`,
       detail: [
         buildMergeCountsSummary(payload.result.movedCounts),
         payload.keepReason,
@@ -231,7 +228,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
         .join(" "),
       nextStep:
         payload?.nextStep ??
-        "Open the surviving dossier if you want to re-check stage, next touch, or the FO -> BO boundary.",
+        "Open the surviving client page if you want to re-check stage, next touch, or the BO handoff.",
       actions: [
         {
           href: pair.recommendedClient.href,
@@ -259,8 +256,8 @@ export function FrontOfficeClientDuplicatesCard(props: {
       <SectionCard
         id="duplicate-review"
         className="office-list-card"
-        subtitle="Review both sides first, keep one surviving dossier on purpose, and merge only when you are comfortable with Acre's keep recommendation. This lane consolidates FO history and BO contact pointers only; it does not create a transaction or hide automation."
-        title="Duplicate review lane"
+        subtitle="Review both sides first, keep one surviving client record on purpose, and merge only when you are comfortable with Acre's keep recommendation. This view consolidates Front Office history and Back Office contact pointers only; it does not create a transaction or hide automation."
+        title="Duplicate review"
       >
         {feedback ? (
           <div
@@ -316,7 +313,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
                 <div className="front-office-merge-columns">
                   <div className="front-office-merge-column is-recommended">
                     <span className="front-office-merge-column-label">
-                      Keep this dossier
+                      Keep this record
                     </span>
                     <div className="front-office-merge-column-head">
                       <strong>{pair.recommendedClient.fullName}</strong>
@@ -361,7 +358,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
 
                 <div className="office-queue-list">
                   <QueueItem
-                    badgeLabel="Why keep this dossier"
+                    badgeLabel="Why keep this record"
                     badgeTone="accent"
                     description={buildKeepSummary(pair)}
                     meta={
@@ -405,7 +402,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
                     className="office-inline-link front-office-inline-link"
                     href={pair.recommendedClient.href}
                   >
-                    Open keep dossier
+                    Open kept record
                   </FrontOfficeLink>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
@@ -438,8 +435,8 @@ export function FrontOfficeClientDuplicatesCard(props: {
         }
         description={
           confirmPair
-            ? `${confirmPair.recommendedClient.fullName} will stay as the surviving dossier. ${confirmPair.duplicateClient.fullName} will disappear as a separate record only after Acre moves linked history safely.`
-            : "Acre will keep one surviving dossier and move linked history safely before removing the duplicate."
+            ? `${confirmPair.recommendedClient.fullName} will stay as the surviving record. ${confirmPair.duplicateClient.fullName} will disappear as a separate record only after Acre moves linked history safely.`
+            : "Acre will keep one surviving record and move linked history safely before removing the duplicate."
         }
         isOpen={Boolean(confirmPair)}
         onCancel={() => setConfirmPair(null)}
@@ -493,9 +490,9 @@ export function FrontOfficeClientDuplicatesCard(props: {
               title="Risk to review before merge"
             />
             <QueueItem
-              badgeLabel="Boundary"
+              badgeLabel="Scope"
               badgeTone="neutral"
-              description="This action only consolidates the FO dossier and BO contact pointers that already exist. It does not create or edit a formal transaction file, sync an outside provider, or auto-send follow-up."
+              description="This action only consolidates the Front Office client record and Back Office contact pointers that already exist. It does not create or edit a formal transaction file, sync an outside provider, or auto-send follow-up."
               title="What this merge will not do"
             />
           </div>

@@ -371,7 +371,7 @@ export default async function AgentNotificationsPage(
                 />
                 <StatCard
                   hint="latest tracked sends that were never opened or have gone quiet"
-                  label="Send-trail risk"
+                  label="Share risk"
                   value={dashboardSnapshot.leadershipQueue.engagementRiskCount}
                 />
               </ListPageStatsGrid>
@@ -438,10 +438,7 @@ export default async function AgentNotificationsPage(
             tone="accent"
             value={visibleRouteItemCount}
           />
-          <SummaryChip
-            label="My follow-ups"
-            value={personalCleanupCount}
-          />
+          <SummaryChip label="My follow-ups" value={personalCleanupCount} />
           {dashboardSnapshot.leadershipQueue.visible ? (
             <SummaryChip
               label="Team follow-ups"
@@ -452,10 +449,7 @@ export default async function AgentNotificationsPage(
             label="Appointments"
             value={appointmentReminderCards.length}
           />
-          <SummaryChip
-            label="Notices"
-            value={generalNoticeCards.length}
-          />
+          <SummaryChip label="Notices" value={generalNoticeCards.length} />
           <SummaryChip
             label="Urgent cleanup"
             tone="accent"

@@ -91,7 +91,7 @@ export function FrontOfficeDashboardAiQueueClient(
         tone: "success",
         message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The next move is now in the shared follow-up clock while the dashboard refreshes.`,
         primaryHref: item.openDossierHref,
-        primaryLabel: "Open dossier",
+        primaryLabel: "Open client page",
         secondaryHref: "/agent/clients#client-pipeline",
         secondaryLabel: "Review client queue",
       });
@@ -134,7 +134,7 @@ export function FrontOfficeDashboardAiQueueClient(
             </div>
           ) : null}
         </div>
-        ) : null}
+      ) : null}
 
       {strategyRules.length ? (
         <div className="front-office-placeholder-note">
@@ -166,7 +166,7 @@ export function FrontOfficeDashboardAiQueueClient(
                       className="office-inline-link front-office-inline-link"
                       href={rule.openDossierHref}
                     >
-                      Open dossier
+                      Open client page
                     </FrontOfficeLink>
                   </>
                 }
@@ -238,7 +238,7 @@ export function FrontOfficeDashboardAiQueueClient(
                       className="office-inline-link front-office-inline-link"
                       href={item.openDossierHref}
                     >
-                      Review in dossier
+                      Review in client page
                     </FrontOfficeLink>
                   ) : null}
                 </>
@@ -253,26 +253,26 @@ export function FrontOfficeDashboardAiQueueClient(
                   <div className="list-row-meta front-office-record-meta">
                     <span>{item.whyNowLabel}</span>
                   </div>
-                <FrontOfficeAiExplainabilitySurface
-                  allowsDirectFollowUpCreation={
-                    item.allowsDirectFollowUpCreation
-                  }
-                  boundaryDescription={item.boundaryDescription}
-                  boundaryLabel={item.boundaryLabel}
-                  boundaryTone={item.boundaryTone}
-                  compact
-                  helperText={item.helperLabel}
-                  playbookSteps={props.strategy.playbook.steps}
-                  playbookSummary={props.strategy.playbook.summaryLabel}
-                  oneClickReason={item.oneClickReason}
-                  primaryActionReason={item.primaryActionReason}
-                  rankingSignals={item.rankingSignals}
-                  strategyRules={strategyRules}
-                  strategySignals={strategyRules.map(
-                    (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
-                  )}
-                  strategySummary={props.strategy.summaryLabel}
-                  whyNowSignals={item.whyNowSignals}
+                  <FrontOfficeAiExplainabilitySurface
+                    allowsDirectFollowUpCreation={
+                      item.allowsDirectFollowUpCreation
+                    }
+                    boundaryDescription={item.boundaryDescription}
+                    boundaryLabel={item.boundaryLabel}
+                    boundaryTone={item.boundaryTone}
+                    compact
+                    helperText={item.helperLabel}
+                    playbookSteps={props.strategy.playbook.steps}
+                    playbookSummary={props.strategy.playbook.summaryLabel}
+                    oneClickReason={item.oneClickReason}
+                    primaryActionReason={item.primaryActionReason}
+                    rankingSignals={item.rankingSignals}
+                    strategyRules={strategyRules}
+                    strategySignals={strategyRules.map(
+                      (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
+                    )}
+                    strategySummary={props.strategy.summaryLabel}
+                    whyNowSignals={item.whyNowSignals}
                   />
                 </>
               }

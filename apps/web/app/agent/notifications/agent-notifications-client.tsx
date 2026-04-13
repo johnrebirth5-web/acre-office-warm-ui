@@ -617,7 +617,7 @@ export function AgentNotificationsClient({
   const activeNoticeStreamFilterLabel =
     noticeStreamFilterOptions.find(
       (option) => option.value === activeNoticeStreamFilter,
-    )?.label ?? "current notice lane";
+    )?.label ?? "current notice view";
   const activeLeadershipFilterLabel =
     leadershipCleanupFilterOptions.find(
       (option) => option.value === activeLeadershipFilter,
@@ -735,7 +735,7 @@ export function AgentNotificationsClient({
         "Confirmation, reschedule, external touch, and countdown pressure stay separate from broader notices so appointment follow-up stays clear.",
       count: appointmentReminderCount,
       tone: appointmentReminderTone,
-      ownerLabel: "Ownership · Calendar writeback + personal follow-through",
+      ownerLabel: "Ownership · Calendar follow-up + personal follow-through",
       pressureLabel:
         urgentAppointmentReminderCount > 0
           ? `${urgentAppointmentReminderCount} urgent reminder(s)`
@@ -765,13 +765,13 @@ export function AgentNotificationsClient({
       ownerLabel: "Ownership · Personal + shared office visibility",
       pressureLabel:
         unreadGeneralNoticeCount > 0
-          ? `${unreadGeneralNoticeCount} unread personal notice(s) in this lane`
+          ? `${unreadGeneralNoticeCount} unread personal notice(s) in this view`
           : sharedGeneralNoticeCount > 0
             ? `${sharedGeneralNoticeCount} shared office notice(s) stay open-only`
             : "No unread general notices right now",
       sliceLabel:
         activeNoticeStreamFilter === "all"
-          ? "Section target · All notice lanes"
+          ? "Section target · All notice views"
           : `Section target · ${activeNoticeStreamFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
@@ -1066,7 +1066,7 @@ export function AgentNotificationsClient({
     },
     {
       key: "appointment-writeback",
-      label: "Appointment writeback",
+      label: "Appointment follow-up",
       count: appointmentWritebackShortcutCount,
       href: buildAgentNotificationsHref({
         pathname,
@@ -1148,12 +1148,12 @@ export function AgentNotificationsClient({
       const nextDuplicatePair = snapshot.cleanup.duplicatePairs[0] ?? null;
       const sectionLabel =
         track.key === "appointment_writeback"
-          ? "Calendar writeback rail"
+          ? "Calendar follow-up view"
           : track.key === "send_risk"
-            ? "Listing output rail"
+            ? "Listing share view"
             : track.key === "stale_client"
-              ? "Recovery rail"
-              : "Follow-up rail";
+              ? "Recovery view"
+              : "Follow-up view";
       const nextLabel =
         track.key === "duplicate_review"
           ? nextDuplicatePair
@@ -1191,11 +1191,11 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "personal_cleanup" &&
           activeCleanupFilter === track.key
-            ? "Stay on this cleanup rail"
-            : "Open this cleanup rail",
+            ? "Stay on this cleanup view"
+            : "Open this cleanup view",
         nextStepLabel:
           matchingItems[0]?.nextStepLabel ??
-          "Open the cleanup rail and resolve the next touch.",
+          "Open the cleanup view and resolve the next touch.",
         sectionLabel,
         meta: [
           `Target · ${sectionLabel}`,
@@ -1238,11 +1238,11 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "team_cleanup" &&
           activeLeadershipFilter === group.key
-            ? "Stay on this team lane"
-            : "Open this team lane",
+            ? "Stay on this team view"
+            : "Open this team view",
         nextStepLabel:
           nextItem?.nextStepLabel ??
-          "Open the team lane and decide where to intervene.",
+          "Open the team view and decide where to intervene.",
         sectionLabel: group.label,
         meta: [
           `Target · ${group.label}`,
@@ -1300,9 +1300,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.nextStepLabel ??
           "Open the reminder focus and resolve the next touch.",
-        sectionLabel: nextCard?.sectionLabel ?? "Calendar writeback",
+        sectionLabel: nextCard?.sectionLabel ?? "Calendar follow-up",
         meta: [
-          `Target · ${nextCard?.sectionLabel ?? "Calendar writeback"}`,
+          `Target · ${nextCard?.sectionLabel ?? "Calendar follow-up"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1351,11 +1351,11 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "general_notices" &&
           activeNoticeStreamFilter === group.key
-            ? "Stay on this notice lane"
-            : "Open this notice lane",
+            ? "Stay on this notice view"
+            : "Open this notice view",
         nextStepLabel:
           nextCard?.nextStepLabel ??
-          "Open the notice lane and review the next notice.",
+          "Open the notice view and review the next notice.",
         sectionLabel: nextCard?.sectionLabel ?? "Notices",
         meta: [
           `Target · ${nextCard?.sectionLabel ?? "Notices"}`,
@@ -1364,8 +1364,8 @@ export function AgentNotificationsClient({
             ? `Next · ${nextCard.title}`
             : "Route stays ready for future notice follow-through",
           activeNoticeStreamFilter === group.key
-            ? "Current notice-lane focus"
-            : "URL remembers this lane filter",
+            ? "Current notice-view focus"
+            : "URL remembers this view filter",
         ],
       };
     });
@@ -1923,8 +1923,8 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className={`office-list-card office-notification-toolbar ${styles.toolbarSection}`}
-        subtitle="Pick the lane, keep the route stable, and work the next touch without rebuilding the same filter state every time."
-        title="Workbench lanes & filters"
+        subtitle="Pick the view, keep the page state stable, and work the next touch without rebuilding the same filters every time."
+        title="Views & filters"
       >
         <div className={styles.summaryPanel}>
           <div className={styles.summaryPanelHeader}>
@@ -2016,7 +2016,7 @@ export function AgentNotificationsClient({
         <div
           className={styles.laneTabs}
           role="tablist"
-          aria-label="Activity lanes"
+          aria-label="Activity views"
         >
           {activityLaneTabs.map((area) => {
             const isActive = area.key === activeActivityView;
@@ -2164,7 +2164,7 @@ export function AgentNotificationsClient({
           ) : null}
 
           {showGeneralNoticeSection ? (
-            <FilterField label="Notice lane">
+            <FilterField label="Notice view">
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -2302,7 +2302,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Clear notice lane
+                Clear notice view
               </Button>
             ) : null}
             {activeReadState !== "all" ? (
@@ -2677,7 +2677,7 @@ export function AgentNotificationsClient({
             />
             <StatCard
               hint="tracked sends that were never opened or have gone quiet inside your leadership scope"
-              label="Send-trail risk"
+              label="Share risk"
               tone={
                 leadershipQueue.engagementRiskCount > 0 ? "accent" : "default"
               }
@@ -2833,7 +2833,7 @@ export function AgentNotificationsClient({
                       "/agent/notifications?activityView=appointment_reminders"
                     }
                   >
-                    Open full reminder lane
+                    Open full reminder view
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -2843,10 +2843,10 @@ export function AgentNotificationsClient({
           id="appointment-reminder-pressure"
           subtitle={
             isOverviewMode
-              ? "Calendar writeback stays separate from broader notices. Overview keeps only the first few reminder items visible so this page stays readable."
-              : "Calendar writeback stays separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
+              ? "Calendar follow-up stays separate from broader notices. Overview keeps only the first few reminder items visible so this page stays readable."
+              : "Calendar follow-up stays separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
           }
-          title="Calendar writeback pressure"
+          title="Calendar follow-up pressure"
         >
           <ListPageStatsGrid>
             <StatCard
@@ -2856,13 +2856,13 @@ export function AgentNotificationsClient({
               value={confirmationDueCount}
             />
             <StatCard
-              hint="Appointments where the client asked to reschedule and the next writeback touch is due."
+              hint="Appointments where the client asked to reschedule and the next follow-up touch is due."
               label="Reschedule follow-up"
               tone={rescheduleDueCount > 0 ? "accent" : "default"}
               value={rescheduleDueCount}
             />
             <StatCard
-              hint="External follow-up deadlines driven by appointment writeback instead of the meeting start alone."
+              hint="External follow-up deadlines driven by appointment follow-up instead of the meeting start alone."
               label="External touch due"
               tone={externalTouchDueCount > 0 ? "accent" : "default"}
               value={externalTouchDueCount}
@@ -2876,7 +2876,7 @@ export function AgentNotificationsClient({
           </ListPageStatsGrid>
 
           <div className="list-row-meta front-office-record-meta">
-            <span>Calendar-owned writeback slice</span>
+            <span>Calendar-owned follow-up slice</span>
             {activeReminderFilter !== "all" ? (
               <span>{activeReminderFilterLabel} focus applied</span>
             ) : null}
@@ -2930,7 +2930,7 @@ export function AgentNotificationsClient({
               }
               description={
                 activeReminderFilter === "all"
-                  ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters this lane."
+                  ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters this view."
                   : activeReadState === "all"
                     ? "No appointment reminder notices match the current filter."
                     : "No appointment reminder notices match the current reminder filter and read-state view."
@@ -2964,7 +2964,7 @@ export function AgentNotificationsClient({
                       "/agent/notifications?activityView=general_notices"
                     }
                   >
-                    Open full notice lane
+                    Open full notice view
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -2980,7 +2980,7 @@ export function AgentNotificationsClient({
           title="Notices"
         >
           <div className="list-row-meta front-office-record-meta">
-            <span>{generalNoticeCards.length} notice(s) in this lane</span>
+            <span>{generalNoticeCards.length} notice(s) in this view</span>
             {activeNoticeStreamFilter !== "all" ? (
               <span>{activeNoticeStreamFilterLabel} focus applied</span>
             ) : null}
@@ -3029,7 +3029,7 @@ export function AgentNotificationsClient({
                     type="button"
                     variant="secondary"
                   >
-                    Show all notice lanes
+                    Show all notice views
                   </Button>
                 ) : undefined
               }
@@ -3037,7 +3037,7 @@ export function AgentNotificationsClient({
                 activeNoticeStreamFilter !== "all"
                   ? `No general notices match ${activeNoticeStreamFilterLabel.toLowerCase()} right now.`
                   : activeReadState === "all"
-                    ? "Broader Front Office notices will appear here after calendar writeback pressure has been handled or when non-calendar notices are available."
+                    ? "Broader Front Office notices will appear here after calendar follow-up pressure has been handled or when non-calendar notices are available."
                     : "No general notices match the current read-state view."
               }
               title="No general notices"

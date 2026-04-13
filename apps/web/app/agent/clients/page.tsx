@@ -72,8 +72,8 @@ function getClientWorkbenchViews(isZh: boolean): Record<
     anchor_now: {
       label: isZh ? "补下一步" : "Needs next step",
       subtitle: isZh
-        ? "这个视图专门用来处理还缺第一次触达或缺少明确下一触达日期的 dossier。"
-        : "Use this view for dossiers that still need a first touch or a dated next touch.",
+        ? "这个视图专门用来处理还缺第一次触达或缺少明确下一触达日期的客户记录。"
+        : "Use this view for client records that still need a first touch or a dated next touch.",
       focusAnchor: clientListSectionIds.executionQueue,
     },
     viewing_lane: {
@@ -94,7 +94,7 @@ function getClientWorkbenchViews(isZh: boolean): Record<
       label: isZh ? "重复记录审查" : "Duplicate review",
       subtitle: isZh
         ? "重新打开合并工作道，在整合记录之前逐对并排比较。"
-        : "Reopen the merge lane and compare each pair side by side before you consolidate records.",
+        : "Reopen duplicate review and compare each pair side by side before you consolidate records.",
       focusAnchor: clientListSectionIds.duplicateReview,
     },
   };
@@ -315,12 +315,11 @@ function buildClientQueueDescriptor(
       ? "录入审查"
       : "Intake review"
     : isZh
-      ? "下一步轨道"
-      : "Next-step rail";
-  let whyNow =
-    isZh
-      ? "这个 dossier 仍在活跃的 Front Office 工作道里，下一步动作应该保持可见。"
-      : "This dossier is still in the active Front Office lane and should keep a visible next move.";
+      ? "下一步"
+      : "Next step";
+  let whyNow = isZh
+    ? "这个客户记录仍在活跃的 Front Office 流程里，下一步动作应该保持可见。"
+    : "This client record is still active in Front Office and should keep a visible next move.";
   let primaryActionHref = `${client.href}${clientDossierAnchors.nextStepRail}`;
   let primaryActionLabel = intakeStage
     ? isZh
@@ -374,7 +373,7 @@ function buildClientQueueDescriptor(
         : "Next touch overdue";
     whyNow = leaseAnchored
       ? "The lease or remarketing reminder is already active, so this client should stay ahead of stage-only cleanup."
-      : "The next touch is already due, so this dossier belongs at the front of today's FO queue.";
+      : "The next touch is already due, so this client record belongs at the front of today's FO queue.";
     primaryActionHref = leaseAnchored
       ? `${client.href}${clientDossierAnchors.leaseReminderForm}`
       : `${client.href}${clientDossierAnchors.followUpForm}`;
@@ -397,7 +396,7 @@ function buildClientQueueDescriptor(
         : "No dated next touch";
     whyNow = missingContact
       ? "No contact is logged yet, so first-touch work should stay explicit instead of hiding inside a stage label."
-      : "This active dossier has no dated next touch, so it can fall out of the FO queue unless you anchor it now.";
+      : "This active client record has no dated next touch, so it can fall out of the FO queue unless you anchor it now.";
     primaryActionHref = `${client.href}${clientDossierAnchors.followUpForm}`;
     primaryActionLabel = missingContact
       ? isZh
@@ -409,9 +408,9 @@ function buildClientQueueDescriptor(
   } else if (boundaryStage) {
     queueLabel = isZh ? "审查 BO" : "Review BO";
     queueTone = "warning";
-    anchorLabel = isZh ? "BO 边界审查" : "BO boundary review";
+    anchorLabel = isZh ? "BO 交接审查" : "BO handoff review";
     whyNow =
-      "Negotiation, offer, or application work is active, so the next official record should be reviewed through the Back Office boundary instead of duplicating formal workflow here.";
+      "Negotiation, offer, or application work is active, so the next official record should be reviewed through Back Office handoff instead of duplicating formal workflow here.";
     primaryActionHref = `${client.href}${clientDossierAnchors.backOfficeContext}`;
     primaryActionLabel = isZh ? "审查 BO 交接" : "Review BO handoff";
   } else if (viewingLane) {
@@ -419,7 +418,7 @@ function buildClientQueueDescriptor(
     queueTone = "accent";
     anchorLabel = isZh ? "预约跟进" : "Appointment follow-up";
     whyNow =
-      "Showing and viewing coordination is the live lane, so appointment timing, confirmation, and follow-up should stay easy to reopen.";
+      "Showing and viewing coordination is the live focus, so appointment timing, confirmation, and follow-up should stay easy to reopen.";
     primaryActionHref = `${client.href}${clientDossierAnchors.appointmentsFollowUp}`;
     primaryActionLabel = isZh ? "查看预约" : "Review appointments";
   } else if (leaseAnchored) {
@@ -427,7 +426,7 @@ function buildClientQueueDescriptor(
     queueTone = "accent";
     anchorLabel = isZh ? "续租 / 租约提醒" : "Renewal / lease reminder";
     whyNow =
-      "Lease timing is the active priority here, so renewal or remarketing planning should stay visible in the same FO dossier.";
+      "Lease timing is the active priority here, so renewal or remarketing planning should stay visible on the same Front Office client record.";
     primaryActionHref = `${client.href}${clientDossierAnchors.leaseReminderForm}`;
     primaryActionLabel = isZh ? "打开租约提醒" : "Open lease reminder";
   } else if (closedStage) {
@@ -437,7 +436,9 @@ function buildClientQueueDescriptor(
     whyNow =
       "Outcome context is already on record, so only closeout, recap, or respectful nurture should stay in Front Office.";
     primaryActionHref = `${client.href}${clientDossierAnchors.closingSuggestion}`;
-    primaryActionLabel = isZh ? "查看结果后续跟进" : "Review outcome follow-through";
+    primaryActionLabel = isZh
+      ? "查看结果后续跟进"
+      : "Review outcome follow-through";
   } else if (intakeStage) {
     queueLabel = isZh ? "录入" : "Intake";
     queueTone = "accent";
@@ -457,7 +458,7 @@ function buildClientQueueDescriptor(
     primaryActionHref,
     primaryActionLabel,
     reviewHref: client.href,
-    reviewLabel: isZh ? "打开 dossier" : "Open dossier",
+    reviewLabel: isZh ? "打开客户页" : "Open client page",
     isUrgent: urgent,
     needsCleanup: missingNextTouch || missingContact,
     needsBoundaryReview: boundaryStage,
@@ -516,8 +517,8 @@ function buildDuplicateBoardDescription(
   isZh: boolean,
 ) {
   return isZh
-    ? `${pair.rationaleLabel} 只有在你并排确认过两个 dossier 之后，再合并 ${pair.duplicateClient.fullName}。如果后面还有别的配对在等，合并后请通过同一个重复审查锚点重新进入。`
-    : `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both dossiers side by side. After the merge, re-enter through the same duplicate-review anchor if another pair is still waiting.`;
+    ? `${pair.rationaleLabel} 只有在你并排确认过两个客户记录之后，再合并 ${pair.duplicateClient.fullName}。如果后面还有别的配对在等，合并后请通过同一个重复审查锚点重新进入。`
+    : `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both client records side by side. After the merge, re-enter through the same duplicate-review anchor if another pair is still waiting.`;
 }
 
 function matchesClientWorkbenchView(
@@ -550,43 +551,43 @@ function buildClientWorkbenchQueueEmptyState(
       return {
         title: isZh ? "优先跟进列表已清空" : "Follow-first list is clear",
         description: isZh
-          ? "当前没有 dossier 处在逾期或今天到期的下一触达状态，所以你可以安全地重新打开更宽的队列，而不会丢失当前焦点。"
-          : "No dossier currently has an overdue or due-today next touch, so you can reopen the broader queue without losing the active route focus.",
+          ? "当前没有客户记录处在逾期或今天到期的下一触达状态，所以你可以安全地重新打开更宽的队列，而不会丢失当前焦点。"
+          : "No client record currently has an overdue or due-today next touch, so you can reopen the broader queue without losing the active route focus.",
       };
     case "anchor_now":
       return {
         title: isZh ? "补下一步列表已清空" : "Needs-next-step list is clear",
         description: isZh
-          ? "当前所有可见的 live dossier 都已经有第一次触达或带日期的下一触达，因此这个列表可以安全地重新扩回更宽的队列。"
-          : "Every visible live dossier already has a first touch or a dated next touch, so this list can safely widen back into the broader queue.",
+          ? "当前所有可见的实时客户记录都已经有第一次触达或带日期的下一触达，因此这个列表可以安全地重新扩回更宽的队列。"
+          : "Every visible live client record already has a first touch or a dated next touch, so this list can safely widen back into the broader queue.",
       };
     case "viewing_lane":
       return {
         title: isZh ? "带看列表已清空" : "Showing list is clear",
         description: isZh
-          ? "当前没有任何可见 dossier 以带看或预约后续路径为主。"
-          : "No visible dossier is currently leading with a showing or appointment-follow-through path.",
+          ? "当前没有任何可见客户记录以带看或预约后续路径为主。"
+          : "No visible client record is currently leading with a showing or appointment-follow-through path.",
       };
     case "boundary_review":
       return {
         title: isZh ? "交接审查列表已清空" : "Handoff-review list is clear",
         description: isZh
-          ? "当前没有任何可见 dossier 在谈判、报价或申请工作上活跃到需要优先进入 BO 边界审查。"
-          : "No visible dossier is currently active enough in negotiation, offer, or application work to demand a BO-boundary review first.",
+          ? "当前没有任何可见客户记录在谈判、报价或申请工作上活跃到需要优先进入 BO 交接审查。"
+          : "No visible client record is currently active enough in negotiation, offer, or application work to demand a BO handoff review first.",
       };
     case "duplicate_review":
       return {
         title: isZh ? "重复审查列表已清空" : "Duplicate-review list is clear",
         description: isZh
-          ? "当前没有任何可见 dossier 带着最强的重复配对信号，所以这个路由可以重新扩回完整执行队列。"
-          : "No visible dossier is currently carrying the strongest pairwise duplicate signal, so the route can widen back into the full execution queue.",
+          ? "当前没有任何可见客户记录带着最强的重复配对信号，所以这个视图可以重新扩回完整执行队列。"
+          : "No visible client record is currently carrying the strongest pairwise duplicate signal, so the view can widen back into the full execution queue.",
       };
     default:
       return {
         title: isZh ? "当前没有实时客户队列" : "No live client queue",
         description: isZh
-          ? `当前没有 dossier 匹配“${focusLabel}”，因为可见的 FO 队列仍然为空。`
-          : `No dossier currently matches ${focusLabel.toLowerCase()} because the visible FO queue is still empty.`,
+          ? `当前没有客户记录匹配“${focusLabel}”，因为可见的 FO 队列仍然为空。`
+          : `No client record currently matches ${focusLabel.toLowerCase()} because the visible FO queue is still empty.`,
       };
   }
 }
@@ -677,15 +678,17 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             className="office-list-card"
             actions={
               <>
-                {buildClientWorkbenchViewActions(clientWorkbenchViews).map((viewAction) => (
-                  <FrontOfficeLink
-                    className="office-inline-link front-office-inline-link"
-                    href={viewAction.href}
-                    key={viewAction.href}
-                  >
-                    {viewAction.label}
-                  </FrontOfficeLink>
-                ))}
+                {buildClientWorkbenchViewActions(clientWorkbenchViews).map(
+                  (viewAction) => (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={viewAction.href}
+                      key={viewAction.href}
+                    >
+                      {viewAction.label}
+                    </FrontOfficeLink>
+                  ),
+                )}
               </>
             }
             subtitle={
@@ -721,7 +724,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   <div className="list-row-meta front-office-record-meta">
                     <span>
                       {snapshot.summary.liveContacts}{" "}
-                      {isZh ? "个实时 dossier" : "live dossiers"}
+                      {isZh ? "个实时客户记录" : "live client records"}
                     </span>
                     <span>{activeClientViewConfig.label}</span>
                   </div>
@@ -764,14 +767,14 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         ? "完整 FO 队列"
                         : "Full FO queue"
                       : isZh
-                        ? `${focusedExecutionQueue.length} 个 dossier 在焦点中`
-                        : `${focusedExecutionQueue.length} dossier(s) in focus`
+                        ? `${focusedExecutionQueue.length} 个客户记录在焦点中`
+                        : `${focusedExecutionQueue.length} client record(s) in focus`
                   }
                   description={
                     focusedQueueLeader
                       ? isZh
-                        ? `${focusedQueueLeader.fullName} 是当前路由焦点下最明确的 dossier。${focusedQueueLeader.whyNow}`
-                        : `${focusedQueueLeader.fullName} is the clearest dossier inside this route focus. ${focusedQueueLeader.whyNow}`
+                        ? `${focusedQueueLeader.fullName} 是当前路由焦点下最明确的客户记录。${focusedQueueLeader.whyNow}`
+                        : `${focusedQueueLeader.fullName} is the clearest client record inside this route focus. ${focusedQueueLeader.whyNow}`
                       : `${activeClientViewConfig.subtitle} ${queueEmptyState.description}`
                   }
                   meta={
@@ -808,7 +811,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={topQueueClient.reviewHref}
                       >
-                        {isZh ? "打开 dossier" : "Open dossier"}
+                        {isZh ? "打开客户页" : "Open client page"}
                       </FrontOfficeLink>
                     </div>
                   }
@@ -832,8 +835,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   className="front-office-inline-empty"
                   description={
                     isZh
-                      ? "一旦有 live dossier 进入队列，第一次触达顺序就会显示在这里。"
-                      : "The first-touch order will appear here as soon as live dossiers enter the queue."
+                      ? "一旦有实时客户记录进入队列，第一次触达顺序就会显示在这里。"
+                      : "The first-touch order will appear here as soon as live client records enter the queue."
                   }
                   title={isZh ? "还没有队列领头记录" : "No queue leader yet"}
                 />
@@ -853,7 +856,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={topCleanupClient.reviewHref}
                       >
-                        {isZh ? "打开 dossier" : "Open dossier"}
+                        {isZh ? "打开客户页" : "Open client page"}
                       </FrontOfficeLink>
                     </div>
                   }
@@ -862,8 +865,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   context={`${isZh ? "队列" : "Queue"} ${topCleanupClient.queueOrder} · ${topCleanupClient.anchorLabel}`}
                   description={
                     isZh
-                      ? "当某个 dossier 缺少第一次触达或缺少带日期的下一触达时，就优先处理这里。"
-                      : "Use this section when a dossier is missing a first touch or a dated next touch."
+                      ? "当某个客户记录缺少第一次触达或缺少带日期的下一触达时，就优先处理这里。"
+                      : "Use this section when a client record is missing a first touch or a dated next touch."
                   }
                   meta={
                     <div className="list-row-meta front-office-record-meta">
@@ -882,10 +885,14 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   badgeTone="success"
                   description={
                     isZh
-                      ? "所有可见的 live dossier 都已经有第一次触达记录或带日期的下一触达。"
-                      : "Every visible live dossier already has a first-touch log or dated next touch."
+                      ? "所有可见的实时客户记录都已经有第一次触达记录或带日期的下一触达。"
+                      : "Every visible live client record already has a first-touch log or dated next touch."
                   }
-                  title={isZh ? "补下一步列表已清空" : "Needs-next-step list is clear"}
+                  title={
+                    isZh
+                      ? "补下一步列表已清空"
+                      : "Needs-next-step list is clear"
+                  }
                 />
               )}
 
@@ -906,25 +913,33 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         className="office-inline-link front-office-inline-link"
                         href={topDuplicatePair.recommendedClient.href}
                       >
-                        {isZh ? "打开保留 dossier" : "Open keep dossier"}
+                        {isZh ? "打开保留记录" : "Open kept record"}
                       </FrontOfficeLink>
                     </div>
                   }
                   badgeLabel={isZh ? "下一步合并" : "Merge next"}
                   badgeTone="warning"
                   context={topDuplicatePair.matchReasons.join(" · ")}
-                  description={buildDuplicateBoardDescription(topDuplicatePair, isZh)}
+                  description={buildDuplicateBoardDescription(
+                    topDuplicatePair,
+                    isZh,
+                  )}
                   meta={
                     <div className="list-row-meta front-office-record-meta">
                       <span>
                         Keep {topDuplicatePair.recommendedClient.fullName}
                       </span>
                       <span>
-                        {isZh ? "合并" : "Merge"} {topDuplicatePair.duplicateClient.fullName}
+                        {isZh ? "合并" : "Merge"}{" "}
+                        {topDuplicatePair.duplicateClient.fullName}
                       </span>
                     </div>
                   }
-                  title={isZh ? "下一条应该审查的重复记录工作道" : "Duplicate lane that should be reviewed next"}
+                  title={
+                    isZh
+                      ? "下一条应该审查的重复记录"
+                      : "Duplicate review that should be handled next"
+                  }
                 />
               ) : (
                 <QueueItem
@@ -935,7 +950,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                       ? "当前没有任何可见的成对重复建议在等待处理。"
                       : "No visible pairwise duplicate suggestion is waiting right now."
                   }
-                  title={isZh ? "重复工作道已清空" : "Duplicate lane is clear"}
+                  title={isZh ? "重复审查已清空" : "Duplicate review is clear"}
                 />
               )}
 
@@ -1016,8 +1031,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
               <StatCard
                 hint={
                   isZh
-                    ? "下一次触达已经到期或逾期的 dossier"
-                    : "dossiers whose next touch is already due or overdue"
+                    ? "下一次触达已经到期或逾期的客户记录"
+                    : "client records whose next touch is already due or overdue"
                 }
                 label={isZh ? "优先跟进" : "Follow first"}
                 tone="accent"
@@ -1036,19 +1051,19 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
               <StatCard
                 hint={
                   isZh
-                    ? "应优先重新打开预约工作道的带看或看房记录"
-                    : "showing or viewing records that should reopen the appointment lane first"
+                    ? "应优先重新打开预约跟进的带看或看房记录"
+                    : "showing or viewing records that should reopen the appointment follow-up first"
                 }
-                label={isZh ? "带看工作道" : "Viewing lane"}
+                label={isZh ? "带看跟进" : "Viewing follow-up"}
                 value={viewingCount}
               />
               <StatCard
                 hint={
                   isZh
-                    ? "已经正式到需要按 FO -> BO 边界审查的阶段"
-                    : "stages that are formal enough to review against the FO -> BO boundary"
+                    ? "已经正式到需要按 FO -> BO 交接审查的阶段"
+                    : "stages that are formal enough to review for BO handoff"
                 }
-                label={isZh ? "BO 边界" : "BO boundary"}
+                label={isZh ? "BO 交接" : "BO handoff"}
                 value={boundaryCount}
               />
               <StatCard
@@ -1099,7 +1114,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                             className="office-inline-link front-office-inline-link"
                             href={client.duplicateSignal.pairHref}
                           >
-                            {isZh ? "查看重复工作道" : "Review duplicate lane"}
+                            {isZh ? "查看重复审查" : "Review duplicates"}
                           </FrontOfficeLink>
                         ) : null}
                       </div>
@@ -1115,13 +1130,15 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                           <StatusBadge tone={client.stageTone}>
                             {client.stage}
                           </StatusBadge>
-                      <span>{isZh ? "锚点" : "Anchor"} · {client.anchorLabel}</span>
-                      {client.duplicateSignal ? (
-                        <span>
+                          <span>
+                            {isZh ? "锚点" : "Anchor"} · {client.anchorLabel}
+                          </span>
+                          {client.duplicateSignal ? (
+                            <span>
                               {isZh ? "重复审查" : "Duplicate review"} ·{" "}
                               {client.duplicateSignal.roleLabel}
-                        </span>
-                      ) : null}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="list-row-meta front-office-record-meta">
                           <span>{client.nextTouchLabel}</span>
@@ -1207,7 +1224,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                     ? "当前这个客户范围里没有可见的成对重复建议。"
                     : "No pairwise duplicate suggestions are visible in this client scope right now."
                 }
-                title={isZh ? "重复工作道已清空" : "Duplicate lane is clear"}
+                title={isZh ? "重复审查已清空" : "Duplicate review is clear"}
               />
             </SectionCard>
           )}
@@ -1221,7 +1238,9 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   ? "只有当实时队列已经清理到足够能接纳新工作时，再重新打开录入。录入卡始终保持审查优先，不会声称已有 provider 级导入、隐藏自动化或自动发送。"
                   : "Only reopen intake after the live queue is clear enough to add new work. The intake card stays review-first and never claims provider-backed ingestion, hidden automation, or auto-send."
               }
-              title={isZh ? "开始或继续录入复核" : "Start or continue intake review"}
+              title={
+                isZh ? "开始或继续录入复核" : "Start or continue intake review"
+              }
             />
           </div>
         </>
@@ -1269,8 +1288,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   className="front-office-inline-empty"
                   description={
                     isZh
-                      ? "当实时客户 dossier 进入队列后，首次触达顺序会显示在这里。"
-                      : "The first-touch order will appear here when live client dossiers are in queue."
+                      ? "当实时客户记录进入队列后，首次触达顺序会显示在这里。"
+                      : "The first-touch order will appear here when live client records are in queue."
                   }
                   title={isZh ? "还没有队列领头记录" : "No queue leader yet"}
                 />
@@ -1291,8 +1310,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   context={`${isZh ? "队列" : "Queue"} ${topCleanupClient.queueOrder} · ${topCleanupClient.anchorLabel}`}
                   description={
                     isZh
-                      ? "当某个 dossier 缺少首次触达或缺少带日期的下一次触达时，就走这条工作道。"
-                      : "Use this lane when a dossier is missing a first touch or a dated next touch."
+                      ? "当某个客户记录缺少首次触达或缺少带日期的下一次触达时，就走这里。"
+                      : "Use this view when a client record is missing a first touch or a dated next touch."
                   }
                   meta={
                     <span>
@@ -1323,8 +1342,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   context={`${isZh ? "队列" : "Queue"} ${topBoundaryClient.queueOrder} · ${topBoundaryClient.anchorLabel}`}
                   description={
                     isZh
-                      ? "当 dossier 已进入正式阶段时，应通过 BO 边界审查，而不是把 FO 队列变成第二套报价或合同系统。"
-                      : "Review formal-stage dossiers through the BO boundary instead of turning the FO queue into a second offer or contract system."
+                      ? "当客户记录已进入正式阶段时，应通过 BO 交接审查，而不是把 FO 队列变成第二套报价或合同系统。"
+                      : "Review formal-stage client records through BO handoff instead of turning the FO queue into a second offer or contract system."
                   }
                   meta={
                     <span>
@@ -1360,8 +1379,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         ? "审查下一对"
                         : "Review next pair"
                       : isZh
-                        ? "打开重复工作道"
-                        : "Open duplicate lane"}
+                        ? "打开重复审查"
+                        : "Open duplicate review"}
                   </FrontOfficeLink>
                 }
                 badgeLabel={
@@ -1391,8 +1410,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   topDuplicatePair
                     ? buildDuplicateBoardDescription(topDuplicatePair, isZh)
                     : isZh
-                      ? "重复清理始终保持审查优先：先对比 dossier，确认保留记录，再在你确认无误时执行合并。"
-                      : "Duplicate cleanup stays review-first: compare dossiers, confirm the surviving record, and merge only when you are comfortable with the keep choice."
+                      ? "重复清理始终保持审查优先：先对比客户记录，确认保留记录，再在你确认无误时执行合并。"
+                      : "Duplicate cleanup stays review-first: compare client records, confirm the surviving record, and merge only when you are comfortable with the keep choice."
                 }
                 meta={
                   <span>
@@ -1417,7 +1436,6 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
               />
             </div>
           </SectionCard>
-
         </>
       }
       summary={

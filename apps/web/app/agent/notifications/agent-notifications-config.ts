@@ -136,8 +136,8 @@ export const cleanupFilterOptions: Array<{
 }> = [
   { value: "all", label: "All personal cleanup" },
   { value: "follow_up", label: "Follow-up due" },
-  { value: "appointment_writeback", label: "Appointment writeback" },
-  { value: "send_risk", label: "Send-trail risk" },
+  { value: "appointment_writeback", label: "Appointment follow-up" },
+  { value: "send_risk", label: "Share risk" },
   { value: "stale_client", label: "Stale clients" },
   { value: "duplicate_review", label: "Duplicate review" },
 ];
@@ -150,18 +150,17 @@ export const personalCleanupTrackConfig: Array<{
   {
     key: "follow_up",
     label: "Follow-up due",
-    description:
-      "Follow-up that is already due for your own clients.",
+    description: "Follow-up that is already due for your own clients.",
   },
   {
     key: "appointment_writeback",
-    label: "Appointment writeback",
+    label: "Appointment follow-up",
     description:
       "Appointment updates that still need confirmation, reschedule, or a saved next step.",
   },
   {
     key: "send_risk",
-    label: "Send-trail risk",
+    label: "Share risk",
     description:
       "Tracked sends that never opened or went quiet after the last signal.",
   },
@@ -216,7 +215,7 @@ export const leadershipCleanupFilterOptions: Array<{
 }> = [
   { value: "all", label: "All team pressure" },
   { value: "overdue_task", label: "Overdue tasks" },
-  { value: "engagement_risk", label: "Send-trail risk" },
+  { value: "engagement_risk", label: "Share risk" },
   { value: "stale_client", label: "15+ day stale" },
 ];
 
@@ -243,7 +242,7 @@ export const appointmentReminderGroupConfig: Array<{
     key: "reschedule_due",
     label: "Reschedule follow-up",
     description:
-      "Clients asked to move the meeting and now need the next writeback touch.",
+      "Clients asked to move the meeting and now need the next follow-up touch.",
   },
   {
     key: "external_touch_due",
@@ -267,8 +266,7 @@ export const generalNoticeLaneConfig: Array<{
   {
     key: "front_office",
     label: "Agent actions",
-    description:
-      "Use these when the next step still belongs with the agent.",
+    description: "Use these when the next step still belongs with the agent.",
   },
   {
     key: "back_office",
@@ -303,15 +301,14 @@ export const teamCleanupGroupConfig: Array<{
   },
   {
     key: "engagement_risk",
-    label: "Send-trail risk",
+    label: "Share risk",
     description:
       "Tracked sends that stayed unopened or opened once and then went quiet.",
   },
   {
     key: "stale_client",
     label: "15+ day stale clients",
-    description:
-      "Clients with enough inactivity to need leadership attention.",
+    description: "Clients with enough inactivity to need leadership attention.",
   },
 ];
 
