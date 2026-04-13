@@ -8,7 +8,11 @@ import type {
 } from "@acre/db";
 import { Button, QueueItem } from "@acre/ui";
 import { FrontOfficeLink } from "../_components/front-office-link";
-import type { FrontOfficeListingsRouteState } from "./front-office-listings-route-state";
+import {
+  buildAgentListingsHref,
+  type FrontOfficeListingsDraftAssist,
+  type FrontOfficeListingsRouteState,
+} from "./front-office-listings-route-state";
 
 type FrontOfficeAgentMaterialWindowProps = {
   material: FrontOfficeAgentMaterialSnapshot;
@@ -32,6 +36,15 @@ type MaterialPreviewCard = {
   preview: string;
   copyLabel: string;
   copyValue: string;
+};
+
+type MaterialLaunchLink = {
+  id: string;
+  label: string;
+  note: string;
+  description: string;
+  href: string;
+  isPreferred: boolean;
 };
 
 async function copyTextToClipboard(value: string) {
@@ -469,6 +482,111 @@ function buildPreferredSupportPackage(input: {
   };
 }
 
+function buildLaunchpadDraftAssist(input: {
+  channel: "sms" | "email";
+  body: string;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}): FrontOfficeListingsDraftAssist {
+  const title =
+    input.channel === "sms"
+      ? input.targetAppointment
+        ? `${input.targetAppointment.title} SMS launch`
+        : input.targetClient
+          ? `${input.targetClient.fullName} SMS launch`
+          : "SMS launchpad"
+      : input.targetAppointment
+        ? `${input.targetAppointment.title} email launch`
+        : input.targetClient
+          ? `${input.targetClient.fullName} email launch`
+          : "Email launchpad";
+  const subjectLine =
+    input.channel === "email"
+      ? input.targetAppointment
+        ? `${input.targetAppointment.title} listing packet`
+        : input.targetClient
+          ? `${input.targetClient.fullName} listing packet`
+          : "Listing packet"
+      : "";
+
+  return {
+    channel: input.channel,
+    title,
+    subjectLine,
+    body: input.body,
+    suggestionKind: null,
+    suggestionLabel: null,
+    sourceKey: null,
+    sourceLabel: null,
+  };
+}
+
+function buildMaterialLaunchLinks(input: {
+  routeState: FrontOfficeListingsRouteState;
+  smsSupportPackage: string;
+  emailSupportPackage: string;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  const preferredLane = input.routeState.preferredSupportLane;
+  const links: MaterialLaunchLink[] = [
+    {
+      id: "sms-launch",
+      label:
+        preferredLane === "sms" ? "Open preferred SMS launch" : "Open SMS launch",
+      note:
+        preferredLane === "sms" ? "Preferred companion" : "SMS companion",
+      description:
+        "Reopen the same listings workbench with the SMS companion already loaded into the draft lane.",
+      href: buildAgentListingsHref({
+        clientId: input.targetClient?.id ?? null,
+        appointmentId: input.targetAppointment?.id ?? null,
+        lane: input.routeState.focusedRouteLane,
+        draftAssist: buildLaunchpadDraftAssist({
+          channel: "sms",
+          body: input.smsSupportPackage,
+          targetClient: input.targetClient,
+          targetAppointment: input.targetAppointment,
+        }),
+      }),
+      isPreferred: preferredLane === "sms",
+    },
+    {
+      id: "email-launch",
+      label:
+        preferredLane === "email"
+          ? "Open preferred email launch"
+          : "Open email launch",
+      note:
+        preferredLane === "email" ? "Preferred companion" : "Email companion",
+      description:
+        "Reopen the same listings workbench with the email companion already loaded into the draft lane.",
+      href: buildAgentListingsHref({
+        clientId: input.targetClient?.id ?? null,
+        appointmentId: input.targetAppointment?.id ?? null,
+        lane: input.routeState.focusedRouteLane,
+        draftAssist: buildLaunchpadDraftAssist({
+          channel: "email",
+          body: input.emailSupportPackage,
+          targetClient: input.targetClient,
+          targetAppointment: input.targetAppointment,
+        }),
+      }),
+      isPreferred: preferredLane === "email",
+    },
+  ];
+
+  if (preferredLane === "email") {
+    return [links[1], links[0]];
+  }
+
+  if (preferredLane === "sms") {
+    return [links[0], links[1]];
+  }
+
+  return links;
+}
+
 function buildExecutionLaneOverview(
   props: FrontOfficeAgentMaterialWindowProps,
 ) {
@@ -530,6 +648,13 @@ export function FrontOfficeAgentMaterialWindow(
     routeState: props.routeState,
     smsSupportPackage,
     emailSupportPackage,
+  });
+  const launchLinks = buildMaterialLaunchLinks({
+    routeState: props.routeState,
+    smsSupportPackage,
+    emailSupportPackage,
+    targetClient: props.targetClient,
+    targetAppointment: props.targetAppointment,
   });
   const launchpadStatus = buildLaunchpadStatus(props);
   const executionLaneOverview = buildExecutionLaneOverview(props);
@@ -774,6 +899,31 @@ export function FrontOfficeAgentMaterialWindow(
               </span>
             }
             title={preferredSupportPackage.title}
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                {launchLinks.map((launchLink) => (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={launchLink.href}
+                    key={launchLink.id}
+                  >
+                    {launchLink.label}
+                  </FrontOfficeLink>
+                ))}
+              </div>
+            }
+            badgeLabel="Draft links"
+            badgeTone="accent"
+            context={props.routeState.focusedRouteLaneLabel}
+            description="These links reopen the same listings workbench with the companion package already loaded into the draft lane. Acre still only preloads copy; it does not send anything automatically."
+            meta={
+              <span>
+                {launchLinks.map((launchLink) => launchLink.note).join(" · ")}
+              </span>
+            }
+            title="Manual draft launch links"
           />
           <QueueItem
             action={

@@ -38,6 +38,7 @@
   - agent note
   - packet distribution summary for share / PDF / poster review
   - manual marketing kit sections for caption / blurb / follow-up copy
+  - copy-ready campaign bundles built from the same marketing kit
   - delete saved packet
 - 客户分享页：
   - `/share/packs/[code]`
@@ -49,6 +50,7 @@
   - preview / print / downloadable HTML export
   - agent info block + scan-ready packet path in the generated poster
   - copy-ready marketing kit variants derived from the same saved packet and poster draft
+  - reusable campaign bundles such as social / listing / follow-up copy packs
 
 ### Explicitly not included in v1
 
@@ -228,6 +230,7 @@
 - poster output should keep the agent contact block and scan path readable in preview, print, and downloaded HTML, not only inside the editor shell
 - the saved packet contact block should act as the shared manual source for share, PDF, and poster outputs instead of drifting per export surface
 - marketing-kit copy should stay manual and review-first, using the saved packet plus current poster draft as its source instead of pretending there is an external campaign service
+- campaign bundles should remain derivations of the same local marketing kit; they are copy helpers, not background campaign orchestration or auto-send
 
 ## Known limitations
 
