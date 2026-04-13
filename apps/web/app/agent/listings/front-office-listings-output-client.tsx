@@ -191,7 +191,7 @@ function buildListingExecutionCue(
   listing: FrontOfficeListingsSnapshot["listings"][number],
 ) {
   if (snapshot.targetAppointment && snapshot.targetClient) {
-    return `Best used as a ${snapshot.targetAppointment.typeLabel.toLowerCase()} follow-up for ${snapshot.targetClient.fullName}, so the listing, client stage, and appointment pressure stay in one trail.`;
+    return `Best used as a ${snapshot.targetAppointment.typeLabel.toLowerCase()} follow-up for ${snapshot.targetClient.fullName}, so the listing, client stage, and appointment context stay in one place.`;
   }
 
   if (snapshot.targetClient) {
@@ -202,14 +202,14 @@ function buildListingExecutionCue(
     return "This listing already has tracked engagement in your feed, so it is a good candidate for another manual touch without losing attribution.";
   }
 
-  return "Use this when you need a tracked recommendation now, then reopen it from a dossier later if the send should become part of one client's execution trail.";
+  return "Use this when you need a tracked recommendation now, then reopen it from a client page later if the follow-up should stay attached to one person.";
 }
 
 function buildListingTractionCue(
   listing: FrontOfficeListingsSnapshot["listings"][number],
 ) {
   if (listing.trackedLinkCount <= 0) {
-    return "No tracked pulse has left this listing yet. Use the lane that gives the client enough framing to care before you ask for a click.";
+    return "No tracked share has gone out for this listing yet. Use the option that gives the client enough context before you ask for a click.";
   }
 
   if (listing.trackedClickCount <= 0) {
@@ -225,18 +225,18 @@ function buildListingTractionCue(
 
 function buildListingMaterialCue(snapshot: FrontOfficeListingsSnapshot) {
   if (snapshot.targetAppointment) {
-    return "Package cue: pair the listing with the intro text and one recent closing so the client sees both appointment context and agent proof.";
+    return "Share cue: pair the listing with the intro text and one recent closing so the client sees both appointment context and agent proof.";
   }
 
   if (snapshot.agentMaterial.featuredCaseCount > 0) {
-    return "Package cue: pair the listing with the business card and one featured case so the send carries identity and proof, not just inventory.";
+    return "Share cue: pair the listing with the business card and one featured case so the message carries identity and proof, not just inventory.";
   }
 
   if (snapshot.agentMaterial.portraitReady) {
-    return "Package cue: pair the listing with the business card so the send still carries agent identity even without case history.";
+    return "Share cue: pair the listing with the business card so the message still carries agent identity even without case history.";
   }
 
-  return "Package cue: use the intro email or business card so the link does not travel alone.";
+  return "Share cue: use the intro email or business card so the link does not travel alone.";
 }
 
 function buildChannelCue(
@@ -254,7 +254,7 @@ function buildChannelCue(
   if (action === "email") {
     return snapshot.targetClient
       ? "Best when the client needs more framing, summary, and a clear next-step ask beside the tracked link."
-      : "Best when you need more context than a raw link, even before the send is tied to a dossier.";
+      : "Best when you need more context than a raw link, even before the share is tied to a client page.";
   }
 
   return snapshot.targetClient
@@ -283,10 +283,10 @@ function buildDraftLaneNote(
   draftAssist: FrontOfficeListingsDraftAssist | null,
 ) {
   if (!draftAssist) {
-    return "No assisted draft is loaded, so every send lane below uses the standard manual templates.";
+    return "No assisted draft is loaded, so every option below uses the standard message templates.";
   }
 
-  return `Only the ${draftAssist.channel === "sms" ? "SMS" : "Email"} lane below uses this draft. The other lanes stay on the standard manual templates, and nothing auto-sends.`;
+  return `Only the ${draftAssist.channel === "sms" ? "SMS" : "Email"} option below uses this draft. The other options stay on the standard message templates, and nothing is sent automatically.`;
 }
 
 function buildListingRecommendedShareAction(input: {
@@ -298,27 +298,27 @@ function buildListingRecommendedShareAction(input: {
   if (input.draftAssist?.channel === "sms") {
     return {
       action: "sms",
-      label: "SMS draft lane",
+      label: "SMS draft",
       reason:
-        "A matching SMS draft is already loaded in this workspace, so the fastest safe move is to keep the assisted text and tracked link together.",
+        "A matching SMS draft is already loaded here, so the fastest safe move is to keep the assisted text and tracked link together.",
     };
   }
 
   if (input.draftAssist?.channel === "email") {
     return {
       action: "email",
-      label: "Email draft lane",
+      label: "Email draft",
       reason:
-        "A matching email draft is already loaded in this workspace, so the cleanest move is to keep the assisted framing and tracked link together.",
+        "A matching email draft is already loaded here, so the cleanest move is to keep the assisted framing and tracked link together.",
     };
   }
 
   if (input.routeState.focusedRouteLane === "draft-lane") {
     return {
       action: "sms",
-      label: "Draft lane",
+      label: "Draft",
       reason:
-        "A draft lane shell is selected here, so keep the lane ready for the matching draft before you copy a send.",
+        "A draft view is selected here, so keep it ready for the matching draft before you copy anything.",
     };
   }
 
@@ -326,32 +326,32 @@ function buildListingRecommendedShareAction(input: {
     return {
       action: input.snapshot.targetAppointment ? "sms" : "email",
       label: input.snapshot.targetAppointment
-        ? "Appointment follow-through lane"
-        : "Client follow-through lane",
+        ? "Appointment follow-up"
+        : "Client follow-up",
       reason: input.snapshot.targetAppointment
-        ? "This route is already tied to the appointment loop, so a quick reaction keeps the send in the same trail."
-        : "This route is already tied to the client dossier, so the next manual send should stay in the same trail instead of restarting as a generic outbound share.",
+        ? "This view is already tied to the appointment, so a quick reaction keeps the next touch in the same place."
+        : "This view is already tied to the client, so the next follow-up should stay here instead of restarting as a generic share.",
     };
   }
 
   if (input.routeState.focusedRouteLane === "send-rescue") {
     return {
       action: input.listing.trackedClickCount > 0 ? "sms" : "email",
-      label: "Send rescue lane",
+      label: "Re-engagement",
       reason:
         input.listing.trackedClickCount > 0
-          ? "This listing already has engagement, so the rescue lane should reopen it with a short reply path."
-          : "This listing is quiet, so the rescue lane should reopen it with a tighter reason-to-care and the tracked link still attached.",
+          ? "This listing already has engagement, so re-engagement should reopen it with a short reply path."
+          : "This listing is quiet, so re-engagement should reopen it with a tighter reason-to-care while keeping the tracked link attached.",
     };
   }
 
   return {
     action: input.snapshot.targetClient ? "email" : "direct",
     label: input.snapshot.targetAppointment
-      ? "Appointment reaction lane"
+      ? "Appointment quick reply"
       : input.snapshot.targetClient
-        ? "Framed send lane"
-        : "Link-only lane",
+        ? "Framed message"
+        : "Link only",
     reason: input.snapshot.targetAppointment
       ? "Appointment-linked sends usually need a faster reaction or confirmation path than a long note."
       : input.snapshot.targetClient
@@ -382,17 +382,17 @@ function buildListingEmptyState(
 ): Pick<ComponentProps<typeof EmptyState>, "title" | "description"> {
   if (props.snapshot.targetAppointment && props.snapshot.targetClient) {
     return {
-      title: "No send-ready listings in this appointment context",
+      title: "No listings ready in this appointment context",
       description:
-        "This appointment-linked route is ready to write back, but there is no listing inventory in scope right now. Keep the context if you are coming back after shortlist updates.",
+        "This appointment follow-up view is ready, but there are no listings in scope right now. Keep the context if you are coming back after shortlist updates.",
     };
   }
 
   if (props.snapshot.targetClient) {
     return {
-      title: "No send-ready listings for this client context",
+      title: "No listings ready for this client",
       description:
-        "The client-linked send trail is ready, but there is no listing inventory to copy from yet. Reopen this route later and the same dossier context will still be valid.",
+        "This client follow-up view is ready, but there are no listings to copy from yet. Reopen it later and the same client context will still be valid.",
     };
   }
 
@@ -462,16 +462,16 @@ function buildShareLanePlan(input: {
   const isRecommended = input.recommendedAction.action === input.action;
   const writebackMeta =
     input.routeState.mode === "appointment-linked"
-      ? "Writeback: client trail + appointment loop."
+      ? "Saved to: client + appointment."
       : input.routeState.mode === "client-linked"
-        ? "Writeback: client trail."
-        : "Writeback: tracked link only.";
+        ? "Saved to: client."
+        : "Saved to: tracked link only.";
   const focusedLaneMeta =
     input.routeState.focusedRouteLane === "draft-lane"
-      ? "Focused lane: draft lane."
+      ? "Current focus: draft."
       : input.routeState.focusedRouteLane === "follow-through"
-        ? "Focused lane: follow-through."
-        : "Focused lane: send rescue.";
+        ? "Current focus: follow-up."
+        : "Current focus: re-engagement.";
 
   if (input.action === "sms") {
     return {
@@ -482,15 +482,15 @@ function buildShareLanePlan(input: {
         ? "SMS draft + tracked link"
         : input.routeState.focusedRouteLane === "follow-through" &&
             input.snapshot.targetAppointment
-          ? "Appointment follow-through text"
+          ? "Appointment follow-up text"
           : input.routeState.focusedRouteLane === "send-rescue"
-            ? "SMS rescue text"
+            ? "SMS re-engagement text"
             : "Quick reaction text",
       context: usesDraftAssist
-        ? "AI draft lane"
+        ? "AI draft ready"
         : isRecommended
           ? input.routeState.focusedRouteLaneLabel
-          : "Standard manual lane",
+          : "Standard copy",
       description: buildChannelCue(input.snapshot, "sms"),
       meta: [
         usesDraftAssist
@@ -499,7 +499,7 @@ function buildShareLanePlan(input: {
         writebackMeta,
         focusedLaneMeta,
         input.routeState.preferredSupportLane === "sms"
-          ? "Pair with: SMS companion package."
+          ? "Pair with: SMS support message."
           : "Pair with: intro text + business card when the note needs more identity.",
       ],
       isRecommended,
@@ -517,10 +517,10 @@ function buildShareLanePlan(input: {
           ? "Follow-through email"
           : "Framed email send",
       context: usesDraftAssist
-        ? "AI draft lane"
+        ? "AI draft ready"
         : isRecommended
           ? input.routeState.focusedRouteLaneLabel
-          : "Standard manual lane",
+          : "Standard copy",
       description: buildChannelCue(input.snapshot, "email"),
       meta: [
         usesDraftAssist
@@ -529,8 +529,8 @@ function buildShareLanePlan(input: {
         writebackMeta,
         focusedLaneMeta,
         input.routeState.preferredSupportLane === "email"
-          ? "Pair with: email companion package."
-          : "Pair with: email support package when the client needs more framing.",
+          ? "Pair with: email support message."
+          : "Pair with: email support message when the client needs more framing.",
       ],
       isRecommended,
     };
@@ -545,13 +545,13 @@ function buildShareLanePlan(input: {
       : "Raw tracked link",
     context: isRecommended
       ? input.routeState.focusedRouteLaneLabel
-      : "Manual-only lane",
+      : "Link only",
     description: buildChannelCue(input.snapshot, "direct"),
     meta: [
       "Copy result: private tracked link only.",
       writebackMeta,
       focusedLaneMeta,
-      "Pair with: business card or support package if the conversation thread does not already carry context.",
+      "Pair with: business card or support message if the conversation thread does not already carry context.",
     ],
     isRecommended,
   };
@@ -597,11 +597,11 @@ function buildShareFeedback(input: {
     input.action === "sms"
       ? input.usedDraftAssist
         ? "SMS draft + tracked link"
-        : "SMS package + tracked link"
+        : "SMS message + tracked link"
       : input.action === "email"
         ? input.usedDraftAssist
           ? "Email draft + tracked link"
-          : "Email package + tracked link"
+          : "Email message + tracked link"
         : "Private tracked link";
   const detail = [writebackLabel, scopeLabel, nextStepLabel]
     .concat(
@@ -609,19 +609,19 @@ function buildShareFeedback(input: {
         ? [`Client view · ${publicPage.shareSurfaceLabel}`]
         : [],
       publicPage?.shareContextLabel
-        ? [`Public cue · ${publicPage.shareContextLabel}`]
+        ? [`Public note · ${publicPage.shareContextLabel}`]
         : [],
       publicPage?.replyLaneLabel
-        ? [`Reply lane · ${publicPage.replyLaneLabel}`]
+        ? [`Reply path · ${publicPage.replyLaneLabel}`]
         : [],
       publicPage?.privacyLabel ? [`Privacy · ${publicPage.privacyLabel}`] : [],
       nextCue
         ? [
-            `${input.action === "direct" ? "Package cue" : "Next cue"}: ${nextCue}`,
+            `${input.action === "direct" ? "Share cue" : "Next cue"}: ${nextCue}`,
           ]
         : [],
       input.routeState.stableReentryDescription
-        ? [`Re-entry: ${input.routeState.stableReentryDescription}`]
+        ? [`Saved view: ${input.routeState.stableReentryDescription}`]
         : [],
     )
     .filter(Boolean)
@@ -644,13 +644,13 @@ function buildClientFacingShareContract(input: {
     return {
       badgeLabel: "Appt share",
       badgeTone: "accent",
-      title: "Client-facing follow-through surface",
+      title: "Client-facing share",
       context: sharePromise.shareSurfaceLabel,
       description: sharePromise.shareContextLabel,
       meta: [
-        `First lane · ${input.recommendedAction.label}`,
+        `Suggested first step · ${input.recommendedAction.label}`,
         `Public page · ${sharePromise.shareSurfaceLabel}.`,
-        `Reply lane · ${sharePromise.replyLaneLabel}`,
+        `Reply path · ${sharePromise.replyLaneLabel}`,
         `Next step · ${sharePromise.nextStepLabel}`,
         `Privacy · ${sharePromise.privacyLabel}`,
       ],
@@ -661,13 +661,13 @@ function buildClientFacingShareContract(input: {
     return {
       badgeLabel: "Client share",
       badgeTone: "success",
-      title: "Client-facing follow-through surface",
+      title: "Client-facing share",
       context: sharePromise.shareSurfaceLabel,
       description: sharePromise.shareContextLabel,
       meta: [
-        `First lane · ${input.recommendedAction.label}`,
+        `Suggested first step · ${input.recommendedAction.label}`,
         `Public page · ${sharePromise.shareSurfaceLabel}.`,
-        `Reply lane · ${sharePromise.replyLaneLabel}`,
+        `Reply path · ${sharePromise.replyLaneLabel}`,
         `Next step · ${sharePromise.nextStepLabel}`,
         `Privacy · ${sharePromise.privacyLabel}`,
       ],
@@ -677,13 +677,13 @@ function buildClientFacingShareContract(input: {
   return {
     badgeLabel: "Link-only",
     badgeTone: "warning",
-    title: "Client-facing private link promise",
+    title: "Private share link",
     context: sharePromise.shareSurfaceLabel,
     description: sharePromise.shareContextLabel,
     meta: [
-      `First lane · ${input.recommendedAction.label}`,
+      `Suggested first step · ${input.recommendedAction.label}`,
       `Public page · ${sharePromise.shareSurfaceLabel}.`,
-      `Reply lane · ${sharePromise.replyLaneLabel}`,
+      `Reply path · ${sharePromise.replyLaneLabel}`,
       `Next step · ${sharePromise.nextStepLabel}`,
       `Privacy · ${sharePromise.privacyLabel}`,
     ],
@@ -735,11 +735,11 @@ function buildListingSendRiskWatch(
     return {
       badgeLabel: "No send risk",
       badgeTone: "neutral",
-      context: "Fresh trail",
+      context: "Fresh activity",
       description:
-        "This listing has not left the desk as a tracked send yet, so there is no silent follow-up debt to rescue.",
+        "This listing has not been shared as a tracked send yet, so there is no follow-up pressure to rescue.",
       meta: meta.concat(
-        "Watchpoint · Start the first tracked send from a dossier or appointment when this listing becomes live.",
+        "Watchpoint · Start the first tracked send from a client or appointment when this listing becomes live.",
       ),
     };
   }
@@ -752,11 +752,11 @@ function buildListingSendRiskWatch(
         ? `${listing.latestTrackedShare.channelLabel} · ${listing.latestTrackedShare.modeLabel}`
         : "Tracked send waiting",
       description:
-        "The latest tracked send is still waiting on its first click pulse, so this trail needs a tighter reason-to-care before it disappears into quiet follow-up debt.",
+        "The latest tracked send is still waiting on its first click pulse, so this share needs a tighter reason-to-care before it fades into quiet follow-up.",
       meta: meta.concat(
         `Watchpoint · ${
           listing.latestTrackedShare?.nextStepLabel ??
-          "Reopen the same trail with a stronger framing before starting a new one."
+          "Reopen the same share with a stronger framing before starting a new one."
         }`,
       ),
     };
@@ -768,13 +768,13 @@ function buildListingSendRiskWatch(
       badgeTone: "warning",
       context: listing.latestTrackedShare
         ? `${listing.latestTrackedShare.channelLabel} · warm but uneven`
-        : "Mixed trail",
+        : "Mixed activity",
       description:
-        "This listing has already pulled at least one click, but part of the trail is still cooling off, so the next touch should stay inside the same conversation instead of restarting cold.",
+        "This listing has already pulled at least one click, but part of the activity is still cooling off, so the next touch should stay inside the same conversation instead of restarting cold.",
       meta: meta.concat(
         `Watchpoint · ${
           listing.latestTrackedShare?.nextStepLabel ??
-          "Use the warm trail as the anchor and rescue the quieter branch from the same conversation."
+          "Use the warm share as the anchor and rescue the quieter branch from the same conversation."
         }`,
       ),
     };
@@ -784,14 +784,14 @@ function buildListingSendRiskWatch(
     badgeLabel: "Managed risk",
     badgeTone: "success",
     context: listing.latestTrackedShare
-      ? `${listing.latestTrackedShare.channelLabel} · warm trail`
-      : "Warm trail",
+      ? `${listing.latestTrackedShare.channelLabel} · warm activity`
+      : "Warm activity",
     description:
-      "Every tracked send on this listing has already produced a click pulse, so send risk is being managed inside an active trail.",
+      "Every tracked send on this listing has already produced a click pulse, so follow-up risk is already being managed inside active engagement.",
     meta: meta.concat(
       `Watchpoint · ${
         listing.latestTrackedShare?.nextStepLabel ??
-        "Keep the next touch attached to the same warm trail."
+        "Keep the next touch attached to the same warm share."
       }`,
     ),
   };
@@ -976,11 +976,11 @@ export function FrontOfficeListingsOutputClient(
         </div>
 
         <div className="list-row-meta front-office-record-meta">
-          <span>Route · {props.routeState.routeStatusLabel}</span>
-          <span>Lane · {props.routeState.focusedRouteLaneLabel}</span>
+          <span>Context · {props.routeState.routeStatusLabel}</span>
+          <span>Focus · {props.routeState.focusedRouteLaneLabel}</span>
           <span>Mode · {props.routeState.modeLabel}</span>
-          <span>Package · {props.routeState.preferredSupportLaneLabel}</span>
-          <span>Rule · Manual send only</span>
+          <span>Support · {props.routeState.preferredSupportLaneLabel}</span>
+          <span>Rule · Nothing sends automatically</span>
           {props.snapshot.targetClient ? (
             <span>Stage · {props.snapshot.targetClient.stage}</span>
           ) : null}
@@ -1016,14 +1016,14 @@ export function FrontOfficeListingsOutputClient(
             className="office-inline-link"
             href={agentPackageHref}
           >
-            Open agent send package
+            Open agent materials
           </FrontOfficeLink>
           {props.snapshot.targetClient ? (
             <FrontOfficeLink
               className="office-inline-link"
               href={props.snapshot.targetClient.href}
             >
-              Back to client dossier
+              Back to client page
             </FrontOfficeLink>
           ) : null}
           {props.snapshot.targetAppointment ? (
@@ -1047,7 +1047,7 @@ export function FrontOfficeListingsOutputClient(
               className="office-inline-link"
               href={props.routeState.cleanHref}
             >
-              Reset to clean workspace
+              Reset view
             </FrontOfficeLink>
           ) : null}
         </div>
@@ -1083,7 +1083,7 @@ export function FrontOfficeListingsOutputClient(
             badgeTone="accent"
             context={props.routeState.routeStatusLabel}
             description={props.routeState.stableReentryDescription}
-            title="Lane execution checkpoint"
+            title="Saved view checkpoint"
           />
         </div>
       </div>
@@ -1091,7 +1091,7 @@ export function FrontOfficeListingsOutputClient(
       {props.routeState.diagnostics.length ? (
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Deep-link hygiene</strong>
+            <strong>Saved link checks</strong>
             <span>{props.routeState.routeStatusDescription}</span>
           </div>
           <div className="office-queue-list">
@@ -1117,7 +1117,7 @@ export function FrontOfficeListingsOutputClient(
             <strong>{props.draftAssist.title}</strong>
             <p>
               {props.draftAssist.sourceLabel ||
-                "A draft assist is loaded into this outbound workspace. Copying the matching lane will use that draft and still append a private tracked listing link."}
+                "A saved draft is loaded here. Copying the matching option will use that draft and still append a private tracked listing link."}
             </p>
           </div>
           <div className="list-row-meta front-office-record-meta">
@@ -1128,7 +1128,7 @@ export function FrontOfficeListingsOutputClient(
               <span>Subject · {props.draftAssist.subjectLine.trim()}</span>
             ) : null}
             <span>{props.routeState.modeLabel}</span>
-            <span>Manual send only</span>
+            <span>Nothing sends automatically</span>
           </div>
           <p className="front-office-record-supporting">
             {buildDraftLaneNote(props.draftAssist)}
@@ -1147,7 +1147,7 @@ export function FrontOfficeListingsOutputClient(
               className="office-inline-link"
               href={agentPackageHref}
             >
-              Open agent send package
+              Open agent materials
             </FrontOfficeLink>
           </div>
         </div>
@@ -1155,7 +1155,7 @@ export function FrontOfficeListingsOutputClient(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Tracked-share usage pulse</strong>
+          <strong>Share activity</strong>
           <span>{props.usagePulse.pulseDescription}</span>
         </div>
         <div className="list-row-meta front-office-record-meta">
@@ -1163,7 +1163,7 @@ export function FrontOfficeListingsOutputClient(
           <span>{props.usagePulse.trackedClickCount} tracked click(s)</span>
           <span>{props.usagePulse.engagedListingCount} engaged listing(s)</span>
           <span>
-            {props.usagePulse.quietTrackedListingCount} quiet trail(s)
+            {props.usagePulse.quietTrackedListingCount} quiet share(s)
           </span>
           <span>{props.usagePulse.clickThroughRateLabel}</span>
           <span>{props.usagePulse.sendTrailLabel}</span>
@@ -1180,7 +1180,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.usagePulse.latestTrackedShare.clientHref}
                   >
-                    Open bound dossier
+                    Open client page
                   </FrontOfficeLink>
                 ) : null}
                 {props.usagePulse.latestTrackedShare?.appointmentHref ? (
@@ -1188,7 +1188,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.usagePulse.latestTrackedShare.appointmentHref}
                   >
-                    Open bound appointment
+                    Open appointment
                   </FrontOfficeLink>
                 ) : null}
                 {props.usagePulse.strongestTrail?.clientHref ? (
@@ -1196,7 +1196,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.usagePulse.strongestTrail.clientHref}
                   >
-                    Open strongest dossier
+                    Open best client page
                   </FrontOfficeLink>
                 ) : null}
                 {props.usagePulse.strongestTrail?.appointmentHref ? (
@@ -1204,7 +1204,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.usagePulse.strongestTrail.appointmentHref}
                   >
-                    Open strongest appointment
+                    Open best appointment
                   </FrontOfficeLink>
                 ) : null}
               </>
@@ -1215,20 +1215,20 @@ export function FrontOfficeListingsOutputClient(
                 ? "warning"
                 : "accent"
             }
-            context="Rescue lane"
+            context="Re-engagement"
             description={props.usagePulse.nextMoveDescription}
             meta={
               <>
                 <span>{props.usagePulse.sendTrailLabel}</span>
                 <span>{props.usagePulse.quietTrailLabel}</span>
                 <span>
-                  Follow-through ·{" "}
+                  Next step ·{" "}
                   {props.usagePulse.latestTrackedShare?.followThroughCue ??
                     props.usagePulse.nextMoveDescription}
                 </span>
               </>
             }
-            title="Rescue lane"
+            title="Needs re-engagement"
           />
           <QueueItem
             badgeLabel={props.usagePulse.sendRiskLabel}
@@ -1241,7 +1241,7 @@ export function FrontOfficeListingsOutputClient(
                     ? "warning"
                     : "success"
             }
-            context="Send-risk watch"
+            context="Follow-up risk"
             description={props.usagePulse.sendRiskDescription}
             meta={
               <>
@@ -1249,7 +1249,7 @@ export function FrontOfficeListingsOutputClient(
                 <span>{props.usagePulse.quietTrailDescription}</span>
               </>
             }
-            title="Send-risk watch"
+            title="Follow-up risk"
           />
           {props.usagePulse.strongestTrail ? (
             <QueueItem
@@ -1260,7 +1260,7 @@ export function FrontOfficeListingsOutputClient(
                       className="office-inline-link"
                       href={props.usagePulse.strongestTrail.clientHref}
                     >
-                      Open bound dossier
+                      Open client page
                     </FrontOfficeLink>
                   ) : null}
                   {props.usagePulse.strongestTrail.appointmentHref ? (
@@ -1268,7 +1268,7 @@ export function FrontOfficeListingsOutputClient(
                       className="office-inline-link"
                       href={props.usagePulse.strongestTrail.appointmentHref}
                     >
-                      Open bound appointment
+                      Open appointment
                     </FrontOfficeLink>
                   ) : null}
                 </>
@@ -1280,7 +1280,7 @@ export function FrontOfficeListingsOutputClient(
               meta={
                 <>
                   <span>
-                    Follow-through ·{" "}
+                    Next step ·{" "}
                     {props.usagePulse.strongestTrail.followThroughCue}
                   </span>
                   {props.usagePulse.strongestTrail.meta.map((item) => (
@@ -1288,7 +1288,7 @@ export function FrontOfficeListingsOutputClient(
                   ))}
                 </>
               }
-              title="Strongest trail"
+              title="Best signal"
             />
           ) : null}
           {props.usagePulse.latestTrackedShare ? (
@@ -1300,7 +1300,7 @@ export function FrontOfficeListingsOutputClient(
                       className="office-inline-link"
                       href={props.usagePulse.latestTrackedShare.clientHref}
                     >
-                      Open bound dossier
+                      Open client page
                     </FrontOfficeLink>
                   ) : null}
                   {props.usagePulse.latestTrackedShare.appointmentHref ? (
@@ -1308,7 +1308,7 @@ export function FrontOfficeListingsOutputClient(
                       className="office-inline-link"
                       href={props.usagePulse.latestTrackedShare.appointmentHref}
                     >
-                      Open bound appointment
+                      Open appointment
                     </FrontOfficeLink>
                   ) : null}
                 </>
@@ -1320,7 +1320,7 @@ export function FrontOfficeListingsOutputClient(
               meta={
                 <>
                   <span>
-                    Follow-through ·{" "}
+                    Next step ·{" "}
                     {props.usagePulse.latestTrackedShare.followThroughCue}
                   </span>
                   {props.usagePulse.latestTrackedShare.meta.map((item) => (
@@ -1336,11 +1336,10 @@ export function FrontOfficeListingsOutputClient(
           className="front-office-playbook-card-head"
           style={{ marginTop: "0.4rem" }}
         >
-          <strong>Recent tracked timeline</strong>
+          <strong>Recent share history</strong>
           <span>
-            Newest first. Each card carries the latest send plus the
-            follow-through cue that tells you how to rescue or continue the
-            trail.
+            Newest first. Each card carries the latest share plus the next-step
+            cue that tells you how to continue the conversation.
           </span>
         </div>
         <div className="office-queue-list">
@@ -1354,7 +1353,7 @@ export function FrontOfficeListingsOutputClient(
                         className="office-inline-link"
                         href={share.clientHref}
                       >
-                        Open bound dossier
+                        Open client page
                       </FrontOfficeLink>
                     ) : null}
                     {share.appointmentHref ? (
@@ -1362,7 +1361,7 @@ export function FrontOfficeListingsOutputClient(
                         className="office-inline-link"
                         href={share.appointmentHref}
                       >
-                        Open bound appointment
+                        Open appointment
                       </FrontOfficeLink>
                     ) : null}
                   </>
@@ -1374,7 +1373,7 @@ export function FrontOfficeListingsOutputClient(
                 key={`${share.title}-${share.context}`}
                 meta={
                   <>
-                    <span>Follow-through · {share.followThroughCue}</span>
+                    <span>Next step · {share.followThroughCue}</span>
                     {share.meta.map((item) => (
                       <span key={item}>{item}</span>
                     ))}
@@ -1385,10 +1384,10 @@ export function FrontOfficeListingsOutputClient(
             ))
           ) : (
             <QueueItem
-              badgeLabel="No recent trails"
+              badgeLabel="No recent shares"
               badgeTone="neutral"
-              description="Recent tracked shares will appear here once the desk has enough outbound activity to build a small timeline with rescue cues."
-              title="Recent tracked timeline"
+              description="Recent tracked shares will appear here once this page has enough activity to build a small timeline with next-step cues."
+              title="Recent share history"
             />
           )}
         </div>
@@ -1397,10 +1396,10 @@ export function FrontOfficeListingsOutputClient(
       <div className="front-office-playbook-grid front-office-listings-overview-grid">
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Outbound send plan</strong>
+            <strong>Current share setup</strong>
             <span>
-              Keep recipient binding, route health, and the preferred companion
-              package visible before you copy any lane.
+              Keep the recipient, saved view, and preferred support copy visible
+              before you copy any option.
             </span>
           </div>
           <div className="office-queue-list">
@@ -1417,13 +1416,13 @@ export function FrontOfficeListingsOutputClient(
               }
               description={
                 props.snapshot.targetClient
-                  ? `${props.snapshot.targetClient.nextTouchLabel}. The tracked send will write back into this dossier.`
-                  : "Open listing output from a dossier or appointment to turn a generic tracked link into a client-linked send record."
+                  ? `${props.snapshot.targetClient.nextTouchLabel}. This tracked share will stay attached to the client page.`
+                  : "Open listing output from a client or appointment to turn a generic tracked link into a client-linked record."
               }
               title={
                 props.snapshot.targetClient
                   ? props.snapshot.targetClient.fullName
-                  : "No client-linked recipient selected"
+                  : "No client selected yet"
               }
             />
             {props.snapshot.targetAppointment ? (
@@ -1440,8 +1439,8 @@ export function FrontOfficeListingsOutputClient(
               <QueueItem
                 badgeLabel="No appointment"
                 badgeTone="neutral"
-                description="Without appointment context, send records still track the client trail but not the meeting loop."
-                title="Appointment writeback is not in scope yet"
+                description="Without appointment context, this follow-up stays on the client only."
+                title="No appointment attached yet"
               />
             )}
             <QueueItem
@@ -1450,7 +1449,7 @@ export function FrontOfficeListingsOutputClient(
                   className="office-inline-link"
                   href={agentPackageHref}
                 >
-                  Open agent send package
+                  Open agent materials
                 </FrontOfficeLink>
               }
               badgeLabel={props.routeState.preferredSupportLaneLabel}
@@ -1460,7 +1459,7 @@ export function FrontOfficeListingsOutputClient(
                   : "accent"
               }
               description={props.routeState.preferredSupportLaneDescription}
-              title="Preferred companion package"
+              title="Preferred support copy"
             />
             <QueueItem
               badgeLabel={props.routeState.routeStatusLabel}
@@ -1469,18 +1468,18 @@ export function FrontOfficeListingsOutputClient(
               }
               context={props.routeState.draftStatusLabel}
               description={props.routeState.routeStatusDescription}
-              title="Route hygiene"
+              title="View cleanup"
             />
           </div>
         </div>
 
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Channel lanes</strong>
+            <strong>Share options</strong>
             <span>
-              SMS, Email, and Direct are intentionally different manual moves.
-              The recommended first lane depends on context, traction, and the
-              active draft lane.
+              SMS, Email, and Direct are intentionally different choices. The
+              recommended first step depends on context, traction, and any
+              active draft.
             </span>
           </div>
           <div className="office-queue-list">
@@ -1489,10 +1488,10 @@ export function FrontOfficeListingsOutputClient(
               badgeTone="accent"
               context={
                 props.draftAssist?.channel === "sms"
-                  ? "Draft lane active"
+                  ? "Draft loaded"
                   : props.routeState.preferredSupportLane === "sms"
-                    ? "Preferred companion"
-                    : "Standard lane"
+                    ? "Preferred support"
+                    : "Standard copy"
               }
               description={buildChannelCue(props.snapshot, "sms")}
               title="SMS + tracked link"
@@ -1502,10 +1501,10 @@ export function FrontOfficeListingsOutputClient(
               badgeTone="success"
               context={
                 props.draftAssist?.channel === "email"
-                  ? "Draft lane active"
+                  ? "Draft loaded"
                   : props.routeState.preferredSupportLane === "email"
-                    ? "Preferred companion"
-                    : "Standard lane"
+                    ? "Preferred support"
+                    : "Standard copy"
               }
               description={buildChannelCue(props.snapshot, "email")}
               title="Email + tracked link"
@@ -1522,9 +1521,9 @@ export function FrontOfficeListingsOutputClient(
 
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Tracked rescue cues</strong>
+            <strong>Follow-up cues</strong>
             <span>
-              Every copied send should have a follow-up consequence instead of
+              Every copied share should have a follow-up consequence instead of
               disappearing into clipboard history.
             </span>
           </div>
@@ -1532,13 +1531,13 @@ export function FrontOfficeListingsOutputClient(
             <QueueItem
               badgeLabel="3-day"
               badgeTone="danger"
-              description="If a client-linked send stays unopened for 3 days, re-enter from the dossier with a tighter reason-to-care."
-              title="Rescue unopened sends"
+              description="If a client-linked share stays unopened for 3 days, reopen it from the client page with a tighter reason-to-care."
+              title="Reopen unopened shares"
             />
             <QueueItem
               badgeLabel="7-day"
               badgeTone="warning"
-              description="If the client opens and then goes quiet for a week, send the next option from the same trail instead of starting over."
+              description="If the client opens and then goes quiet for a week, send the next option from the same conversation instead of starting over."
               title="Watch quiet-after-open risk"
             />
             <QueueItem
@@ -1548,7 +1547,7 @@ export function FrontOfficeListingsOutputClient(
               }
               description={
                 props.snapshot.targetAppointment
-                  ? "Use the appointment record for confirmation, reschedule notes, and outcome writeback after the listing lands."
+                  ? "Use the appointment record for confirmation, reschedule notes, and outcome updates after the listing lands."
                   : buildListingMaterialCue(props.snapshot)
               }
               title={
@@ -1634,11 +1633,11 @@ export function FrontOfficeListingsOutputClient(
                     )}
                     meta={
                       <span>
-                        Recommended first lane: {recommendedAction.label}.{" "}
+                        Recommended first step: {recommendedAction.label}.{" "}
                         {recommendedAction.reason}
                       </span>
                     }
-                    title="Execution moment"
+                    title="Best next use"
                   />
                   <QueueItem
                     badgeLabel={buildTrackedContextBadgeLabel(listing)}
@@ -1666,7 +1665,7 @@ export function FrontOfficeListingsOutputClient(
                         ))}
                       </>
                     }
-                    title="Send-risk watch"
+                    title="Follow-up risk"
                   />
                   <QueueItem
                     badgeLabel={clientFacingContract.badgeLabel}
@@ -1693,7 +1692,7 @@ export function FrontOfficeListingsOutputClient(
                               className="office-inline-link"
                               href={listing.latestTrackedShare.clientHref}
                             >
-                              Open bound dossier
+                              Open client page
                             </FrontOfficeLink>
                           ) : null}
                           {listing.latestTrackedShare.appointmentHref ? (
@@ -1701,7 +1700,7 @@ export function FrontOfficeListingsOutputClient(
                               className="office-inline-link"
                               href={listing.latestTrackedShare.appointmentHref}
                             >
-                              Open bound appointment
+                              Open appointment
                             </FrontOfficeLink>
                           ) : null}
                           {hasStableWorkspaceLink ? (
@@ -1758,7 +1757,7 @@ export function FrontOfficeListingsOutputClient(
                         className="office-inline-link"
                         href={agentPackageHref}
                       >
-                        Open agent send package
+                        Open agent materials
                       </FrontOfficeLink>
                     }
                     badgeLabel={props.routeState.preferredSupportLaneLabel}
@@ -1821,7 +1820,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-button-secondary"
                     href={props.snapshot.targetClient.href}
                   >
-                    Back to client dossier
+                    Back to client page
                   </FrontOfficeLink>
                 ) : (
                   <FrontOfficeLink
@@ -1843,7 +1842,7 @@ export function FrontOfficeListingsOutputClient(
                   className="office-inline-link"
                   href={agentPackageHref}
                 >
-                  Open agent send package
+                  Open agent materials
                 </FrontOfficeLink>
                 {props.routeState.hasDraftAssist ? (
                   <FrontOfficeLink
@@ -1858,7 +1857,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.routeState.cleanHref}
                   >
-                    Reset to clean workspace
+                    Reset view
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -1869,13 +1868,13 @@ export function FrontOfficeListingsOutputClient(
       </div>
 
       <div className="front-office-placeholder-note">
-        <strong>Manual tracked output behavior</strong>
+        <strong>How tracked sharing works</strong>
         <p>
-          Each copy action creates a private tracked link, refreshes the tracked
-          link / click counts on this page, and keeps the send fully manual. In
-          client-linked mode, the same action also writes a Front Office send
-          record so follow-up rescue, quiet-send cues, and appointment
-          continuity can rise back into the dossier and dashboard.
+          Each copy action creates a private tracked link, refreshes the share
+          counts on this page, and keeps sending fully manual. In client-linked
+          mode, the same action also saves a Front Office share record so
+          follow-up cues and appointment continuity can show up again on the
+          client page and dashboard.
         </p>
         <div className="front-office-playbook-actions">
           <FrontOfficeLink

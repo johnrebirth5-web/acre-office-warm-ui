@@ -104,17 +104,15 @@ export function FrontOfficeCleanupDigestCard({
       } | null;
 
       if (!response.ok) {
-        setRunMessage(
-          payload?.error ?? "Could not record the cleanup digest run.",
-        );
+        setRunMessage(payload?.error ?? "Could not refresh the summary.");
         return;
       }
 
       setRunMessage(
         [
-          payload?.activityLabel ?? "Cleanup digest run recorded.",
+          payload?.activityLabel ?? "Summary refresh recorded.",
           payload?.manualOnlyDetail ??
-            "Manual-only. No scheduler. No provider sync.",
+            "Reviewed here only. Nothing runs on a schedule and nothing syncs automatically.",
           payload?.digest?.nextActionLabel
             ? `Next: ${payload.digest.nextActionLabel}.`
             : null,
@@ -125,7 +123,7 @@ export function FrontOfficeCleanupDigestCard({
       );
       router.refresh();
     } catch {
-      setRunMessage("Could not record the cleanup digest run.");
+      setRunMessage("Could not refresh the summary.");
     } finally {
       setIsRunningManualDigest(false);
     }
@@ -151,7 +149,9 @@ export function FrontOfficeCleanupDigestCard({
 
       if (!response.ok || !payload?.threadHref) {
         setMailThreadMessage(
-          payload?.hint ?? payload?.error ?? "Could not open the mail thread.",
+          payload?.hint ??
+            payload?.error ??
+            "Could not open the internal thread.",
         );
         return;
       }
@@ -168,7 +168,7 @@ export function FrontOfficeCleanupDigestCard({
 
       setMailThreadMessage(
         [
-          `${payload.actionLabel ?? "Internal mail thread"} opened.`,
+          `${payload.actionLabel ?? "Internal thread"} opened.`,
           payload.continuity?.detail ?? null,
           payload.manualOnlyDetail ?? null,
           payload.continuity?.nextStep ?? null,
@@ -177,7 +177,7 @@ export function FrontOfficeCleanupDigestCard({
           .join(" "),
       );
     } catch {
-      setMailThreadMessage("Could not open the cleanup digest mail thread.");
+      setMailThreadMessage("Could not open the internal thread.");
     } finally {
       setIsOpeningMailThread(false);
     }
@@ -187,11 +187,11 @@ export function FrontOfficeCleanupDigestCard({
     <div className={styles.summaryPanel}>
       <div className={styles.summaryPanelHeader}>
         <div className={styles.summaryPanelCopy}>
-          <span className={styles.summaryPanelEyebrow}>Manual summary</span>
+          <span className={styles.summaryPanelEyebrow}>Live summary</span>
           <strong>{cleanupDigest.nextActionLabel}</strong>
           <p>{cleanupDigest.nextActionDetail}</p>
         </div>
-        <StatusBadge tone={digestTone}>Manual mode</StatusBadge>
+        <StatusBadge tone={digestTone}>Live review</StatusBadge>
       </div>
 
       <ListPageStatsGrid>
@@ -233,8 +233,7 @@ export function FrontOfficeCleanupDigestCard({
           <span className={styles.summaryPanelBlockEyebrow}>Window</span>
           <strong>{cleanupDigest.windowLabel}</strong>
           <p>
-            {cleanupDigest.summary.totalCount} item(s) in scope for this manual
-            pass.
+            {cleanupDigest.summary.totalCount} item(s) in scope for this pass.
           </p>
         </div>
         <div className={styles.summaryPanelBlock}>
@@ -245,22 +244,22 @@ export function FrontOfficeCleanupDigestCard({
         <div className={styles.summaryPanelBlock}>
           <span className={styles.summaryPanelBlockEyebrow}>Updated</span>
           <strong>{cleanupDigest.generatedAtLabel}</strong>
-          <p>The route stays no-store, so each refresh pulls a new snapshot.</p>
+          <p>Refresh to pull the newest snapshot.</p>
         </div>
       </div>
 
       <div className={styles.summaryPanelPills}>
         <span className={styles.summaryPanelPill}>
           <strong>Mode</strong>
-          Manual
+          Live review
         </span>
         <span className={styles.summaryPanelPill}>
-          <strong>Route</strong>
-          JSON preview
+          <strong>Preview</strong>
+          Live data
         </span>
         <span className={styles.summaryPanelPill}>
           <strong>Refresh</strong>
-          Pulls a new live snapshot
+          Pulls newest snapshot
         </span>
       </div>
 
@@ -271,9 +270,7 @@ export function FrontOfficeCleanupDigestCard({
           type="button"
           variant="primary"
         >
-          {isRunningManualDigest
-            ? "Running manual digest..."
-            : "Run manual digest"}
+          {isRunningManualDigest ? "Refreshing summary..." : "Refresh summary"}
         </Button>
         <Button
           disabled={isOpeningMailThread}
@@ -283,7 +280,7 @@ export function FrontOfficeCleanupDigestCard({
         >
           {isOpeningMailThread
             ? "Opening internal thread..."
-            : "Open internal mail thread"}
+            : "Open internal thread"}
         </Button>
         <Button
           disabled={isRefreshing}
@@ -295,13 +292,13 @@ export function FrontOfficeCleanupDigestCard({
           type="button"
           variant="secondary"
         >
-          {isRefreshing ? "Refreshing digest..." : "Refresh digest"}
+          {isRefreshing ? "Refreshing page..." : "Refresh page"}
         </Button>
         <FrontOfficeLink
           className="office-inline-link front-office-inline-link"
           href={cleanupDigestHref}
         >
-          Open JSON
+          Open data
         </FrontOfficeLink>
       </div>
       {runMessage ? (
@@ -313,7 +310,7 @@ export function FrontOfficeCleanupDigestCard({
 
       <div className="office-queue-list">
         <div className="list-row-meta front-office-record-meta">
-          <span>Manual summary rail</span>
+          <span>Summary overview</span>
           <span>{cleanupDigest.generatedAtLabel}</span>
           <span>{cleanupDigest.timeZone}</span>
         </div>
@@ -331,7 +328,7 @@ export function FrontOfficeCleanupDigestCard({
           <div className="list-row-meta front-office-record-meta">
             <span>{cleanupDigest.windowLabel}</span>
             <span>{cleanupDigest.scopeLabel}</span>
-            <span>Manual mode</span>
+            <span>Live review</span>
           </div>
         </article>
 
@@ -350,7 +347,7 @@ export function FrontOfficeCleanupDigestCard({
               </div>
               <div className="list-row-meta front-office-record-meta">
                 <span>{section.items[0]?.dueAtLabel ?? "No due label"}</span>
-                <span>{section.items[0]?.detail ?? "Digest preview only"}</span>
+                <span>{section.items[0]?.detail ?? "Preview only"}</span>
               </div>
               {section.items[0] ? (
                 <FrontOfficeLink
@@ -366,7 +363,7 @@ export function FrontOfficeCleanupDigestCard({
           <EmptyState
             className="front-office-inline-empty"
             description="The live summary is clear right now. Use the activity list below for direct cleanup and read-state changes."
-            title="Nothing urgent in this summary"
+            title="Nothing urgent right now"
           />
         )}
       </div>
