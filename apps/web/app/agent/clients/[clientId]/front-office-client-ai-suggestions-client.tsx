@@ -379,6 +379,7 @@ export function FrontOfficeClientAiSuggestionsClient(
           playbookSummary={playbook.summaryLabel}
           oneClickReason={aiSuggestions.oneClickReason}
           primaryActionReason={aiSuggestions.primaryActionReason}
+          strategyRules={strategyRules}
           strategySignals={strategyRules.map(
             (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
           )}

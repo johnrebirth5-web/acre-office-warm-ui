@@ -295,6 +295,51 @@ function buildClosingHistoryText(material: FrontOfficeAgentMaterialSnapshot) {
   ].join("\n");
 }
 
+function buildLandingPageBriefText(input: {
+  material: FrontOfficeAgentMaterialSnapshot;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  const contextLine = input.targetAppointment
+    ? `Use this as the public-facing profile brief when ${input.targetAppointment.title} needs more agent framing for ${input.targetClient?.fullName ?? "the current client"}.`
+    : input.targetClient
+      ? `Use this as the public-facing profile brief while ${input.targetClient.fullName} stays in ${input.targetClient.stage}.`
+      : "Use this as the reusable public-facing profile brief when a tracked listing needs a fuller agent identity package.";
+
+  const featuredCase = input.material.featuredCases[0];
+
+  return [
+    "Landing page brief",
+    `Hero: ${input.material.displayName} · ${input.material.titleLabel} · ${input.material.officeLabel}`,
+    `About: ${input.material.bioLabel}`,
+    `Context: ${contextLine}`,
+    `Credibility: ${input.material.recentClosedCount} recent closings · ${input.material.featuredCaseCount} featured case(s) · ${input.material.licenseLabel}`,
+    featuredCase
+      ? `Featured case: ${featuredCase.label} · ${featuredCase.priceLabel} · ${featuredCase.closingLabel}`
+      : "Featured case: build the landing page around identity and direct contact until a stronger closing proof is ready.",
+    `Call to action: Contact ${input.material.displayName} at ${input.material.phone || "the published phone line"} or ${input.material.email || "the published email address"} for the next showing, packet, or route-aware follow-up.`,
+  ].join("\n");
+}
+
+function buildCaseStudyReelText(material: FrontOfficeAgentMaterialSnapshot) {
+  if (!material.featuredCases.length) {
+    return [
+      "Case-study reel",
+      `${material.displayName} does not have a featured case reel packaged yet.`,
+      "Until a featured closing is ready, keep the showcase stack centered on the landing brief, intro poster, and direct contact block.",
+    ].join("\n");
+  }
+
+  return [
+    "Case-study reel",
+    `${material.displayName} · ${material.recentClosedCount} recent closings`,
+    ...material.featuredCases.map(
+      (item, index) =>
+        `${index + 1}. ${item.label}\n   Price: ${item.priceLabel}\n   Closed: ${item.closingLabel}\n   Reference: ${item.href}`,
+    ),
+  ].join("\n");
+}
+
 function buildRouteSheetText(input: {
   routeState: FrontOfficeListingsRouteState;
   targetClient?: FrontOfficeListingsTargetClient | null;
@@ -350,7 +395,13 @@ function buildMaterialPreviewCards(input: {
     targetClient: input.targetClient,
     targetAppointment: input.targetAppointment,
   });
+  const landingPageBriefText = buildLandingPageBriefText({
+    material: input.material,
+    targetClient: input.targetClient,
+    targetAppointment: input.targetAppointment,
+  });
   const closingHistoryText = buildClosingHistoryText(input.material);
+  const caseStudyReelText = buildCaseStudyReelText(input.material);
 
   return [
     {
@@ -415,6 +466,17 @@ function buildMaterialPreviewCards(input: {
       copyValue: introPosterText,
     },
     {
+      id: "landing-page-brief",
+      badgeLabel: "Landing",
+      badgeTone: "accent" as const,
+      title: "Landing page brief",
+      description:
+        "Use this as the structured copy source for a richer profile page, mini-site, or high-context agent intro.",
+      preview: landingPageBriefText,
+      copyLabel: "Copy landing brief",
+      copyValue: landingPageBriefText,
+    },
+    {
       id: "closing-history",
       badgeLabel: "History",
       badgeTone:
@@ -427,6 +489,20 @@ function buildMaterialPreviewCards(input: {
       preview: closingHistoryText,
       copyLabel: "Copy closing history",
       copyValue: closingHistoryText,
+    },
+    {
+      id: "case-study-reel",
+      badgeLabel: "Cases",
+      badgeTone:
+        input.material.featuredCaseCount > 0
+          ? ("success" as const)
+          : ("warning" as const),
+      title: "Case-study reel",
+      description:
+        "Use this when the next public-facing packet needs a fuller closing reel instead of one short proof strip.",
+      preview: caseStudyReelText,
+      copyLabel: "Copy case-study reel",
+      copyValue: caseStudyReelText,
     },
   ] satisfies MaterialPreviewCard[];
 }
@@ -880,7 +956,9 @@ export function FrontOfficeAgentMaterialWindow(
   const proofAddOnCard = materialPreviewCardMap.get("proof-add-on");
   const routeBlockCard = materialPreviewCardMap.get("route-block");
   const introPosterCard = materialPreviewCardMap.get("intro-poster");
+  const landingPageBriefCard = materialPreviewCardMap.get("landing-page-brief");
   const closingHistoryCard = materialPreviewCardMap.get("closing-history");
+  const caseStudyReelCard = materialPreviewCardMap.get("case-study-reel");
   const materialReadinessCopyText = buildMaterialReadinessCopyText({
     items: materialReadinessItems,
     modeLabel: props.routeState.modeLabel,
@@ -895,6 +973,15 @@ export function FrontOfficeAgentMaterialWindow(
     targetClient: props.targetClient,
     targetAppointment: props.targetAppointment,
   });
+  const showcaseBundleText = [
+    "Showcase bundle",
+    landingPageBriefCard?.copyValue ?? "",
+    introPosterCard?.copyValue ?? "",
+    closingHistoryCard?.copyValue ?? "",
+    caseStudyReelCard?.copyValue ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   async function handleCopy(label: string, value: string) {
     try {
@@ -985,6 +1072,14 @@ export function FrontOfficeAgentMaterialWindow(
           >
             Copy outbound packet
           </Button>
+          <Button
+            onClick={() => void handleCopy("Showcase bundle", showcaseBundleText)}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            Copy showcase bundle
+          </Button>
           {preferredSupportPackage.copyButtons.map((copyButton) => (
             <Button
               key={`top-${copyButton.title}-${copyButton.copyLabel}`}
@@ -1034,6 +1129,20 @@ export function FrontOfficeAgentMaterialWindow(
             disabled={!proofAddOnCard}
           >
             Copy proof add-on
+          </Button>
+          <Button
+            onClick={() =>
+              void handleCopy(
+                "Landing page brief",
+                landingPageBriefCard?.copyValue ?? "",
+              )
+            }
+            size="sm"
+            type="button"
+            variant="ghost"
+            disabled={!landingPageBriefCard}
+          >
+            Copy landing brief
           </Button>
           <Button
             onClick={() =>
@@ -1244,6 +1353,20 @@ export function FrontOfficeAgentMaterialWindow(
                 <Button
                   onClick={() =>
                     void handleCopy(
+                      "Landing page brief",
+                      landingPageBriefCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={!landingPageBriefCard}
+                >
+                  Copy landing brief
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy(
                       "Closing history",
                       closingHistoryCard?.copyValue ?? "",
                     )
@@ -1252,9 +1375,23 @@ export function FrontOfficeAgentMaterialWindow(
                   type="button"
                   variant="ghost"
                   disabled={!closingHistoryCard}
-                >
-                  Copy closing history
-                </Button>
+                  >
+                    Copy closing history
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      void handleCopy(
+                        "Case-study reel",
+                        caseStudyReelCard?.copyValue ?? "",
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                    disabled={!caseStudyReelCard}
+                  >
+                    Copy case-study reel
+                  </Button>
                 <Button
                   onClick={() =>
                     void handleCopy(
@@ -1277,10 +1414,64 @@ export function FrontOfficeAgentMaterialWindow(
             description="Use the outward-facing intro poster and closing history when the next send needs a clearer public-facing agent profile instead of only a route-bound packet."
             meta={
               <span>
-                Intro poster · Closing history · Featured proof
+                Intro poster · Landing brief · Closing history · Case-study reel
               </span>
             }
             title="Profile showcase assets"
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Landing page brief",
+                      landingPageBriefCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  disabled={!landingPageBriefCard}
+                >
+                  Copy landing brief
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Showcase bundle", showcaseBundleText)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy showcase bundle
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Case-study reel",
+                      caseStudyReelCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={!caseStudyReelCard}
+                >
+                  Copy case-study reel
+                </Button>
+              </div>
+            }
+            badgeLabel="Landing prep"
+            badgeTone="accent"
+            context={`${props.material.titleLabel} · ${props.material.officeLabel}`}
+            description="This keeps a future-facing profile/landing package ready in manual form, even before Acre owns a full public dynamic profile system."
+            meta={
+              <span>
+                Hero copy · Proof reel · Contact CTA
+              </span>
+            }
+            title="Profile landing-page brief"
           />
           <QueueItem
             action={

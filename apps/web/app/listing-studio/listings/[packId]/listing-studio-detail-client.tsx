@@ -905,6 +905,15 @@ export function ListingStudioDetailClient({
                     Copy {bundle.title}
                   </Button>
                 ))}
+                {marketingKit.templateBriefs.map((brief) => (
+                  <Button
+                    key={brief.id}
+                    onClick={() => void copyMarketingKitCopy(brief.title, brief.text)}
+                    variant="ghost"
+                  >
+                    Copy {brief.title}
+                  </Button>
+                ))}
               </div>
               <div className="listing-studio-keyvalue-grid">
                 <div className="listing-studio-keyvalue-card">
@@ -928,6 +937,20 @@ export function ListingStudioDetailClient({
                   </strong>
                   <span>
                     The package below is arranged as send-ready bundles, a manual sequence, and a readiness checklist.
+                  </span>
+                </div>
+                <div className="listing-studio-keyvalue-card">
+                  <span>Template briefs</span>
+                  <strong>{marketingKit.templateBriefs.length} template briefs</strong>
+                  <span>
+                    Every poster layout now carries a manual use brief so operators can choose the right template without guessing.
+                  </span>
+                </div>
+                <div className="listing-studio-keyvalue-card">
+                  <span>Campaign flights</span>
+                  <strong>{marketingKit.flights.length} manual cadences</strong>
+                  <span>
+                    Reusable launch, event, and evergreen sequences keep the template stack closer to a real marketing workbench.
                   </span>
                 </div>
               </div>
@@ -1009,6 +1032,77 @@ export function ListingStudioDetailClient({
                         </div>
                         <strong>{item.title}</strong>
                         <span>{item.note}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="listing-studio-detail-section-block">
+                  <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                    <strong>Template briefs</strong>
+                    <span className="office-status-badge office-status-badge-neutral">
+                      Pick the right poster mode
+                    </span>
+                  </div>
+                  <div className="listing-studio-keyvalue-grid">
+                    {marketingKit.templateBriefs.map((brief) => (
+                      <div className="listing-studio-keyvalue-card" key={brief.id}>
+                        <div className="listing-studio-card-meta">
+                          <span className="office-status-badge office-status-badge-neutral">
+                            {brief.note}
+                          </span>
+                          <span className="office-status-badge office-status-badge-success">
+                            Template brief
+                          </span>
+                        </div>
+                        <strong>{brief.title}</strong>
+                        <span>{brief.description}</span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>{brief.text}</span>
+                        <div className="listing-studio-editor-actions">
+                          <Button
+                            onClick={() => void copyMarketingKitCopy(brief.title, brief.text)}
+                            variant="secondary"
+                          >
+                            Copy brief
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="listing-studio-detail-section-block">
+                  <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                    <strong>Campaign flights</strong>
+                    <span className="office-status-badge office-status-badge-neutral">
+                      Manual cadence only
+                    </span>
+                  </div>
+                  <div className="listing-studio-keyvalue-grid">
+                    {marketingKit.flights.map((flight) => (
+                      <div className="listing-studio-keyvalue-card" key={flight.id}>
+                        <div className="listing-studio-card-meta">
+                          <span className="office-status-badge office-status-badge-neutral">
+                            {flight.note}
+                          </span>
+                          <span className="office-status-badge office-status-badge-success">
+                            Flight plan
+                          </span>
+                        </div>
+                        <strong>{flight.title}</strong>
+                        <span>{flight.description}</span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>
+                          {flight.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+                        </span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>{flight.text}</span>
+                        <div className="listing-studio-editor-actions">
+                          <Button
+                            onClick={() => void copyMarketingKitCopy(flight.title, flight.text)}
+                            variant="secondary"
+                          >
+                            Copy flight
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

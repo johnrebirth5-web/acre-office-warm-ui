@@ -64,6 +64,11 @@ export type FrontOfficeAiStrategyRule = {
   followUpDueAt: string;
   followUpHref: string;
   openDossierHref: string;
+  reviewChecklist: string[];
+  draftLabel: string;
+  draftChannelLabel: string;
+  draftSubjectLine: string;
+  draftBody: string;
 };
 
 export type FrontOfficeAiPlaybookStep = {
@@ -528,6 +533,109 @@ function buildFrontOfficeAiStrategyRuleSourceLabel(
   }
 }
 
+function buildFrontOfficeAiStrategyReviewChecklist(input: {
+  kind: FrontOfficeAiStrategyRuleKind;
+  contextLabel: string;
+  followUpDueAt: string;
+}) {
+  switch (input.kind) {
+    case "silent_period":
+      return [
+        "Confirm the last logged touch still reflects the live conversation.",
+        "Keep the message short and low-pressure before turning it into a new campaign push.",
+        `Set the next dated follow-up around ${input.followUpDueAt} so the quiet period does not restart immediately.`,
+      ];
+    case "holiday":
+      return [
+        `Confirm the seasonal window in ${input.contextLabel} still makes sense for this relationship.`,
+        "Keep the tone warm and personal instead of turning the holiday note into a hard sales ask.",
+        `Pair the note with a dated follow-up around ${input.followUpDueAt} only if the relationship stays active after the touch.`,
+      ];
+    case "lease":
+      return [
+        `Verify ${input.contextLabel} before you anchor a reminder in the queue.`,
+        "Decide whether the next step is renewal, remarketing, or move timing before you send anything outward.",
+        `Keep the lease follow-up visible around ${input.followUpDueAt} until the timing resolves.`,
+      ];
+    default:
+      return [
+        "Confirm the due date, owner, and channel before you queue the next touch.",
+        `Use the current context (${input.contextLabel}) to keep the follow-up grounded in the live record.`,
+        `Keep the next visible checkpoint around ${input.followUpDueAt} instead of leaving the record implicit.`,
+      ];
+  }
+}
+
+function buildFrontOfficeAiStrategyDraft(input: {
+  kind: FrontOfficeAiStrategyRuleKind;
+  clientName: string;
+  contextLabel: string;
+  sourceDetail: string;
+  followUpTitle: string;
+  followUpDueAt: string;
+}) {
+  switch (input.kind) {
+    case "silent_period":
+      return {
+        draftLabel: "Quiet-period reset draft",
+        draftChannelLabel: "Light text or email",
+        draftSubjectLine: `Checking in with ${input.clientName}`,
+        draftBody: [
+          `Hi ${input.clientName},`,
+          "",
+          "I wanted to send a quick check-in so the conversation does not go quiet on us.",
+          `Acre is still carrying ${input.contextLabel.toLowerCase()}, and I can keep the next step simple from here.`,
+          "",
+          "If the timing changed, reply with the new window and I will adjust the follow-up by hand.",
+          "",
+          `Internal note: ${input.followUpTitle} · target ${input.followUpDueAt}.`,
+        ].join("\n"),
+      };
+    case "holiday":
+      return {
+        draftLabel: "Seasonal touch draft",
+        draftChannelLabel: "Warm text or email",
+        draftSubjectLine: `${input.contextLabel} check-in for ${input.clientName}`,
+        draftBody: [
+          `Hi ${input.clientName},`,
+          "",
+          `Sending a quick ${input.contextLabel.toLowerCase()} note so the relationship stays warm without adding pressure.`,
+          "If this is still a good time to reconnect, I can send the next packet or follow-up details manually from here.",
+          "",
+          `Internal note: ${input.sourceDetail} Next visible follow-up target ${input.followUpDueAt}.`,
+        ].join("\n"),
+      };
+    case "lease":
+      return {
+        draftLabel: "Lease timing draft",
+        draftChannelLabel: "Review-first email",
+        draftSubjectLine: `Lease timing check for ${input.clientName}`,
+        draftBody: [
+          `Hi ${input.clientName},`,
+          "",
+          `I want to keep the lease timing visible while ${input.contextLabel.toLowerCase()}.`,
+          "If renewal, remarketing, or move timing changed, send me the updated window and I will adjust the next step manually.",
+          "",
+          `Internal note: ${input.followUpTitle} · target ${input.followUpDueAt}.`,
+        ].join("\n"),
+      };
+    default:
+      return {
+        draftLabel: "Grounded next-touch draft",
+        draftChannelLabel: "Shared follow-up note",
+        draftSubjectLine: `Next step for ${input.clientName}`,
+        draftBody: [
+          `Hi ${input.clientName},`,
+          "",
+          `Keeping the next step visible while ${input.contextLabel.toLowerCase()}.`,
+          "I can keep this follow-up lightweight and explicit, then update the shared record by hand once the timing is confirmed.",
+          "",
+          `Internal note: ${input.followUpTitle} · target ${input.followUpDueAt}.`,
+        ].join("\n"),
+      };
+  }
+}
+
 function buildFrontOfficeAiStrategyPlaybookSummaryLabel(
   rules: FrontOfficeAiStrategyRule[],
 ) {
@@ -691,12 +799,23 @@ export function buildFrontOfficeAiStrategyContract(input: {
     const dueAt = nextFollowUpAt
       ? formatDateValue(nextFollowUpAt)
       : followUp.dueAt;
+    const contextLabel = nextFollowUpAt
+      ? `Current touch · ${formatDisplayDate(nextFollowUpAt, input.timeZone)}`
+      : "No next touch on the books";
     const sourceDetail = hasOverdueFollowUp
       ? `The next touch is overdue${nextFollowUpAt ? ` since ${formatDisplayDate(nextFollowUpAt, input.timeZone)}` : ""}.`
       : "No future touch is currently scheduled on this active record.";
     const whyNowSignals = hasOverdueFollowUp
       ? [`Next touch overdue · ${formatDisplayDate(nextFollowUpAt!, input.timeZone)}`]
       : ["No next touch is scheduled yet", `Open task count · ${openTaskCount}`];
+    const draft = buildFrontOfficeAiStrategyDraft({
+      kind: "follow_up",
+      clientName: input.clientName,
+      contextLabel,
+      sourceDetail,
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
+    });
 
     rules.push({
       id: `${input.clientId}-follow-up`,
@@ -712,9 +831,7 @@ export function buildFrontOfficeAiStrategyContract(input: {
       description: hasOverdueFollowUp
         ? "Keep the current record readable by restoring the next-touch clock before anything else grows stale."
         : "Acre should not leave the next move implicit when this record is still active.",
-      contextLabel: nextFollowUpAt
-        ? `Current touch · ${formatDisplayDate(nextFollowUpAt, input.timeZone)}`
-        : "No next touch on the books",
+      contextLabel,
       sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("follow_up"),
       sourceDetail,
       whyNowSignals,
@@ -728,6 +845,15 @@ export function buildFrontOfficeAiStrategyContract(input: {
         source: "rule-follow-up",
       }),
       openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+      reviewChecklist: buildFrontOfficeAiStrategyReviewChecklist({
+        kind: "follow_up",
+        contextLabel,
+        followUpDueAt: dueAt,
+      }),
+      draftLabel: draft.draftLabel,
+      draftChannelLabel: draft.draftChannelLabel,
+      draftSubjectLine: draft.draftSubjectLine,
+      draftBody: draft.draftBody,
     });
   }
 
@@ -739,6 +865,20 @@ export function buildFrontOfficeAiStrategyContract(input: {
       kind: "lease",
       now: dueAt,
       clientFullName: input.clientName,
+    });
+    const contextLabel = leaseReminderNeedsAttention
+      ? "Lease reminder needs attention"
+      : `Lease reminder · ${formatDisplayDate(leaseReminderAt, input.timeZone)}`;
+    const sourceDetail = leaseReminderNeedsAttention
+      ? `Lease reminder is already overdue or due today.`
+      : `Lease reminder is due ${formatDisplayDate(leaseReminderAt, input.timeZone)}.`;
+    const draft = buildFrontOfficeAiStrategyDraft({
+      kind: "lease",
+      clientName: input.clientName,
+      contextLabel,
+      sourceDetail,
+      followUpTitle: followUp.title,
+      followUpDueAt: formatDateValue(dueAt),
     });
 
     rules.push({
@@ -758,13 +898,9 @@ export function buildFrontOfficeAiStrategyContract(input: {
       description: leaseReminderNeedsAttention
         ? "Renewal, remarketing, or move timing is already pressing enough to keep the next touch visible."
         : "The lease window is close enough that it should stay visible in Front Office instead of drifting quietly.",
-      contextLabel: leaseReminderNeedsAttention
-        ? "Lease reminder needs attention"
-        : `Lease reminder · ${formatDisplayDate(leaseReminderAt, input.timeZone)}`,
+      contextLabel,
       sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("lease"),
-      sourceDetail: leaseReminderNeedsAttention
-        ? `Lease reminder is already overdue or due today.`
-        : `Lease reminder is due ${formatDisplayDate(leaseReminderAt, input.timeZone)}.`,
+      sourceDetail,
       whyNowSignals: [
         leaseReminderNeedsAttention
           ? "Lease reminder needs attention now"
@@ -781,6 +917,15 @@ export function buildFrontOfficeAiStrategyContract(input: {
         source: "rule-lease",
       }),
       openDossierHref: `/agent/clients/${input.clientId}#front-office-lease-reminder`,
+      reviewChecklist: buildFrontOfficeAiStrategyReviewChecklist({
+        kind: "lease",
+        contextLabel,
+        followUpDueAt: formatDateValue(dueAt),
+      }),
+      draftLabel: draft.draftLabel,
+      draftChannelLabel: draft.draftChannelLabel,
+      draftSubjectLine: draft.draftSubjectLine,
+      draftBody: draft.draftBody,
     });
   }
 
@@ -791,6 +936,19 @@ export function buildFrontOfficeAiStrategyContract(input: {
       clientFullName: input.clientName,
     });
     const dueAt = followUp.dueAt;
+    const contextLabel = daysSinceLastTouch !== null
+      ? `${daysSinceLastTouch}+ days since the last touch`
+      : "No recent touch logged";
+    const sourceDetail =
+      "The active record has gone quiet long enough that the next touch should be visible again.";
+    const draft = buildFrontOfficeAiStrategyDraft({
+      kind: "silent_period",
+      clientName: input.clientName,
+      contextLabel,
+      sourceDetail,
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
+    });
 
     rules.push({
       id: `${input.clientId}-silent-period`,
@@ -803,12 +961,9 @@ export function buildFrontOfficeAiStrategyContract(input: {
       title: `Break the silent period for ${input.clientName}`,
       description:
         "No logged touch has landed for 15+ days while the record is still active, so the next reach-out should stay lightweight and explicit.",
-      contextLabel: daysSinceLastTouch !== null
-        ? `${daysSinceLastTouch}+ days since the last touch`
-        : "No recent touch logged",
+      contextLabel,
       sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("silent_period"),
-      sourceDetail:
-        "The active record has gone quiet long enough that the next touch should be visible again.",
+      sourceDetail,
       whyNowSignals: [
         daysSinceLastTouch !== null
           ? `${daysSinceLastTouch} day(s) since the last touch`
@@ -825,6 +980,15 @@ export function buildFrontOfficeAiStrategyContract(input: {
         source: "rule-silent-period",
       }),
       openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+      reviewChecklist: buildFrontOfficeAiStrategyReviewChecklist({
+        kind: "silent_period",
+        contextLabel,
+        followUpDueAt: dueAt,
+      }),
+      draftLabel: draft.draftLabel,
+      draftChannelLabel: draft.draftChannelLabel,
+      draftSubjectLine: draft.draftSubjectLine,
+      draftBody: draft.draftBody,
     });
   }
 
@@ -836,6 +1000,16 @@ export function buildFrontOfficeAiStrategyContract(input: {
       kind: sendCount > 0 ? "warm_engagement" : "generic",
       now: input.now,
       clientFullName: input.clientName,
+    });
+    const contextLabel = `${holidayWindow.label} on ${formatDisplayDate(holidayWindow.date, input.timeZone)}`;
+    const sourceDetail = `${holidayWindow.label} lands on ${formatDisplayDate(holidayWindow.date, input.timeZone)}.`;
+    const draft = buildFrontOfficeAiStrategyDraft({
+      kind: "holiday",
+      clientName: input.clientName,
+      contextLabel,
+      sourceDetail,
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
     });
 
     rules.push({
@@ -849,9 +1023,9 @@ export function buildFrontOfficeAiStrategyContract(input: {
       title: `${holidayWindow.label} touch for ${input.clientName}`,
       description:
         "A seasonal check-in can stay human and low-pressure while still giving the relationship a visible next step.",
-      contextLabel: `${holidayWindow.label} on ${formatDisplayDate(holidayWindow.date, input.timeZone)}`,
+      contextLabel,
       sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("holiday"),
-      sourceDetail: `${holidayWindow.label} lands on ${formatDisplayDate(holidayWindow.date, input.timeZone)}.`,
+      sourceDetail,
       whyNowSignals: [
         `${holidayWindow.label} on ${formatDisplayDate(holidayWindow.date, input.timeZone)}`,
         "Seasonal touch stays review-first and explicit",
@@ -866,6 +1040,15 @@ export function buildFrontOfficeAiStrategyContract(input: {
         source: "rule-holiday",
       }),
       openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+      reviewChecklist: buildFrontOfficeAiStrategyReviewChecklist({
+        kind: "holiday",
+        contextLabel,
+        followUpDueAt: dueAt,
+      }),
+      draftLabel: draft.draftLabel,
+      draftChannelLabel: draft.draftChannelLabel,
+      draftSubjectLine: draft.draftSubjectLine,
+      draftBody: draft.draftBody,
     });
   }
 

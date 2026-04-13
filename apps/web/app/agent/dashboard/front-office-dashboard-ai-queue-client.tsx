@@ -269,11 +269,12 @@ export function FrontOfficeDashboardAiQueueClient(
                   oneClickReason={item.oneClickReason}
                   primaryActionReason={item.primaryActionReason}
                   rankingSignals={item.rankingSignals}
+                  strategyRules={strategyRules}
                   strategySignals={strategyRules.map(
                     (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
-                    )}
-                    strategySummary={props.strategy.summaryLabel}
-                    whyNowSignals={item.whyNowSignals}
+                  )}
+                  strategySummary={props.strategy.summaryLabel}
+                  whyNowSignals={item.whyNowSignals}
                   />
                 </>
               }

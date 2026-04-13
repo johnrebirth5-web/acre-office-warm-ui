@@ -46,6 +46,23 @@ export type ListingStudioMarketingKitBundle = {
   text: string;
 };
 
+export type ListingStudioTemplateBrief = {
+  id: string;
+  title: string;
+  note: string;
+  description: string;
+  text: string;
+};
+
+export type ListingStudioCampaignFlight = {
+  id: string;
+  title: string;
+  note: string;
+  description: string;
+  steps: string[];
+  text: string;
+};
+
 export type ListingStudioCampaignPackage = {
   id: string;
   title: string;
@@ -78,6 +95,8 @@ export type ListingStudioCampaignDeliveryPlan = {
 export type ListingStudioMarketingKit = {
   sections: ListingStudioMarketingKitSection[];
   bundles: ListingStudioMarketingKitBundle[];
+  templateBriefs: ListingStudioTemplateBrief[];
+  flights: ListingStudioCampaignFlight[];
   deliveryPlan: ListingStudioCampaignDeliveryPlan;
   fullText: string;
   summaryLine: string;
@@ -151,6 +170,21 @@ function formatMarketingSectionText(section: ListingStudioMarketingKitSection) {
       joinWithLineBreaks([variant.label, variant.note, variant.text]),
     ),
   ].join("\n\n");
+}
+
+function formatTemplateBriefText(brief: ListingStudioTemplateBrief) {
+  return [brief.title, brief.note, brief.description, brief.text].join("\n\n");
+}
+
+function formatCampaignFlightText(flight: ListingStudioCampaignFlight) {
+  return [
+    flight.title,
+    flight.note,
+    flight.description,
+    ...flight.steps.map((step, index) => `${index + 1}. ${step}`),
+    "",
+    flight.text,
+  ].join("\n");
 }
 
 function buildPosterPacketTarget(detail: StudioListingDetailSnapshot): ListingStudioPacketTarget {
@@ -670,6 +704,106 @@ export function buildListingStudioMarketingKit(
       ]).trim(),
     },
   ];
+  const templateBriefs: ListingStudioTemplateBrief[] = posterTemplates.map(
+    (template) => {
+      const isActiveTemplate = template.id === draft.templateId;
+      const templateFocus =
+        template.id === "editorial"
+          ? "Lead with the strongest hero image and price-aware headline so the listing reads like a polished spotlight."
+          : template.id === "open-house"
+            ? "Make the event timing and next-step CTA obvious so the packet feels invitation-ready."
+            : template.id === "social-square"
+              ? "Keep the copy short and image-led so the tile can drop into social without rewriting the whole packet."
+              : "Use the summary, bullet points, and contact block as the handout-first version for facts-forward sends.";
+      const bestUse =
+        template.id === "editorial"
+          ? "Best for: new-listing announcement, premium share page preview, broker intro."
+          : template.id === "open-house"
+            ? "Best for: event invite, showing reminder, quick RSVP push."
+            : template.id === "social-square"
+              ? "Best for: Instagram tile, story repost, compact feed share."
+              : "Best for: PDF handout, listing packet, facts-forward follow-up.";
+
+      return {
+        id: `${template.id}-brief`,
+        title: `${template.label} brief`,
+        note: isActiveTemplate ? "Current template" : "Alternate template",
+        description: `${template.description} ${bestUse}`,
+        text: joinWithLineBreaks([
+          `${template.label} brief`,
+          `Current status: ${isActiveTemplate ? "active draft" : "available variant"}`,
+          `Focus: ${templateFocus}`,
+          bestUse,
+          `Headline: ${headline}`,
+          `Subheadline: ${summary}`,
+          `CTA: ${cta}`,
+          `Packet path: ${packetPath}`,
+          `Contact: ${contactName} · ${contactPhone} · ${contactEmail}`,
+        ]),
+      };
+    },
+  );
+  const flights: ListingStudioCampaignFlight[] = [
+    {
+      id: "new-listing-flight",
+      title: "New listing flight",
+      note: "Announcement cadence",
+      description:
+        "Use this when the listing is fresh and you want one manual cadence across poster, social, and packet follow-through.",
+      steps: [
+        "Start with the editorial or current hero-led poster preview and confirm the scan path.",
+        "Copy the social bundle or social send-ready package for the first outward-facing drop.",
+        "Follow with the listing bundle or factsheet-style handout when someone asks for more than the tile.",
+        "Finish with the follow-up bundle after the first replies or showing interest lands.",
+      ],
+      text: joinWithLineBreaks([
+        "New listing flight",
+        `Listing: ${headline} · ${detail.priceLabel}`,
+        `Primary poster: ${posterTemplates.find((template) => template.id === draft.templateId)?.label ?? draft.templateId}`,
+        `Best packet path: ${packetPath}`,
+        `Manual CTA: ${cta}`,
+      ]),
+    },
+    {
+      id: "open-house-flight",
+      title: "Open house flight",
+      note: "Event-led cadence",
+      description:
+        "Use this when the packet should move from invite to reminder to post-tour follow-through without pretending Acre owns the send.",
+      steps: [
+        "Switch to the open-house template or keep an event-led CTA in the active poster draft.",
+        "Use the share caption plus the social send-ready package for the first invite wave.",
+        "Send the follow-up package after RSVPs, tour questions, or post-tour replies arrive.",
+        "Use the facts sheet brief if the contact asks for a more printable handout after the event.",
+      ],
+      text: joinWithLineBreaks([
+        "Open house flight",
+        `Invite anchor: ${headline}`,
+        `Event CTA: ${cta}`,
+        `Contact block: ${contactName} · ${contactPhone}`,
+        `Packet path: ${packetPath}`,
+      ]),
+    },
+    {
+      id: "evergreen-flight",
+      title: "Evergreen follow-through flight",
+      note: "Quiet relaunch",
+      description:
+        "Use this when the listing is still active but the outreach should feel lighter, more factual, and easier to reuse.",
+      steps: [
+        "Lead with the factsheet brief or listing bundle instead of a heavier announcement.",
+        "Use the reminder note from the follow-up bundle to reopen the conversation manually.",
+        "Drop in the social-square brief only if a lighter visual refresh helps the next touch.",
+        "Keep the same packet path and contact block so repeat outreach still lands in one reviewable chain.",
+      ],
+      text: joinWithLineBreaks([
+        "Evergreen follow-through flight",
+        `Fact summary: ${factSummary}`,
+        `Reminder CTA: ${cta}`,
+        `Manual contact: ${contactName} · ${contactEmail}`,
+      ]),
+    },
+  ];
   const deliveryPlanPackages: ListingStudioCampaignPackage[] = [
     {
       id: "social-package",
@@ -795,7 +929,12 @@ export function buildListingStudioMarketingKit(
     sequence: deliveryPlanSequence,
     checklist: deliveryPlanChecklist,
   };
-  const fullText = [summaryLine, ...sections.map(formatMarketingSectionText)]
+  const fullText = [
+    summaryLine,
+    ...sections.map(formatMarketingSectionText),
+    ...templateBriefs.map(formatTemplateBriefText),
+    ...flights.map(formatCampaignFlightText),
+  ]
     .filter(Boolean)
     .join("\n\n");
 
@@ -803,6 +942,8 @@ export function buildListingStudioMarketingKit(
     summaryLine,
     sections,
     bundles,
+    templateBriefs,
+    flights,
     deliveryPlan,
     fullText,
   };

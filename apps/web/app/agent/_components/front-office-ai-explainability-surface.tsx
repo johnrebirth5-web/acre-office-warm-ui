@@ -1,4 +1,7 @@
-import { StatusBadge } from "@acre/ui";
+"use client";
+
+import { useState } from "react";
+import { Button, StatusBadge } from "@acre/ui";
 import { FrontOfficeLink } from "./front-office-link";
 
 type ExplainabilityTone =
@@ -24,6 +27,18 @@ type ExplainabilityPlaybookStep = {
   secondaryActionLabel: string;
   secondaryActionHref: string;
   detailLabel: string;
+};
+
+type ExplainabilityStrategyRule = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  tone: ExplainabilityTone;
+  draftLabel: string;
+  draftChannelLabel: string;
+  draftSubjectLine: string;
+  draftBody: string;
+  reviewChecklist: string[];
 };
 
 function boundaryMentionsBackOffice(boundaryLabel: string) {
@@ -120,12 +135,27 @@ function ExplainabilitySignals(props: {
   );
 }
 
+async function copyTextToClipboard(value: string) {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+    throw new Error("Clipboard access is not available in this browser.");
+  }
+
+  await navigator.clipboard.writeText(value);
+}
+
+function buildStrategyDraftCopyValue(rule: ExplainabilityStrategyRule) {
+  return rule.draftSubjectLine.trim()
+    ? `Subject: ${rule.draftSubjectLine}\n\n${rule.draftBody}`
+    : rule.draftBody;
+}
+
 export function FrontOfficeAiExplainabilitySurface(props: {
   helperText?: string;
   playbookSummary?: string;
   playbookSteps?: ExplainabilityPlaybookStep[];
   strategySummary?: string;
   strategySignals?: string[];
+  strategyRules?: ExplainabilityStrategyRule[];
   whyNowSignals: string[];
   rankingSignals: string[];
   boundaryLabel: string;
@@ -152,6 +182,17 @@ export function FrontOfficeAiExplainabilitySurface(props: {
     rankingSignals: props.rankingSignals,
   });
   const playbookSteps = props.playbookSteps ?? [];
+  const strategyRules = props.strategyRules ?? [];
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  async function handleCopyDraft(rule: ExplainabilityStrategyRule) {
+    try {
+      await copyTextToClipboard(buildStrategyDraftCopyValue(rule));
+      setCopyFeedback(`${rule.draftLabel} copied for manual review.`);
+    } catch {
+      setCopyFeedback("Clipboard access is not available for the strategy draft.");
+    }
+  }
 
   return (
     <div
@@ -239,6 +280,59 @@ export function FrontOfficeAiExplainabilitySurface(props: {
             emptyMessage="No shared strategy signals are surfaced yet, so Acre is still falling back to the live dossier trail and its standard safety boundary."
             signals={props.strategySignals ?? []}
           />
+        </div>
+      ) : null}
+
+      {strategyRules.length ? (
+        <div className="front-office-ai-explainability-block front-office-playbook-surface">
+          <div className="front-office-ai-explainability-head">
+            <span className="front-office-ai-explainability-kicker">
+              Rule drafts / review pack
+            </span>
+            <StatusBadge tone="accent">Copy-ready</StatusBadge>
+          </div>
+          <p>
+            Each surfaced rule now carries a review checklist and a copy-ready
+            draft so the next touch can stay manual, grounded, and explicit.
+          </p>
+          {copyFeedback ? <p>{copyFeedback}</p> : null}
+          <div className="front-office-playbook-grid">
+            {strategyRules.map((rule) => (
+              <article className="front-office-playbook-card" key={`${rule.id}-draft`}>
+                <div className="front-office-playbook-card-head">
+                  <div>
+                    <strong>{rule.draftLabel}</strong>
+                    <span>
+                      {rule.statusLabel} · {rule.draftChannelLabel}
+                    </span>
+                  </div>
+                  <StatusBadge tone={rule.tone}>{rule.title}</StatusBadge>
+                </div>
+                <pre className="front-office-playbook-template-body">
+                  {buildStrategyDraftCopyValue(rule)}
+                </pre>
+                <div className="front-office-playbook-template-list">
+                  {rule.reviewChecklist.map((item) => (
+                    <article className="front-office-playbook-template" key={`${rule.id}-${item}`}>
+                      <div className="front-office-playbook-template-head">
+                        <strong>{item}</strong>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <div className="front-office-playbook-actions">
+                  <Button
+                    onClick={() => void handleCopyDraft(rule)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    Copy draft
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       ) : null}
 

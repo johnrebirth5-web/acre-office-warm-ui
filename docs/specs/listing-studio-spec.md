@@ -40,6 +40,8 @@
   - manual marketing kit sections for caption / blurb / follow-up copy
   - copy-ready campaign bundles built from the same marketing kit
   - campaign delivery plan with send-ready packages, manual sequence, and readiness checklist
+  - copyable template briefs for editorial / open-house / social-square / factsheet selection
+  - reusable manual campaign flights for launch / event / evergreen cadence planning
   - delete saved packet
 - 客户分享页：
   - `/share/packs/[code]`
@@ -68,6 +70,7 @@
 ## Current manual contract notes
 
 - campaign bundles and delivery-plan package sets remain derived from the same saved packet and current poster draft
+- template briefs and campaign flights remain derived from the same saved packet and current poster draft
 - the delivery-plan layer is still manual and review-first; it does not imply Canva sync, PNG render, scheduled campaigns, or auto-send
 
 ## Core user flow
