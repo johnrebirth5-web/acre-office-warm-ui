@@ -252,6 +252,49 @@ function buildProofSheetText(material: FrontOfficeAgentMaterialSnapshot) {
   ].join("\n");
 }
 
+function buildIntroPosterText(input: {
+  material: FrontOfficeAgentMaterialSnapshot;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  const contextLine = input.targetAppointment
+    ? `Prepared for ${input.targetAppointment.title} with ${input.targetClient?.fullName ?? "the current client"}`
+    : input.targetClient
+      ? `Prepared for ${input.targetClient.fullName} while ${input.targetClient.stage} stays active`
+      : "Prepared as a reusable profile-intro poster";
+
+  return [
+    "Intro poster",
+    input.material.displayName,
+    `${input.material.titleLabel} · ${input.material.officeLabel}`,
+    contextLine,
+    input.material.bioLabel,
+    `License: ${input.material.licenseLabel}`,
+    `Recent closings: ${input.material.recentClosedCount}`,
+    `Portrait: ${input.material.portraitReady ? "ready" : "missing"}`,
+    `Contact: ${input.material.phone || "Phone not published"} · ${input.material.email || "Email not published"}`,
+  ].join("\n");
+}
+
+function buildClosingHistoryText(material: FrontOfficeAgentMaterialSnapshot) {
+  if (!material.featuredCases.length) {
+    return [
+      "Closing history",
+      `${material.displayName} has ${material.recentClosedCount} recent closings in the current snapshot.`,
+      "No featured cases are packaged yet, so lead with the profile sheet and business card until a stronger proof strip is ready.",
+    ].join("\n");
+  }
+
+  return [
+    "Closing history",
+    `${material.displayName} · ${material.recentClosedCount} recent closings`,
+    ...material.featuredCases.map(
+      (item, index) =>
+        `${index + 1}. ${item.label} · ${item.priceLabel} · ${item.closingLabel}`,
+    ),
+  ].join("\n");
+}
+
 function buildRouteSheetText(input: {
   routeState: FrontOfficeListingsRouteState;
   targetClient?: FrontOfficeListingsTargetClient | null;
@@ -302,6 +345,12 @@ function buildMaterialPreviewCards(input: {
     targetClient: input.targetClient,
     targetAppointment: input.targetAppointment,
   });
+  const introPosterText = buildIntroPosterText({
+    material: input.material,
+    targetClient: input.targetClient,
+    targetAppointment: input.targetAppointment,
+  });
+  const closingHistoryText = buildClosingHistoryText(input.material);
 
   return [
     {
@@ -353,6 +402,31 @@ function buildMaterialPreviewCards(input: {
       preview: routeSheetText,
       copyLabel: "Copy route block",
       copyValue: routeSheetText,
+    },
+    {
+      id: "intro-poster",
+      badgeLabel: "Showcase",
+      badgeTone: "accent" as const,
+      title: "Intro poster",
+      description:
+        "Use this when the send needs a more outward-facing profile summary instead of only the packet internals.",
+      preview: introPosterText,
+      copyLabel: "Copy intro poster",
+      copyValue: introPosterText,
+    },
+    {
+      id: "closing-history",
+      badgeLabel: "History",
+      badgeTone:
+        input.material.featuredCaseCount > 0
+          ? ("success" as const)
+          : ("warning" as const),
+      title: "Closing history",
+      description:
+        "Keep a reusable proof strip ready for confidence-building sends, profile showcases, or post-tour follow-through.",
+      preview: closingHistoryText,
+      copyLabel: "Copy closing history",
+      copyValue: closingHistoryText,
     },
   ] satisfies MaterialPreviewCard[];
 }
@@ -798,6 +872,15 @@ export function FrontOfficeAgentMaterialWindow(
   const launchpadStatus = buildLaunchpadStatus(props);
   const executionLaneOverview = buildExecutionLaneOverview(props);
   const materialReadinessItems = buildMaterialReadinessItems(props);
+  const materialPreviewCardMap = new Map(
+    materialPreviewCards.map((card) => [card.id, card] as const),
+  );
+  const profileSheetCard = materialPreviewCardMap.get("profile-sheet");
+  const contactBlockCard = materialPreviewCardMap.get("contact-block");
+  const proofAddOnCard = materialPreviewCardMap.get("proof-add-on");
+  const routeBlockCard = materialPreviewCardMap.get("route-block");
+  const introPosterCard = materialPreviewCardMap.get("intro-poster");
+  const closingHistoryCard = materialPreviewCardMap.get("closing-history");
   const materialReadinessCopyText = buildMaterialReadinessCopyText({
     items: materialReadinessItems,
     modeLabel: props.routeState.modeLabel,
@@ -914,36 +997,52 @@ export function FrontOfficeAgentMaterialWindow(
             </Button>
           ))}
           <Button
-            onClick={() => void handleCopy("Profile sheet", materialPreviewCards[0].copyValue)}
+            onClick={() =>
+              void handleCopy(
+                "Profile sheet",
+                profileSheetCard?.copyValue ?? "",
+              )
+            }
             size="sm"
             type="button"
             variant="ghost"
+            disabled={!profileSheetCard}
           >
             Copy profile sheet
           </Button>
           <Button
             onClick={() =>
-              void handleCopy("Contact block", materialPreviewCards[1].copyValue)
+              void handleCopy(
+                "Contact block",
+                contactBlockCard?.copyValue ?? "",
+              )
             }
             size="sm"
             type="button"
             variant="ghost"
+            disabled={!contactBlockCard}
           >
             Copy contact block
           </Button>
           <Button
-            onClick={() => void handleCopy("Proof add-on", materialPreviewCards[2].copyValue)}
+            onClick={() =>
+              void handleCopy("Proof add-on", proofAddOnCard?.copyValue ?? "")
+            }
             size="sm"
             type="button"
             variant="ghost"
+            disabled={!proofAddOnCard}
           >
             Copy proof add-on
           </Button>
           <Button
-            onClick={() => void handleCopy("Route block", materialPreviewCards[3].copyValue)}
+            onClick={() =>
+              void handleCopy("Route block", routeBlockCard?.copyValue ?? "")
+            }
             size="sm"
             type="button"
             variant="ghost"
+            disabled={!routeBlockCard}
           >
             Copy route block
           </Button>
@@ -1053,7 +1152,10 @@ export function FrontOfficeAgentMaterialWindow(
               <div className="front-office-playbook-actions">
                 <Button
                   onClick={() =>
-                    void handleCopy("Asset readiness board", materialReadinessCopyText)
+                    void handleCopy(
+                      "Asset readiness board",
+                      materialReadinessCopyText,
+                    )
                   }
                   size="sm"
                   type="button"
@@ -1063,31 +1165,43 @@ export function FrontOfficeAgentMaterialWindow(
                 </Button>
                 <Button
                   onClick={() =>
-                    void handleCopy("Profile sheet", materialPreviewCards[0].copyValue)
+                    void handleCopy(
+                      "Profile sheet",
+                      profileSheetCard?.copyValue ?? "",
+                    )
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
+                  disabled={!profileSheetCard}
                 >
                   Copy profile sheet
                 </Button>
                 <Button
                   onClick={() =>
-                    void handleCopy("Contact block", materialPreviewCards[1].copyValue)
+                    void handleCopy(
+                      "Contact block",
+                      contactBlockCard?.copyValue ?? "",
+                    )
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
+                  disabled={!contactBlockCard}
                 >
                   Copy contact block
                 </Button>
                 <Button
                   onClick={() =>
-                    void handleCopy("Proof add-on", materialPreviewCards[2].copyValue)
+                    void handleCopy(
+                      "Proof add-on",
+                      proofAddOnCard?.copyValue ?? "",
+                    )
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
+                  disabled={!proofAddOnCard}
                 >
                   Copy proof add-on
                 </Button>
@@ -1109,6 +1223,64 @@ export function FrontOfficeAgentMaterialWindow(
               </span>
             }
             title="Asset readiness board"
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Intro poster",
+                      introPosterCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  disabled={!introPosterCard}
+                >
+                  Copy intro poster
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Closing history",
+                      closingHistoryCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={!closingHistoryCard}
+                >
+                  Copy closing history
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      "Profile sheet",
+                      profileSheetCard?.copyValue ?? "",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={!profileSheetCard}
+                >
+                  Copy profile sheet
+                </Button>
+              </div>
+            }
+            badgeLabel="Showcase pack"
+            badgeTone="accent"
+            context={`${props.material.recentClosedCount} recent closings`}
+            description="Use the outward-facing intro poster and closing history when the next send needs a clearer public-facing agent profile instead of only a route-bound packet."
+            meta={
+              <span>
+                Intro poster · Closing history · Featured proof
+              </span>
+            }
+            title="Profile showcase assets"
           />
           <QueueItem
             action={
@@ -1182,11 +1354,15 @@ export function FrontOfficeAgentMaterialWindow(
               <div className="front-office-playbook-actions">
                 <Button
                   onClick={() =>
-                    void handleCopy("Route block", materialPreviewCards[3].copyValue)
+                    void handleCopy(
+                      "Route block",
+                      routeBlockCard?.copyValue ?? "",
+                    )
                   }
                   size="sm"
                   type="button"
                   variant="ghost"
+                  disabled={!routeBlockCard}
                 >
                   Copy route block
                 </Button>
