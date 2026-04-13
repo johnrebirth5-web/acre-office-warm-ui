@@ -47,6 +47,7 @@ type FrontOfficeCalendarClientProps = {
   initialClientId?: string;
   initialListingId?: string;
   snapshot: FrontOfficeAppointmentsSnapshot;
+  timeZone?: string | null;
 };
 
 type AppointmentTouchPreset =
@@ -208,6 +209,14 @@ type FocusState =
       appointment: null;
     };
 
+type AgendaSection = {
+  dateKey: string;
+  label: string;
+  isToday: boolean;
+  isTomorrow: boolean;
+  appointments: FrontOfficeAppointmentsSnapshot["appointments"];
+};
+
 const externalStatusOptions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
   label: string;
@@ -261,6 +270,137 @@ const coordinationFilterValueSet = new Set(
 const followUpFilterValueSet = new Set(
   followUpFilterOptions.map((option) => option.value),
 );
+
+function getAgendaDateKey(value: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone,
+  });
+  const parts = formatter.formatToParts(value);
+  const partMap = new Map(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  const year = partMap.get("year");
+  const month = partMap.get("month");
+  const day = partMap.get("day");
+
+  if (!year || !month || !day) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
+function buildAgendaDateKeys(
+  startValue: Date,
+  timeZone: string,
+  count: number,
+) {
+  const dateKeys: string[] = [];
+  const firstKey = getAgendaDateKey(startValue, timeZone);
+  let cursor = new Date(`${firstKey}T12:00:00Z`);
+
+  for (let index = 0; index < count; index += 1) {
+    dateKeys.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return dateKeys;
+}
+
+function formatAgendaDateLabel(
+  dateKey: string,
+  options: {
+    locale: string;
+    timeZone: string;
+    isToday: boolean;
+    isTomorrow: boolean;
+  },
+) {
+  if (options.isToday) {
+    return options.locale === "zh-CN" ? "今天" : "Today";
+  }
+
+  if (options.isTomorrow) {
+    return options.locale === "zh-CN" ? "明天" : "Tomorrow";
+  }
+
+  const [year, month, day] = dateKey.split("-").map((value) => Number(value));
+  const date = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12));
+
+  return new Intl.DateTimeFormat(options.locale, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: options.timeZone,
+  }).format(date);
+}
+
+function formatAgendaTimeLabel(
+  value: string,
+  options: {
+    locale: string;
+    timeZone: string;
+  },
+) {
+  return new Intl.DateTimeFormat(options.locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: options.timeZone,
+  }).format(new Date(value));
+}
+
+function buildAgendaSections(input: {
+  appointments: FrontOfficeAppointmentsSnapshot["appointments"];
+  locale: string;
+  timeZone: string;
+  calendarView: "day" | "week";
+}) {
+  const sectionCount = input.calendarView === "week" ? 7 : 1;
+  const agendaDateKeys = buildAgendaDateKeys(new Date(), input.timeZone, sectionCount);
+  const dateKeySet = new Set(agendaDateKeys);
+  const groupedAppointments = new Map<string, FrontOfficeAppointmentsSnapshot["appointments"]>();
+
+  for (const appointment of input.appointments) {
+    const dateKey = getAgendaDateKey(new Date(appointment.startsAtValue), input.timeZone);
+
+    if (!dateKeySet.has(dateKey)) {
+      continue;
+    }
+
+    const existing = groupedAppointments.get(dateKey) ?? [];
+    existing.push(appointment);
+    groupedAppointments.set(dateKey, existing);
+  }
+
+  return agendaDateKeys.map((dateKey, index) => {
+    const appointmentsForDay = (groupedAppointments.get(dateKey) ?? []).slice();
+    appointmentsForDay.sort((left, right) => {
+      if (left.startsAtValue !== right.startsAtValue) {
+        return left.startsAtValue.localeCompare(right.startsAtValue);
+      }
+
+      return left.title.localeCompare(right.title);
+    });
+
+    return {
+      dateKey,
+      label: formatAgendaDateLabel(dateKey, {
+        locale: input.locale,
+        timeZone: input.timeZone,
+        isToday: index === 0,
+        isTomorrow: index === 1,
+      }),
+      isToday: index === 0,
+      isTomorrow: index === 1,
+      appointments: appointmentsForDay,
+    } satisfies AgendaSection;
+  });
+}
 
 const quickWritebackActions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
@@ -823,6 +963,7 @@ export function FrontOfficeCalendarClient(
 ) {
   const { locale } = useI18n();
   const isZh = locale === "zh-CN";
+  const resolvedTimeZone = props.timeZone ?? "America/New_York";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -976,6 +1117,37 @@ export function FrontOfficeCalendarClient(
   const activeCalendarViewConfig = getCalendarViewConfig(
     filterState.calendarView,
   );
+  const agendaViewMode =
+    filterState.calendarView === "day" || filterState.calendarView === "week"
+      ? filterState.calendarView
+      : null;
+  const agendaSections = agendaViewMode
+    ? buildAgendaSections({
+        appointments: props.snapshot.appointments,
+        calendarView: agendaViewMode,
+        locale,
+        timeZone: resolvedTimeZone,
+      })
+    : [];
+  const agendaAppointmentCount = agendaSections.reduce(
+    (count, section) => count + section.appointments.length,
+    0,
+  );
+  const agendaWindowTitle =
+    agendaViewMode === "day"
+      ? isZh
+        ? "今日议程"
+        : "Today agenda"
+      : agendaViewMode === "week"
+        ? isZh
+          ? "本周议程"
+          : "Week agenda"
+        : "";
+  const agendaWindowSubtitle = agendaViewMode
+    ? isZh
+      ? "按时间先后排列，并按日期分组显示。桥接、回写和外部检查点仍然保留在同一条预约记录里，不会假装有 provider 级双向同步。"
+      : "Appointments are ordered by start time and grouped by date. Bridge actions, writebacks, and external checkpoints still stay on the same appointment record, without pretending provider-level two-way sync exists."
+    : "";
   const hasQueueFilters = hasActiveQueueFilters(filterState);
   const returnToLabel = readReturnToLabel(filterState.returnTo);
   const routeStateMeta = [
@@ -1041,6 +1213,13 @@ export function FrontOfficeCalendarClient(
   }
 
   function navigateToCalendarView(calendarView: CalendarViewKey) {
+    if (calendarView === "day" || calendarView === "week") {
+      navigateWithFilters({
+        calendarView,
+      });
+      return;
+    }
+
     navigateWithFilters(getCalendarViewRoutePatch(calendarView));
   }
 
@@ -1109,11 +1288,14 @@ export function FrontOfficeCalendarClient(
     };
     const nextCalendarView =
       update.calendarView ??
-      deriveCalendarViewFromRoute({
-        coordination: nextState.coordination,
-        followUp: nextState.followUp,
-        status: nextState.status,
-      });
+      (filterState.calendarView === "day" ||
+      filterState.calendarView === "week"
+        ? filterState.calendarView
+        : deriveCalendarViewFromRoute({
+            coordination: nextState.coordination,
+            followUp: nextState.followUp,
+            status: nextState.status,
+          }));
 
     startTransition(() => {
       router.replace(
@@ -1278,6 +1460,167 @@ export function FrontOfficeCalendarClient(
       router.refresh();
       onComplete?.();
     });
+  }
+
+  function getCalendarViewAfterMutation(
+    suggestedView?: CalendarViewKey,
+  ) {
+    if (agendaViewMode) {
+      return agendaViewMode;
+    }
+
+    return suggestedView ?? undefined;
+  }
+
+  function renderAgendaAppointmentRow(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+    sectionLabel: string,
+  ) {
+    const isFocused = focusedAppointment?.id === appointment.id;
+    const appointmentCueList = buildAppointmentCueList(appointment);
+    const startTimeLabel = formatAgendaTimeLabel(appointment.startsAtValue, {
+      locale,
+      timeZone: resolvedTimeZone,
+    });
+
+    return (
+      <article
+        className={`list-row front-office-record${isFocused ? " tone-accent" : ""}`}
+        key={appointment.id}
+      >
+        <div className="list-row-top front-office-record-head">
+          <div>
+            <strong>
+              {startTimeLabel} · {appointment.title}
+            </strong>
+            <p>{appointment.startsAtLabel}</p>
+          </div>
+          <div className="front-office-calendar-badges">
+            <Badge tone="neutral">{sectionLabel}</Badge>
+            <Badge tone={appointment.typeTone}>{appointment.typeLabel}</Badge>
+            <StatusBadge tone={appointment.statusTone}>
+              {appointment.statusLabel}
+            </StatusBadge>
+            <StatusBadge tone={appointment.externalStatusTone}>
+              {appointment.externalStatusLabel}
+            </StatusBadge>
+            <StatusBadge tone={appointment.calendarLaneTone}>
+              {appointment.calendarLaneLabel}
+            </StatusBadge>
+          </div>
+        </div>
+
+        <div className="list-row-meta front-office-record-meta">
+          <span>{appointment.clientLabel}</span>
+          <span>{appointment.listingLabel}</span>
+          <span>{appointment.locationLabel}</span>
+          <span>{appointment.externalNextActionAtLabel}</span>
+          <span>{appointment.nextTouchPressureLabel}</span>
+          <span>{appointment.bridgeLoggedAtLabel}</span>
+          <span>{appointment.latestCoordinationLabel}</span>
+          <span>{appointment.latestCoordinationDetail}</span>
+        </div>
+
+        <p>{appointment.notesLabel}</p>
+        <p className="front-office-record-supporting">
+          {appointment.nextTouchPressureDetail}
+        </p>
+        <p className="front-office-record-supporting">
+          {appointment.calendarLaneDetail}
+        </p>
+        <p className="front-office-record-supporting">
+          {isZh ? "下一步：" : "Next move: "}
+          {appointment.coordinationNextStep}
+        </p>
+        {appointmentCueList.length ? (
+          <div className="front-office-calendar-badges">
+            {appointmentCueList.map((cue) => (
+              <Badge key={`${appointment.id}-${cue.label}`} tone={cue.tone}>
+                {cue.label}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="front-office-calendar-actions">
+          <FrontOfficeLink
+            className="office-inline-link front-office-inline-link"
+            href={buildCalendarHref(pathname, searchParams, {
+              appointmentId: appointment.id,
+            })}
+          >
+            {isFocused
+              ? isZh
+                ? "下方面板已聚焦"
+                : "Focused below"
+              : isZh
+                ? "在焦点面板中打开"
+                : "Open in focus panel"}
+          </FrontOfficeLink>
+          {appointment.clientHref ? (
+            <FrontOfficeLink
+              className="office-inline-link front-office-inline-link"
+              href={buildContextAwareHref(appointment.clientHref, appointment.id)}
+            >
+              {isZh ? "客户 dossier" : "Client dossier"}
+            </FrontOfficeLink>
+          ) : null}
+          {appointment.listingOutputHref ? (
+            <FrontOfficeLink
+              className="office-inline-link front-office-inline-link"
+              href={buildContextAwareHref(
+                appointment.listingOutputHref,
+                appointment.id,
+              )}
+            >
+              {isZh ? "房源输出" : "Listing output"}
+            </FrontOfficeLink>
+          ) : null}
+          {appointment.statusValue === "scheduled" ? (
+            <button
+              className="office-button-secondary office-inline-action-sm"
+              disabled={bridgeState?.appointmentId === appointment.id}
+              onClick={() => handleBridgeAction(appointment, "google_calendar")}
+              type="button"
+            >
+              {bridgeState?.appointmentId === appointment.id &&
+              bridgeState.action === "google_calendar"
+                ? "Opening..."
+                : isZh
+                  ? "Google 草稿"
+                  : "Google draft"}
+            </button>
+          ) : null}
+          {appointment.statusValue === "scheduled" &&
+          appointment.externalStatusValue !== "confirmed" ? (
+            <button
+              className="office-button-secondary office-inline-action-sm"
+              disabled={isBusy}
+              onClick={() =>
+                handleQuickWritebackAction(appointment, "confirmed")
+              }
+              type="button"
+            >
+              {isZh ? "在 Acre 中确认" : "Confirm in Acre"}
+            </button>
+          ) : null}
+          {appointment.statusValue === "scheduled" &&
+          appointment.touchPresets[0] ? (
+            <button
+              className="office-button-secondary office-inline-action-sm"
+              disabled={isBusy}
+              onClick={() =>
+                handleTouchPresetSave(appointment, appointment.touchPresets[0])
+              }
+              title={`${appointment.touchPresets[0].detail} Saved for ${appointment.touchPresets[0].nextActionAtLabel}.`}
+              type="button"
+            >
+              {appointment.touchPresets[0].label}
+            </button>
+          ) : null}
+        </div>
+      </article>
+    );
   }
 
   function findTouchPresetForStatus(
@@ -1568,11 +1911,13 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForWritebackReentry({
-          status: draft.status,
-          hasBridgeActivity: appointment.hasBridgeActivity,
-          nextActionAtValue: draft.nextActionAt,
-        }) ?? undefined,
+        getCalendarViewAfterMutation(
+          getCalendarViewForWritebackReentry({
+            status: draft.status,
+            hasBridgeActivity: appointment.hasBridgeActivity,
+            nextActionAtValue: draft.nextActionAt,
+          }) ?? undefined,
+        ),
         () => {
           setIsSaving(false);
         },
@@ -1655,11 +2000,13 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForWritebackReentry({
-          status: externalStatus,
-          hasBridgeActivity: appointment.hasBridgeActivity,
-          nextActionAtValue: nextActionAt,
-        }) ?? undefined,
+        getCalendarViewAfterMutation(
+          getCalendarViewForWritebackReentry({
+            status: externalStatus,
+            hasBridgeActivity: appointment.hasBridgeActivity,
+            nextActionAtValue: nextActionAt,
+          }) ?? undefined,
+        ),
         () => {
           setIsSaving(false);
         },
@@ -1727,12 +2074,14 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForWritebackReentry({
-          status:
-            draft.status === "idle" ? preset.suggestedStatus : draft.status,
-          hasBridgeActivity: appointment.hasBridgeActivity,
-          nextActionAtValue: preset.nextActionAtValue,
-        }) ?? undefined,
+        getCalendarViewAfterMutation(
+          getCalendarViewForWritebackReentry({
+            status:
+              draft.status === "idle" ? preset.suggestedStatus : draft.status,
+            hasBridgeActivity: appointment.hasBridgeActivity,
+            nextActionAtValue: preset.nextActionAtValue,
+          }) ?? undefined,
+        ),
         () => {
           setIsSaving(false);
         },
@@ -1957,15 +2306,17 @@ export function FrontOfficeCalendarClient(
       });
       refreshIntoAppointmentFocus(
         appointment.id,
-        getCalendarViewForWritebackReentry({
-          status:
-            payload.suggestedWriteback?.status ??
-            (appointment.externalStatusValue === "idle"
-              ? "idle"
-              : appointment.externalStatusValue),
-          hasBridgeActivity: true,
-          nextActionAtValue: payload.suggestedWriteback?.nextActionAtValue,
-        }) ?? "bridge_logged",
+        getCalendarViewAfterMutation(
+          getCalendarViewForWritebackReentry({
+            status:
+              payload.suggestedWriteback?.status ??
+              (appointment.externalStatusValue === "idle"
+                ? "idle"
+                : appointment.externalStatusValue),
+            hasBridgeActivity: true,
+            nextActionAtValue: payload.suggestedWriteback?.nextActionAtValue,
+          }) ?? "bridge_logged",
+        ),
       );
     } catch {
       setFeedback({
@@ -2449,6 +2800,24 @@ export function FrontOfficeCalendarClient(
         </div>
 
         <div className="front-office-calendar-actions">
+          <Button
+            onClick={() => navigateToCalendarView("day")}
+            size="sm"
+            variant={
+              filterState.calendarView === "day" ? "primary" : "secondary"
+            }
+          >
+            {isZh ? "日视图" : "Day agenda"}
+          </Button>
+          <Button
+            onClick={() => navigateToCalendarView("week")}
+            size="sm"
+            variant={
+              filterState.calendarView === "week" ? "primary" : "secondary"
+            }
+          >
+            {isZh ? "周视图" : "Week agenda"}
+          </Button>
           <Button
             onClick={() => navigateToCalendarView("reply_due")}
             size="sm"
@@ -3360,13 +3729,121 @@ export function FrontOfficeCalendarClient(
       <SectionCard
         className="office-list-card"
         subtitle={
-          isZh
-            ? `当前路由状态下显示 ${props.snapshot.filteredSummary.appointmentCount} 条预约，紧凑队列会优先强调信号密度，而不是把桥接表单直接内联进来。`
-            : `Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current route state, with the compact queue focused on signal density instead of inline bridge forms.`
+          agendaViewMode
+            ? agendaWindowSubtitle
+            : isZh
+              ? `当前路由状态下显示 ${props.snapshot.filteredSummary.appointmentCount} 条预约，紧凑队列会优先强调信号密度，而不是把桥接表单直接内联进来。`
+              : `Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current route state, with the compact queue focused on signal density instead of inline bridge forms.`
         }
-        title={isZh ? "即将到来的预约" : "Upcoming appointments"}
+        title={
+          agendaViewMode
+            ? agendaWindowTitle
+            : isZh
+              ? "即将到来的预约"
+              : "Upcoming appointments"
+        }
       >
-        <div className="list-column front-office-record-list">
+        {agendaViewMode ? (
+        <div className="front-office-calendar-agenda">
+            <div className="front-office-ai-explainability is-compact">
+              <div className="front-office-ai-explainability-block">
+                <span className="front-office-ai-explainability-kicker">
+                  {isZh ? "时间视角" : "Time view"}
+                </span>
+                <strong>
+                  {agendaViewMode === "day"
+                    ? isZh
+                      ? "今天的预约按开始时间排列。"
+                      : "Today's appointments are ordered by start time."
+                    : isZh
+                      ? "本周的预约按日期分组、按开始时间排列。"
+                      : "This week's appointments are grouped by date and ordered by start time."}
+                </strong>
+                <p>{agendaWindowSubtitle}</p>
+                <div className="front-office-record-meta">
+                  <span>
+                    {isZh
+                      ? `显示 ${agendaAppointmentCount} 条预约`
+                      : `Showing ${agendaAppointmentCount} appointments`}
+                  </span>
+                  <span>
+                    {isZh
+                      ? `当前视角：${agendaWindowTitle}`
+                      : `Current view: ${agendaWindowTitle}`}
+                  </span>
+                  <span>
+                    {isZh
+                      ? "桥接、回写和时间线仍留在同一条预约上"
+                      : "Bridge, writeback, and timeline controls stay on the same appointment"}
+                  </span>
+                </div>
+              </div>
+              <div className="front-office-ai-explainability-card">
+                <span className="front-office-ai-explainability-kicker">
+                  {isZh ? "时间窗口" : "Time window"}
+                </span>
+                <strong>
+                  {agendaSections.length
+                    ? `${agendaSections[0]?.label ?? ""}${agendaViewMode === "week" && agendaSections.length > 1 ? ` → ${agendaSections[agendaSections.length - 1]?.label ?? ""}` : ""}`
+                    : isZh
+                      ? "当前没有可展示的时间段"
+                      : "No time window is currently available"}
+                </strong>
+                <p>
+                  {agendaViewMode === "day"
+                    ? isZh
+                      ? "这是一个真实的单日议程视角，而不是 lane 文案。你仍然可以在同一页打开桥接、载入回写和保存检查点。"
+                      : "This is a real single-day agenda view, not lane copy. You can still open bridge actions, load writebacks, and save checkpoints from the same page."
+                    : isZh
+                      ? "这是一个真实的七日议程视角，而不是 lane 文案。你仍然可以在同一页打开桥接、载入回写和保存检查点。"
+                      : "This is a real seven-day agenda view, not lane copy. You can still open bridge actions, load writebacks, and save checkpoints from the same page."}
+                </p>
+              </div>
+            </div>
+            <div className="front-office-calendar-agenda-sections">
+              {agendaSections.map((section) => (
+                <section
+                  className="front-office-calendar-agenda-section"
+                  key={section.dateKey}
+                >
+                  <div className="front-office-calendar-writeback-head">
+                    <span className="front-office-calendar-writeback-label">
+                      {section.label}
+                    </span>
+                    <p className="front-office-record-supporting">
+                      {section.appointments.length
+                        ? isZh
+                          ? `这一段有 ${section.appointments.length} 条预约按时间排列。`
+                          : `${section.appointments.length} appointments are ordered by time in this section.`
+                        : isZh
+                          ? "这一段目前没有预约。"
+                          : "No appointments fall into this section yet."}
+                    </p>
+                  </div>
+                  {section.appointments.length ? (
+                    <div className="list-column front-office-record-list">
+                      {section.appointments.map((appointment) =>
+                        renderAgendaAppointmentRow(appointment, section.label),
+                      )}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      description={
+                        isZh
+                          ? "这个时间段里还没有预约。"
+                          : "There are no appointments in this time slot yet."
+                      }
+                      title={
+                        isZh ? "空时间段" : "Empty time slot"
+                      }
+                    />
+                  )}
+                </section>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="list-column front-office-record-list">
           {props.snapshot.appointments.length ? (
             props.snapshot.appointments.map((appointment) => {
               const isFocused = focusedAppointment?.id === appointment.id;
@@ -3594,6 +4071,7 @@ export function FrontOfficeCalendarClient(
             />
           )}
         </div>
+        )}
       </SectionCard>
     </>
   );

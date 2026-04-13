@@ -389,6 +389,41 @@ export function FrontOfficeAgentMaterialWindow(
           <span>{props.material.featuredCaseCount} featured case(s)</span>
         </div>
 
+        <div className="office-queue-list">
+          <QueueItem
+            badgeLabel="Profile"
+            badgeTone="accent"
+            description={props.material.bioLabel}
+            title={`${props.material.displayName} · ${props.material.titleLabel}`}
+          />
+          <QueueItem
+            badgeLabel="Contact"
+            badgeTone="success"
+            description={
+              props.material.phone
+                ? `Phone ${props.material.phone}`
+                : "Phone not published"
+            }
+            meta={<span>{props.material.email || "Email not published"}</span>}
+            title={props.material.officeLabel}
+          />
+          <QueueItem
+            badgeLabel="Proof"
+            badgeTone={props.material.featuredCaseCount > 0 ? "success" : "warning"}
+            description={
+              props.material.featuredCaseCount > 0
+                ? "Recent closings are ready to travel beside the send package."
+                : "No featured closing yet, so the profile card should lead the send."
+            }
+            meta={<span>{props.material.recentClosedCount} recent closings</span>}
+            title={
+              props.material.portraitReady
+                ? "Send-ready identity layer"
+                : "Identity layer still needs a portrait"
+            }
+          />
+        </div>
+
         <div className="front-office-agent-material-actions">
           {preferredSupportPackage ? (
             <Button

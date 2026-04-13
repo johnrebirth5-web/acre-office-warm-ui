@@ -2,6 +2,8 @@ import type { FrontOfficeAppointmentExternalWorkflowStatus } from "@acre/db";
 
 export const calendarViewValues = [
   "all",
+  "day",
+  "week",
   "reply_due",
   "confirmation_pending",
   "confirmed",
@@ -37,6 +39,18 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
       "Use the full appointment queue, then narrow by coordination or follow-up only when the next move becomes clear.",
     label: "All appointments",
     routeCopy: "Full calendar workbench",
+  },
+  day: {
+    description:
+      "Use a true day agenda: appointments stay ordered by start time so today's calendar reads like a time-first schedule instead of a lane board.",
+    label: "Day agenda",
+    routeCopy: "Day agenda",
+  },
+  week: {
+    description:
+      "Use a true week agenda: appointments stay grouped by date and ordered by start time so the calendar feels like a weekly schedule instead of a lane board.",
+    label: "Week agenda",
+    routeCopy: "Week agenda",
   },
   reply_due: {
     description:
@@ -191,6 +205,11 @@ export function getCalendarViewRoutePatch(
   calendarView: CalendarViewKey,
 ): CalendarViewRoutePatch {
   switch (calendarView) {
+    case "day":
+    case "week":
+      return {
+        calendarView,
+      };
     case "reply_due":
       return {
         appointmentId: "",

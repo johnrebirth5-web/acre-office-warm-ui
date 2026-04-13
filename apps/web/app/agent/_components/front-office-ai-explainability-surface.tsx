@@ -103,6 +103,8 @@ function ExplainabilitySignals(props: {
 
 export function FrontOfficeAiExplainabilitySurface(props: {
   helperText?: string;
+  strategySummary?: string;
+  strategySignals?: string[];
   whyNowSignals: string[];
   rankingSignals: string[];
   boundaryLabel: string;
@@ -146,6 +148,22 @@ export function FrontOfficeAiExplainabilitySurface(props: {
               <span key={item}>{item}</span>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {props.strategySummary ? (
+        <div className="front-office-ai-explainability-block">
+          <div className="front-office-ai-explainability-head">
+            <span className="front-office-ai-explainability-kicker">
+              Strategy / rule layer
+            </span>
+            <StatusBadge tone="accent">Review-first</StatusBadge>
+          </div>
+          <p>{props.strategySummary}</p>
+          <ExplainabilitySignals
+            emptyMessage="No shared strategy signals are surfaced yet, so Acre is still falling back to the live dossier trail and its standard safety boundary."
+            signals={props.strategySignals ?? []}
+          />
         </div>
       ) : null}
 

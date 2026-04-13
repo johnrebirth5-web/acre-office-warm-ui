@@ -4,6 +4,13 @@ import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 import { Button, ConfirmActionDialog, SectionCard, TextareaInput, TextInput } from "@acre/ui";
+import {
+  buildListingStudioPosterCopyText,
+  buildListingStudioPosterDraft,
+  buildListingStudioPosterHref,
+  getListingStudioPosterTemplates,
+  type ListingStudioPosterTemplateId,
+} from "./listing-studio-poster";
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
@@ -11,6 +18,34 @@ type ListingStudioDetailClientProps = {
 
 function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
+}
+
+function buildPosterUrl(input: {
+  packId: string;
+  templateId: ListingStudioPosterTemplateId;
+  kicker: string;
+  headline: string;
+  subheadline: string;
+  cta: string;
+  footer: string;
+  coverAssetId: string | null;
+  download?: boolean;
+  print?: boolean;
+}) {
+  return buildListingStudioPosterHref({
+    packId: input.packId,
+    draft: {
+      templateId: input.templateId,
+      kicker: input.kicker,
+      headline: input.headline,
+      subheadline: input.subheadline,
+      cta: input.cta,
+      footer: input.footer,
+      coverAssetId: input.coverAssetId,
+    },
+    download: input.download,
+    print: input.print,
+  });
 }
 
 export function ListingStudioDetailClient({
@@ -34,10 +69,102 @@ export function ListingStudioDetailClient({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [shareCode, setShareCode] = useState(detail.pack.shareCode);
   const [shareEnabled, setShareEnabled] = useState(detail.pack.shareEnabled);
+  const initialPosterDraft = buildListingStudioPosterDraft(
+    detail,
+    "editorial",
+    detail.pack.coverAssetId ?? detail.assets[0]?.id ?? null,
+  );
+  const [posterTemplateId, setPosterTemplateId] = useState<
+    ListingStudioPosterTemplateId
+  >(initialPosterDraft.templateId);
+  const [posterKicker, setPosterKicker] = useState(initialPosterDraft.kicker);
+  const [posterHeadline, setPosterHeadline] = useState(
+    initialPosterDraft.headline,
+  );
+  const [posterSubheadline, setPosterSubheadline] = useState(
+    initialPosterDraft.subheadline,
+  );
+  const [posterCta, setPosterCta] = useState(initialPosterDraft.cta);
+  const [posterFooter, setPosterFooter] = useState(initialPosterDraft.footer);
+  const [posterCoverAssetId, setPosterCoverAssetId] = useState<string | null>(
+    initialPosterDraft.coverAssetId,
+  );
 
   const heroAssetId =
     coverAssetId ?? selectedAssetIds[0] ?? detail.assets[0]?.id ?? null;
   const shareUrl = buildShareUrl(shareCode);
+  const posterTemplates = getListingStudioPosterTemplates();
+  const posterDraft = useMemo(
+    () => ({
+      templateId: posterTemplateId,
+      kicker: posterKicker,
+      headline: posterHeadline,
+      subheadline: posterSubheadline,
+      cta: posterCta,
+      footer: posterFooter,
+      coverAssetId: posterCoverAssetId,
+    }),
+    [
+      posterCta,
+      posterCoverAssetId,
+      posterFooter,
+      posterHeadline,
+      posterKicker,
+      posterSubheadline,
+      posterTemplateId,
+    ],
+  );
+  const posterPreviewUrl = useMemo(
+    () =>
+      buildPosterUrl({
+        packId: detail.packId,
+        templateId: posterTemplateId,
+        kicker: posterKicker,
+        headline: posterHeadline,
+        subheadline: posterSubheadline,
+        cta: posterCta,
+        footer: posterFooter,
+        coverAssetId: posterCoverAssetId,
+      }),
+    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+  );
+  const posterPrintUrl = useMemo(
+    () =>
+      buildPosterUrl({
+        packId: detail.packId,
+        templateId: posterTemplateId,
+        kicker: posterKicker,
+        headline: posterHeadline,
+        subheadline: posterSubheadline,
+        cta: posterCta,
+        footer: posterFooter,
+        coverAssetId: posterCoverAssetId,
+        print: true,
+      }),
+    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+  );
+  const posterDownloadUrl = useMemo(
+    () =>
+      buildPosterUrl({
+        packId: detail.packId,
+        templateId: posterTemplateId,
+        kicker: posterKicker,
+        headline: posterHeadline,
+        subheadline: posterSubheadline,
+        cta: posterCta,
+        footer: posterFooter,
+        coverAssetId: posterCoverAssetId,
+        download: true,
+      }),
+    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+  );
+  const posterCopyText = useMemo(
+    () => buildListingStudioPosterCopyText(detail, posterDraft),
+    [detail, posterDraft],
+  );
+  const activePosterTemplate =
+    posterTemplates.find((template) => template.id === posterTemplateId) ??
+    posterTemplates[0];
   const activeGallery = useMemo(
     () =>
       detail.assets.filter(
@@ -140,6 +267,31 @@ export function ListingStudioDetailClient({
 
     await navigator.clipboard.writeText(window.location.origin + shareUrl);
     setStatusMessage("Share URL copied.");
+  }
+
+  async function copyPosterCopy() {
+    try {
+      await navigator.clipboard.writeText(posterCopyText);
+      setStatusMessage("Poster copy copied.");
+    } catch {
+      setStatusMessage("Clipboard access is not available for poster copy.");
+    }
+  }
+
+  async function copyPosterHtml() {
+    try {
+      const response = await fetch(posterPreviewUrl, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Unable to load the poster preview.");
+      }
+
+      await navigator.clipboard.writeText(await response.text());
+      setStatusMessage("Poster HTML copied.");
+    } catch {
+      setStatusMessage("Unable to copy poster HTML in this browser.");
+    }
   }
 
   function deleteListing() {
@@ -394,6 +546,133 @@ export function ListingStudioDetailClient({
       </div>
 
         <div className="listing-studio-detail-rail">
+          <SectionCard
+            className="office-list-card"
+            subtitle="Generate a print-ready HTML poster from the imported packet. The output stays local to Acre and can be copied, printed, or downloaded without any Canva dependency."
+            title="Poster generator"
+          >
+            <div className="listing-studio-editor-form">
+              <div className="listing-studio-card-meta">
+                <span className="office-status-badge office-status-badge-neutral">
+                  {activePosterTemplate.label}
+                </span>
+                <span className="office-status-badge office-status-badge-success">
+                  HTML/CSS
+                </span>
+              </div>
+              <p className="listing-studio-muted">{activePosterTemplate.description}</p>
+              <div className="listing-studio-filter-actions">
+                {posterTemplates.map((template) => (
+                  <Button
+                    key={template.id}
+                    onClick={() => {
+                      const nextDraft = buildListingStudioPosterDraft(
+                        detail,
+                        template.id,
+                        posterCoverAssetId,
+                      );
+                      setPosterTemplateId(template.id);
+                      setPosterKicker(nextDraft.kicker);
+                      setPosterHeadline(nextDraft.headline);
+                      setPosterSubheadline(nextDraft.subheadline);
+                      setPosterCta(nextDraft.cta);
+                      setPosterFooter(nextDraft.footer);
+                    }}
+                    variant={posterTemplateId === template.id ? "primary" : "secondary"}
+                  >
+                    {template.label}
+                  </Button>
+                ))}
+              </div>
+
+              <label className="listing-studio-filter-field">
+                <span>Kicker</span>
+                <TextInput value={posterKicker} onChange={(event) => setPosterKicker(event.target.value)} />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Headline</span>
+                <TextInput value={posterHeadline} onChange={(event) => setPosterHeadline(event.target.value)} />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Subheadline</span>
+                <TextareaInput
+                  rows={3}
+                  value={posterSubheadline}
+                  onChange={(event) => setPosterSubheadline(event.target.value)}
+                />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>CTA</span>
+                <TextInput value={posterCta} onChange={(event) => setPosterCta(event.target.value)} />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Footer</span>
+                <TextInput value={posterFooter} onChange={(event) => setPosterFooter(event.target.value)} />
+              </label>
+              <div className="listing-studio-filter-field">
+                <span>Hero image</span>
+                <div className="listing-studio-filter-actions">
+                  {detail.assets.slice(0, 4).map((asset) => (
+                    <Button
+                      key={asset.id}
+                      onClick={() => setPosterCoverAssetId(asset.id)}
+                      variant={posterCoverAssetId === asset.id ? "primary" : "secondary"}
+                    >
+                      {asset.label ?? asset.kind}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div
+                style={{
+                  border: "1px solid rgba(16, 32, 51, 0.12)",
+                  borderRadius: "20px",
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                <iframe
+                  key={posterPreviewUrl}
+                  src={posterPreviewUrl}
+                  title="Listing Studio poster preview"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    height: "540px",
+                    border: 0,
+                    background: "#fff",
+                  }}
+                />
+              </div>
+              <div className="listing-studio-editor-actions">
+                <a
+                  className="office-button office-button-secondary"
+                  href={posterPrintUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open print view
+                </a>
+                <a
+                  className="office-button office-button-secondary"
+                  download
+                  href={posterDownloadUrl}
+                >
+                  Download HTML
+                </a>
+                <Button onClick={() => void copyPosterHtml()} variant="ghost">
+                  Copy HTML
+                </Button>
+                <Button onClick={() => void copyPosterCopy()} variant="ghost">
+                  Copy poster copy
+                </Button>
+              </div>
+              <p className="listing-studio-muted">
+                Preview changes stay manual and reviewable. The poster never auto-sends or syncs to an external template service.
+              </p>
+            </div>
+          </SectionCard>
+
           <SectionCard
             className="office-list-card"
             subtitle="These fields only affect the customer-facing packet. The imported snapshot stays unchanged."

@@ -28,8 +28,8 @@ export default async function ListingStudioDetailPage(
           <span className="office-eyebrow">Listing packet</span>
           <h2>{detail.title}</h2>
           <p>
-            Review the imported facts, refine the customer-facing copy, and send
-            this packet out as a share page or PDF.
+            Review the imported facts, refine the customer-facing copy, and
+            generate a poster, share page, or PDF from the same Acre packet.
           </p>
         </div>
       </section>

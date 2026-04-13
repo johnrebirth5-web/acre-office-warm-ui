@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`Listing Studio` 是 Acre 的第三个 workspace，面向 agent 处理“外部房源采集 -> 客户材料整理 -> 分享 / PDF 导出”的链路。
+`Listing Studio` 是 Acre 的第三个 workspace，面向 agent 处理“外部房源采集 -> 客户材料整理 -> 分享 / PDF / 海报模板导出”的链路。
 
 它不是现有 FO curated listing，也不是 BO internal listing admin。它的真源来自 `StreetEasy / Zillow` 等外部房源详情页，以及 Chrome Extension 在页面内发起的一键保存动作。
 
@@ -37,12 +37,16 @@
   - `/share/packs/[code]`
 - PDF 导出：
   - `/api/listing-studio/listings/[packId]/pdf`
+- 海报 / 模板导出：
+  - `/api/listing-studio/listings/[packId]/poster`
+  - editorial / open-house / social-square / factsheet 模板切换
+  - preview / print / downloadable HTML export
 
 ### Explicitly not included in v1
 
 - collections
 - share management center
-- poster studio / PNG social export
+- Canva sync / PNG render pipeline
 - batch import
 - scheduled re-crawl
 - background queue / worker
@@ -114,6 +118,7 @@
 - client-copy edit panel
 - share action
 - PDF export action
+- poster preview / export action
 - delete listing action
 
 ## Data model
@@ -189,6 +194,7 @@
 - `DELETE /api/listing-studio/listings/[packId]`
 - `POST /api/listing-studio/listings/[packId]/share`
 - `GET /api/listing-studio/listings/[packId]/pdf`
+- `GET /api/listing-studio/listings/[packId]/poster`
 - `GET /api/listing-studio/assets/[assetId]`
 
 ## Storage rules
@@ -217,5 +223,6 @@
 - 只有 `StreetEasy / Zillow` adapter
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
+- 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，还不是服务端 PNG 渲染或 Canva 工作流
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
 - dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖

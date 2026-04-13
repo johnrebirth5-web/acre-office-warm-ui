@@ -39,6 +39,38 @@ export type FrontOfficeAiFollowUpAction = {
   dueAt: string;
 };
 
+export type FrontOfficeAiStrategyRuleKind =
+  | "follow_up"
+  | "silent_period"
+  | "holiday"
+  | "lease";
+
+export type FrontOfficeAiStrategyRule = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  kind: FrontOfficeAiStrategyRuleKind;
+  priority: number;
+  statusLabel: string;
+  tone: FrontOfficeAiTone;
+  title: string;
+  description: string;
+  contextLabel: string;
+  sourceLabel: string;
+  sourceDetail: string;
+  whyNowSignals: string[];
+  helperLabel: string;
+  followUpTitle: string;
+  followUpDueAt: string;
+  followUpHref: string;
+  openDossierHref: string;
+};
+
+export type FrontOfficeAiStrategyContract = {
+  summaryLabel: string;
+  rules: FrontOfficeAiStrategyRule[];
+};
+
 export type FrontOfficeAiAcceptedActionOutcome = {
   label: string;
   tone: FrontOfficeAiTone;
@@ -398,14 +430,351 @@ export function buildFrontOfficeSuggestedFollowUpHref(input: {
   clientId: string;
   title: string;
   dueAt: string;
+  source?: string;
 }) {
   const params = new URLSearchParams({
     followUpTitle: input.title,
     followUpDueAt: input.dueAt,
-    followUpSource: "ai",
+    followUpSource: input.source ?? "ai",
   });
 
   return `/agent/clients/${input.clientId}?${params.toString()}#front-office-follow-up-form`;
+}
+
+function buildFrontOfficeAiStrategyRuleLabel(kind: FrontOfficeAiStrategyRuleKind) {
+  switch (kind) {
+    case "silent_period":
+      return "Silent period";
+    case "holiday":
+      return "Holiday touch";
+    case "lease":
+      return "Lease timing";
+    default:
+      return "Follow-up";
+  }
+}
+
+function buildFrontOfficeAiStrategyRuleSourceLabel(
+  kind: FrontOfficeAiStrategyRuleKind,
+) {
+  switch (kind) {
+    case "silent_period":
+      return "Rule source · Silent period";
+    case "holiday":
+      return "Rule source · Holiday";
+    case "lease":
+      return "Rule source · Lease";
+    default:
+      return "Rule source · Follow-up";
+  }
+}
+
+function buildFrontOfficeAiStrategyRuleTone(
+  kind: FrontOfficeAiStrategyRuleKind,
+  hasAttention: boolean,
+): FrontOfficeAiTone {
+  if (kind === "lease") {
+    return hasAttention ? "danger" : "warning";
+  }
+
+  if (kind === "silent_period") {
+    return hasAttention ? "warning" : "accent";
+  }
+
+  if (kind === "holiday") {
+    return "accent";
+  }
+
+  return hasAttention ? "warning" : "accent";
+}
+
+function getLastWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+) {
+  const date = new Date(year, month + 1, 0);
+
+  while (date.getDay() !== weekday) {
+    date.setDate(date.getDate() - 1);
+  }
+
+  return date;
+}
+
+function getNthWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+  occurrence: number,
+) {
+  const date = new Date(year, month, 1);
+  const offset = (weekday - date.getDay() + 7) % 7;
+  date.setDate(1 + offset + (occurrence - 1) * 7);
+  return date;
+}
+
+function buildUpcomingHolidayTouchWindow(now: Date) {
+  const year = now.getFullYear();
+  const candidates: Array<{ label: string; date: Date }> = [
+    { label: "Memorial Day", date: getLastWeekdayOfMonth(year, 4, 1) },
+    { label: "Labor Day", date: getNthWeekdayOfMonth(year, 8, 1, 1) },
+    { label: "Thanksgiving", date: getNthWeekdayOfMonth(year, 10, 4, 4) },
+    { label: "Christmas", date: new Date(year, 11, 25) },
+    { label: "New Year's Day", date: new Date(year + 1, 0, 1) },
+  ];
+
+  const windowEnd = new Date(now);
+  windowEnd.setDate(windowEnd.getDate() + 45);
+
+  return candidates
+    .filter((candidate) => candidate.date.getTime() >= now.getTime())
+    .sort((left, right) => left.date.getTime() - right.date.getTime())
+    .find((candidate) => candidate.date.getTime() <= windowEnd.getTime()) ?? null;
+}
+
+export function buildFrontOfficeAiStrategyContract(input: {
+  clientId: string;
+  clientName: string;
+  now: Date;
+  timeZone?: string | null;
+  stage: string;
+  nextFollowUpAt?: Date | null;
+  lastContactAt?: Date | null;
+  leaseReminderAt?: Date | null;
+  leaseReminderNeedsAttention?: boolean;
+  openTaskCount?: number;
+  sendCount?: number;
+  openedSendCount?: number;
+  latestSendRecordSentAt?: Date | null;
+  latestSendRecordLastOpenedAt?: Date | null;
+  hasClosedTransaction?: boolean;
+  hasCancelledTransaction?: boolean;
+  hasLinkedTransaction?: boolean;
+  isReadyForBackOffice?: boolean;
+  isClosingSoon?: boolean;
+  closingKeyDateLabel?: string | null;
+}): FrontOfficeAiStrategyContract {
+  const openTaskCount = input.openTaskCount ?? 0;
+  const sendCount = input.sendCount ?? 0;
+  const openedSendCount = input.openedSendCount ?? 0;
+  const hasClosedTransaction = Boolean(input.hasClosedTransaction);
+  const hasCancelledTransaction = Boolean(input.hasCancelledTransaction);
+  const activeRecord = !hasClosedTransaction && !hasCancelledTransaction;
+  const nextFollowUpAt = input.nextFollowUpAt ?? null;
+  const lastContactAt = input.lastContactAt ?? null;
+  const leaseReminderAt = input.leaseReminderAt ?? null;
+  const leaseReminderNeedsAttention = Boolean(
+    input.leaseReminderNeedsAttention,
+  );
+  const hasOverdueFollowUp = Boolean(
+    nextFollowUpAt && nextFollowUpAt.getTime() < input.now.getTime(),
+  );
+  const isMissingNextTouch = activeRecord && !nextFollowUpAt && openTaskCount === 0;
+  const daysSinceLastTouch = lastContactAt
+    ? Math.floor(
+        (input.now.getTime() - lastContactAt.getTime()) / 86_400_000,
+      )
+    : null;
+  const silentPeriodWindow = activeRecord && daysSinceLastTouch !== null && daysSinceLastTouch >= 15;
+  const holidayWindow = buildUpcomingHolidayTouchWindow(input.now);
+  const rules: FrontOfficeAiStrategyRule[] = [];
+
+  if (hasOverdueFollowUp || isMissingNextTouch) {
+    const followUp = buildFrontOfficeAiFollowUpAction({
+      kind: "generic",
+      now: input.now,
+      clientFullName: input.clientName,
+    });
+    const dueAt = nextFollowUpAt
+      ? formatDateValue(nextFollowUpAt)
+      : followUp.dueAt;
+    const sourceDetail = hasOverdueFollowUp
+      ? `The next touch is overdue${nextFollowUpAt ? ` since ${formatDisplayDate(nextFollowUpAt, input.timeZone)}` : ""}.`
+      : "No future touch is currently scheduled on this active record.";
+    const whyNowSignals = hasOverdueFollowUp
+      ? [`Next touch overdue · ${formatDisplayDate(nextFollowUpAt!, input.timeZone)}`]
+      : ["No next touch is scheduled yet", `Open task count · ${openTaskCount}`];
+
+    rules.push({
+      id: `${input.clientId}-follow-up`,
+      clientId: input.clientId,
+      clientName: input.clientName,
+      kind: "follow_up",
+      priority: hasOverdueFollowUp ? 0 : 1,
+      statusLabel: hasOverdueFollowUp ? "Follow-up due now" : "Follow-up needed",
+      tone: buildFrontOfficeAiStrategyRuleTone("follow_up", hasOverdueFollowUp),
+      title: hasOverdueFollowUp
+        ? `Move the overdue touch for ${input.clientName}`
+        : `Set the next touch for ${input.clientName}`,
+      description: hasOverdueFollowUp
+        ? "Keep the current record readable by restoring the next-touch clock before anything else grows stale."
+        : "Acre should not leave the next move implicit when this record is still active.",
+      contextLabel: nextFollowUpAt
+        ? `Current touch · ${formatDisplayDate(nextFollowUpAt, input.timeZone)}`
+        : "No next touch on the books",
+      sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("follow_up"),
+      sourceDetail,
+      whyNowSignals,
+      helperLabel: "Rule layer stays review-first and never auto-sends.",
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
+      followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+        clientId: input.clientId,
+        title: followUp.title,
+        dueAt,
+        source: "rule-follow-up",
+      }),
+      openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+    });
+  }
+
+  if (leaseReminderAt && (leaseReminderNeedsAttention || leaseReminderAt.getTime() <= new Date(input.now.getFullYear(), input.now.getMonth(), input.now.getDate() + 14).getTime())) {
+    const dueAt = leaseReminderAt.getTime() <= input.now.getTime()
+      ? input.now
+      : leaseReminderAt;
+    const followUp = buildFrontOfficeAiFollowUpAction({
+      kind: "lease",
+      now: dueAt,
+      clientFullName: input.clientName,
+    });
+
+    rules.push({
+      id: `${input.clientId}-lease`,
+      clientId: input.clientId,
+      clientName: input.clientName,
+      kind: "lease",
+      priority: leaseReminderAt.getTime() <= input.now.getTime() ? 0 : 2,
+      statusLabel: leaseReminderAt.getTime() <= input.now.getTime()
+        ? "Lease timing due now"
+        : "Lease timing",
+      tone: buildFrontOfficeAiStrategyRuleTone(
+        "lease",
+        leaseReminderAt.getTime() <= input.now.getTime(),
+      ),
+      title: `Keep the lease window explicit for ${input.clientName}`,
+      description: leaseReminderNeedsAttention
+        ? "Renewal, remarketing, or move timing is already pressing enough to keep the next touch visible."
+        : "The lease window is close enough that it should stay visible in Front Office instead of drifting quietly.",
+      contextLabel: leaseReminderNeedsAttention
+        ? "Lease reminder needs attention"
+        : `Lease reminder · ${formatDisplayDate(leaseReminderAt, input.timeZone)}`,
+      sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("lease"),
+      sourceDetail: leaseReminderNeedsAttention
+        ? `Lease reminder is already overdue or due today.`
+        : `Lease reminder is due ${formatDisplayDate(leaseReminderAt, input.timeZone)}.`,
+      whyNowSignals: [
+        leaseReminderNeedsAttention
+          ? "Lease reminder needs attention now"
+          : `Lease reminder · ${formatDisplayDate(leaseReminderAt, input.timeZone)}`,
+        `Current touch window · ${nextFollowUpAt ? formatDisplayDate(nextFollowUpAt, input.timeZone) : "No follow-up scheduled"}`,
+      ],
+      helperLabel: "Rule layer stays review-first and never auto-sends.",
+      followUpTitle: followUp.title,
+      followUpDueAt: formatDateValue(dueAt),
+      followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+        clientId: input.clientId,
+        title: followUp.title,
+        dueAt: formatDateValue(dueAt),
+        source: "rule-lease",
+      }),
+      openDossierHref: `/agent/clients/${input.clientId}#front-office-lease-reminder`,
+    });
+  }
+
+  if (silentPeriodWindow) {
+    const followUp = buildFrontOfficeAiFollowUpAction({
+      kind: sendCount > 0 || openedSendCount > 0 ? "warm_engagement" : "generic",
+      now: input.now,
+      clientFullName: input.clientName,
+    });
+    const dueAt = followUp.dueAt;
+
+    rules.push({
+      id: `${input.clientId}-silent-period`,
+      clientId: input.clientId,
+      clientName: input.clientName,
+      kind: "silent_period",
+      priority: 3,
+      statusLabel: "Silent period",
+      tone: buildFrontOfficeAiStrategyRuleTone("silent_period", true),
+      title: `Break the silent period for ${input.clientName}`,
+      description:
+        "No logged touch has landed for 15+ days while the record is still active, so the next reach-out should stay lightweight and explicit.",
+      contextLabel: daysSinceLastTouch !== null
+        ? `${daysSinceLastTouch}+ days since the last touch`
+        : "No recent touch logged",
+      sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("silent_period"),
+      sourceDetail:
+        "The active record has gone quiet long enough that the next touch should be visible again.",
+      whyNowSignals: [
+        daysSinceLastTouch !== null
+          ? `${daysSinceLastTouch} day(s) since the last touch`
+          : "No recent touch is logged",
+        `Open task count · ${openTaskCount}`,
+      ],
+      helperLabel: "Review-first rule card with no auto-send.",
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
+      followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+        clientId: input.clientId,
+        title: followUp.title,
+        dueAt,
+        source: "rule-silent-period",
+      }),
+      openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+    });
+  }
+
+  if (holidayWindow) {
+    const dueAt = formatDateValue(
+      new Date(holidayWindow.date.getTime() - 7 * 24 * 60 * 60 * 1000),
+    );
+    const followUp = buildFrontOfficeAiFollowUpAction({
+      kind: sendCount > 0 ? "warm_engagement" : "generic",
+      now: input.now,
+      clientFullName: input.clientName,
+    });
+
+    rules.push({
+      id: `${input.clientId}-holiday`,
+      clientId: input.clientId,
+      clientName: input.clientName,
+      kind: "holiday",
+      priority: 4,
+      statusLabel: "Holiday touch",
+      tone: buildFrontOfficeAiStrategyRuleTone("holiday", false),
+      title: `${holidayWindow.label} touch for ${input.clientName}`,
+      description:
+        "A seasonal check-in can stay human and low-pressure while still giving the relationship a visible next step.",
+      contextLabel: `${holidayWindow.label} on ${formatDisplayDate(holidayWindow.date, input.timeZone)}`,
+      sourceLabel: buildFrontOfficeAiStrategyRuleSourceLabel("holiday"),
+      sourceDetail: `${holidayWindow.label} lands on ${formatDisplayDate(holidayWindow.date, input.timeZone)}.`,
+      whyNowSignals: [
+        `${holidayWindow.label} on ${formatDisplayDate(holidayWindow.date, input.timeZone)}`,
+        "Seasonal touch stays review-first and explicit",
+      ],
+      helperLabel: "Rule layer stays review-first and never auto-sends.",
+      followUpTitle: followUp.title,
+      followUpDueAt: dueAt,
+      followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+        clientId: input.clientId,
+        title: followUp.title,
+        dueAt,
+        source: "rule-holiday",
+      }),
+      openDossierHref: `/agent/clients/${input.clientId}#front-office-ai-suggestions`,
+    });
+  }
+
+  const summaryLabel = rules.length
+    ? `Rule layer · ${rules.map((rule) => rule.statusLabel).join(" · ")}`
+    : "Rule layer · no extra strategy rule surfaced";
+
+  return {
+    summaryLabel,
+    rules,
+  };
 }
 
 export function mapFrontOfficeAiAcceptedActionOutcome(input: {
