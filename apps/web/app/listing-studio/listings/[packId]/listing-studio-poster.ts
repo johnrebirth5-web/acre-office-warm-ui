@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 
 export type ListingStudioPosterTemplateId =
@@ -22,6 +23,12 @@ export type ListingStudioPosterDraft = {
   cta: string;
   footer: string;
   coverAssetId: string | null;
+};
+
+type ListingStudioPacketTarget = {
+  href: string;
+  label: string;
+  hint: string;
 };
 
 const posterTemplates: ListingStudioPosterTemplate[] = [
@@ -68,6 +75,138 @@ function normalizeText(value: string | null | undefined, fallback: string) {
   const trimmed = value?.trim();
 
   return trimmed && trimmed.length ? trimmed : fallback;
+}
+
+function buildPosterPacketTarget(detail: StudioListingDetailSnapshot): ListingStudioPacketTarget {
+  if (detail.pack.shareEnabled && detail.pack.shareCode) {
+    return {
+      href: `/share/packs/${detail.pack.shareCode}`,
+      label: "Live packet",
+      hint: "Scan this code to open the public Acre packet.",
+    };
+  }
+
+  return {
+    href: detail.sourceUrl,
+    label: "Source listing",
+    hint: "Scan this code to open the original listing page.",
+  };
+}
+
+function buildPosterPacketAbsoluteUrl(
+  detail: StudioListingDetailSnapshot,
+  baseUrl?: string,
+) {
+  const target = buildPosterPacketTarget(detail);
+
+  if (!baseUrl) {
+    return target.href;
+  }
+
+  try {
+    return new URL(target.href, baseUrl).toString();
+  } catch {
+    return target.href;
+  }
+}
+
+function buildQrLikeMatrix(value: string, size = 29) {
+  const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
+  const reserved = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
+  const digest = Array.from(createHash("sha256").update(value).digest());
+
+  function mark(x: number, y: number, dark: boolean) {
+    if (x < 0 || y < 0 || x >= size || y >= size) {
+      return;
+    }
+
+    matrix[y][x] = dark;
+    reserved[y][x] = true;
+  }
+
+  function fillFinder(originX: number, originY: number) {
+    for (let y = 0; y < 7; y += 1) {
+      for (let x = 0; x < 7; x += 1) {
+        const isBorder = x === 0 || y === 0 || x === 6 || y === 6;
+        const isCenter = x >= 2 && x <= 4 && y >= 2 && y <= 4;
+        mark(originX + x, originY + y, isBorder || isCenter);
+      }
+    }
+  }
+
+  function fillAlignment(originX: number, originY: number) {
+    for (let y = 0; y < 5; y += 1) {
+      for (let x = 0; x < 5; x += 1) {
+        const isBorder = x === 0 || y === 0 || x === 4 || y === 4;
+        const isCenter = x === 2 && y === 2;
+        mark(originX + x, originY + y, isBorder || isCenter);
+      }
+    }
+  }
+
+  fillFinder(0, 0);
+  fillFinder(size - 7, 0);
+  fillFinder(0, size - 7);
+  fillAlignment(size - 9, size - 9);
+
+  for (let i = 8; i < size - 8; i += 1) {
+    if (!reserved[6][i]) {
+      mark(i, 6, i % 2 === 0);
+    }
+    if (!reserved[i][6]) {
+      mark(6, i, i % 2 === 0);
+    }
+  }
+
+  let bitIndex = 0;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      if (reserved[y][x]) {
+        continue;
+      }
+
+      const byte = digest[(x * 7 + y * 11 + bitIndex) % digest.length];
+      const bit = (byte >> (bitIndex % 8)) & 1;
+      const mix = ((x + y + bitIndex) % 3) === 0;
+      matrix[y][x] = Boolean(bit ^ Number(mix));
+      bitIndex += 1;
+    }
+  }
+
+  return matrix;
+}
+
+function buildScanCodeSvgMarkup(value: string, label: string) {
+  const matrix = buildQrLikeMatrix(value);
+  const quietZone = 4;
+  const viewBoxSize = matrix.length + quietZone * 2;
+  const darkRects: string[] = [];
+
+  for (let y = 0; y < matrix.length; y += 1) {
+    for (let x = 0; x < matrix.length; x += 1) {
+      if (!matrix[y][x]) {
+        continue;
+      }
+
+      darkRects.push(
+        `<rect x="${x + quietZone}" y="${y + quietZone}" width="1" height="1" rx="0.08" />`,
+      );
+    }
+  }
+
+  return `
+    <svg class="poster-scan-code" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" role="img" aria-label="${escapeHtml(label)}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <defs>
+        <linearGradient id="scan-code-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="100%" stop-color="#f2f4f8" />
+        </linearGradient>
+      </defs>
+      <rect width="${viewBoxSize}" height="${viewBoxSize}" fill="url(#scan-code-bg)" />
+      <rect x="${quietZone - 0.5}" y="${quietZone - 0.5}" width="${matrix.length + 1}" height="${matrix.length + 1}" rx="2" fill="none" stroke="rgba(16,32,51,0.12)" />
+      <g fill="#102033">${darkRects.join("")}</g>
+    </svg>
+  `;
 }
 
 function buildTemplateDefaults(
@@ -192,10 +331,15 @@ export function buildListingStudioPosterHref(input: {
   return `/api/listing-studio/listings/${input.packId}/poster?${params.toString()}`;
 }
 
+export function buildListingStudioPosterScanTarget(detail: StudioListingDetailSnapshot) {
+  return buildPosterPacketTarget(detail);
+}
+
 export function buildListingStudioPosterCopyText(
   detail: StudioListingDetailSnapshot,
   draft: ListingStudioPosterDraft,
 ) {
+  const packetTarget = buildPosterPacketTarget(detail);
   const keyFacts = detail.facts
     .slice(0, 4)
     .map((fact) => `${fact.label}: ${fact.value}`)
@@ -203,6 +347,10 @@ export function buildListingStudioPosterCopyText(
   const bulletPoints = detail.pack.bulletPoints.length
     ? detail.pack.bulletPoints.map((item) => `- ${item}`).join("\n")
     : "- Reply for the full packet";
+  const contactName = normalizeText(detail.pack.contactName, "Acre listing studio");
+  const contactTitle = normalizeText(detail.pack.contactTitle, "Listing presentation");
+  const contactPhone = normalizeText(detail.pack.contactPhone, "Phone not published");
+  const contactEmail = normalizeText(detail.pack.contactEmail, "Email not published");
 
   return [
     draft.kicker,
@@ -221,6 +369,15 @@ export function buildListingStudioPosterCopyText(
     "",
     `CTA: ${draft.cta}`,
     `Footer: ${draft.footer}`,
+    "",
+    "Agent",
+    `Name: ${contactName}`,
+    `Title: ${contactTitle}`,
+    `Phone: ${contactPhone}`,
+    `Email: ${contactEmail}`,
+    "",
+    "Scan path",
+    packetTarget.href,
   ]
     .filter(Boolean)
     .join("\n");
@@ -249,11 +406,14 @@ function buildPosterBulletPoints(detail: StudioListingDetailSnapshot) {
 export function renderListingStudioPosterHtml(
   detail: StudioListingDetailSnapshot,
   draft: ListingStudioPosterDraft,
-  options?: { autoPrint?: boolean },
+  options?: { autoPrint?: boolean; baseUrl?: string },
 ) {
   const heroAssetId = resolveListingStudioPosterCoverAssetId(detail, draft);
   const template = posterTemplates.find((item) => item.id === draft.templateId) ?? posterTemplates[0];
   const heroImageUrl = heroAssetId ? `/api/listing-studio/assets/${heroAssetId}` : null;
+  const packetTarget = buildPosterPacketTarget(detail);
+  const packetTargetUrl = buildPosterPacketAbsoluteUrl(detail, options?.baseUrl);
+  const packetCodeMarkup = buildScanCodeSvgMarkup(packetTargetUrl, packetTarget.label);
   const factsMarkup = buildPosterFacts(detail).join("");
   const bulletMarkup = buildPosterBulletPoints(detail);
   const contactName = normalizeText(detail.pack.contactName, "Acre listing studio");
@@ -262,6 +422,8 @@ export function renderListingStudioPosterHtml(
   const contactEmail = normalizeText(detail.pack.contactEmail, "Email not published");
   const locationLine = normalizeText(detail.locationLine, detail.addressLine);
   const noteLine = detail.pack.agentNote?.trim() || detail.descriptionText || "HTML/CSS poster generated inside Acre.";
+  const packetTargetLabel = packetTarget.label;
+  const packetTargetHint = packetTarget.hint;
   const layoutLabel =
     draft.templateId === "factsheet"
       ? "Print-first"
@@ -522,10 +684,9 @@ export function renderListingStudioPosterHtml(
         gap: 8px;
       }
       .poster-footer {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 20px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        gap: 18px;
         padding-top: 6px;
         border-top: 1px solid rgba(16,32,51,0.1);
         font-family: "Avenir Next", "Segoe UI", sans-serif;
@@ -546,6 +707,64 @@ export function renderListingStudioPosterHtml(
       .poster-footer .poster-contact {
         display: grid;
         gap: 4px;
+      }
+      .poster-footer .poster-contact strong:first-child {
+        font-size: 14px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+      }
+      .poster-footer .poster-contact strong:last-of-type {
+        font-size: 18px;
+        letter-spacing: -0.02em;
+        text-transform: none;
+        color: var(--ink);
+      }
+      .poster-footer .poster-scan {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+        justify-self: end;
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 22px;
+        border: 1px solid rgba(16,32,51,0.08);
+        background: rgba(255,255,255,0.9);
+      }
+      .poster-scan-code {
+        width: 148px;
+        height: 148px;
+        padding: 12px;
+        border-radius: 18px;
+        color: var(--accent-strong);
+        background: white;
+        box-shadow: inset 0 0 0 1px rgba(16,32,51,0.08);
+      }
+      .poster-scan-copy {
+        display: grid;
+        gap: 6px;
+      }
+      .poster-scan-copy strong {
+        display: block;
+        font-size: 14px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+      }
+      .poster-scan-copy span,
+      .poster-scan-copy a {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .poster-scan-copy a {
+        color: var(--accent-strong);
+        text-decoration: none;
+        word-break: break-word;
+      }
+      .poster-scan-copy a:hover {
+        text-decoration: underline;
       }
       .poster-rail {
         display: flex;
@@ -633,15 +852,24 @@ export function renderListingStudioPosterHtml(
               </div>
             </div>
 
-            <div class="poster-footer">
-              <div class="poster-contact">
-                <strong>${escapeHtml(contactName)}</strong>
-                <span>${escapeHtml(contactTitle)}</span>
-                <span>${escapeHtml(contactPhone)} · ${escapeHtml(contactEmail)}</span>
-              </div>
-              <div class="poster-source">
-                <strong>${escapeHtml(detail.sourceSite)}</strong>
-                <span>${escapeHtml(detail.sourceUrl)}</span>
+              <div class="poster-footer">
+                <div class="poster-contact">
+                  <strong>Agent info</strong>
+                  <strong>${escapeHtml(contactName)}</strong>
+                  <span>${escapeHtml(contactTitle)}</span>
+                  <span>${escapeHtml(contactPhone)} · ${escapeHtml(contactEmail)}</span>
+                  <span>${escapeHtml(draft.footer)}</span>
+                  <span>${escapeHtml(detail.pack.agentNote?.trim() || "Acre keeps this packet reviewable and shareable.")}</span>
+                </div>
+              <div class="poster-scan">
+                ${packetCodeMarkup}
+                <div class="poster-scan-copy">
+                  <strong>Scan path</strong>
+                  <span>${escapeHtml(packetTargetLabel)}</span>
+                  <span>${escapeHtml(packetTargetHint)}</span>
+                  <span>${escapeHtml(draft.footer)}</span>
+                  <a href="${escapeHtml(packetTargetUrl)}" rel="noreferrer" target="_blank">${escapeHtml(packetTargetUrl)}</a>
+                </div>
               </div>
             </div>
           </section>

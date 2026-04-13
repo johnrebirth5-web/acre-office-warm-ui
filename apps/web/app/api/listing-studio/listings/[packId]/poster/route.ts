@@ -75,6 +75,7 @@ export async function GET(
 
   const draft = buildPosterDraftFromRequest(detail, request);
   const html = renderListingStudioPosterHtml(detail, draft, {
+    baseUrl: request.nextUrl.origin,
     autoPrint: new URL(request.url).searchParams.get("print") === "1",
   });
   const download = new URL(request.url).searchParams.get("download") === "1";
