@@ -38,8 +38,18 @@ export type ListingStudioMarketingKitSection = {
   variants: ListingStudioMarketingKitVariant[];
 };
 
+export type ListingStudioMarketingKitBundle = {
+  id: string;
+  title: string;
+  note: string;
+  description: string;
+  text: string;
+};
+
 export type ListingStudioMarketingKit = {
   sections: ListingStudioMarketingKitSection[];
+  bundles: ListingStudioMarketingKitBundle[];
+  fullText: string;
   summaryLine: string;
 };
 
@@ -101,6 +111,16 @@ function joinWithLineBreaks(lines: Array<string | null | undefined>) {
 
 function joinWithSpaces(lines: Array<string | null | undefined>) {
   return lines.filter(Boolean).join(" ");
+}
+
+function formatMarketingSectionText(section: ListingStudioMarketingKitSection) {
+  return [
+    section.title,
+    section.subtitle,
+    ...section.variants.map((variant) =>
+      joinWithLineBreaks([variant.label, variant.note, variant.text]),
+    ),
+  ].join("\n\n");
 }
 
 function buildPosterPacketTarget(detail: StudioListingDetailSnapshot): ListingStudioPacketTarget {
@@ -449,131 +469,186 @@ export function buildListingStudioMarketingKit(
     ? detail.facts.slice(0, 3).map((fact) => `${fact.label}: ${fact.value}`).join(" / ")
     : detail.priceLabel;
   const packetPath = packetTarget.href;
-
-  return {
-    summaryLine: joinWithSpaces([
-      headline,
-      locationLine,
-      detail.priceLabel,
-      "manual Acre marketing kit",
-    ]),
-    sections: [
+  const summaryLine = joinWithSpaces([
+    headline,
+    locationLine,
+    detail.priceLabel,
+    "manual Acre marketing kit",
+  ]);
+  const socialSection: ListingStudioMarketingKitSection = {
+    title: "Social captions",
+    subtitle: "Short, copy-ready lines for new-listing posts, reposts, and story shares.",
+    variants: [
       {
-        title: "Social captions",
-        subtitle: "Short, copy-ready lines for new-listing posts, reposts, and story shares.",
-        variants: [
-          {
-            id: "caption-short",
-            label: "Short caption",
-            note: "Fast post",
-            text: joinWithSpaces([
-              headline,
-              "in",
-              locationLine,
-              "—",
-              detail.priceLabel,
-              "Reply for the Acre packet.",
-            ]),
-          },
-          {
-            id: "caption-social",
-            label: "Social caption",
-            note: "Balanced post",
-            text: joinWithSpaces([
-              "Just listed:",
-              headline,
-              summary,
-              cta,
-            ]),
-          },
-          {
-            id: "caption-share",
-            label: "Share caption",
-            note: "Scan-ready",
-            text: joinWithLineBreaks([
-              `${detail.priceLabel} | ${locationLine}`,
-              bulletSummary,
-              `Scan the Acre packet for photos, facts, and showing details: ${packetPath}`,
-            ]),
-          },
-        ],
+        id: "caption-short",
+        label: "Short caption",
+        note: "Fast post",
+        text: joinWithSpaces([
+          headline,
+          "in",
+          locationLine,
+          "—",
+          detail.priceLabel,
+          "Reply for the Acre packet.",
+        ]),
       },
       {
-        title: "Listing blurbs",
-        subtitle: "Longer copy for newsletters, listing descriptions, and brokerage updates.",
-        variants: [
-          {
-            id: "blurb-paragraph",
-            label: "Paragraph blurb",
-            note: "Narrative",
-            text: joinWithSpaces([
-              headline,
-              "is packaged as a manual Acre marketing kit for easy sharing.",
-              detail.priceLabel,
-              "in",
-              locationLine,
-              summary,
-              "The packet keeps the latest facts, selected visuals, and scan path in one reviewable export.",
-            ]),
-          },
-          {
-            id: "blurb-facts",
-            label: "Fact-led blurb",
-            note: "Bullet-led",
-            text: joinWithLineBreaks([
-              `Highlights: ${bulletSummary}.`,
-              `Facts: ${factSummary}.`,
-              `Contact: ${contactName}, ${contactTitle}, ${contactPhone}, ${contactEmail}.`,
-            ]),
-          },
-        ],
+        id: "caption-social",
+        label: "Social caption",
+        note: "Balanced post",
+        text: joinWithSpaces(["Just listed:", headline, summary, cta]),
       },
       {
-        title: "Follow-up notes",
-        subtitle: "Message and email versions for post-tour, warm-lead, and reminder follow-up.",
-        variants: [
-          {
-            id: "followup-text",
-            label: "Text follow-up",
-            note: "Short reply",
-            text: joinWithSpaces([
-              "Hi there, sharing the Acre packet for",
-              headline + ".",
-              "It includes the latest facts, selected visuals, and the scan path.",
-              cta,
-            ]),
-          },
-          {
-            id: "followup-email",
-            label: "Email follow-up",
-            note: "Long form",
-            text: joinWithLineBreaks([
-              `Subject: ${headline} packet`,
-              "",
-              "Hi there,",
-              "",
-              `I'm sharing the Acre packet for ${headline}. It includes the latest facts, selected visuals, and a reviewable scan path.`,
-              "",
-              cta,
-              "",
-              `Best,`,
-              contactName,
-            ]),
-          },
-          {
-            id: "followup-reminder",
-            label: "Reminder note",
-            note: "Gentle nudge",
-            text: joinWithSpaces([
-              "Quick reminder:",
-              headline,
-              "is still ready in the Acre packet with photos, facts, and the manual scan path.",
-              "Reply if you'd like a tighter version for text or email.",
-            ]),
-          },
-        ],
+        id: "caption-share",
+        label: "Share caption",
+        note: "Scan-ready",
+        text: joinWithLineBreaks([
+          `${detail.priceLabel} | ${locationLine}`,
+          bulletSummary,
+          `Scan the Acre packet for photos, facts, and showing details: ${packetPath}`,
+        ]),
       },
     ],
+  };
+  const blurbSection: ListingStudioMarketingKitSection = {
+    title: "Listing blurbs",
+    subtitle: "Longer copy for newsletters, listing descriptions, and brokerage updates.",
+    variants: [
+      {
+        id: "blurb-paragraph",
+        label: "Paragraph blurb",
+        note: "Narrative",
+        text: joinWithSpaces([
+          headline,
+          "is packaged as a manual Acre marketing kit for easy sharing.",
+          detail.priceLabel,
+          "in",
+          locationLine,
+          summary,
+          "The packet keeps the latest facts, selected visuals, and scan path in one reviewable export.",
+        ]),
+      },
+      {
+        id: "blurb-facts",
+        label: "Fact-led blurb",
+        note: "Bullet-led",
+        text: joinWithLineBreaks([
+          `Highlights: ${bulletSummary}.`,
+          `Facts: ${factSummary}.`,
+          `Contact: ${contactName}, ${contactTitle}, ${contactPhone}, ${contactEmail}.`,
+        ]),
+      },
+    ],
+  };
+  const followupSection: ListingStudioMarketingKitSection = {
+    title: "Follow-up notes",
+    subtitle: "Message and email versions for post-tour, warm-lead, and reminder follow-up.",
+    variants: [
+      {
+        id: "followup-text",
+        label: "Text follow-up",
+        note: "Short reply",
+        text: joinWithSpaces([
+          "Hi there, sharing the Acre packet for",
+          `${headline}.`,
+          "It includes the latest facts, selected visuals, and the scan path.",
+          cta,
+        ]),
+      },
+      {
+        id: "followup-email",
+        label: "Email follow-up",
+        note: "Long form",
+        text: joinWithLineBreaks([
+          `Subject: ${headline} packet`,
+          "",
+          "Hi there,",
+          "",
+          `I'm sharing the Acre packet for ${headline}. It includes the latest facts, selected visuals, and a reviewable scan path.`,
+          "",
+          cta,
+          "",
+          "Best,",
+          contactName,
+        ]),
+      },
+      {
+        id: "followup-reminder",
+        label: "Reminder note",
+        note: "Gentle nudge",
+        text: joinWithSpaces([
+          "Quick reminder:",
+          headline,
+          "is still ready in the Acre packet with photos, facts, and the manual scan path.",
+          "Reply if you'd like a tighter version for text or email.",
+        ]),
+      },
+    ],
+  };
+  const sections = [socialSection, blurbSection, followupSection];
+  const bundles: ListingStudioMarketingKitBundle[] = [
+    {
+      id: "social-bundle",
+      title: "Social bundle",
+      note: "Post + scan path",
+      description:
+        "A ready-made social drop with short captioning, a fuller caption, and the share-ready scan line.",
+      text: joinWithLineBreaks([
+        "Social bundle",
+        "",
+        ...socialSection.variants.flatMap((variant) => [
+          `${variant.label} (${variant.note})`,
+          variant.text,
+          "",
+        ]),
+        `Contact: ${contactName} · ${contactPhone}`,
+      ]).trim(),
+    },
+    {
+      id: "listing-bundle",
+      title: "Listing bundle",
+      note: "Blurb + contact",
+      description:
+        "A longer-form copy set for office updates, newsletters, or listing summaries that still keeps contact details attached.",
+      text: joinWithLineBreaks([
+        "Listing bundle",
+        "",
+        ...blurbSection.variants.flatMap((variant) => [
+          `${variant.label} (${variant.note})`,
+          variant.text,
+          "",
+        ]),
+        `CTA: ${cta}`,
+        `Packet path: ${packetPath}`,
+      ]).trim(),
+    },
+    {
+      id: "followup-bundle",
+      title: "Follow-up bundle",
+      note: "Text + email + reminder",
+      description:
+        "A manual follow-up stack for post-tour, warm-lead, or reminder outreach without pretending anything auto-sends.",
+      text: joinWithLineBreaks([
+        "Follow-up bundle",
+        "",
+        ...followupSection.variants.flatMap((variant) => [
+          `${variant.label} (${variant.note})`,
+          variant.text,
+          "",
+        ]),
+        `Contact: ${contactName} · ${contactEmail}`,
+      ]).trim(),
+    },
+  ];
+  const fullText = [summaryLine, ...sections.map(formatMarketingSectionText)]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    summaryLine,
+    sections,
+    bundles,
+    fullText,
   };
 }
 

@@ -887,6 +887,25 @@ export function ListingStudioDetailClient({
             title="Marketing kit"
           >
             <div className="listing-studio-editor-form">
+              <div className="listing-studio-editor-actions">
+                <Button
+                  onClick={() =>
+                    void copyMarketingKitCopy("Full marketing kit", marketingKit.fullText)
+                  }
+                  variant="secondary"
+                >
+                  Copy full kit
+                </Button>
+                {marketingKit.bundles.map((bundle) => (
+                  <Button
+                    key={bundle.id}
+                    onClick={() => void copyMarketingKitCopy(bundle.title, bundle.text)}
+                    variant="ghost"
+                  >
+                    Copy {bundle.title}
+                  </Button>
+                ))}
+              </div>
               <div className="listing-studio-keyvalue-grid">
                 <div className="listing-studio-keyvalue-card">
                   <span>Marketing angle</span>
@@ -902,6 +921,39 @@ export function ListingStudioDetailClient({
                     No Canva sync, PNG render, or auto-send is implied by these copy blocks.
                   </span>
                 </div>
+                <div className="listing-studio-keyvalue-card">
+                  <span>Bundle sets</span>
+                  <strong>{marketingKit.bundles.length} campaign bundles</strong>
+                  <span>
+                    Use the bundle cards below when you want one copy block instead of section-by-section assembly.
+                  </span>
+                </div>
+              </div>
+
+              <div className="listing-studio-keyvalue-grid">
+                {marketingKit.bundles.map((bundle) => (
+                  <div className="listing-studio-keyvalue-card" key={bundle.id}>
+                    <div className="listing-studio-card-meta">
+                      <span className="office-status-badge office-status-badge-neutral">
+                        {bundle.note}
+                      </span>
+                      <span className="office-status-badge office-status-badge-success">
+                        Campaign bundle
+                      </span>
+                    </div>
+                    <strong>{bundle.title}</strong>
+                    <span>{bundle.description}</span>
+                    <span style={{ whiteSpace: "pre-wrap" }}>{bundle.text}</span>
+                    <div className="listing-studio-editor-actions">
+                      <Button
+                        onClick={() => void copyMarketingKitCopy(bundle.title, bundle.text)}
+                        variant="secondary"
+                      >
+                        Copy bundle
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="listing-studio-detail-section-list">
