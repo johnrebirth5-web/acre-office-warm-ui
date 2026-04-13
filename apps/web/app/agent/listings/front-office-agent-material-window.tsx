@@ -323,35 +323,6 @@ function buildMaterialPreviewCards(input: {
   ] satisfies MaterialPreviewCard[];
 }
 
-function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
-  if (props.targetClient && props.targetAppointment) {
-    return {
-      badgeLabel: "Appointment-linked",
-      badgeTone: "accent" as const,
-      title: `Packet stays aligned to ${props.targetClient.fullName}`,
-      description: `Use the profile sheet, contact block, proof add-on, and route block beside ${props.targetAppointment.title} so the send keeps both client identity and appointment continuity in one loop.`,
-    };
-  }
-
-  if (props.targetClient) {
-    return {
-      badgeLabel: "Client-linked",
-      badgeTone: "success" as const,
-      title: `Packet stays aligned to ${props.targetClient.fullName}`,
-      description:
-        "Everything copied from this window should travel with the client-linked send trail, including the route block, instead of becoming detached profile material.",
-    };
-  }
-
-  return {
-    badgeLabel: "Tracked link",
-    badgeTone: "warning" as const,
-    title: "Generic outbound packet",
-    description:
-      "Keep profile, contact, proof, and route ready here so the next tracked listing can turn into a client-linked packet without rebuilding the copy from scratch.",
-  };
-}
-
 function buildFeaturedProofLine(material: FrontOfficeAgentMaterialSnapshot) {
   const featuredCase = material.featuredCases[0];
 
@@ -417,6 +388,36 @@ function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
   };
 }
 
+function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
+  if (props.targetClient && props.targetAppointment) {
+    return {
+      badgeLabel: "Launchpad",
+      badgeTone: "success" as const,
+      title: "Appointment-linked launchpad",
+      description:
+        "The stable route, preferred support package, and packet mode are all aligned to the appointment trail, so the next manual send can stay reviewable instead of restarting from a raw listing link.",
+    };
+  }
+
+  if (props.targetClient) {
+    return {
+      badgeLabel: "Launchpad",
+      badgeTone: "accent" as const,
+      title: "Client-linked launchpad",
+      description:
+        "The stable route and packet mode are aligned to the client trail, so you can keep the next manual send in the same execution lane without pretending anything auto-sent.",
+    };
+  }
+
+  return {
+    badgeLabel: "Launchpad",
+    badgeTone: "warning" as const,
+    title: "Tracked-link launchpad",
+    description:
+      "The stable route keeps the tracked link reusable while the preferred support package and packet mode stay manual, reviewable, and FO-owned.",
+  };
+}
+
 function buildPreferredSupportPackage(input: {
   routeState: FrontOfficeListingsRouteState;
   smsSupportPackage: string;
@@ -425,22 +426,47 @@ function buildPreferredSupportPackage(input: {
   if (input.routeState.preferredSupportLane === "sms") {
     return {
       label: "Preferred companion",
-      copyLabel: "Copy preferred package",
       title: "SMS companion package",
-      value: input.smsSupportPackage,
+      copyButtons: [
+        {
+          copyLabel: "Copy preferred package",
+          title: "SMS companion package",
+          value: input.smsSupportPackage,
+        },
+      ],
     };
   }
 
   if (input.routeState.preferredSupportLane === "email") {
     return {
       label: "Preferred companion",
-      copyLabel: "Copy preferred package",
       title: "Email companion package",
-      value: input.emailSupportPackage,
+      copyButtons: [
+        {
+          copyLabel: "Copy preferred package",
+          title: "Email companion package",
+          value: input.emailSupportPackage,
+        },
+      ],
     };
   }
 
-  return null;
+  return {
+    label: "Keep both ready",
+    title: "SMS and email companion packages",
+    copyButtons: [
+      {
+        copyLabel: "Copy SMS package",
+        title: "SMS companion package",
+        value: input.smsSupportPackage,
+      },
+      {
+        copyLabel: "Copy email package",
+        title: "Email companion package",
+        value: input.emailSupportPackage,
+      },
+    ],
+  };
 }
 
 function buildExecutionLaneOverview(
@@ -489,7 +515,6 @@ export function FrontOfficeAgentMaterialWindow(
     targetClient: props.targetClient,
     targetAppointment: props.targetAppointment,
   });
-  const materialStatus = buildMaterialWindowStatus(props);
   const supportPackageStatus = buildSupportPackageStatus(props);
   const smsSupportPackage = buildSmsSupportPackage({
     material: props.material,
@@ -506,6 +531,7 @@ export function FrontOfficeAgentMaterialWindow(
     smsSupportPackage,
     emailSupportPackage,
   });
+  const launchpadStatus = buildLaunchpadStatus(props);
   const executionLaneOverview = buildExecutionLaneOverview(props);
   const outboundPacketText = buildOutboundPacketText({
     material: props.material,
@@ -603,21 +629,17 @@ export function FrontOfficeAgentMaterialWindow(
           >
             Copy outbound packet
           </Button>
-          {preferredSupportPackage ? (
+          {preferredSupportPackage.copyButtons.map((copyButton) => (
             <Button
-              onClick={() =>
-                void handleCopy(
-                  preferredSupportPackage.title,
-                  preferredSupportPackage.value,
-                )
-              }
+              key={`top-${copyButton.title}-${copyButton.copyLabel}`}
+              onClick={() => void handleCopy(copyButton.title, copyButton.value)}
               size="sm"
               type="button"
               variant="secondary"
-              >
-                {preferredSupportPackage.copyLabel}
-              </Button>
-          ) : null}
+            >
+              {copyButton.copyLabel}
+            </Button>
+          ))}
           <Button
             onClick={() => void handleCopy("Profile sheet", materialPreviewCards[0].copyValue)}
             size="sm"
@@ -666,51 +688,31 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Route execution</strong>
+          <strong>Launchpad</strong>
           <span>
-            Keep the packet attached to the active route lane so the next send
-            stays manual, reviewable, and FO-owned.
+            Keep the stable route, preferred support package, and packet mode
+            visible before you launch any manual send.
           </span>
         </div>
         <div className="office-queue-list">
           <QueueItem
             action={
               <div className="front-office-playbook-actions">
-                {props.targetClient ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.targetClient.href}
-                  >
-                    Open client dossier
-                  </FrontOfficeLink>
-                ) : null}
-                {props.targetAppointment ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.targetAppointment.href}
-                  >
-                    Open appointment
-                  </FrontOfficeLink>
-                ) : null}
-                {props.routeState.hasDraftAssist ? (
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={props.routeState.stableHref}
+                >
+                  Open stable route
+                </FrontOfficeLink>
+                {props.routeState.stableHref !== props.routeState.contextHref ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.contextHref}
                   >
-                    Clear draft assist
+                    Open context route
                   </FrontOfficeLink>
                 ) : null}
-                {props.routeState.hasDraftAssist ||
-                props.routeState.diagnostics.length ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.routeState.stableHref}
-                  >
-                    Open stable workspace link
-                  </FrontOfficeLink>
-                ) : null}
-                {props.routeState.diagnostics.length ||
-                props.routeState.contextHref !== props.routeState.cleanHref ? (
+                {props.routeState.contextHref !== props.routeState.cleanHref ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.cleanHref}
@@ -718,45 +720,97 @@ export function FrontOfficeAgentMaterialWindow(
                     Reset workspace
                   </FrontOfficeLink>
                 ) : null}
-              </div>
-            }
-            badgeLabel={materialStatus.badgeLabel}
-            badgeTone={materialStatus.badgeTone}
-            context={`${props.routeState.modeContextLabel} · ${props.routeState.draftStatusLabel}`}
-            description={materialStatus.description}
-            meta={
-              <span>
-                {props.material.featuredCaseCount > 0
-                  ? `${props.material.featuredCaseCount} featured case(s) ready`
-                  : "Proof package is still light"}
-              </span>
-            }
-            title={materialStatus.title}
-          />
-          {preferredSupportPackage ? (
-            <QueueItem
-              action={
                 <Button
                   onClick={() =>
-                    void handleCopy(
-                      preferredSupportPackage.title,
-                      preferredSupportPackage.value,
-                    )
+                    void handleCopy("Outbound packet", outboundPacketText)
                   }
                   size="sm"
                   type="button"
                   variant="secondary"
                 >
-                  {preferredSupportPackage.copyLabel}
+                  Copy outbound packet
                 </Button>
-              }
-              badgeLabel={preferredSupportPackage.label}
-              badgeTone="accent"
-              context={props.routeState.draftStatusLabel}
-              description={props.routeState.preferredSupportLaneDescription}
-              title={preferredSupportPackage.title}
-            />
-          ) : null}
+              </div>
+            }
+            badgeLabel={launchpadStatus.badgeLabel}
+            badgeTone={launchpadStatus.badgeTone}
+            context={`${props.routeState.modeContextLabel} · ${props.routeState.draftStatusLabel}`}
+            description={launchpadStatus.description}
+            meta={
+              <span>
+                {props.routeState.stableReentryLabel} ·{" "}
+                {props.routeState.preferredSupportLaneLabel}
+              </span>
+            }
+            title={launchpadStatus.title}
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                {preferredSupportPackage.copyButtons.map((copyButton) => (
+                  <Button
+                    key={`${copyButton.title}-${copyButton.copyLabel}`}
+                    onClick={() =>
+                      void handleCopy(copyButton.title, copyButton.value)
+                    }
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {copyButton.copyLabel}
+                  </Button>
+                ))}
+              </div>
+            }
+            badgeLabel={preferredSupportPackage.label}
+            badgeTone="accent"
+            context={props.routeState.draftStatusLabel}
+            description={props.routeState.preferredSupportLaneDescription}
+            meta={
+              <span>
+                {props.routeState.preferredSupportLane === "mixed"
+                  ? "Copy one or both companions before you launch."
+                  : "Use the companion package that matches the active route."}
+              </span>
+            }
+            title={preferredSupportPackage.title}
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                <Button
+                  onClick={() =>
+                    void handleCopy("Route block", materialPreviewCards[3].copyValue)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy route block
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Packet", outboundPacketText)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy packet
+                </Button>
+              </div>
+            }
+            badgeLabel={props.routeState.modeLabel}
+            badgeTone="accent"
+            context={bundle.title}
+            description={`${bundle.description} The packet mode is kept manual and reviewable at every step.`}
+            meta={
+              <span>
+                {bundle.steps.map((step) => step.title).join(" · ")}
+              </span>
+            }
+            title={`${props.routeState.modeLabel} packet mode`}
+          />
           <QueueItem
             action={
               props.routeState.stableHref !== props.routeState.contextHref ? (
@@ -794,48 +848,6 @@ export function FrontOfficeAgentMaterialWindow(
             description="Use this window for copy, identity, and proof only; signatures, accounting, and archive still belong in Back Office."
             title="Leave record work in Back Office"
           />
-        </div>
-      </div>
-
-      <div className="front-office-playbook-card">
-        <div className="front-office-playbook-card-head">
-          <strong>Recommended packet mode</strong>
-          <span>{bundle.title}</span>
-        </div>
-        <div className="front-office-playbook-template-list">
-          <article className="front-office-playbook-template">
-            <div className="front-office-playbook-template-head">
-              <div>
-                <strong>Outbound packet preview</strong>
-                <span>Profile, contact, proof, and route stay together here.</span>
-              </div>
-              <Button
-                onClick={() =>
-                  void handleCopy("Outbound packet", outboundPacketText)
-                }
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                Copy packet
-              </Button>
-            </div>
-            <pre className="front-office-playbook-template-body">
-              {outboundPacketText}
-            </pre>
-          </article>
-        </div>
-        <p>{bundle.description}</p>
-        <div className="office-queue-list">
-          {bundle.steps.map((step) => (
-            <QueueItem
-              badgeLabel={step.badgeLabel}
-              badgeTone={step.badgeTone}
-              description={step.description}
-              key={step.id}
-              title={step.title}
-            />
-          ))}
         </div>
       </div>
     </div>
