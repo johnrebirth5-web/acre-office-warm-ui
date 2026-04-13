@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import type { FrontOfficeDashboardAiQueueItem } from "@acre/db";
+import type {
+  FrontOfficeDashboardAiQueueItem,
+  FrontOfficeDashboardSnapshot,
+} from "@acre/db";
 import { Button, EmptyState } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeAiExplainabilitySurface } from "../_components/front-office-ai-explainability-surface";
@@ -10,6 +13,7 @@ import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 
 type FrontOfficeDashboardAiQueueClientProps = {
   items: FrontOfficeDashboardAiQueueItem[];
+  strategy: FrontOfficeDashboardSnapshot["aiStrategy"];
 };
 
 type FeedbackState = {
@@ -29,6 +33,7 @@ export function FrontOfficeDashboardAiQueueClient(
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
   const [resolvedItemIds, setResolvedItemIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
+  const strategyRules = props.strategy.rules;
   const visibleItems = props.items.filter(
     (item) => !resolvedItemIds.includes(item.id),
   );
@@ -129,9 +134,61 @@ export function FrontOfficeDashboardAiQueueClient(
             </div>
           ) : null}
         </div>
+        ) : null}
+
+      {strategyRules.length ? (
+        <div className="front-office-placeholder-note">
+          <p>{props.strategy.summaryLabel}</p>
+          <div className="list-row-meta front-office-record-meta">
+            {strategyRules.map((rule) => (
+              <span key={rule.id}>
+                {rule.sourceLabel} · {rule.contextLabel}
+              </span>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       <div className="office-queue-list">
+        {strategyRules.length ? (
+          <>
+            {strategyRules.map((rule) => (
+              <FrontOfficeRailItem
+                action={
+                  <>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={rule.followUpHref}
+                    >
+                      Load follow-up form
+                    </FrontOfficeLink>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={rule.openDossierHref}
+                    >
+                      Open dossier
+                    </FrontOfficeLink>
+                  </>
+                }
+                badgeLabel={rule.statusLabel}
+                badgeTone={rule.tone}
+                context={`${rule.sourceLabel} · ${rule.contextLabel}`}
+                description={`${rule.description} ${rule.sourceDetail}`}
+                key={rule.id}
+                meta={
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{rule.helperLabel}</span>
+                    {rule.whyNowSignals.map((signal) => (
+                      <span key={signal}>{signal}</span>
+                    ))}
+                  </div>
+                }
+                title={rule.title}
+              />
+            ))}
+          </>
+        ) : null}
+
         {visibleItems.length ? (
           visibleItems.map((item) => (
             <FrontOfficeRailItem
@@ -210,6 +267,10 @@ export function FrontOfficeDashboardAiQueueClient(
                     oneClickReason={item.oneClickReason}
                     primaryActionReason={item.primaryActionReason}
                     rankingSignals={item.rankingSignals}
+                    strategySignals={strategyRules.map(
+                      (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
+                    )}
+                    strategySummary={props.strategy.summaryLabel}
                     whyNowSignals={item.whyNowSignals}
                   />
                 </>

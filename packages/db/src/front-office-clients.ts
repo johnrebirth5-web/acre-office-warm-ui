@@ -22,11 +22,13 @@ import {
   buildFrontOfficeAiBoundaryContract,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiStrategyContract,
   buildFrontOfficeAiSuggestionInsight,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
   mapFrontOfficeAiAcceptedActionOutcome,
   type FrontOfficeAiFollowUpKind,
+  type FrontOfficeAiStrategyContract,
   type FrontOfficeAiSuggestionHistoryIndex,
 } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
@@ -557,7 +559,10 @@ export type FrontOfficeClientDetailAiSuggestions = {
   primaryActionHref: string;
   primaryActionOpensInNewTab: boolean;
   drafts: FrontOfficeClientDetailAiDraft[];
+  aiStrategy: FrontOfficeClientDetailAiStrategy;
 };
+
+export type FrontOfficeClientDetailAiStrategy = FrontOfficeAiStrategyContract;
 
 export type FrontOfficeClientDetailWorkflowSignal = {
   pressureKey: FrontOfficeClientDetailWorkflowPressureKey;
@@ -689,6 +694,7 @@ export type FrontOfficeClientDetailSnapshot = {
   inspection: FrontOfficeClientDetailInspection;
   closing: FrontOfficeClientDetailClosing;
   aiSuggestions: FrontOfficeClientDetailAiSuggestions;
+  aiStrategy: FrontOfficeClientDetailAiStrategy;
   aiAcceptedActions: FrontOfficeClientDetailAiAcceptedActions;
   followUpCue: FrontOfficeClientDetailFollowUpCue;
   contract: FrontOfficeClientDetailContract;
@@ -2128,6 +2134,9 @@ function buildFrontOfficeAiSuggestions(input: {
   intentLabel: string;
   budgetLabel: string;
   preferredAreasLabel: string;
+  lastContactAt?: Date | null;
+  nextFollowUpAt?: Date | null;
+  openTaskCount?: number;
   sendCount: number;
   openedSendCount: number;
   revisitCount: number;
@@ -2179,6 +2188,34 @@ function buildFrontOfficeAiSuggestions(input: {
     : "";
   const latestListingLabel =
     input.latestSendRecord?.listingTitle.trim() || "the last shortlist";
+  const leaseReminderAt = input.leaseReminder.reminderAtValue
+    ? new Date(input.leaseReminder.reminderAtValue)
+    : null;
+  const strategyContract = buildFrontOfficeAiStrategyContract({
+    clientId: input.clientId,
+    clientName: input.fullName,
+    now: input.now,
+    timeZone: input.timeZone,
+    stage: input.stage,
+    nextFollowUpAt: input.nextFollowUpAt ?? null,
+    lastContactAt: input.lastContactAt ?? null,
+    leaseReminderAt:
+      leaseReminderAt && !Number.isNaN(leaseReminderAt.getTime())
+        ? leaseReminderAt
+        : null,
+    leaseReminderNeedsAttention: input.leaseReminder.needsAttention,
+    openTaskCount: input.openTaskCount ?? 0,
+    sendCount: input.sendCount,
+    openedSendCount: input.openedSendCount,
+    latestSendRecordSentAt: input.latestSendRecord?.sentAt ?? null,
+    latestSendRecordLastOpenedAt: input.latestSendRecord?.lastOpenedAt ?? null,
+    hasClosedTransaction: input.hasClosedTransaction,
+    hasCancelledTransaction: input.hasCancelledTransaction,
+    hasLinkedTransaction: input.hasLinkedTransaction,
+    isReadyForBackOffice: input.isReadyForBackOffice,
+    isClosingSoon: input.isClosingSoon,
+    closingKeyDateLabel: input.closingKeyDateLabel,
+  });
   const candidateKinds: FrontOfficeAiFollowUpKind[] =
     input.hasCancelledTransaction
       ? ["reentry"]
@@ -2240,6 +2277,7 @@ function buildFrontOfficeAiSuggestions(input: {
     `Stage · ${input.stage}`,
     `Workflow pressure · ${input.workflow.pressureLabel}`,
     `Current touch window · ${input.nextTouchLabel}`,
+    strategyContract.summaryLabel,
   ];
   let groundingSignals = [
     ...workflowGroundingSignals,
@@ -2267,7 +2305,7 @@ function buildFrontOfficeAiSuggestions(input: {
   let summary =
     "Acre can already ground the next touch in the live dossier instead of leaving the agent to guess the right opener.";
   let helperText =
-    "These drafts are grounded in the appointment, send, follow-up, handoff, and transaction signals already on this record. Nothing auto-sends; edit before using.";
+    "These drafts are grounded in the appointment, send, follow-up, handoff, and transaction signals already on this record. Nothing auto-sends; edit before using. The shared rule layer adds review-first follow-up, lease, silent-period, and holiday signals before anything is turned into a task.";
   let suggestionKind: FrontOfficeAiFollowUpKind = "generic";
   let followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null =
     buildFrontOfficeAiFollowUpAction({
@@ -2752,6 +2790,7 @@ function buildFrontOfficeAiSuggestions(input: {
     primaryActionHref,
     primaryActionOpensInNewTab,
     drafts,
+    aiStrategy: strategyContract,
   };
 }
 
@@ -5938,6 +5977,9 @@ export async function getFrontOfficeClientDetail(
     intentLabel: client.intent?.trim() || "Intent not captured",
     budgetLabel,
     preferredAreasLabel,
+    lastContactAt: client.lastContactAt,
+    nextFollowUpAt: client.nextFollowUpAt,
+    openTaskCount,
     sendCount,
     openedSendCount,
     revisitCount,
@@ -6166,6 +6208,7 @@ export async function getFrontOfficeClientDetail(
       suggestions: closingSuggestions,
     },
     aiSuggestions,
+    aiStrategy: aiSuggestions.aiStrategy,
     aiAcceptedActions,
     followUpCue,
     contract,

@@ -138,6 +138,7 @@ Current implementation priority note:
 - the live FO calendar now also exposes an explicit `After the bridge` checkpoint plus a suggested-writeback load path, so a Google / Outlook / ICS / email jump can be turned into a saved Acre next-touch checkpoint without re-deciding the follow-up plan from scratch
 - `/agent/calendar` now also supports a route-persistent `calendarView` contract for the main writeback lanes, so `reply due`, `confirmation pending`, `externally confirmed`, `touch due`, `missing next touch`, `reschedule requested`, and `bridge logged` can reopen as stable calendar workbench states instead of ad-hoc filter combinations
 - that same calendar route now also surfaces explicit `touch scheduled` and `writeback pending` lanes, so future-dated outside touches and bridge-open / writeback-missing records can reopen through stable workbench aliases instead of falling back to mixed filter state
+- `/agent/calendar` now also supports true `day` and `week` agenda views on top of those writeback lanes, so agents can switch from coordination slices into a chronological schedule grouped by date and time without losing the same appointment-level bridge / writeback controls
 - FO client dossiers now also expose a direct `Open calendar writeback` deep link plus bridge-next-step copy on each appointment card, so the operator can reopen the exact appointment writeback flow from the dossier instead of re-scanning the calendar lane first
 - that same dossier-to-calendar re-entry now also preserves the most accurate writeback lane Acre can prove from the saved outside status, bridge state, and next-touch deadline, while appointments that already have a future next touch intentionally reopen as focused calendar records instead of being misrouted into a false due / missing lane
 - that same promised external touch deadline now also flows into the inbox reminder layer, so confirmation or reschedule pressure can reach the dashboard / notifications notice stream instead of staying cleanup-only
@@ -160,6 +161,9 @@ Current implementation priority note:
 - dashboard appointment commitments now also choose a tighter calendar lane when the outside status already shows `reply due`, `awaiting confirmation`, `touch due`, `touch scheduled`, `writeback pending`, `reschedule requested`, or `externally confirmed`, and generic listing launchers now default into the `draft lane` instead of a broad listings desk
 - `/agent/listings` now also supports a route-persistent focused `lane` contract, so `send rescue`, `follow-through`, and `draft lane` re-entry can reopen the same tracked outbound workspace without collapsing everything back into one generic listings desk
 - that same listings route now also surfaces an explicit lane-execution plan, so the active rescue / follow-through / draft path can show its checkpoints and recommended next actions inside the live send workbench instead of leaving lane meaning implicit
+- that same listings rail now also exposes a clearer `profile / contact / proof` material overview, so the agent identity package reads like a reusable outbound support window instead of only a loose set of copy buttons
+- `listing-studio` now also carries a first `poster / template generator` flow, so a saved packet can switch between editorial / open-house / social-square / factsheet templates, preview the generated layout, and export or print a manual HTML poster without depending on Canva or a PNG render pipeline
+- `AI next-touch suggestions` now also share a first rule-layer strategy contract for `follow-up`, `silent period`, `holiday`, and `lease` guidance, so dashboard and dossier surfaces can explain not only ranked AI suggestions but also why a safe reminder-oriented touch is surfacing now from one shared logic layer
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
@@ -260,6 +264,7 @@ Expected coverage:
 - events
 - internal meetings
 - day/week views
+- chronological day agenda and week agenda groupings that sit beside the existing writeback lanes
 - in-app, email, and calendar reminders
 - meeting links for Zoom / Google Meet
 - on-site address, contact, and notes
@@ -282,10 +287,20 @@ Should centralize:
 
 - business card
 - portrait / profile assets
+- profile / contact / proof overview package
 - intro posters
 - closing history
 - featured cases
 - one-click client send actions
+
+### Marketing template generator
+
+Should support:
+
+- listing-derived poster and social-share templates
+- template switching for a small set of repeatable agent-facing layouts
+- manual preview, copy, print, and download flows
+- Acre-owned export first, not Canva sync first
 
 ### Document center / training center / vendor pool
 

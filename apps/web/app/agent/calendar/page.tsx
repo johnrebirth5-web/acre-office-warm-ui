@@ -69,6 +69,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   const activeCalendarViewPatch = hasExplicitCalendarView
     ? getCalendarViewRoutePatch(activeCalendarView)
     : null;
+  const isAgendaCalendarView =
+    activeCalendarView === "day" || activeCalendarView === "week";
   const snapshot = await getFrontOfficeAppointmentsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -109,8 +111,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     <FrontOfficePageTemplate
       description={
         isZh
-          ? `${activeCalendarViewConfig.description} 在 Front Office 内安排带看、咨询和客户会面，同时把外部桥接动作、Acre 内部邮件线程连续性、回写历史、客户/房源深链上下文、详情焦点，以及下一步 Back Office 交接都留在同一页可见。`
-          : `${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, internal Acre mail-thread continuity, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`
+          ? isAgendaCalendarView
+            ? `${activeCalendarViewConfig.description} 在 Front Office 内把带看、咨询和客户会面排成真正按日期和时间排序的日/周议程，同时保留外部桥接动作、Acre 内部邮件线程连续性、回写历史、客户/房源深链上下文、详情焦点，以及下一步 Back Office 交接的可见性。`
+            : `${activeCalendarViewConfig.description} 在 Front Office 内安排带看、咨询和客户会面，同时把外部桥接动作、Acre 内部邮件线程连续性、回写历史、客户/房源深链上下文、详情焦点，以及下一步 Back Office 交接都留在同一页可见。`
+          : isAgendaCalendarView
+            ? `${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office in a chronological day or week agenda, while keeping external bridge actions, internal Acre mail-thread continuity, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`
+            : `${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, internal Acre mail-thread continuity, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`
       }
       eyebrow={isZh ? "日历" : "Calendar"}
       main={
@@ -118,6 +124,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
           initialClientId={initialClientId}
           initialListingId={initialListingId}
           snapshot={snapshot}
+          timeZone={context.currentUser.timezone}
         />
       }
       rail={

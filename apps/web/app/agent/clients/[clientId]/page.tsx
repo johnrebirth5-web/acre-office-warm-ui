@@ -72,6 +72,22 @@ function buildWorkflowFollowUpTitle(snapshot: FrontOfficeClientDetailSnapshot) {
 }
 
 function getSuggestedFollowUpSourceLabel(source: string | undefined) {
+  if (source?.startsWith("rule-")) {
+    if (source === "rule-silent-period") {
+      return "Silent-period rule loaded into the follow-up form below.";
+    }
+
+    if (source === "rule-holiday") {
+      return "Holiday rule loaded into the follow-up form below.";
+    }
+
+    if (source === "rule-lease") {
+      return "Lease rule loaded into the follow-up form below.";
+    }
+
+    return "Rule-layer suggestion loaded into the follow-up form below.";
+  }
+
   switch (source) {
     case "ai":
       return "AI suggestion loaded into the follow-up form below.";
@@ -1562,7 +1578,7 @@ export default async function AgentClientDetailPage(
                   )
                 }
                 className="office-list-card"
-                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, but still leaves the final wording and send decision to the agent."
+                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail and shared rule layer, but still leaves the final wording and send decision to the agent."
                 title="AI next-touch suggestions"
               >
                 <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />

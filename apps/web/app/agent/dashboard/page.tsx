@@ -715,8 +715,8 @@ export default async function AgentDashboardPage() {
     .slice(0, 4);
   const honestStateText = canUseAi
     ? isZh
-      ? "Acre 会把实时跟进、已跟踪的发送/点击历史、审查优先的 AI 建议，以及明确的 FO -> BO 交接都摆在这里。它仍不会自动发送、隐藏自动化、声称拥有双向同步，或宣称已有 provider 级 / 微信导入。"
-      : "Acre surfaces live follow-up, tracked send/click history, review-first AI suggestions, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion."
+      ? "Acre 会把实时跟进、已跟踪的发送/点击历史、审查优先的 AI 规则层与建议，以及明确的 FO -> BO 交接都摆在这里。它仍不会自动发送、隐藏自动化、声称拥有双向同步，或宣称已有 provider 级 / 微信导入。"
+      : "Acre surfaces live follow-up, tracked send/click history, a review-first AI rule layer and suggestions, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion."
     : isZh
       ? "Acre 会把实时跟进、已跟踪的发送/点击历史，以及明确的 FO -> BO 交接都摆在这里。它仍不会自动发送、隐藏自动化、声称拥有双向同步，或宣称已有 provider 级 / 微信导入。"
       : "Acre surfaces live follow-up, tracked send/click history, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion.";
@@ -1166,14 +1166,14 @@ export default async function AgentDashboardPage() {
               className="office-list-card"
               subtitle={
                 isZh
-                  ? "这里只显示已落地的下一触达建议。每张卡都会在你操作记录前说明安全动作、为什么是现在，以及顺序约束；只有当记录轨迹足够支撑时，队列才会把你重新带回 dossier、日历回写或正式交接。"
-                  : "Grounded next-touch suggestions only. Each card states the safe action, why-now signal, and sequence contract before you touch the record; the queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
+                  ? "这里只显示已落地的下一触达建议与共享规则层。每张卡都会在你操作记录前说明安全动作、为什么是现在，以及顺序约束；只有当记录轨迹足够支撑时，队列才会把你重新带回 dossier、日历回写或正式交接。"
+                  : "Grounded next-touch suggestions and the shared rule layer only. Each card states the safe action, why-now signal, and sequence contract before you touch the record; the queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
               }
               title={isZh ? "AI 下一触达队列" : "AI next-touch queue"}
             >
               <ListPageStatsGrid>
                 <StatCard
-                  hint="grounded AI suggestion opportunities currently visible in this dashboard scope"
+                  hint="grounded AI suggestion and rule-layer opportunities currently visible in this dashboard scope"
                   label={isZh ? "AI 建议" : "AI suggestions"}
                   tone="accent"
                   value={snapshot.aiQueue.suggestionCount}
@@ -1200,6 +1200,7 @@ export default async function AgentDashboardPage() {
 
               <FrontOfficeDashboardAiQueueClient
                 items={snapshot.aiQueue.items}
+                strategy={snapshot.aiStrategy}
               />
             </SectionCard>
           ) : null}
