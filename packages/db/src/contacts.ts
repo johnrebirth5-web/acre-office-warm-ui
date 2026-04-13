@@ -258,10 +258,7 @@ function normalizeEmail(value: string | null | undefined) {
 }
 
 function normalizeName(value: string | null | undefined) {
-  return value
-    ?.trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ") || "";
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") || "";
 }
 
 function normalizePhoneDigits(value: string | null | undefined) {
@@ -312,7 +309,10 @@ function mergeStringLists(primary: string[], secondary: string[]) {
   return Array.from(merged);
 }
 
-function mergeNotes(primary: string | null | undefined, secondary: string | null | undefined) {
+function mergeNotes(
+  primary: string | null | undefined,
+  secondary: string | null | undefined,
+) {
   const primaryValue = primary?.trim() || "";
   const secondaryValue = secondary?.trim() || "";
 
@@ -447,7 +447,7 @@ function buildFrontOfficeLeadDuplicateActionLabel(input: {
     input.matchReasons.includes("Same email") ||
     input.matchReasons.includes("Same phone")
   ) {
-    return `Open ${ownerScope} first. If this is the same person, keep working there instead of creating a second FO lead.`;
+    return `Open ${ownerScope} first. If this is the same person, keep working there instead of creating a second client record.`;
   }
 
   return `Names overlap, so review ${ownerScope} before deciding whether a new lead is really needed.`;
@@ -1168,7 +1168,8 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
         return null;
       }
 
-      const isViewerOwned = candidate.ownerMembershipId === input.viewerMembershipId;
+      const isViewerOwned =
+        candidate.ownerMembershipId === input.viewerMembershipId;
 
       return {
         id: candidate.id,
@@ -1189,16 +1190,15 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
           phone: candidate.phone,
         }),
         scopeLabel: isViewerOwned
-          ? "Your Front Office dossier"
+          ? "Your client page"
           : "Shared office contact",
-        confidenceLabel: buildFrontOfficeLeadDuplicateConfidenceLabel(
-          matchReasons,
-        ),
+        confidenceLabel:
+          buildFrontOfficeLeadDuplicateConfidenceLabel(matchReasons),
         matchStrength: matchReasons.length,
         href: isViewerOwned
           ? `/agent/clients/${candidate.id}`
           : `/office/contacts/${candidate.id}`,
-        reviewLabel: isViewerOwned ? "Open FO dossier" : "Open office contact",
+        reviewLabel: isViewerOwned ? "Open client page" : "Open office contact",
         recommendedActionLabel: buildFrontOfficeLeadDuplicateActionLabel({
           isViewerOwned,
           matchReasons,
@@ -1226,7 +1226,8 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
         return matchDelta;
       }
 
-      const ownershipDelta = Number(right.isViewerOwned) - Number(left.isViewerOwned);
+      const ownershipDelta =
+        Number(right.isViewerOwned) - Number(left.isViewerOwned);
 
       if (ownershipDelta !== 0) {
         return ownershipDelta;
@@ -1235,7 +1236,13 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
       return right.updatedAt - left.updatedAt;
     })
     .slice(0, 6)
-    .map(({ isViewerOwned: _isViewerOwned, updatedAt: _updatedAt, ...candidate }) => candidate);
+    .map(
+      ({
+        isViewerOwned: _isViewerOwned,
+        updatedAt: _updatedAt,
+        ...candidate
+      }) => candidate,
+    );
 }
 
 export async function mergeFrontOfficeClients(input: {
@@ -1312,13 +1319,13 @@ export async function mergeFrontOfficeClients(input: {
         ? target.budgetMin.lessThan(source.budgetMin)
           ? target.budgetMin
           : source.budgetMin
-        : target.budgetMin ?? source.budgetMin ?? null;
+        : (target.budgetMin ?? source.budgetMin ?? null);
     const mergedBudgetMax =
       target.budgetMax && source.budgetMax
         ? target.budgetMax.greaterThan(source.budgetMax)
           ? target.budgetMax
           : source.budgetMax
-        : target.budgetMax ?? source.budgetMax ?? null;
+        : (target.budgetMax ?? source.budgetMax ?? null);
     const mergedEmail = target.email?.trim() || source.email?.trim() || null;
     const mergedPhone = target.phone?.trim() || source.phone?.trim() || null;
     const mergedContactType =
@@ -1327,14 +1334,11 @@ export async function mergeFrontOfficeClients(input: {
       (target.source?.trim() &&
       target.source.trim().toLowerCase() !== "manual entry"
         ? target.source.trim()
-        : source.source?.trim()) ||
-      target.source.trim();
+        : source.source?.trim()) || target.source.trim();
     const mergedIntent =
-      (target.intent?.trim() &&
-      target.intent.trim().toLowerCase() !== "unknown"
+      (target.intent?.trim() && target.intent.trim().toLowerCase() !== "unknown"
         ? target.intent.trim()
-        : source.intent?.trim()) ||
-      target.intent.trim();
+        : source.intent?.trim()) || target.intent.trim();
     const mergedPreferredAreas = mergeStringLists(
       target.preferredAreas,
       source.preferredAreas,
@@ -1348,7 +1352,8 @@ export async function mergeFrontOfficeClients(input: {
       target.nextFollowUpAt,
       source.nextFollowUpAt,
     );
-    const mergedLeaseEndDate = target.leaseEndDate ?? source.leaseEndDate ?? null;
+    const mergedLeaseEndDate =
+      target.leaseEndDate ?? source.leaseEndDate ?? null;
     const mergedLeaseReminderAt = pickEarlierDate(
       target.leaseReminderAt,
       source.leaseReminderAt,
@@ -1373,19 +1378,21 @@ export async function mergeFrontOfficeClients(input: {
         createdAt: true,
       },
     });
-    const existingTargetTransactionLinks = await tx.transactionContact.findMany({
-      where: {
-        organizationId: input.organizationId,
-        clientId: target.id,
+    const existingTargetTransactionLinks = await tx.transactionContact.findMany(
+      {
+        where: {
+          organizationId: input.organizationId,
+          clientId: target.id,
+        },
+        select: {
+          id: true,
+          transactionId: true,
+          isPrimary: true,
+          notes: true,
+          createdAt: true,
+        },
       },
-      select: {
-        id: true,
-        transactionId: true,
-        isPrimary: true,
-        notes: true,
-        createdAt: true,
-      },
-    });
+    );
     const touchedTransactionIds = new Set<string>();
     const targetLinksByTransactionId = new Map(
       existingTargetTransactionLinks.map((link) => [link.transactionId, link]),
@@ -1393,7 +1400,9 @@ export async function mergeFrontOfficeClients(input: {
 
     for (const sourceLink of sourceTransactionLinks) {
       touchedTransactionIds.add(sourceLink.transactionId);
-      const targetLink = targetLinksByTransactionId.get(sourceLink.transactionId);
+      const targetLink = targetLinksByTransactionId.get(
+        sourceLink.transactionId,
+      );
 
       if (targetLink) {
         const mergedLinkNotes = mergeNotes(targetLink.notes, sourceLink.notes);

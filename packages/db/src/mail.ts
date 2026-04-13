@@ -491,12 +491,12 @@ function buildAppointmentInternalMailThreadContinuity(
     detail:
       "Acre created an internal mail thread for the appointment brief so the continuity stays inside Acre.",
     nextStep:
-      "Review the Acre thread, then return to the appointment record and save the next checkpoint.",
+      "Review the Acre thread, then return to the appointment record and save the next step.",
     sourceNote:
       "Internal mail continuity only; the outside email remains manual and no provider sync is implied.",
     returnToLabel: "Return to update form",
     returnToDetail:
-      "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
+      "Jump back to the same appointment after reviewing the thread, then save the next step in Acre.",
     returnToUrl,
   };
 }

@@ -251,7 +251,9 @@ function buildTransactionName(
   return `${clientName} · ${stageLabel}`;
 }
 
-function buildCommittedTransactionHref(transactionId: string | null | undefined) {
+function buildCommittedTransactionHref(
+  transactionId: string | null | undefined,
+) {
   const normalizedTransactionId = transactionId?.trim();
 
   return normalizedTransactionId
@@ -363,7 +365,10 @@ function isFrontOfficeCreateClaimActive(
   return expiryTime > now.getTime();
 }
 
-function buildFrontOfficeCreateClaim(actorMembershipId: string, now = new Date()) {
+function buildFrontOfficeCreateClaim(
+  actorMembershipId: string,
+  now = new Date(),
+) {
   return {
     actorMembershipId,
     claimedAt: now.toISOString(),
@@ -447,7 +452,7 @@ function buildPrefillIssues(input: {
       code: "contact_info_missing",
       label: "Contact info missing",
       description:
-        "The Front Office dossier has no email or phone on this handoff. The transaction can still be created, but client contact details need manual review.",
+        "The client page has no email or phone on this handoff. The transaction can still be created, but client contact details need manual review.",
     });
   }
 
@@ -506,9 +511,9 @@ export async function getFrontOfficeHandoffPrefill(input: {
     return {
       kind: "missing",
       handoffDraftId: input.handoffDraftId,
-      feedbackTitle: "Front Office handoff unavailable",
+      feedbackTitle: "Client handoff unavailable",
       feedbackDescription:
-        "This Front Office handoff could not be loaded from your current scope. You can still create a manual Back Office transaction here, but it will not write back to Front Office.",
+        "This client handoff could not be loaded from your current view. You can still create a manual Back Office transaction here, but it will not update the client page.",
     };
   }
 
@@ -531,7 +536,7 @@ export async function getFrontOfficeHandoffPrefill(input: {
   const noteParts = [
     summary,
     handoff.client.phone?.trim() ? `Client phone: ${handoff.client.phone}` : "",
-    handoff.client.notes?.trim() ? `FO notes: ${handoff.client.notes}` : "",
+    handoff.client.notes?.trim() ? `Client notes: ${handoff.client.notes}` : "",
   ].filter(Boolean);
   const baseSnapshot: FrontOfficeHandoffPrefillBase = {
     handoffDraftId: handoff.id,
@@ -554,8 +559,8 @@ export async function getFrontOfficeHandoffPrefill(input: {
       ...baseSnapshot,
       kind: "unsupported_target",
       targetWorkflow: handoff.targetWorkflow,
-      feedbackTitle: "Front Office handoff is targeting another workflow",
-      feedbackDescription: `This handoff is marked for ${handoff.targetWorkflow}. Continue from the Front Office client record instead of opening the transaction create flow.`,
+      feedbackTitle: "Client handoff points to another workflow",
+      feedbackDescription: `This handoff is marked for ${handoff.targetWorkflow}. Continue from the client page instead of opening the transaction create flow.`,
     };
   }
 
@@ -569,10 +574,10 @@ export async function getFrontOfficeHandoffPrefill(input: {
       kind: "committed",
       committedTransactionId: handoff.committedTransactionId,
       committedTransactionHref,
-      feedbackTitle: "Front Office handoff already committed",
+      feedbackTitle: "Client handoff already used",
       feedbackDescription: committedTransactionHref
         ? `This handoff already created a formal Back Office transaction. Continue the formal workflow in that record instead of opening a second create flow.`
-        : "This handoff is already marked committed, but the linked Back Office record is unavailable from this view. Review the client dossier or transaction list before creating anything new.",
+        : "This handoff is already marked committed, but the linked Back Office record is unavailable from this view. Review the client page or transaction list before creating anything new.",
     };
   }
 
@@ -580,9 +585,9 @@ export async function getFrontOfficeHandoffPrefill(input: {
     return {
       ...baseSnapshot,
       kind: "canceled",
-      feedbackTitle: "Front Office handoff no longer active",
+      feedbackTitle: "Client handoff no longer active",
       feedbackDescription:
-        "This handoff was canceled in Front Office, so creating a Back Office record from this page would be a manual action only. Reconfirm the dossier before continuing.",
+        "This handoff was canceled on the client page, so creating a Back Office record from here would be a manual action only. Reconfirm the client details before continuing.",
     };
   }
 
@@ -592,7 +597,7 @@ export async function getFrontOfficeHandoffPrefill(input: {
     return {
       ...baseSnapshot,
       kind: "submitting",
-      feedbackTitle: "Front Office handoff is already being submitted",
+      feedbackTitle: "Client handoff is already being submitted",
       feedbackDescription:
         "A Back Office create request is already finalizing this handoff. Wait a moment and reload this page before trying again so the formal transaction record does not get duplicated.",
     };
@@ -629,16 +634,16 @@ export async function getFrontOfficeHandoffPrefill(input: {
     requiresAcknowledgement: issues.length > 0,
     acknowledgementLabel:
       issues.length > 0
-        ? "I reviewed the missing or inferred Front Office details and still want to create the formal Back Office transaction."
+        ? "I reviewed the missing or inferred client details and still want to create the formal Back Office transaction."
         : undefined,
     feedbackTitle:
       issues.length === 0
-        ? "Front Office handoff ready for formal create"
-        : "Front Office handoff needs review before save",
+        ? "Client handoff ready for formal create"
+        : "Client handoff needs review before save",
     feedbackDescription:
       issues.length === 0
-        ? "Front Office prepared the client context. Create the formal Back Office record here when you are ready to hand off the transaction workflow."
-        : "Front Office prepared the handoff, but some fields were inferred or are still missing. Review the items below before creating the formal Back Office record.",
+        ? "The client page prepared the handoff. Create the formal Back Office record here when you are ready to move the transaction workflow over."
+        : "The client page prepared this handoff, but some fields were inferred or are still missing. Review the items below before creating the formal Back Office record.",
   };
 }
 
@@ -666,7 +671,9 @@ export async function commitFrontOfficeHandoffDraft(input: {
     },
   });
 
-  const buildResult = <T extends Omit<FrontOfficeHandoffCommitResult, "handoffDraftId">>(
+  const buildResult = <
+    T extends Omit<FrontOfficeHandoffCommitResult, "handoffDraftId">,
+  >(
     result: T,
   ) =>
     ({
@@ -713,7 +720,11 @@ export async function commitFrontOfficeHandoffDraft(input: {
       });
     }
 
-    if (hasActiveClaim && input.claimToken && currentClaim?.token !== input.claimToken) {
+    if (
+      hasActiveClaim &&
+      input.claimToken &&
+      currentClaim?.token !== input.claimToken
+    ) {
       return buildResult({
         ok: false,
         mode,
@@ -768,12 +779,16 @@ export async function commitFrontOfficeHandoffDraft(input: {
   }
 
   if (existing.status === FrontOfficeHandoffStatus.committed) {
-    if (mode === "commit" && existing.committedTransactionId === input.transactionId) {
+    if (
+      mode === "commit" &&
+      existing.committedTransactionId === input.transactionId
+    ) {
       return buildResult({
         ok: true,
         mode,
         reason: "already_committed",
-        committedTransactionId: input.transactionId ?? existing.committedTransactionId,
+        committedTransactionId:
+          input.transactionId ?? existing.committedTransactionId,
         claimToken: null,
       });
     }
