@@ -20,11 +20,14 @@ import {
   buildFrontOfficeAiBoundaryContract,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiStrategyContract,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
   mapFrontOfficeAiAcceptedActionOutcome,
   rankFrontOfficeAiQueueHistoryCandidates,
   type FrontOfficeAiFollowUpKind,
+  type FrontOfficeAiStrategyContract,
+  type FrontOfficeAiStrategyRule,
 } from "./front-office-ai";
 import {
   buildFrontOfficeHandoffCreateHref,
@@ -472,6 +475,7 @@ export type FrontOfficeDashboardSnapshot = {
     suggestionCount: number;
     items: FrontOfficeDashboardAiQueueItem[];
   };
+  aiStrategy: FrontOfficeAiStrategyContract;
   aiAcceptedActions: {
     acceptedCount: number;
     positiveOutcomeCount: number;
@@ -2419,6 +2423,7 @@ export async function getFrontOfficeDashboardSnapshot(
         value === "all" ? leadershipTotalSignalCount : leadershipCounts[value],
     })),
   };
+  const aiStrategyRules: FrontOfficeAiStrategyRule[] = [];
   const aiQueueCandidates = rankFrontOfficeAiQueueHistoryCandidates({
     candidates:
       aiSuggestionCandidates.flatMap<FrontOfficeDashboardAiCandidateItem>(
@@ -2463,6 +2468,36 @@ export async function getFrontOfficeDashboardSnapshot(
             hasClosedTransaction,
             hasCancelledTransaction,
           };
+          const strategyContract = buildFrontOfficeAiStrategyContract({
+            clientId: client.id,
+            clientName: client.fullName,
+            now,
+            timeZone: input.timeZone,
+            stage: client.stage,
+            nextFollowUpAt: client.nextFollowUpAt,
+            lastContactAt: client.lastContactAt,
+            leaseReminderAt: leaseReminder.reminderAt,
+            leaseReminderNeedsAttention:
+              leaseReminder.statusLabel === "Overdue" ||
+              leaseReminder.statusLabel === "Due today" ||
+              leaseReminder.statusLabel === "Due soon",
+            openTaskCount: 0,
+            sendCount: client.frontOfficeSendRecords.length,
+            openedSendCount: client.frontOfficeSendRecords.filter(
+              (record) => record.openCount > 0,
+            ).length,
+            latestSendRecordSentAt: latestSendRecord?.sentAt ?? null,
+            latestSendRecordLastOpenedAt: latestSendRecord?.lastOpenedAt ?? null,
+            hasClosedTransaction,
+            hasCancelledTransaction,
+            hasLinkedTransaction: Boolean(linkedTransaction),
+            isReadyForBackOffice,
+            isClosingSoon,
+            closingKeyDateLabel: closingReferenceDate
+              ? formatDateLabel(closingReferenceDate)
+              : null,
+          });
+          aiStrategyRules.push(...strategyContract.rules);
 
           if (hasCancelledTransaction) {
             const followUp = buildFrontOfficeAiFollowUpAction({
@@ -2978,6 +3013,19 @@ export async function getFrontOfficeDashboardSnapshot(
         };
       },
     );
+  const aiStrategy = {
+    summaryLabel: aiStrategyRules.length
+      ? `Rule layer · ${aiStrategyRules.length} review-first signal(s)`
+      : "Rule layer · no active strategy signals",
+    rules: aiStrategyRules
+      .sort(
+        (left, right) =>
+          left.priority - right.priority ||
+          left.clientName.localeCompare(right.clientName) ||
+          left.title.localeCompare(right.title),
+      )
+      .slice(0, 4),
+  } satisfies FrontOfficeAiStrategyContract;
   const aiSuggestionCount = aiQueueCandidates.length;
   const aiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown({
     historyIndex: aiHistoryIndex,
@@ -3544,6 +3592,7 @@ export async function getFrontOfficeDashboardSnapshot(
       suggestionCount: aiSuggestionCount,
       items: aiQueueItems,
     },
+    aiStrategy,
     aiAcceptedActions: {
       acceptedCount: aiAcceptedActionCount,
       positiveOutcomeCount: aiPositiveOutcomeCount,

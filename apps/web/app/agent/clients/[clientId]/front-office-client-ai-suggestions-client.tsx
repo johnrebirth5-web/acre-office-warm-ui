@@ -88,6 +88,7 @@ function canUseTrackedDraftAssist(statusLabel: string) {
 
 function buildExecutionAssistantSummary(input: {
   aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
+  aiStrategy: FrontOfficeClientDetailSnapshot["aiStrategy"];
   canCreateSuggestedFollowUp: boolean;
   suggestedDueLabel: string | null;
 }) {
@@ -98,16 +99,18 @@ function buildExecutionAssistantSummary(input: {
     return `${input.aiSuggestions.primaryActionReason} If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""}, record this as an agent-approved AI action, and wait for the later task outcome before learning from it.`;
   }
 
-  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
+  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Shared strategy: ${input.aiStrategy.summaryLabel}. Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
 }
 
 function buildExecutionAssistantMeta(input: {
   aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
+  aiStrategy: FrontOfficeClientDetailSnapshot["aiStrategy"];
   canCreateSuggestedFollowUp: boolean;
   primaryActionLabel: string;
 }) {
   return [
     `Recommended move · ${input.primaryActionLabel}`,
+    input.aiStrategy.summaryLabel,
     `Boundary · ${input.aiSuggestions.boundaryLabel}`,
     input.canCreateSuggestedFollowUp
       ? "One-click · shared task only"
@@ -127,6 +130,7 @@ export function FrontOfficeClientAiSuggestionsClient(
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const aiSuggestions = props.snapshot.aiSuggestions;
+  const aiStrategy = props.snapshot.aiStrategy;
   const canCreateSuggestedFollowUp =
     Boolean(aiSuggestions.followUpSuggestion) &&
     aiSuggestions.allowsDirectFollowUpCreation;
@@ -143,14 +147,17 @@ export function FrontOfficeClientAiSuggestionsClient(
     : null;
   const executionAssistantSummary = buildExecutionAssistantSummary({
     aiSuggestions,
+    aiStrategy,
     canCreateSuggestedFollowUp,
     suggestedDueLabel,
   });
   const executionAssistantMeta = buildExecutionAssistantMeta({
     aiSuggestions,
+    aiStrategy,
     canCreateSuggestedFollowUp,
     primaryActionLabel,
   });
+  const strategyRules = aiStrategy.rules;
 
   async function handleCreateFollowUp() {
     if (!aiSuggestions.followUpSuggestion) {
@@ -303,6 +310,45 @@ export function FrontOfficeClientAiSuggestionsClient(
       </div>
 
       <div className="front-office-placeholder-note front-office-playbook-surface">
+        {strategyRules.length ? (
+          <div className="office-queue-list">
+            {strategyRules.map((rule) => (
+              <QueueItem
+                action={
+                  <>
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={rule.followUpHref}
+                    >
+                      Load follow-up form
+                    </FrontOfficeLink>
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={rule.openDossierHref}
+                    >
+                      Open dossier
+                    </FrontOfficeLink>
+                  </>
+                }
+                badgeLabel={rule.statusLabel}
+                badgeTone={rule.tone}
+                context={`${rule.sourceLabel} · ${rule.contextLabel}`}
+                description={`${rule.description} ${rule.sourceDetail}`}
+                key={rule.id}
+                meta={
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{rule.helperLabel}</span>
+                    {rule.whyNowSignals.map((signal) => (
+                      <span key={signal}>{signal}</span>
+                    ))}
+                  </div>
+                }
+                title={rule.title}
+              />
+            ))}
+          </div>
+        ) : null}
+
         <div className="front-office-ai-explainability-block">
           <span className="front-office-ai-explainability-kicker">
             Execution assistant
@@ -325,6 +371,10 @@ export function FrontOfficeClientAiSuggestionsClient(
           helperText={aiSuggestions.helperText}
           oneClickReason={aiSuggestions.oneClickReason}
           primaryActionReason={aiSuggestions.primaryActionReason}
+          strategySignals={strategyRules.map(
+            (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
+          )}
+          strategySummary={aiStrategy.summaryLabel}
           rankingSignals={aiSuggestions.rankingSignals}
           whyNowSignals={aiSuggestions.groundingSignals}
         />
