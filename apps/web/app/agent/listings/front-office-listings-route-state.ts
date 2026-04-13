@@ -138,8 +138,8 @@ function buildDraftAssistStatusDescription(input: {
 }) {
   if (input.draftAssist) {
     return input.draftAssist.channel === "sms"
-      ? "An SMS draft is active in the current follow-up view. SMS actions use the assisted copy, while email and direct-link actions stay on the standard message templates."
-      : "An email draft is active in the current follow-up view. Email actions use the assisted copy, while SMS and direct-link actions stay on the standard message templates.";
+      ? "An SMS draft is active in the current follow-up view. SMS actions use the loaded draft, while email and direct-link actions stay on the standard message templates."
+      : "An email draft is active in the current follow-up view. Email actions use the loaded draft, while SMS and direct-link actions stay on the standard message templates.";
   }
 
   if (input.hasDraftAssistParams) {
@@ -277,7 +277,7 @@ export function parseFrontOfficeListingsSearchParams(
           channel: requestedDraftChannel,
           title:
             readNormalizedSearchParamValue(searchParams.draftTitle) ||
-            "Outbound draft assist",
+            "Saved draft",
           subjectLine:
             requestedDraftChannel === "email"
               ? readNormalizedSearchParamValue(searchParams.draftSubject) || ""
@@ -432,8 +432,8 @@ export function buildFrontOfficeListingsRouteState(
       badgeTone: "warning",
       title:
         mode === "appointment-linked"
-          ? "Requested appointment context was adjusted"
-          : "Appointment history is not attached",
+          ? "Appointment link was adjusted"
+          : "Appointment history is unavailable",
       description:
         mode === "client-linked"
           ? "The incoming appointment could not be attached to this recipient, so follow-up will stay on the client only."
@@ -444,9 +444,9 @@ export function buildFrontOfficeListingsRouteState(
   if (input.hasRouteLaneParams && !input.requestedRouteLane) {
     diagnostics.push({
       id: "lane",
-      badgeLabel: "Link focus",
+      badgeLabel: "Saved focus",
       badgeTone: "warning",
-      title: "Requested focus did not resolve",
+      title: "Requested view did not resolve",
       description:
         "The link carried a focus parameter, but it did not match a supported view, so Acre kept the page on the nearest safe follow-up view instead.",
     });
@@ -457,17 +457,17 @@ export function buildFrontOfficeListingsRouteState(
       id: "draft",
       badgeLabel: "Link draft",
       badgeTone: "accent",
-      title: "Draft assist did not load",
+      title: "Draft did not load",
       description: input.requestedDraftChannel
         ? `The link carried ${input.requestedDraftChannel.toUpperCase()} draft details, but the body or required context was incomplete, so Acre stayed on the standard message templates.`
-        : "The link carried draft-related details, but not enough valid data to open assisted copy, so Acre stayed on the standard message templates.",
+        : "The link carried draft-related details, but not enough valid data to load the saved draft, so Acre stayed on the standard message templates.",
     });
   }
 
   const routeStatusLabel = diagnostics.length
     ? "View adjusted"
     : resolvedFocusedRouteLane.focusedRouteLane === "draft-lane"
-      ? "Draft focus"
+      ? "Draft in view"
       : resolvedFocusedRouteLane.focusedRouteLane === "follow-through"
         ? "Follow-up focus"
         : "Re-engagement focus";
@@ -517,8 +517,8 @@ export function buildFrontOfficeListingsRouteState(
     routeStatusDescription,
     draftStatusLabel: input.draftAssist
       ? input.draftAssist.sourceKey === "ai"
-        ? "AI draft ready"
-        : "Draft ready"
+        ? "AI draft loaded"
+        : "Draft loaded"
       : input.hasDraftAssistParams
         ? "Draft adjusted"
         : "Standard copy",
@@ -556,14 +556,14 @@ function buildFocusedRouteLane(input: {
       focusedRouteLane: "draft-lane" as const,
       focusedRouteLaneLabel: draftChannelLabel,
       focusedRouteLaneDescription: input.draftAssist
-        ? "An assisted draft is active here. Reopen this view when you want the draft and tracked listing link to stay together."
-        : "A draft view is selected here, but no assisted copy is loaded yet. Reopen from a draft link when you want the copied channel and listing link together.",
+        ? "A saved draft is active here. Reopen this view when you want the draft and tracked listing link to stay together."
+        : "A draft view is selected here, but no saved draft is loaded yet. Reopen from a draft link when you want the copied channel and listing link together.",
       focusedRouteLanePanelLabel: "Draft",
       focusedRouteLanePanelDescription:
-        "Keep the assisted draft, channel choice, and tracked link together before copying anything.",
+        "Keep the loaded draft, channel choice, and tracked link together before copying anything.",
       focusedRouteLaneSteps: [
         {
-          label: "Review the assisted draft",
+          label: "Review the loaded draft",
           detail: "Check the loaded SMS or email copy before you use it.",
           tone: "warning" as const,
         },

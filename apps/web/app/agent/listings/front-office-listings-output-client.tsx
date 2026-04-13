@@ -283,7 +283,7 @@ function buildDraftLaneNote(
   draftAssist: FrontOfficeListingsDraftAssist | null,
 ) {
   if (!draftAssist) {
-    return "No assisted draft is loaded, so every option below uses the standard message templates.";
+    return "No saved draft is loaded, so every option below uses the standard message templates.";
   }
 
   return `Only the ${draftAssist.channel === "sms" ? "SMS" : "Email"} option below uses this draft. The other options stay on the standard message templates, and nothing is sent automatically.`;
@@ -300,7 +300,7 @@ function buildListingRecommendedShareAction(input: {
       action: "sms",
       label: "SMS draft",
       reason:
-        "A matching SMS draft is already loaded here, so the fastest safe move is to keep the assisted text and tracked link together.",
+        "A matching SMS draft is already loaded here, so the fastest safe move is to keep the loaded text and tracked link together.",
     };
   }
 
@@ -309,7 +309,7 @@ function buildListingRecommendedShareAction(input: {
       action: "email",
       label: "Email draft",
       reason:
-        "A matching email draft is already loaded here, so the cleanest move is to keep the assisted framing and tracked link together.",
+        "A matching email draft is already loaded here, so the cleanest move is to keep the loaded framing and tracked link together.",
     };
   }
 
@@ -468,10 +468,10 @@ function buildShareLanePlan(input: {
         : "Saved to: tracked link only.";
   const focusedLaneMeta =
     input.routeState.focusedRouteLane === "draft-lane"
-      ? "Current focus: draft."
+      ? "Current view: draft."
       : input.routeState.focusedRouteLane === "follow-through"
-        ? "Current focus: follow-up."
-        : "Current focus: re-engagement.";
+        ? "Current view: follow-up."
+        : "Current view: re-engagement.";
 
   if (input.action === "sms") {
     return {
@@ -487,14 +487,14 @@ function buildShareLanePlan(input: {
             ? "SMS re-engagement text"
             : "Quick reaction text",
       context: usesDraftAssist
-        ? "AI draft ready"
+        ? "AI draft loaded"
         : isRecommended
           ? input.routeState.focusedRouteLaneLabel
           : "Standard copy",
       description: buildChannelCue(input.snapshot, "sms"),
       meta: [
         usesDraftAssist
-          ? "Copy result: assisted SMS draft + tracked link."
+          ? "Copy result: loaded SMS draft + tracked link."
           : "Copy result: standard SMS template + tracked link.",
         writebackMeta,
         focusedLaneMeta,
@@ -517,14 +517,14 @@ function buildShareLanePlan(input: {
           ? "Follow-through email"
           : "Framed email send",
       context: usesDraftAssist
-        ? "AI draft ready"
+        ? "AI draft loaded"
         : isRecommended
           ? input.routeState.focusedRouteLaneLabel
           : "Standard copy",
       description: buildChannelCue(input.snapshot, "email"),
       meta: [
         usesDraftAssist
-          ? "Copy result: assisted email draft + tracked link."
+          ? "Copy result: loaded email draft + tracked link."
           : "Copy result: standard email template + tracked link.",
         writebackMeta,
         focusedLaneMeta,
@@ -980,7 +980,7 @@ export function FrontOfficeListingsOutputClient(
           <span>Focus · {props.routeState.focusedRouteLaneLabel}</span>
           <span>Mode · {props.routeState.modeLabel}</span>
           <span>Support · {props.routeState.preferredSupportLaneLabel}</span>
-          <span>Rule · Nothing sends automatically</span>
+          <span>Send · Manual only</span>
           {props.snapshot.targetClient ? (
             <span>Stage · {props.snapshot.targetClient.stage}</span>
           ) : null}
@@ -1016,7 +1016,7 @@ export function FrontOfficeListingsOutputClient(
             className="office-inline-link"
             href={agentPackageHref}
           >
-            Open agent materials
+            Open send kit
           </FrontOfficeLink>
           {props.snapshot.targetClient ? (
             <FrontOfficeLink
@@ -1039,7 +1039,7 @@ export function FrontOfficeListingsOutputClient(
               className="office-inline-link"
               href={props.routeState.contextHref}
             >
-              Keep context, clear draft
+              Keep this view, clear draft
             </FrontOfficeLink>
           ) : null}
           {shouldShowResetLink ? (
@@ -1083,7 +1083,7 @@ export function FrontOfficeListingsOutputClient(
             badgeTone="accent"
             context={props.routeState.routeStatusLabel}
             description={props.routeState.stableReentryDescription}
-            title="Saved view checkpoint"
+            title="Saved view"
           />
         </div>
       </div>
@@ -1091,7 +1091,7 @@ export function FrontOfficeListingsOutputClient(
       {props.routeState.diagnostics.length ? (
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Saved link checks</strong>
+            <strong>Saved link review</strong>
             <span>{props.routeState.routeStatusDescription}</span>
           </div>
           <div className="office-queue-list">
@@ -1128,7 +1128,7 @@ export function FrontOfficeListingsOutputClient(
               <span>Subject · {props.draftAssist.subjectLine.trim()}</span>
             ) : null}
             <span>{props.routeState.modeLabel}</span>
-            <span>Nothing sends automatically</span>
+            <span>Manual send only</span>
           </div>
           <p className="front-office-record-supporting">
             {buildDraftLaneNote(props.draftAssist)}
@@ -1141,7 +1141,7 @@ export function FrontOfficeListingsOutputClient(
               className="office-inline-link"
               href={props.routeState.contextHref}
             >
-              Keep context, clear draft
+              Keep this view, clear draft
             </FrontOfficeLink>
             <FrontOfficeLink
               className="office-inline-link"
@@ -1849,7 +1849,7 @@ export function FrontOfficeListingsOutputClient(
                     className="office-inline-link"
                     href={props.routeState.contextHref}
                   >
-                    Keep context, clear draft
+                    Keep this view, clear draft
                   </FrontOfficeLink>
                 ) : null}
                 {shouldShowResetLink ? (

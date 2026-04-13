@@ -122,8 +122,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             className="office-list-card"
             subtitle={
               isZh
-                ? "把队列拆成回复压力、确认压力、已安排触达压力、待保存更新、桥接记录、Acre 邮件连续性和 BO-ready 交接，让页面读起来更像清晰的待办列表。"
-                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, updates not yet saved, bridge logs, Acre mail continuity, and BO-ready handoff so the page reads like a clear task list."
+                ? "把队列拆成回复压力、确认压力、已安排触达压力、待保存更新、草稿记录、Acre 邮件草稿跟进和准备进入 Back Office 的交接，让页面读起来更像清晰的待办列表。"
+                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, updates not yet saved, draft history, Acre mail draft follow-up, and ready-for-Back-Office handoff so the page reads like a clear task list."
             }
             title={isZh ? "协调压力" : "Coordination pressure"}
           >
@@ -204,17 +204,17 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               <StatCard
                 hint={
                   isZh
-                    ? "已经从 Acre 打开过 Google、Outlook、ICS 或邮件桥接的预约"
+                    ? "已经从 Acre 打开过 Google、Outlook、ICS 或邮件草稿的预约"
                     : "appointments that already opened Google, Outlook, ICS, or email from Acre"
                 }
-                label={isZh ? "已记录桥接" : "Bridge logged"}
+                label={isZh ? "已打开草稿" : "Draft opened"}
                 value={snapshot.summary.bridgedCount}
               />
               <StatCard
                 hint={
                   isZh
-                    ? "Acre 已打开桥接、但还没有保存更新的预约"
-                    : "appointments where Acre opened the bridge but no update has been saved yet"
+                    ? "Acre 已打开草稿、但还没有保存更新的预约"
+                    : "appointments where Acre opened a draft but no update has been saved yet"
                 }
                 label={isZh ? "待保存更新" : "Update not saved"}
                 tone="accent"
@@ -223,10 +223,10 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               <StatCard
                 hint={
                   isZh
-                    ? "正在 BO 中等待正式跟进的事务"
-                    : "formal transaction follow-through waiting in BO"
+                    ? "正在 Back Office 中等待正式跟进的事务"
+                    : "formal transaction follow-through waiting in Back Office"
                 }
-                label={isZh ? "可交接 BO" : "BO-ready"}
+                label={isZh ? "准备进入 Back Office" : "Ready for Back Office"}
                 tone="accent"
                 value={snapshot.summary.handoffReadyCount}
               />
@@ -285,8 +285,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                   }
                   description={
                     isZh
-                      ? "当客户进入谈判、报价等可交接 BO 的阶段后，草稿队列会显示在这里。"
-                      : "When a client reaches a BO-ready phase such as negotiation or offer, the draft queue will appear here."
+                      ? "当客户进入谈判、报价等需要正式进入 Back Office 的阶段后，这个队列会显示在这里。"
+                      : "When a client reaches a phase such as negotiation or offer that needs formal Back Office work, this queue will appear here."
                   }
                   title={
                     isZh
@@ -334,7 +334,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             value={snapshot.summary.rescheduleRequestedCount}
           />
           <SummaryChip
-            label={isZh ? "待回写" : "Writeback pending"}
+            label={isZh ? "待保存更新" : "Update not saved"}
             tone="accent"
             value={snapshot.summary.writebackPendingCount}
           />

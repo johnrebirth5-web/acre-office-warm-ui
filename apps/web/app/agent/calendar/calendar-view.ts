@@ -103,8 +103,8 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
   writeback_pending: {
     description:
       "Focus on appointments where an external draft was opened, but no confirmation, reschedule, or next step has been saved yet.",
-    label: "Writeback pending",
-    routeCopy: "Writeback pending",
+    label: "Update not saved",
+    routeCopy: "Update not saved",
   },
 };
 

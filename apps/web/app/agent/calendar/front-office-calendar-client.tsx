@@ -597,7 +597,7 @@ function buildAppointmentCueList(
     appointment.hasBridgeActivity &&
     appointment.externalStatusValue === "idle"
   ) {
-    cues.push({ label: "Writeback pending", tone: "warning" });
+    cues.push({ label: "Update not saved", tone: "warning" });
   }
 
   if (
@@ -2481,8 +2481,8 @@ export function FrontOfficeCalendarClient(
               label={isZh ? "会议链接" : "Meeting link"}
               helper={
                 isZh
-                  ? "粘贴完整 URL，或像 meet.google.com/abc 这样的 host。Acre 会为桥接和 ICS 导出做规范化。"
-                  : "Paste the full URL or a host like meet.google.com/abc. Acre will normalize it for the bridge and ICS export."
+                  ? "粘贴完整 URL，或像 meet.google.com/abc 这样的 host。Acre 会为草稿工具和 ICS 导出做规范化。"
+                  : "Paste the full URL or a host like meet.google.com/abc. Acre will normalize it for the draft tools and ICS export."
               }
             >
               <TextInput
@@ -2572,8 +2572,8 @@ export function FrontOfficeCalendarClient(
         className="office-list-card"
         subtitle={
           isZh
-            ? "日历视图和筛选条件都会保留在路由里，因此你可以直接重新打开同一段外部协调切片，而不必重建整个视图。"
-            : "Calendar view and filters stay in the route so you can reopen the same external-coordination slice without rebuilding the view."
+            ? "日历视图和筛选条件都会保留在链接里，因此你可以直接重新打开同一段外部协调视图，而不必重建整个页面。"
+            : "Calendar view and filters stay in the link so you can reopen the same external-coordination view without rebuilding the page."
         }
         title={isZh ? "队列筛选" : "Queue filters"}
       >
@@ -2725,7 +2725,7 @@ export function FrontOfficeCalendarClient(
         <div className="front-office-ai-explainability is-compact">
           <div className="front-office-ai-explainability-block">
             <span className="front-office-ai-explainability-kicker">
-              {isZh ? "路由状态" : "Route state"}
+              {isZh ? "当前筛选" : "Current filters"}
             </span>
             <strong>{routeStateHeading}</strong>
             <p>{routeStateDescriptionParts.join(" ")}</p>
@@ -2737,7 +2737,7 @@ export function FrontOfficeCalendarClient(
           </div>
           <div className="front-office-ai-explainability-card">
             <span className="front-office-ai-explainability-kicker">
-              {isZh ? "深链接外壳" : "Deep link shell"}
+              {isZh ? "保存的返回路径" : "Saved return path"}
             </span>
             <strong>
               {returnToLabel ||
@@ -2751,13 +2751,13 @@ export function FrontOfficeCalendarClient(
                   预约焦点和当前筛选条件都会保留在 URL 里。如果别的 Front Office
                   页面带来了安全的相对
                   <code>returnTo</code>
-                  ，这个外壳会在你继续细化队列时把它保留下来。
+                  ，这里会在你继续细化队列时把它保留下来。
                 </>
               ) : (
                 <>
                   Appointment focus and active filters stay in the URL. If a
                   safe relative <code>returnTo</code> comes in from another
-                  Front Office page, this shell keeps it while you refine the
+                  Front Office page, this view keeps it while you refine the
                   queue.
                 </>
               )}
@@ -2778,7 +2778,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  {isZh ? "清除焦点锁定" : "Clear focus lock"}
+                  {isZh ? "取消固定预约" : "Clear pinned appointment"}
                 </Button>
               ) : null}
               {hasQueueFilters ? (
@@ -2999,7 +2999,7 @@ export function FrontOfficeCalendarClient(
                     ? `Client filter is currently ${selectedClientLabel}. `
                     : "The client filter is still broad. "}
                   {filterState.appointmentId
-                    ? "The appointment stays in the URL until you clear the focus lock."
+                    ? "This appointment stays pinned until you clear it."
                     : "Pin a specific appointment if you want a durable link back to this same detail panel."}
                 </p>
                 <div className="front-office-record-meta">
@@ -3036,7 +3036,7 @@ export function FrontOfficeCalendarClient(
                       size="sm"
                       variant="secondary"
                     >
-                      {isZh ? "清除焦点锁定" : "Clear focus lock"}
+                      {isZh ? "取消固定预约" : "Clear pinned appointment"}
                     </Button>
                   ) : null}
                   {hasQueueFilters ? (
@@ -3180,7 +3180,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  {isZh ? "清除焦点锁定" : "Clear focus lock"}
+                  {isZh ? "取消固定预约" : "Clear pinned appointment"}
                 </Button>
               ) : null}
             </div>
@@ -3662,7 +3662,7 @@ export function FrontOfficeCalendarClient(
                 </span>
                 <p className="front-office-record-supporting">
                   {isZh
-                    ? "这条预约最近的桥接打开和保存更新都会合并成一条可读的时间线。"
+                    ? "这条预约最近的草稿打开和保存更新都会合并成一条可读的时间线。"
                     : "The latest draft opens and saved updates on this appointment are combined into one readable chronology."}
                 </p>
               </div>
@@ -3681,8 +3681,8 @@ export function FrontOfficeCalendarClient(
                         <StatusBadge tone={item.tone}>
                           {item.kind === "bridge"
                             ? isZh
-                              ? "桥接"
-                              : "Bridge"
+                              ? "草稿"
+                              : "Draft"
                             : isZh
                               ? "更新"
                               : "Update"}
@@ -3698,7 +3698,7 @@ export function FrontOfficeCalendarClient(
                   <EmptyState
                     description={
                       isZh
-                        ? "打开一次桥接，或保存一次更新，来为这条预约启动协调时间线。"
+                        ? "打开一次草稿，或保存一次更新，来为这条预约启动协调时间线。"
                         : "Open a draft or save an update to start the coordination timeline for this appointment."
                     }
                     title={
@@ -3720,7 +3720,7 @@ export function FrontOfficeCalendarClient(
                     size="sm"
                     variant="secondary"
                   >
-                    {isZh ? "清除焦点锁定" : "Clear focus lock"}
+                    {isZh ? "取消固定预约" : "Clear pinned appointment"}
                   </Button>
                 ) : null}
                 {hasQueueFilters ? (
@@ -3753,8 +3753,8 @@ export function FrontOfficeCalendarClient(
             description={
               focusState.mode === "missing"
                 ? isZh
-                  ? "URL 里仍然带着 appointmentId，但 Acre 已经无法在你当前可见的 Front Office 范围里解析这条记录。清除焦点锁定，或退回来源页面。"
-                  : "The URL still carries an appointmentId, but Acre can no longer resolve that record in your visible Front Office scope. Clear the focus lock or step back to the source page."
+                  ? "这个保存的链接仍然指向一条预约记录，但 Acre 已经无法在你当前可见的 Front Office 范围里解析它。取消固定预约，或退回来源页面。"
+                  : "This saved link still points to an appointment, but Acre can no longer resolve it in your visible Front Office scope. Clear the pinned appointment or step back to the source page."
                 : selectedClientLabel
                   ? isZh
                     ? `${selectedClientLabel} 当前没有焦点预约。可以使用上方表单在这个客户上下文里创建第一次带看、咨询或会面。`
@@ -3786,8 +3786,8 @@ export function FrontOfficeCalendarClient(
           agendaViewMode
             ? agendaWindowSubtitle
             : isZh
-              ? `当前路由状态下显示 ${props.snapshot.filteredSummary.appointmentCount} 条预约，紧凑队列会优先强调信号密度，而不是把桥接表单直接内联进来。`
-              : `Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current route state, with the compact queue focused on signal density instead of inline bridge forms.`
+              ? `当前筛选下显示 ${props.snapshot.filteredSummary.appointmentCount} 条预约，紧凑队列会优先强调信号密度，而不是把草稿工具直接内联进来。`
+              : `Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current filtered view, with the compact queue focused on signal density instead of inline draft tools.`
         }
         title={
           agendaViewMode
@@ -3827,7 +3827,7 @@ export function FrontOfficeCalendarClient(
                   </span>
                   <span>
                     {isZh
-                      ? "桥接、更新和时间线仍留在同一条预约上"
+                      ? "草稿、更新和时间线仍留在同一条预约上"
                       : "Draft, update, and timeline controls stay on the same appointment"}
                   </span>
                 </div>
@@ -3846,10 +3846,10 @@ export function FrontOfficeCalendarClient(
                 <p>
                   {agendaViewMode === "day"
                     ? isZh
-                      ? "这是一个真实的单日议程视角，不是概念示意。你仍然可以在同一页打开桥接、载入更新和保存检查点。"
+                      ? "这是一个真实的单日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存检查点。"
                       : "This is a real single-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save checkpoints from the same page."
                     : isZh
-                      ? "这是一个真实的七日议程视角，不是概念示意。你仍然可以在同一页打开桥接、载入更新和保存检查点。"
+                      ? "这是一个真实的七日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存检查点。"
                       : "This is a real seven-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save checkpoints from the same page."}
                 </p>
               </div>
@@ -4076,7 +4076,7 @@ export function FrontOfficeCalendarClient(
                         size="sm"
                         variant="secondary"
                       >
-                        {isZh ? "清除焦点锁定" : "Clear focus lock"}
+                        {isZh ? "取消固定预约" : "Clear pinned appointment"}
                       </Button>
                     ) : null}
                     <Button
