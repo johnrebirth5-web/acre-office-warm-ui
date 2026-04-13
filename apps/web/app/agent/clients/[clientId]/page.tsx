@@ -1578,7 +1578,7 @@ export default async function AgentClientDetailPage(
                   )
                 }
                 className="office-list-card"
-                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail and shared rule layer, but still leaves the final wording and send decision to the agent."
+                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, shared rule layer, and operational playbook, but still leaves the final wording and send decision to the agent."
                 title="AI next-touch suggestions"
               >
                 <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />
@@ -1590,7 +1590,7 @@ export default async function AgentClientDetailPage(
             <div id="front-office-ai-outcomes">
               <SectionCard
                 className="office-list-card"
-                subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so the agent can see whether the suggestion actually moved execution."
+                subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so the agent can see whether the suggestion actually moved execution through the same playbook."
                 title="Accepted AI actions & outcomes"
               >
                 <ListPageStatsGrid>

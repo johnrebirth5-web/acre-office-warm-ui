@@ -89,6 +89,7 @@ function canUseTrackedDraftAssist(statusLabel: string) {
 function buildExecutionAssistantSummary(input: {
   aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
   aiStrategy: FrontOfficeClientDetailSnapshot["aiStrategy"];
+  playbookSummary: string;
   canCreateSuggestedFollowUp: boolean;
   suggestedDueLabel: string | null;
 }) {
@@ -96,21 +97,23 @@ function buildExecutionAssistantSummary(input: {
     input.canCreateSuggestedFollowUp &&
     input.aiSuggestions.followUpSuggestion
   ) {
-    return `${input.aiSuggestions.primaryActionReason} If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""}, record this as an agent-approved AI action, and wait for the later task outcome before learning from it.`;
+    return `${input.aiSuggestions.primaryActionReason} Playbook: ${input.playbookSummary}. If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""}, record this as an agent-approved AI action, and wait for the later task outcome before learning from it.`;
   }
 
-  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Shared strategy: ${input.aiStrategy.summaryLabel}. Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
+  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Shared strategy: ${input.aiStrategy.summaryLabel}. Playbook: ${input.playbookSummary}. Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
 }
 
 function buildExecutionAssistantMeta(input: {
   aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
   aiStrategy: FrontOfficeClientDetailSnapshot["aiStrategy"];
+  playbookSummary: string;
   canCreateSuggestedFollowUp: boolean;
   primaryActionLabel: string;
 }) {
   return [
     `Recommended move · ${input.primaryActionLabel}`,
     input.aiStrategy.summaryLabel,
+    input.playbookSummary,
     `Boundary · ${input.aiSuggestions.boundaryLabel}`,
     input.canCreateSuggestedFollowUp
       ? "One-click · shared task only"
@@ -131,6 +134,7 @@ export function FrontOfficeClientAiSuggestionsClient(
   const [isPending, startTransition] = useTransition();
   const aiSuggestions = props.snapshot.aiSuggestions;
   const aiStrategy = props.snapshot.aiStrategy;
+  const playbook = aiStrategy.playbook;
   const canCreateSuggestedFollowUp =
     Boolean(aiSuggestions.followUpSuggestion) &&
     aiSuggestions.allowsDirectFollowUpCreation;
@@ -148,12 +152,14 @@ export function FrontOfficeClientAiSuggestionsClient(
   const executionAssistantSummary = buildExecutionAssistantSummary({
     aiSuggestions,
     aiStrategy,
+    playbookSummary: playbook.summaryLabel,
     canCreateSuggestedFollowUp,
     suggestedDueLabel,
   });
   const executionAssistantMeta = buildExecutionAssistantMeta({
     aiSuggestions,
     aiStrategy,
+    playbookSummary: playbook.summaryLabel,
     canCreateSuggestedFollowUp,
     primaryActionLabel,
   });
@@ -369,6 +375,8 @@ export function FrontOfficeClientAiSuggestionsClient(
           boundaryLabel={aiSuggestions.boundaryLabel}
           boundaryTone={aiSuggestions.boundaryTone}
           helperText={aiSuggestions.helperText}
+          playbookSteps={playbook.steps}
+          playbookSummary={playbook.summaryLabel}
           oneClickReason={aiSuggestions.oneClickReason}
           primaryActionReason={aiSuggestions.primaryActionReason}
           strategySignals={strategyRules.map(

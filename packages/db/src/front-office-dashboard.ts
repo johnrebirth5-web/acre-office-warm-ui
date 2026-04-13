@@ -20,6 +20,7 @@ import {
   buildFrontOfficeAiBoundaryContract,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiStrategyPlaybookContract,
   buildFrontOfficeAiStrategyContract,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
@@ -3021,10 +3022,21 @@ export async function getFrontOfficeDashboardSnapshot(
       .sort(
         (left, right) =>
           left.priority - right.priority ||
-          left.clientName.localeCompare(right.clientName) ||
-          left.title.localeCompare(right.title),
+        left.clientName.localeCompare(right.clientName) ||
+        left.title.localeCompare(right.title),
       )
       .slice(0, 4),
+    playbook: buildFrontOfficeAiStrategyPlaybookContract(
+      aiStrategyRules
+        .slice()
+        .sort(
+          (left, right) =>
+            left.priority - right.priority ||
+            left.clientName.localeCompare(right.clientName) ||
+            left.title.localeCompare(right.title),
+        )
+        .slice(0, 4),
+    ),
   } satisfies FrontOfficeAiStrategyContract;
   const aiSuggestionCount = aiQueueCandidates.length;
   const aiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown({

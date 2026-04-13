@@ -138,7 +138,7 @@ export function FrontOfficeDashboardAiQueueClient(
 
       {strategyRules.length ? (
         <div className="front-office-placeholder-note">
-          <p>{props.strategy.summaryLabel}</p>
+          <p>{props.strategy.playbook.summaryLabel}</p>
           <div className="list-row-meta front-office-record-meta">
             {strategyRules.map((rule) => (
               <span key={rule.id}>
@@ -255,20 +255,22 @@ export function FrontOfficeDashboardAiQueueClient(
                     <span>{item.sequenceContractLabel}</span>
                     <span>{item.whyNowLabel}</span>
                   </div>
-                  <FrontOfficeAiExplainabilitySurface
-                    allowsDirectFollowUpCreation={
-                      item.allowsDirectFollowUpCreation
-                    }
-                    boundaryDescription={item.boundaryDescription}
-                    boundaryLabel={item.boundaryLabel}
-                    boundaryTone={item.boundaryTone}
-                    compact
-                    helperText={item.helperLabel}
-                    oneClickReason={item.oneClickReason}
-                    primaryActionReason={item.primaryActionReason}
-                    rankingSignals={item.rankingSignals}
-                    strategySignals={strategyRules.map(
-                      (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
+                <FrontOfficeAiExplainabilitySurface
+                  allowsDirectFollowUpCreation={
+                    item.allowsDirectFollowUpCreation
+                  }
+                  boundaryDescription={item.boundaryDescription}
+                  boundaryLabel={item.boundaryLabel}
+                  boundaryTone={item.boundaryTone}
+                  compact
+                  helperText={item.helperLabel}
+                  playbookSteps={props.strategy.playbook.steps}
+                  playbookSummary={props.strategy.playbook.summaryLabel}
+                  oneClickReason={item.oneClickReason}
+                  primaryActionReason={item.primaryActionReason}
+                  rankingSignals={item.rankingSignals}
+                  strategySignals={strategyRules.map(
+                    (rule) => `${rule.sourceLabel} · ${rule.contextLabel}`,
                     )}
                     strategySummary={props.strategy.summaryLabel}
                     whyNowSignals={item.whyNowSignals}
