@@ -158,13 +158,13 @@ export const enUSMessages = {
       },
       listingStudio: {
         label: "Listing Studio",
-        description: "Imported listing packets, sharing, and PDF exports",
+        description: "Saved listings, sharing, and PDF exports",
       },
     },
   },
   agentNav: {
     workspaceName: "Front Office",
-    navigationLabel: "Front Office workbench navigation",
+    navigationLabel: "Front Office navigation",
     switcherLabel: "Active workspace",
     groups: {
       execution: "Execution",
@@ -181,7 +181,7 @@ export const enUSMessages = {
       listingStudio: {
         label: "Listing Studio",
         description:
-          "Capture listing packets, client-ready exports, and outbound materials",
+          "Capture listings, client-ready exports, and outbound materials",
       },
       backOffice: {
         label: "Back Office",
@@ -333,7 +333,7 @@ export const enUSMessages = {
     title: "Pipeline",
     eyebrow: "Pipeline",
     description:
-      "A calm workbench for reviewing pending deals, monthly closed activity, and the transactions visible inside your current scope.",
+      "Review pending deals, monthly closed activity, and the transactions visible inside your current scope.",
     visibleMetric: "Visible metric",
     selection: "Selection",
     anySide: "Any side",
@@ -407,13 +407,13 @@ export const enUSMessages = {
     editFields: "Edit fields",
     editSearchFields: "Edit search fields",
     editSearchFieldsBody:
-      "Choose which transaction fields appear in the shared office search workbench.",
+      "Choose which transaction fields appear in office search.",
     closeSearchFieldEditor: "Close search field editor",
     operational: "Operational",
     builtIn: "Built-in",
     custom: "Custom",
     operationalFieldsBody:
-      "Shared workbench filters that are not part of the transaction field schema.",
+      "Shared filters that are not part of the transaction field schema.",
     builtInFieldsBody:
       "Visible built-in transaction fields from Settings > Fields.",
     customFieldsBody:
@@ -423,7 +423,7 @@ export const enUSMessages = {
     noSearchFieldsConfiguredAdmin:
       "Use Edit fields to choose which filters should appear for this office.",
     noSearchFieldsConfiguredUser:
-      "An office admin can enable transaction search fields for this workspace.",
+      "An office admin can enable transaction search fields for this page.",
     tableTransaction: "Transaction",
     tableAskingPurchased: "Asking / Purchased",
     tableOwner: "Owner",
@@ -451,7 +451,7 @@ export const enUSMessages = {
     reset: "Reset",
     createContact: "New contact",
     createContactSubtitle:
-      "Create a contact from the current office contact schema without leaving the workspace.",
+      "Create a contact from the current office contact schema without leaving this page.",
     tableContact: "Contact",
     tableStage: "Stage",
     tableIntentBudget: "Intent / budget",
@@ -626,7 +626,7 @@ export const enUSMessages = {
     title: "Signatures",
     eyebrow: "Documents",
     description:
-      "A Back Office signatures workspace for continuing active drafts, reusing templates, monitoring sent envelopes, and managing office-wide signature follow-up.",
+      "Continue active drafts, reuse templates, monitor sent envelopes, and manage office-wide signature follow-up.",
     exportCsv: "Export CSV",
     templates: "Templates",
     driveSettings: "Drive settings",
@@ -653,29 +653,29 @@ export const enUSMessages = {
     statsInFlightHint:
       "Envelopes already in recipient hands or partially completed.",
     statsCompletedHint:
-      "Finished requests in the current filtered center view.",
+      "Finished requests in the current filtered view.",
     statsNonTransactionTrackedHint:
-      "HR, finance, admin, and generic requests can be tracked here after they already exist, but brand-new non-transaction drafts still cannot start from this center.",
+      "HR, finance, admin, and generic requests can be tracked here after they already exist, but brand-new non-transaction drafts still cannot start here yet.",
     statsActiveTemplatesHint:
       "Active reusable templates available for the next request authoring session.",
     statsGenericDriveRouteHint:
       "Completed non-transaction envelopes currently route here inside Signature Drive.",
-    continueTitle: "Continue from center",
+    continueTitle: "Continue work",
     continueSubtitle:
-      "This center can continue saved drafts, surface sent envelopes that still need attention, and let operations retry Drive sync without backing into transaction detail first.",
+      "Continue saved drafts, surface sent envelopes that still need attention, and retry Drive sync without opening transaction detail first.",
     continueDraftDescription:
       "Continue recipient, delivery, or field placement work.",
     continueDriveDescription:
       "The request completed, but Drive archival still needs attention.",
     continueMonitorDescription:
-      "Monitor the live request without leaving the signatures workspace.",
+      "Monitor the live request without leaving this page.",
     openTemplateLibrary: "Open template library",
-    urgentEmptyTitle: "Nothing urgent in the signatures workspace",
+    urgentEmptyTitle: "Nothing urgent right now",
     urgentEmptyBody:
-      "No existing drafts, in-flight envelopes, or Drive retries are currently bubbling to the top of the center.",
-    directCreateTitle: "Direct create from center",
+      "No existing drafts, in-flight envelopes, or Drive retries need attention right now.",
+    directCreateTitle: "Start from existing records",
     directCreateSubtitle:
-      "Use this workspace to track requests, templates, delivery status, and follow-up. Starting a brand-new HR, finance, admin, or generic request directly from here is not available yet.",
+      "Track requests, templates, delivery status, and follow-up here. Starting a brand-new HR, finance, admin, or generic request directly from this page is not available yet.",
     directCreateUnavailableTitle:
       "Direct non-transaction creation is not available yet.",
     directCreateUnavailableBody:
@@ -698,7 +698,7 @@ export const enUSMessages = {
     driveRoutingTitle:
       "Drive routing is exposed as an operational path, not a hidden settings dependency.",
     driveRoutingBody:
-      "Drive routing stays visible from the center so operations can see how completed signature packets will archive for both transaction-backed and context-labeled requests.",
+      "Drive routing stays visible here so operations can see how completed signature packets archive for both transaction-backed and context-labeled requests.",
     genericEnvelopes: "Generic envelopes",
     transactionEnvelopes: "Transaction envelopes",
     simpleArchivalTitle: "Drive archival remains intentionally simple.",
@@ -768,7 +768,7 @@ export const enUSMessages = {
     blockerTransactionRequiredTitle:
       "New requests still need a transaction source",
     blockerTransactionRequiredDetail:
-      "Standalone HR, finance, admin, and generic requests cannot be started from the center yet because new signature drafts still begin from a transaction-linked request.",
+      "Standalone HR, finance, admin, and generic requests cannot be started here yet because new signature drafts still begin from a transaction-linked request.",
     blockerRecipientsRequiredTitle:
       "Recipients and fields are still set up inside that flow",
     blockerRecipientsRequiredDetail:
@@ -821,12 +821,12 @@ export const enUSMessages = {
     withLiveDrafts: "With live drafts",
     neverUsed: "Never used",
     clearFilters: "Clear filters",
-    openSignaturesCenter: "Open signatures center",
+    openSignaturesCenter: "Open signatures",
     showingTemplates:
       "{note} Showing {filtered} of {total} templates.",
     tableTitle: "Template library",
     tableSubtitle:
-      "Templates remain reusable blueprints inside the existing transaction-PDF signature flow, while this library surfaces whether each one already has a live draft or recent request operations can continue from the center.",
+      "Templates remain reusable blueprints inside the existing transaction-PDF signature flow, while this library shows whether each one already has a live draft or recent request activity you can continue here.",
     tableTemplate: "Template",
     tableCategory: "Category",
     tableStructure: "Structure",
@@ -893,7 +893,7 @@ export const enUSMessages = {
       "Office-wide offer queue anchored inside transaction management so you can scan real status, expiring-soon pressure, and accepted-path context without leaving the transaction system.",
     sectionTitle: "Offer queue",
     sectionSubtitle:
-      "Review the current office offer set, then jump straight back into the source transaction workspace for the full workflow.",
+      "Review the current office offer set, then jump back into the source transaction for the full workflow.",
     offersInView: "Offers in view",
     expiringSoon: "Expiring soon",
     accepted: "Accepted",
@@ -1074,7 +1074,7 @@ export const enUSMessages = {
     direction: "Direction",
     editFields: "Edit fields",
     editFieldsBody:
-      "Choose which report filters stay visible for this office workbench.",
+      "Choose which report filters stay visible on this page.",
     groupOperational: "Operational",
     groupFinancial: "Financial",
     groupOrganizational: "Organizational",
@@ -1089,7 +1089,7 @@ export const enUSMessages = {
     noFieldsConfiguredAdmin:
       "Use Edit fields to choose which report filters should stay visible for this office.",
     noFieldsConfiguredUser:
-      "An office admin can enable report search fields for this workspace.",
+      "An office admin can enable report search fields for this page.",
     any: "Any",
     selectedCount: "{count} selected",
     oneSelected: "1 selected",

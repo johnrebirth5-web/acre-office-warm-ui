@@ -152,17 +152,17 @@ export const zhCNMessages = {
     shortcuts: {
       frontOffice: {
         label: "Front Office",
-        description: "客户、外联、日历和主动跟进工作台",
+        description: "客户、外联、日历和主动跟进",
       },
       listingStudio: {
         label: "Listing Studio",
-        description: "导入房源资料包、分享链接和 PDF 输出",
+        description: "保存房源、分享链接和 PDF 输出",
       },
     },
   },
   agentNav: {
     workspaceName: "Front Office",
-    navigationLabel: "Front Office 工作台导航",
+    navigationLabel: "Front Office 导航",
     switcherLabel: "当前工作区",
     groups: {
       execution: "执行",
@@ -314,7 +314,7 @@ export const zhCNMessages = {
   officePipeline: {
     title: "管道",
     eyebrow: "管道",
-    description: "在你当前可见范围内，以更平静的工作台方式查看待处理交易、月度成交和交易列表。",
+    description: "查看你当前可见范围内的待处理交易、月度成交和交易列表。",
     visibleMetric: "当前指标",
     selection: "当前选择",
     anySide: "全部方向",
@@ -378,12 +378,12 @@ export const zhCNMessages = {
     transactionListSubtitle: "搜索、筛选并查看当前办公室范围内的交易集合。",
     editFields: "编辑字段",
     editSearchFields: "编辑搜索字段",
-    editSearchFieldsBody: "选择哪些交易字段会出现在共享的办公室搜索工作台里。",
+    editSearchFieldsBody: "选择哪些交易字段会出现在办公室搜索里。",
     closeSearchFieldEditor: "关闭搜索字段编辑器",
     operational: "运营字段",
     builtIn: "内置字段",
     custom: "自定义字段",
-    operationalFieldsBody: "这些是共享工作台的筛选条件，不属于交易字段 schema 本身。",
+    operationalFieldsBody: "这些是共享筛选条件，不属于交易字段 schema 本身。",
     builtInFieldsBody: "这些是来自 Settings > Fields 的可见内置交易字段。",
     customFieldsBody: "这些是来自 Settings > Fields 的可见自定义交易字段。",
     saveFields: "保存字段",
@@ -391,7 +391,7 @@ export const zhCNMessages = {
     noSearchFieldsConfiguredAdmin:
       "使用“编辑字段”来决定这个办公室应该展示哪些筛选条件。",
     noSearchFieldsConfiguredUser:
-      "办公室管理员可以为这个工作区启用交易搜索字段。",
+      "办公室管理员可以为这个页面启用交易搜索字段。",
     tableTransaction: "交易",
     tableAskingPurchased: "挂牌 / 成交",
     tableOwner: "负责人",
@@ -407,7 +407,7 @@ export const zhCNMessages = {
   },
   officeContacts: {
     title: "联系人",
-    description: "实时 Office 联系人工作台，支持阶段筛选、搜索，以及按当前 schema 快速创建。",
+    description: "实时 Office 联系人列表，支持阶段筛选、搜索，以及按当前 schema 快速创建。",
     contactList: "联系人列表",
     contactListSubtitle: "搜索、筛选并查看当前办公室范围内的联系人集合。",
     searchLabel: "搜索",
@@ -416,7 +416,7 @@ export const zhCNMessages = {
     applyFilters: "应用筛选",
     reset: "重置",
     createContact: "新建联系人",
-    createContactSubtitle: "基于当前办公室联系人 schema 直接在工作台里创建联系人。",
+    createContactSubtitle: "基于当前办公室联系人 schema 直接在这个页面创建联系人。",
     tableContact: "联系人",
     tableStage: "阶段",
     tableIntentBudget: "意向 / 预算",
@@ -581,7 +581,7 @@ export const zhCNMessages = {
     title: "签署",
     eyebrow: "文档",
     description:
-      "Back Office 签署工作区，用于继续处理活动草稿、复用模板、跟踪已发送信封，以及管理全办公室的签署后续。",
+      "继续处理活动草稿、复用模板、跟踪已发送信封，并管理全办公室的签署后续。",
     exportCsv: "导出 CSV",
     templates: "模板",
     driveSettings: "Drive 设置",
@@ -604,23 +604,23 @@ export const zhCNMessages = {
     statsDraftsHint: "仍需要补齐收件人或 PDF 字段配置后才能继续推进的已保存请求。",
     statsReadyToSendHint: "已经准备好发送审核，但尚未真正发出的已保存请求。",
     statsInFlightHint: "已经到达收件人手中或处于部分完成状态的信封。",
-    statsCompletedHint: "当前筛选中心视图内已完成的请求。",
+    statsCompletedHint: "当前筛选视图内已完成的请求。",
     statsNonTransactionTrackedHint:
-      "HR、财务、行政和通用请求在已存在后可以在这里追踪，但新的非交易草稿还不能直接从这个中心发起。",
+      "HR、财务、行政和通用请求在已存在后可以在这里追踪，但新的非交易草稿还不能直接从这里发起。",
     statsActiveTemplatesHint: "下一个请求编排流程中可复用的启用模板。",
     statsGenericDriveRouteHint: "当前已完成的非交易信封会路由到这里进入 Signature Drive。",
-    continueTitle: "从中心继续处理",
+    continueTitle: "继续处理",
     continueSubtitle:
-      "这里可以继续处理已保存草稿，暴露仍需关注的已发送信封，并允许运营团队在不回退到交易详情页的情况下重试 Drive 同步。",
+      "这里可以继续处理已保存草稿，显示仍需关注的已发送信封，并允许运营团队在不回到交易详情页的情况下重试 Drive 同步。",
     continueDraftDescription: "继续处理收件人、投递方式或字段摆放。",
     continueDriveDescription: "请求本身已完成，但 Drive 归档仍需处理。",
-    continueMonitorDescription: "无需离开签署工作区即可监控当前活动请求。",
+    continueMonitorDescription: "无需离开这个页面即可监控当前活动请求。",
     openTemplateLibrary: "打开模板库",
-    urgentEmptyTitle: "当前签署工作区没有紧急事项",
-    urgentEmptyBody: "当前没有草稿、处理中信封或 Drive 重试项浮到中心顶部。",
-    directCreateTitle: "从中心直接创建",
+    urgentEmptyTitle: "当前没有紧急事项",
+    urgentEmptyBody: "当前没有草稿、处理中信封或 Drive 重试项需要优先处理。",
+    directCreateTitle: "从现有记录继续",
     directCreateSubtitle:
-      "这个工作区可用于跟踪请求、模板、投递状态和后续处理，但目前还不能直接从这里发起全新的 HR、财务、行政或通用请求。",
+      "这里可用于跟踪请求、模板、投递状态和后续处理，但目前还不能直接从这个页面发起全新的 HR、财务、行政或通用请求。",
     directCreateUnavailableTitle: "目前还不能直接创建非交易请求。",
     directCreateUnavailableBody:
       "你现在可以在这里管理和监控请求，但独立的 HR、财务、行政和通用签署请求还需要更多平台支持，才能直接从 `/office/signatures` 发起。",
@@ -638,7 +638,7 @@ export const zhCNMessages = {
     noRequestsInCurrentFilterSet: "当前筛选下没有请求",
     driveRoutingTitle: "Drive 路由是显式运营路径，不是隐藏设置依赖。",
     driveRoutingBody:
-      "中心里会直接显示 Drive 路由，让运营团队能看到交易型和上下文型请求在完成后会如何归档。",
+      "这里会直接显示 Drive 路由，让运营团队能看到交易型和上下文型请求在完成后会如何归档。",
     genericEnvelopes: "通用信封",
     transactionEnvelopes: "交易信封",
     simpleArchivalTitle: "Drive 归档刻意保持简单。",
@@ -704,7 +704,7 @@ export const zhCNMessages = {
     driveSyncRetried: "已重试 Drive 同步。",
     blockerTransactionRequiredTitle: "新请求仍然需要交易来源",
     blockerTransactionRequiredDetail:
-      "独立的 HR、财务、行政和通用请求目前还不能从中心直接发起，因为新的签署草稿仍然从交易关联请求开始。",
+      "独立的 HR、财务、行政和通用请求目前还不能直接从这里发起，因为新的签署草稿仍然从交易关联请求开始。",
     blockerRecipientsRequiredTitle: "收件人和字段仍然在那条流程里配置",
     blockerRecipientsRequiredDetail:
       "签署路由、收件人归属和字段摆放仍通过当前交易驱动的编排流程完成。",
@@ -722,7 +722,7 @@ export const zhCNMessages = {
     eyebrow: "文档",
     description:
       "在一个地方维护可复用签署模板库，追踪哪些模板已经有活动草稿，并让当前交易 PDF 编排模型的能力边界保持真实可见。",
-    backToSignatures: "返回签署中心",
+    backToSignatures: "返回签署",
     genericCategoryNote:
       "当前 schema 只支持交易、HR、财务和行政模板分类，`generic` 目前仍只作为请求上下文元数据存在。",
     templates: "模板",
@@ -738,7 +738,7 @@ export const zhCNMessages = {
     statsUsedHint: "至少已经在历史或流转中使用过一次的模板。",
     statsLiveDraftsHint: "当前已有草稿或待发送请求可继续处理的模板。",
     usedAtLeastOnce: "至少使用过一次",
-    libraryControlsTitle: "模板库控制台",
+    libraryControlsTitle: "模板筛选",
     libraryControlsSubtitle:
       "按名称、分类、运营状态或是否已有活动草稿来筛选模板库。这个模板库仍然服务于当前基于交易 PDF 的编排路径。",
     searchPlaceholder: "模板名称、描述、最新请求...",
@@ -750,7 +750,7 @@ export const zhCNMessages = {
     withLiveDrafts: "有活动草稿",
     neverUsed: "从未使用",
     clearFilters: "清空筛选",
-    openSignaturesCenter: "打开签署中心",
+    openSignaturesCenter: "打开签署",
     showingTemplates: "{note} 当前显示 {filtered} / {total} 个模板。",
     tableTitle: "模板库",
     tableSubtitle:
@@ -818,7 +818,7 @@ export const zhCNMessages = {
       "锚定在交易管理里的全办公室报价队列，让你无需离开交易系统，就能查看真实状态、即将到期压力和已接受路径上下文。",
     sectionTitle: "报价队列",
     sectionSubtitle:
-      "查看当前办公室范围内的报价集合，然后直接跳回源交易工作区继续完整流程。",
+      "查看当前办公室范围内的报价集合，然后跳回源交易继续完整流程。",
     offersInView: "当前报价数",
     expiringSoon: "即将到期",
     accepted: "已接受",
@@ -985,7 +985,7 @@ export const zhCNMessages = {
     sortBy: "排序字段",
     direction: "方向",
     editFields: "编辑字段",
-    editFieldsBody: "选择哪些报表筛选条件需要保留在这个办公室工作台上。",
+    editFieldsBody: "选择哪些报表筛选条件需要保留在这个页面上。",
     groupOperational: "运营",
     groupFinancial: "财务",
     groupOrganizational: "组织",
@@ -995,7 +995,7 @@ export const zhCNMessages = {
     saveFieldsFailed: "保存报表筛选字段失败。",
     noFieldsConfiguredTitle: "还没有配置报表字段",
     noFieldsConfiguredAdmin: "使用“编辑字段”来决定这个办公室应该长期显示哪些报表筛选条件。",
-    noFieldsConfiguredUser: "办公室管理员可以为这个工作区启用报表筛选字段。",
+    noFieldsConfiguredUser: "办公室管理员可以为这个页面启用报表筛选字段。",
     any: "任意",
     selectedCount: "已选 {count} 项",
     oneSelected: "已选 1 项",

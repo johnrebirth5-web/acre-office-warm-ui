@@ -38,7 +38,7 @@ export default async function ListingStudioListingsPage(
       <section className="office-page-header listing-studio-header">
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
-          <h2>Saved listing packets</h2>
+          <h2>Saved listings</h2>
         </div>
       </section>
 
@@ -50,7 +50,7 @@ export default async function ListingStudioListingsPage(
         ) : null}
         <SectionCard
           className="office-list-card"
-          subtitle="Search by address, building, neighborhood, or title. Filters stay lightweight in v1 so the save flow remains the priority."
+          subtitle="Search by address, building, neighborhood, or title."
           title="Filters"
         >
           <form className="listing-studio-filter-bar" method="get">
@@ -91,7 +91,7 @@ export default async function ListingStudioListingsPage(
 
         <SectionCard
           className="office-list-card"
-          subtitle={`${items.length} packet${items.length === 1 ? "" : "s"} currently match this view.`}
+          subtitle={`${items.length} listing${items.length === 1 ? "" : "s"} currently match this view.`}
           title="Imported listings"
         >
           <div className="listing-studio-card-grid">
@@ -137,10 +137,9 @@ export default async function ListingStudioListingsPage(
               ))
             ) : (
               <div className="listing-studio-empty-state">
-                <strong>No packets match the current filters.</strong>
+                <strong>No listings match the current filters.</strong>
                 <p>
-                  Try loosening the search or save a fresh listing from the Acre
-                  Chrome extension.
+                  Try a broader search or save a new listing from the Acre Chrome extension.
                 </p>
               </div>
             )}

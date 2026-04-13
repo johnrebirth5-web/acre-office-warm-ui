@@ -975,7 +975,7 @@ export function OfficeSettingsFieldsClient({
             <div className="office-fields-section-head">
               <div>
                 <h3>Hidden fields</h3>
-                <p>Restore fields without leaving the centralized fields workspace.</p>
+                <p>Restore fields without leaving this page.</p>
               </div>
             </div>
             <div className="office-fields-hidden-list">

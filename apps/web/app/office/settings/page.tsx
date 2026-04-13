@@ -48,7 +48,7 @@ export default async function OfficeSettingsPage() {
       </section>
 
       <section className="office-settings-section-grid">
-        <SectionCard subtitle="Account access and member operations in one workspace." title="Users">
+        <SectionCard subtitle="Account access and member operations in one place." title="Users">
           <p className="office-settings-copy">
             Manage invitations, access state, office assignment, onboarding, goals, and operational member visibility from a unified route.
           </p>
@@ -120,7 +120,7 @@ export default async function OfficeSettingsPage() {
         {canAccessOfficeCommissionWorkspace(context.currentMembership) ? (
           <SectionCard subtitle="Default split templates, member-level defaults, and advanced legacy commission tools." title="Commission plans">
             <p className="office-settings-copy">
-              Open the commission workspace to manage reusable split templates, review member defaults, and work through advanced plan settings.
+              Open commission plans to manage reusable split templates, review member defaults, and adjust advanced plan settings.
             </p>
             <Link className="office-settings-link" href="/office/settings/commission-plans">
               Open commission plans

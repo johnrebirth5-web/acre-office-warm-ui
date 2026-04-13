@@ -50,12 +50,12 @@ export default async function ListingStudioDashboardPage() {
 
         <SectionCard
           className="office-list-card"
-          subtitle="A quick read on how much of the workspace is already active."
+          subtitle="A quick read on current Listing Studio activity."
           title="Studio overview"
         >
           <ListPageStatsGrid>
             <StatCard
-              hint="All captured listing packets in this organization"
+              hint="All saved listings in this organization"
               label="Saved listings"
               value={snapshot.summary.totalListings}
             />
@@ -65,12 +65,12 @@ export default async function ListingStudioDashboardPage() {
               value={snapshot.summary.recentImports}
             />
             <StatCard
-              hint="Public share page opens recorded across shared packets"
+              hint="Public share page opens recorded across shared listings"
               label="Share views"
               value={snapshot.summary.shareViews}
             />
             <StatCard
-              hint="Packets that already have a live public share link"
+              hint="Listings that already have a live public share link"
               label="Ready to share"
               value={snapshot.summary.readyToShare}
             />
@@ -79,7 +79,7 @@ export default async function ListingStudioDashboardPage() {
 
         <SectionCard
           className="office-list-card"
-          subtitle="These are the most recently updated imported packets."
+          subtitle="Recently updated saved listings."
           title="Recent listings"
         >
           <div className="listing-studio-card-grid">
@@ -126,8 +126,8 @@ export default async function ListingStudioDashboardPage() {
               <div className="listing-studio-empty-state">
                 <strong>No saved listings yet.</strong>
                 <p>
-                  Open a supported listing page in Chrome, click the Acre floating
-                  save card, and the imported packet will show up here automatically.
+                  Open a supported listing page in Chrome, click the Acre save
+                  card, and the listing will show up here automatically.
                 </p>
               </div>
             )}

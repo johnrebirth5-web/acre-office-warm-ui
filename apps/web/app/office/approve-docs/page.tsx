@@ -42,7 +42,7 @@ export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPage
   return (
     <OfficeListPageShell className="office-approve-docs-page">
       <OfficeListPageHeader
-        description="Focused document review workbench for first approval, second approval, rejection follow-up, signature blockers, and missing required files."
+        description="Review documents waiting on approval, rejection follow-up, signature blockers, and missing required files."
         eyebrow="Approve docs"
         summary={
           <>

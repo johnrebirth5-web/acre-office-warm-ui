@@ -164,7 +164,7 @@ function getOfferFieldClassName(fieldClassName: string, context: "create" | "edi
 function buildOfferUploadState(): OfferUploadState {
   return {
     title: "",
-    documentType: "Offer packet",
+    documentType: "Offer documents",
     linkedTaskId: ""
   };
 }
@@ -523,7 +523,7 @@ export function TransactionOffersCard({
       const formData = new FormData();
       formData.set("file", file);
       formData.set("title", uploadState.title.trim() || file.name);
-      formData.set("documentType", uploadState.documentType.trim() || "Offer packet");
+      formData.set("documentType", uploadState.documentType.trim() || "Offer documents");
       formData.set("linkedTaskId", uploadState.linkedTaskId || "");
       formData.set("offerId", offerId);
       formData.set("isRequired", "false");

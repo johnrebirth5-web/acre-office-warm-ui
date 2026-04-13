@@ -15,8 +15,8 @@ export default function ListingStudioExtensionInstallPage() {
       <div className="office-list-page-stack listing-studio-stack">
         <SectionCard
           className="office-list-card"
-          subtitle="Chrome only allows true one-click extension installs through the Chrome Web Store."
-          title="Install from Acre"
+          subtitle="Install the extension from the Chrome Web Store, then come back here."
+          title="Install extension"
         >
           <div className="listing-studio-install-layout">
             <div className="listing-studio-install-copy">
@@ -48,8 +48,8 @@ export default function ListingStudioExtensionInstallPage() {
 
         <SectionCard
           className="office-list-card"
-          subtitle="After Chrome opens the store page, follow this flow to finish browser connection."
-          title="Current install flow"
+          subtitle="After Chrome opens the store page, follow these steps to finish setup."
+          title="Setup steps"
         >
           <div className="listing-studio-install-steps">
             <div className="listing-studio-install-step">

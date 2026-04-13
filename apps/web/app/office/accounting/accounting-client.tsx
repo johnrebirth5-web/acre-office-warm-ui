@@ -1074,7 +1074,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       </ListPageSection>
 
       <ListPageSection
-        subtitle="Select invoice numbers and review the matching commission rows in one workspace before generating the statement."
+        subtitle="Select invoice numbers and review the matching commission rows in one place before generating the statement."
         title="Statement candidates"
       >
         {hasLoadedAgent ? (

@@ -390,7 +390,7 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="forms-signatures"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Generate transaction packets from templates, keep them tied to checklist tasks, and track manual signature status."
+        subtitle="Generate transaction forms from templates, keep them tied to checklist tasks, and track manual signature status."
         title="Forms & eSignature"
       >
         <TransactionFormsSignaturesCard

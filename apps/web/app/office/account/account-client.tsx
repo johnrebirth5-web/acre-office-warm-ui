@@ -180,14 +180,14 @@ function buildSummaryDrilldowns(
       badgeTone:
         summary.openTaskCount > 0 ? ("accent" as const) : ("neutral" as const),
       description: summary.openTaskCount
-        ? `${openTaskParts.join(" and ")}. There is no single merged task workspace yet, so use the matching drilldown below.`
+        ? `${openTaskParts.join(" and ")}. Tasks are still split across the pages below, so use the matching link to continue.`
         : "No open transaction or follow-up work is currently assigned to you.",
       actions: [
         {
           label:
             summary.openTransactionTaskCount > 0
               ? "Open task list"
-              : "Open tasks workspace",
+              : "Open tasks",
           href: "/office/tasks?view=requires-attention",
           variant: "primary" as const,
         },

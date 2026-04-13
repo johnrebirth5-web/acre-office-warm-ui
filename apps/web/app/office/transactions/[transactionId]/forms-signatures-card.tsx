@@ -327,7 +327,7 @@ export function TransactionFormsSignaturesCard({
       <div className="office-card-head">
         <div>
           <h3>Forms &amp; eSignature</h3>
-          <span>Generate transaction packets from templates, keep them tied to checklist tasks, and track manual signature status.</span>
+          <span>Generate transaction forms from templates, keep them tied to checklist tasks, and track manual signature status.</span>
         </div>
       </div>
 
@@ -618,7 +618,7 @@ export function TransactionFormsSignaturesCard({
           })
         ) : (
           <EmptyState
-            description="Use a seeded template to prepare a transaction form packet and start an internal signature workflow."
+            description="Use a seeded template to prepare transaction forms and start an internal signature workflow."
             title="No forms created for this transaction yet."
           />
         )}
@@ -657,7 +657,7 @@ export function TransactionFormsSignaturesCard({
                 ))}
               </SelectInput>
             </FormField>
-            <FormField label="Packet name">
+            <FormField label="Document set name">
               <TextInput
                 onChange={(event) => setNewFormState((current) => ({ ...current, name: event.target.value }))}
                 placeholder="Leave blank to use the default template name"

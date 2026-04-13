@@ -341,12 +341,12 @@ export function ListingStudioDetailClient({
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Unable to save the packet.");
+          throw new Error(body?.error || "Unable to save the listing.");
         }
 
-        setStatusMessage("Packet changes saved.");
+        setStatusMessage("Listing changes saved.");
       } catch (error) {
-        setStatusMessage(error instanceof Error ? error.message : "Unable to save the packet.");
+        setStatusMessage(error instanceof Error ? error.message : "Unable to save the listing.");
       } finally {
         setIsSaving(false);
       }
@@ -470,7 +470,7 @@ export function ListingStudioDetailClient({
         <div className="listing-studio-detail-main">
         <SectionCard
           className="listing-studio-hero-card"
-          subtitle={detail.locationLine ?? "Imported listing packet"}
+          subtitle={detail.locationLine ?? "Imported listing"}
           title={detail.title}
         >
           <div className="listing-studio-hero-stack">
@@ -489,7 +489,7 @@ export function ListingStudioDetailClient({
             <div className="listing-studio-hero-strip">
               <strong>{detail.priceLabel}</strong>
               <span>{detail.addressLine}</span>
-              <span>{detail.listingType ?? detail.statusLabel ?? "Listing packet"}</span>
+              <span>{detail.listingType ?? detail.statusLabel ?? "Saved listing"}</span>
             </div>
             {activeGallery.length ? (
               <div className="listing-studio-thumbnail-row">
@@ -513,7 +513,7 @@ export function ListingStudioDetailClient({
 
         <SectionCard
           className="office-list-card"
-          subtitle="The normalized facts layer stays read-only. Editing happens on the customer-facing packet in the right rail."
+          subtitle="Captured details from the source listing. Edit the client-facing page in the right panel."
           title="Facts"
         >
           <div className="listing-studio-facts-grid">
@@ -532,7 +532,7 @@ export function ListingStudioDetailClient({
         {detail.sourceFacts.length ? (
           <SectionCard
             className="office-list-card"
-            subtitle="Structured source facts captured from the original listing page."
+            subtitle="Structured details captured from the original listing page."
             title="Source facts"
           >
             <div className="listing-studio-keyvalue-grid">
@@ -549,7 +549,7 @@ export function ListingStudioDetailClient({
         <div className="listing-studio-section-grid">
           <SectionCard
             className="office-list-card"
-            subtitle="Grouped directly from the imported listing payload."
+            subtitle="Grouped from the imported listing data."
             title="Amenities"
           >
             {detail.amenities.length ? (
@@ -574,7 +574,7 @@ export function ListingStudioDetailClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="Nearby transit parsed from the source page when available."
+            subtitle="Nearby transit captured from the source page when available."
             title="Transit"
           >
             {detail.transit.length ? (
@@ -596,7 +596,7 @@ export function ListingStudioDetailClient({
         {detail.propertyHistory.length ? (
           <SectionCard
             className="office-list-card"
-            subtitle="Property and listing history blocks captured from the source page."
+            subtitle="Property and listing history captured from the source page."
             title="History"
           >
             <div className="listing-studio-detail-section-list">
@@ -617,7 +617,7 @@ export function ListingStudioDetailClient({
         {detail.capturedSections.length ? (
           <SectionCard
             className="office-list-card"
-            subtitle="Additional sections captured from the listing page that do not fit the core fact cards."
+            subtitle="Extra sections captured from the listing page."
             title="Additional details"
           >
             <div className="listing-studio-detail-section-list">
@@ -637,8 +637,8 @@ export function ListingStudioDetailClient({
 
         <SectionCard
           className="office-list-card"
-          subtitle="Select the images that should stay in the public packet and choose the hero image."
-          title="Media selection"
+          subtitle="Select the images that should stay on the public page and choose the hero image."
+          title="Photos"
         >
           <div className="listing-studio-media-selector-grid">
             {detail.assets.map((asset) => {
@@ -689,7 +689,7 @@ export function ListingStudioDetailClient({
         <div className="listing-studio-detail-rail">
           <SectionCard
             className="office-list-card"
-            subtitle="Generate a print-ready HTML poster from the imported packet. The output stays local to Acre and now keeps the agent info and scan path visible in both the preview and the exported HTML."
+            subtitle="Create a print-ready HTML poster from this listing page. Agent info and the scan link stay visible in preview and export."
             title="Poster generator"
           >
             <div className="listing-studio-editor-form">
@@ -833,49 +833,49 @@ export function ListingStudioDetailClient({
                   rel="noreferrer"
                   target="_blank"
                 >
-                  Open scan path
+                  Open scan link
                 </a>
               </div>
               <p className="listing-studio-muted">
-                Preview changes stay manual and reviewable. The poster never auto-sends or syncs to an external template service.
+                Review the poster before sharing or exporting. It does not send automatically.
               </p>
             </div>
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="One saved packet feeds the poster, PDF export, and share page. The current contact block stays visible across every reviewable output."
-            title="Packet distribution"
+            subtitle="The share page, poster, and PDF all use the same saved listing."
+            title="Outputs"
           >
             <div className="listing-studio-keyvalue-grid">
               <div className="listing-studio-keyvalue-card">
-                <span>Live packet</span>
+                <span>Live listing page</span>
                 <strong>{shareEnabled && shareUrl ? "Published share page" : "Source listing fallback"}</strong>
                 <span>
                   {shareEnabled && shareUrl
-                    ? `Packet link: ${shareUrl}`
-                    : "Publish the share link to route scan paths away from the source listing."}
+                    ? `Share link: ${shareUrl}`
+                    : "Publish the share link to send people to the saved listing instead of the source listing."}
                 </span>
               </div>
               <div className="listing-studio-keyvalue-card">
                 <span>Poster outputs</span>
                 <strong>Preview, print, HTML download</strong>
                 <span>
-                  All three outputs reuse the same manual packet copy, hero asset, and agent contact block.
+                  All three outputs reuse the same manual listing copy, hero asset, and agent contact block.
                 </span>
               </div>
               <div className="listing-studio-keyvalue-card">
                 <span>PDF export</span>
-                <strong>Saved packet snapshot</strong>
+                <strong>Saved listing snapshot</strong>
                 <span>
-                  The PDF follows the latest saved contact details, selected assets, and packet summary.
+                  The PDF follows the latest saved contact details, selected assets, and listing summary.
                 </span>
               </div>
               <div className="listing-studio-keyvalue-card">
-                <span>Review mode</span>
-                <strong>Manual and review-first</strong>
+                <span>Sharing mode</span>
+                <strong>Manual</strong>
                 <span>
-                  No external template sync, PNG render, or auto-send is implied by this packet summary.
+                  Share, export, and poster tools stay manual.
                 </span>
               </div>
             </div>
@@ -883,8 +883,8 @@ export function ListingStudioDetailClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="Copy-ready captions, blurbs, and follow-up notes generated from the saved packet. The kit stays manual, review-first, and Acre-owned."
-            title="Marketing kit"
+            subtitle="Copy-ready captions, blurbs, and follow-up notes based on the saved listing."
+            title="Marketing copy"
           >
             <div className="listing-studio-editor-form">
               <div className="listing-studio-editor-actions">
@@ -917,17 +917,17 @@ export function ListingStudioDetailClient({
               </div>
               <div className="listing-studio-keyvalue-grid">
                 <div className="listing-studio-keyvalue-card">
-                  <span>Marketing angle</span>
+                  <span>Copy included</span>
                   <strong>Caption, blurb, follow-up</strong>
                   <span>
-                    Everything below is derived from the same saved packet and the current poster draft.
+                    Everything below is derived from the same saved listing and the current poster draft.
                   </span>
                 </div>
                 <div className="listing-studio-keyvalue-card">
-                  <span>Export posture</span>
-                  <strong>Manual and review-first</strong>
+                  <span>How to use it</span>
+                  <strong>Copy and review</strong>
                   <span>
-                    No Canva sync, PNG render, or auto-send is implied by these copy blocks.
+                    Copy blocks are manual and ready to review before publishing.
                   </span>
                 </div>
                 <div className="listing-studio-keyvalue-card">
@@ -948,9 +948,9 @@ export function ListingStudioDetailClient({
                 </div>
                 <div className="listing-studio-keyvalue-card">
                   <span>Campaign flights</span>
-                  <strong>{marketingKit.flights.length} manual cadences</strong>
+                  <strong>{marketingKit.flights.length} saved cadences</strong>
                   <span>
-                    Reusable launch, event, and evergreen sequences keep the template stack closer to a real marketing workbench.
+                    Reusable launch, event, and evergreen sequences stay ready to copy.
                   </span>
                 </div>
               </div>
@@ -1188,15 +1188,15 @@ export function ListingStudioDetailClient({
               </div>
 
               <p className="listing-studio-muted">
-                {marketingKit.summaryLine}. The kit keeps the scan path, contact block, and packet copy aligned without pretending there is an external marketing service behind it.
+                {marketingKit.summaryLine}. The kit keeps the scan link, contact block, and listing copy aligned.
               </p>
             </div>
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="These fields only affect the customer-facing packet. The imported snapshot stays unchanged."
-            title="Packet editor"
+            subtitle="These fields only affect the customer-facing page. The imported snapshot stays unchanged."
+            title="Listing editor"
           >
             <div className="listing-studio-editor-form">
               <div className="listing-studio-keyvalue-grid">
@@ -1247,7 +1247,7 @@ export function ListingStudioDetailClient({
               </label>
               <div className="listing-studio-editor-actions">
                 <Button disabled={isDeleting} onClick={savePack} variant="primary">
-                  {isSaving ? "Saving..." : "Save packet"}
+                  {isSaving ? "Saving..." : "Save listing"}
                 </Button>
                 <Button
                   disabled={isDeleting}
@@ -1312,7 +1312,7 @@ export function ListingStudioDetailClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="The import source stays visible so the packet always keeps attribution and an audit trail."
+            subtitle="Original listing source and attribution."
             title="Source"
           >
             <div className="listing-studio-source-card">
@@ -1327,7 +1327,7 @@ export function ListingStudioDetailClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="Delete the saved packet, downloaded files, and share history from Listing Studio."
+            subtitle="Delete this saved listing from Listing Studio."
             title="Danger zone"
           >
             <div className="listing-studio-editor-form">
@@ -1349,7 +1349,7 @@ export function ListingStudioDetailClient({
         cancelLabel="Keep listing"
         confirmLabel={isDeleting ? "Deleting..." : "Delete listing"}
         confirmVariant="danger"
-        description="This permanently removes the imported packet, downloaded images, raw source files, share events, and generated PDF for this listing."
+        description="This permanently removes the imported listing, downloaded images, raw source files, share events, and generated PDF for this listing."
         isOpen={isDeleteDialogOpen}
         onCancel={() => {
           if (!isDeleting) {
@@ -1360,7 +1360,7 @@ export function ListingStudioDetailClient({
         title="Delete this listing?"
       >
         <p className="listing-studio-muted">
-          You can always save the source page again later, but this current packet will be gone.
+          You can always save the source page again later, but this saved listing will be gone.
         </p>
       </ConfirmActionDialog>
     </>

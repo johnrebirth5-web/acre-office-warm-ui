@@ -24,8 +24,8 @@ export default async function ListingStudioExtensionConnectPage(
       <div className="office-list-page-stack listing-studio-stack">
         <SectionCard
           className="office-list-card"
-          subtitle="The extension will receive a long-lived Acre token after approval. It is scoped to your current organization and can only save Listing Studio imports."
-          title="Connection details"
+          subtitle="Approve this browser so the extension can save listings into your current organization."
+          title="Approve access"
         >
           <div className="listing-studio-approval-grid">
             <div className="listing-studio-approval-field">

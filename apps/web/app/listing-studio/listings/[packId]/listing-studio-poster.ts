@@ -191,8 +191,8 @@ function buildPosterPacketTarget(detail: StudioListingDetailSnapshot): ListingSt
   if (detail.pack.shareEnabled && detail.pack.shareCode) {
     return {
       href: `/share/packs/${detail.pack.shareCode}`,
-      label: "Live packet",
-      hint: "Scan this code to open the public Acre packet.",
+      label: "Live listing page",
+      hint: "Scan this code to open the public Acre listing page.",
     };
   }
 
@@ -325,7 +325,7 @@ function buildTemplateDefaults(
 ) {
   const locationLine = detail.locationLine ?? detail.addressLine;
   const summaryLine = detail.pack.summary || detail.descriptionText || locationLine;
-  const firstBullet = detail.pack.bulletPoints[0] || detail.facts[0]?.value || "Reply for the full packet";
+  const firstBullet = detail.pack.bulletPoints[0] || detail.facts[0]?.value || "Reply for full details";
   const contactName = detail.pack.contactName || "Acre listing studio";
   const contactTitle = detail.pack.contactTitle || "Listing presentation";
   const contactLine = [contactName, contactTitle].filter(Boolean).join(" · ");
@@ -344,7 +344,7 @@ function buildTemplateDefaults(
         kicker: "Social share",
         headline: detail.priceLabel,
         subheadline: detail.title,
-        cta: "See the full packet and send it to a client.",
+        cta: "See the full listing page and send it to a client.",
         footer: contactLine,
       };
     case "factsheet":
@@ -361,7 +361,7 @@ function buildTemplateDefaults(
         kicker: "Listing Studio",
         headline: detail.pack.headline || detail.title,
         subheadline: summaryLine,
-        cta: "Request the full packet and share the print-ready view.",
+        cta: "Request the full listing page and share the print-ready view.",
         footer: contactLine,
       };
   }
@@ -473,7 +473,7 @@ export function buildListingStudioPosterCopyText(
     .join("\n");
   const bulletPoints = detail.pack.bulletPoints.length
     ? detail.pack.bulletPoints.map((item) => `- ${item}`).join("\n")
-    : "- Reply for the full packet";
+    : "- Reply for full details";
   const contactName = normalizeText(detail.pack.contactName, "Acre listing studio");
   const contactTitle = normalizeText(detail.pack.contactTitle, "Listing presentation");
   const contactPhone = normalizeText(detail.pack.contactPhone, "Phone not published");
@@ -521,14 +521,14 @@ export function buildListingStudioMarketingKit(
     draft.subheadline,
     detail.descriptionText ?? locationLine,
   );
-  const cta = normalizeText(draft.cta, "Reply for the full packet.");
+  const cta = normalizeText(draft.cta, "Reply for full details.");
   const contactName = normalizeText(detail.pack.contactName, "Acre listing studio");
   const contactTitle = normalizeText(detail.pack.contactTitle, "Listing presentation");
   const contactPhone = normalizeText(detail.pack.contactPhone, "Phone not published");
   const contactEmail = normalizeText(detail.pack.contactEmail, "Email not published");
   const bulletSummary = detail.pack.bulletPoints.length
     ? detail.pack.bulletPoints.slice(0, 3).join(" / ")
-    : "Reply for the full packet";
+    : "Reply for full details";
   const factSummary = detail.facts.length
     ? detail.facts.slice(0, 3).map((fact) => `${fact.label}: ${fact.value}`).join(" / ")
     : detail.priceLabel;
@@ -553,7 +553,7 @@ export function buildListingStudioMarketingKit(
           locationLine,
           "—",
           detail.priceLabel,
-          "Reply for the Acre packet.",
+          "Reply for the Acre listing page.",
         ]),
       },
       {
@@ -569,7 +569,7 @@ export function buildListingStudioMarketingKit(
         text: joinWithLineBreaks([
           `${detail.priceLabel} | ${locationLine}`,
           bulletSummary,
-          `Scan the Acre packet for photos, facts, and showing details: ${packetPath}`,
+          `Scan the Acre listing page for photos, facts, and showing details: ${packetPath}`,
         ]),
       },
     ],
@@ -589,7 +589,7 @@ export function buildListingStudioMarketingKit(
           "in",
           locationLine,
           summary,
-          "The packet keeps the latest facts, selected visuals, and scan path in one reviewable export.",
+          "The listing page keeps the latest facts, selected visuals, and scan path in one reviewable export.",
         ]),
       },
       {
@@ -613,7 +613,7 @@ export function buildListingStudioMarketingKit(
         label: "Text follow-up",
         note: "Short reply",
         text: joinWithSpaces([
-          "Hi there, sharing the Acre packet for",
+          "Hi there, sharing the Acre listing page for",
           `${headline}.`,
           "It includes the latest facts, selected visuals, and the scan path.",
           cta,
@@ -624,11 +624,11 @@ export function buildListingStudioMarketingKit(
         label: "Email follow-up",
         note: "Long form",
         text: joinWithLineBreaks([
-          `Subject: ${headline} packet`,
+          `Subject: ${headline} listing`,
           "",
           "Hi there,",
           "",
-          `I'm sharing the Acre packet for ${headline}. It includes the latest facts, selected visuals, and a reviewable scan path.`,
+          `I'm sharing the Acre listing page for ${headline}. It includes the latest facts, selected visuals, and a reviewable scan path.`,
           "",
           cta,
           "",
@@ -643,7 +643,7 @@ export function buildListingStudioMarketingKit(
         text: joinWithSpaces([
           "Quick reminder:",
           headline,
-          "is still ready in the Acre packet with photos, facts, and the manual scan path.",
+          "is still ready on the Acre listing page with photos, facts, and the manual scan path.",
           "Reply if you'd like a tighter version for text or email.",
         ]),
       },
@@ -683,7 +683,7 @@ export function buildListingStudioMarketingKit(
           "",
         ]),
         `CTA: ${cta}`,
-        `Packet path: ${packetPath}`,
+        `Share link: ${packetPath}`,
       ]).trim(),
     },
     {
@@ -709,11 +709,11 @@ export function buildListingStudioMarketingKit(
       const isActiveTemplate = template.id === draft.templateId;
       const templateFocus =
         template.id === "editorial"
-          ? "Lead with the strongest hero image and price-aware headline so the listing reads like a polished spotlight."
+            ? "Lead with the strongest hero image and price-aware headline so the listing reads like a polished spotlight."
           : template.id === "open-house"
-            ? "Make the event timing and next-step CTA obvious so the packet feels invitation-ready."
+            ? "Make the event timing and next-step CTA obvious so the listing feels invitation-ready."
             : template.id === "social-square"
-              ? "Keep the copy short and image-led so the tile can drop into social without rewriting the whole packet."
+              ? "Keep the copy short and image-led so the tile can drop into social without rewriting the whole listing page."
               : "Use the summary, bullet points, and contact block as the handout-first version for facts-forward sends.";
       const bestUse =
         template.id === "editorial"
@@ -722,7 +722,7 @@ export function buildListingStudioMarketingKit(
             ? "Best for: event invite, showing reminder, quick RSVP push."
             : template.id === "social-square"
               ? "Best for: Instagram tile, story repost, compact feed share."
-              : "Best for: PDF handout, listing packet, facts-forward follow-up.";
+              : "Best for: PDF handout, saved listing page, facts-forward follow-up.";
 
       return {
         id: `${template.id}-brief`,
@@ -737,7 +737,7 @@ export function buildListingStudioMarketingKit(
           `Headline: ${headline}`,
           `Subheadline: ${summary}`,
           `CTA: ${cta}`,
-          `Packet path: ${packetPath}`,
+          `Share link: ${packetPath}`,
           `Contact: ${contactName} · ${contactPhone} · ${contactEmail}`,
         ]),
       };
@@ -749,7 +749,7 @@ export function buildListingStudioMarketingKit(
       title: "New listing flight",
       note: "Announcement cadence",
       description:
-        "Use this when the listing is fresh and you want one manual cadence across poster, social, and packet follow-through.",
+        "Use this when the listing is fresh and you want one manual cadence across poster, social, and listing follow-through.",
       steps: [
         "Start with the editorial or current hero-led poster preview and confirm the scan path.",
         "Copy the social bundle or social send-ready package for the first outward-facing drop.",
@@ -760,7 +760,7 @@ export function buildListingStudioMarketingKit(
         "New listing flight",
         `Listing: ${headline} · ${detail.priceLabel}`,
         `Primary poster: ${posterTemplates.find((template) => template.id === draft.templateId)?.label ?? draft.templateId}`,
-        `Best packet path: ${packetPath}`,
+        `Best share link: ${packetPath}`,
         `Manual CTA: ${cta}`,
       ]),
     },
@@ -769,7 +769,7 @@ export function buildListingStudioMarketingKit(
       title: "Open house flight",
       note: "Event-led cadence",
       description:
-        "Use this when the packet should move from invite to reminder to post-tour follow-through without pretending Acre owns the send.",
+        "Use this when the listing should move from invite to reminder to post-tour follow-through without pretending Acre owns the send.",
       steps: [
         "Switch to the open-house template or keep an event-led CTA in the active poster draft.",
         "Use the share caption plus the social send-ready package for the first invite wave.",
@@ -781,7 +781,7 @@ export function buildListingStudioMarketingKit(
         `Invite anchor: ${headline}`,
         `Event CTA: ${cta}`,
         `Contact block: ${contactName} · ${contactPhone}`,
-        `Packet path: ${packetPath}`,
+        `Share link: ${packetPath}`,
       ]),
     },
     {
@@ -794,7 +794,7 @@ export function buildListingStudioMarketingKit(
         "Lead with the factsheet brief or listing bundle instead of a heavier announcement.",
         "Use the reminder note from the follow-up bundle to reopen the conversation manually.",
         "Drop in the social-square brief only if a lighter visual refresh helps the next touch.",
-        "Keep the same packet path and contact block so repeat outreach still lands in one reviewable chain.",
+        "Keep the same share link and contact block so repeat outreach still lands in one reviewable chain.",
       ],
       text: joinWithLineBreaks([
         "Evergreen follow-through flight",
@@ -839,7 +839,7 @@ export function buildListingStudioMarketingKit(
         "",
         `Best for: ${headline} summaries and broker-facing writeups.`,
         `CTA: ${cta}`,
-        `Packet path: ${packetPath}`,
+        `Share link: ${packetPath}`,
       ]).trim(),
     },
     {
@@ -856,7 +856,7 @@ export function buildListingStudioMarketingKit(
         "2. Email follow-up",
         "3. Reminder note",
         "",
-        `Best for: ${headline} follow-up after a showing or packet review.`,
+        `Best for: ${headline} follow-up after a showing or listing review.`,
         `Contact: ${contactName} · ${contactEmail}`,
       ]).trim(),
     },
@@ -864,7 +864,7 @@ export function buildListingStudioMarketingKit(
   const deliveryPlanSequence: ListingStudioCampaignSequenceStep[] = [
     {
       id: "sequence-lock",
-      title: "Lock the packet",
+      title: "Lock the listing",
       note: "Review the source",
       detail:
         "Confirm the headline, hero asset, contact block, and scan path before copying anything out.",
@@ -894,8 +894,8 @@ export function buildListingStudioMarketingKit(
   const deliveryPlanChecklist: ListingStudioCampaignChecklistItem[] = [
     {
       id: "checklist-packet",
-      title: "Packet summary is ready",
-      note: "Headline and summary come from the saved packet.",
+      title: "Listing summary is ready",
+      note: "Headline and summary come from the saved listing.",
       ready: Boolean(headline && summary),
     },
     {
@@ -907,13 +907,13 @@ export function buildListingStudioMarketingKit(
     {
       id: "checklist-hero",
       title: "Hero asset is chosen",
-      note: "The poster and packet both point at the same selected visual.",
+      note: "The poster and listing page both point at the same selected visual.",
       ready: Boolean(draft.coverAssetId),
     },
     {
       id: "checklist-scan",
       title: "Scan path is visible",
-      note: "The package includes the packet or source-listing path for manual sharing.",
+      note: "The package includes the share link or source-listing path for manual sharing.",
       ready: Boolean(packetPath),
     },
     {
@@ -963,7 +963,7 @@ function buildPosterBulletPoints(detail: StudioListingDetailSnapshot) {
   const bulletPoints = detail.pack.bulletPoints.slice(0, 4);
 
   if (!bulletPoints.length) {
-    return `<li>Reply for the full packet.</li>`;
+    return `<li>Reply for full details.</li>`;
   }
 
   return bulletPoints.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("");
@@ -1425,7 +1425,7 @@ export function renderListingStudioPosterHtml(
                   <span>${escapeHtml(contactTitle)}</span>
                   <span>${escapeHtml(contactPhone)} · ${escapeHtml(contactEmail)}</span>
                   <span>${escapeHtml(draft.footer)}</span>
-                  <span>${escapeHtml(detail.pack.agentNote?.trim() || "Acre keeps this packet reviewable and shareable.")}</span>
+                  <span>${escapeHtml(detail.pack.agentNote?.trim() || "Acre keeps this listing reviewable and shareable.")}</span>
                 </div>
               <div class="poster-scan">
                 ${packetCodeMarkup}
@@ -1444,7 +1444,7 @@ export function renderListingStudioPosterHtml(
         <div class="poster-rail">
           <span class="poster-layout-label">${escapeHtml(layoutLabel)}</span>
           <span class="poster-layout-label">${escapeHtml(detail.sourceSite)}</span>
-          <span class="poster-layout-label">${escapeHtml(detail.listingType ?? detail.statusLabel ?? "Listing packet")}</span>
+          <span class="poster-layout-label">${escapeHtml(detail.listingType ?? detail.statusLabel ?? "Saved listing")}</span>
         </div>
       </div>
     </main>
