@@ -396,7 +396,7 @@ export default async function AgentClientDetailPage(
     ...snapshot.handoffs.map((handoff) => ({
       id: `handoff-${handoff.id}`,
       title: handoff.stageLabel,
-      badgeLabel: "BO boundary",
+      badgeLabel: "BO status",
       badgeTone: handoff.tone,
       context: handoff.statusLabel,
       description: handoff.summary,
@@ -452,7 +452,7 @@ export default async function AgentClientDetailPage(
       eyebrow="Client record"
       main={
         <>
-            <SectionCard
+          <SectionCard
             actions={
               <FrontOfficeClientActionGroup
                 actions={[
@@ -690,14 +690,14 @@ export default async function AgentClientDetailPage(
                   followUpPrimaryAction,
                   {
                     href: backOfficeContextHref,
-                    label: "Review BO boundary",
+                    label: "Open Back Office status",
                   },
                 ]}
               />
             }
             className="office-list-card"
             id="front-office-client-execution-timeline"
-            subtitle="Action items surface first, then scheduled work, then recent history so the client record reads like a live execution chain instead of a static profile."
+            subtitle="Action items surface first, then scheduled work, then recent history so the client record reads like a live working record instead of a static profile."
             title="Execution timeline"
           >
             <div className="front-office-placeholder-note">
@@ -739,7 +739,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review current rail",
+                    label: "Review next steps",
                   },
                   {
                     href: appointmentRailItem.actionHref,
@@ -787,7 +787,7 @@ export default async function AgentClientDetailPage(
                     label: snapshot.workflow.pressureLabel,
                     tone: snapshot.workflow.pressureTone,
                     title: snapshot.workflow.nextStepTitle,
-                    description: `${snapshot.workflow.nextStepDescription} The appointment cards below now call out the external status, bridge log, next-touch pressure, and the exact jump back to calendar writeback.`,
+                    description: `${snapshot.workflow.nextStepDescription} The appointment cards below now call out the external status, saved update status, next-touch pressure, and a direct link back to the calendar update form.`,
                     meta: (
                       <span>
                         {currentRailItem.stepLabel} ·{" "}
@@ -816,7 +816,7 @@ export default async function AgentClientDetailPage(
                             className="office-inline-link"
                             href={appointment.calendarWritebackHref}
                           >
-                            Open calendar writeback
+                            Open calendar update
                           </FrontOfficeLink>
                           <FrontOfficeLink
                             className="office-inline-link"
@@ -911,7 +911,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review current rail",
+                    label: "Review next steps",
                   },
                   {
                     href: listingRailItem.actionHref,
@@ -1041,7 +1041,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review current rail",
+                    label: "Review next steps",
                   },
                   {
                     href: snapshot.negotiation.primaryActionHref,
@@ -1060,7 +1060,7 @@ export default async function AgentClientDetailPage(
             <ListPageStatsGrid>
               <StatCard
                 hint="where this client currently sits across FO prep and the shared BO offer file"
-                label="Workspace stage"
+                label="Deal stage"
                 tone="accent"
                 value={snapshot.negotiation.boundaryLabel}
               />
@@ -1087,7 +1087,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint={snapshot.negotiation.operatorDescription}
-                label="Operator frame"
+                label="Current focus"
                 tone="accent"
                 value={snapshot.negotiation.operatorLabel}
               />
@@ -1112,7 +1112,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "fo-lane",
-                  label: "Operator frame",
+                  label: "Current focus",
                   tone: offerRailItem.ownershipTone,
                   title: snapshot.negotiation.operatorLabel,
                   description: snapshot.negotiation.operatorDescription,
@@ -1122,7 +1122,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "return-point",
-                  label: "Return point",
+                  label: "Return here",
                   tone: "neutral",
                   title: offerRailItem.returnPoint.label,
                   description: offerRailItem.returnDescription,
@@ -1131,7 +1131,7 @@ export default async function AgentClientDetailPage(
                   actions: [
                     {
                       href: offerRailItem.returnPoint.href,
-                      label: "Jump back here",
+                      label: "Come back here",
                     },
                   ],
                 },
@@ -1198,7 +1198,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review rail",
+                    label: "Review next steps",
                   },
                   {
                     href: snapshot.inspection.primaryActionHref,
@@ -1244,7 +1244,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint={snapshot.inspection.operatorDescription}
-                label="Operator frame"
+                label="Current focus"
                 tone="accent"
                 value={snapshot.inspection.operatorLabel}
               />
@@ -1269,7 +1269,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "fo-lane",
-                  label: "Operator frame",
+                  label: "Current focus",
                   tone: inspectionRailItem.ownershipTone,
                   title: snapshot.inspection.operatorLabel,
                   description: snapshot.inspection.operatorDescription,
@@ -1279,7 +1279,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "return-point",
-                  label: "Return point",
+                  label: "Return here",
                   tone: "neutral",
                   title: inspectionRailItem.returnPoint.label,
                   description: inspectionRailItem.returnDescription,
@@ -1290,7 +1290,7 @@ export default async function AgentClientDetailPage(
                   actions: [
                     {
                       href: inspectionRailItem.returnPoint.href,
-                      label: "Jump back here",
+                      label: "Come back here",
                     },
                   ],
                 },
@@ -1364,7 +1364,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review rail",
+                    label: "Review next steps",
                   },
                   {
                     href: snapshot.closing.primaryActionHref,
@@ -1416,7 +1416,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint={snapshot.closing.operatorDescription}
-                label="Operator frame"
+                label="Current focus"
                 tone="accent"
                 value={snapshot.closing.operatorLabel}
               />
@@ -1443,7 +1443,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "fo-lane",
-                  label: "Operator frame",
+                  label: "Current focus",
                   tone: closingRailItem.ownershipTone,
                   title: snapshot.closing.operatorLabel,
                   description: snapshot.closing.operatorDescription,
@@ -1453,7 +1453,7 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "return-point",
-                  label: "Return point",
+                  label: "Return here",
                   tone: "neutral",
                   title: closingRailItem.returnPoint.label,
                   description: closingRailItem.returnDescription,
@@ -1462,7 +1462,7 @@ export default async function AgentClientDetailPage(
                   actions: [
                     {
                       href: closingRailItem.returnPoint.href,
-                      label: "Jump back here",
+                      label: "Come back here",
                     },
                   ],
                 },
@@ -1587,10 +1587,10 @@ export default async function AgentClientDetailPage(
 
           {canUseAi ? (
             <div id="front-office-ai-outcomes">
-            <SectionCard
-              className="office-list-card"
-              subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so you can see whether the suggestion actually helped move the client forward."
-              title="Accepted AI actions & outcomes"
+              <SectionCard
+                className="office-list-card"
+                subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so you can see whether the suggestion actually helped move the client forward."
+                title="Accepted AI actions & outcomes"
               >
                 <ListPageStatsGrid>
                   <StatCard
@@ -1776,7 +1776,7 @@ export default async function AgentClientDetailPage(
                   key: "follow-up-cue",
                   label: snapshot.followUpCue.label,
                   tone: snapshot.followUpCue.tone,
-                  title: "Follow-up stays at the center of the rail",
+                  title: "Follow-up stays front and center",
                   context: snapshot.followUpCue.dueLabel,
                   description: snapshot.followUpCue.description,
                   meta: <span>{snapshot.nextTouchLabel}</span>,
@@ -1956,8 +1956,7 @@ export default async function AgentClientDetailPage(
                   key: "fo-follow-up",
                   label: snapshot.followUpCue.label,
                   tone: snapshot.followUpCue.tone,
-                  title:
-                    "Client-facing next steps still stay here",
+                  title: "Client-facing next steps still stay here",
                   description: primaryHandoff
                     ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this client page while the authoritative record stays in Back Office."
                     : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and next-touch follow-up still belong here until the work becomes formal and needs a shared record.",
@@ -2036,11 +2035,7 @@ export default async function AgentClientDetailPage(
       }
       summary={
         <>
-          <SummaryChip
-            label="Stage"
-            tone="accent"
-            value={snapshot.stage}
-          />
+          <SummaryChip label="Stage" tone="accent" value={snapshot.stage} />
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip
             label="Workflow"

@@ -411,7 +411,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: leadingEngagement.engagementLabel,
       badgeTone: leadingEngagement.engagementTone,
       title: isZh ? "打开房源跟进" : "Open listing follow-up",
-      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the next-step rail to turn that open or quiet send into a concrete next step instead of sending blindly.`,
+      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the next-step view to turn that open or quiet send into a concrete next step instead of sending blindly.`,
       metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
       href: leadingEngagement.href,
       actionLabel: isZh ? "打开下一步" : "Open next step",
@@ -1918,7 +1918,7 @@ export default async function AgentDashboardPage() {
                   description={
                     isZh
                       ? "通知栏目前没有新内容等待处理。动态中心里仍然会保留个人清理和提醒压力。"
-                      : "Nothing new is waiting in the notice rail. The activity center still carries personal cleanup and reminder pressure."
+                      : "Nothing new is waiting in the notice list. The activity center still carries personal cleanup and reminder pressure."
                   }
                   title={isZh ? "当前没有通知" : "No current notices"}
                 />
@@ -2063,7 +2063,7 @@ export default async function AgentDashboardPage() {
               subtitle={
                 isZh
                   ? "管理者应该能看见共享 Front Office 资料库是否真的在当前可见团队中被使用，而不仅仅是已发布。"
-                  : "Leadership should be able to see whether the shared Front Office library is actually being used across the visible bench, not only published."
+                  : "Leadership should be able to see whether the shared Front Office library is actually being used across the visible team, not only published."
               }
               title={resourcePulse.scopeLabel}
             >
@@ -2200,7 +2200,7 @@ export default async function AgentDashboardPage() {
                     description={
                       isZh
                         ? "当当前可见团队开始在这个 hub 里真实工作后，已跟踪的资源搜索、培训进度和供应商使用情况就会浮现在这里。"
-                        : "Tracked resource search, training progress, and vendor use will start surfacing here once the visible bench works this hub live."
+                        : "Tracked resource search, training progress, and vendor use will start surfacing here once the visible team works this hub live."
                     }
                     title={
                       isZh

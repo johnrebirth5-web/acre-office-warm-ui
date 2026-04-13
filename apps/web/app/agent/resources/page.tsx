@@ -521,7 +521,7 @@ export default async function AgentResourcesPage(props: {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Search across playbooks, templates, documents, and vendor cards from one FO hub, then jump straight into the right material without scanning every lane manually."
+            subtitle="Search across playbooks, templates, documents, and vendor cards from one Front Office hub, then jump straight into the right material without scanning every section manually."
             title="Search this hub"
           >
             <FrontOfficeResourceSearchForm initialQuery={searchQuery} />
@@ -583,7 +583,7 @@ export default async function AgentResourcesPage(props: {
                       ) : (
                         <EmptyState
                           className="front-office-inline-empty"
-                          description="No published resource matched this search. Try a different lane, tag, or vendor phrase."
+                          description="No published resource matched this search. Try a different section, tag, or vendor phrase."
                           title="No matching resources"
                         />
                       )}
@@ -681,7 +681,7 @@ export default async function AgentResourcesPage(props: {
                           <span>
                             {lane.key === "vendor_card"
                               ? "Vendor categories will surface here once cards are published."
-                              : "This lane will list the first practical materials once published."}
+                              : "This section will list the first practical materials once published."}
                           </span>
                         )}
                       </div>
@@ -702,7 +702,7 @@ export default async function AgentResourcesPage(props: {
                             className="office-inline-link front-office-inline-link"
                             href="#published-tool-library"
                           >
-                            Open lane library
+                            Open section library
                           </FrontOfficeLink>
                         ) : null}
                       </div>
@@ -714,7 +714,7 @@ export default async function AgentResourcesPage(props: {
               <EmptyState
                 className="front-office-inline-empty"
                 description="Once shared material is published, Acre will organize it here by the execution job it helps an agent finish."
-                title="No execution lanes published yet"
+                title="No library sections published yet"
               />
             )}
           </SectionCard>
@@ -731,7 +731,7 @@ export default async function AgentResourcesPage(props: {
             }
             className="office-list-card"
             subtitle="The library stays execution-first: open the right material, finish the next move, and return to live client work without drifting into a second admin surface."
-            title="Library by execution lane"
+            title="Library by section"
           >
             {populatedLibraryLanes.length ? (
               <div style={libraryLaneStackStyle}>
@@ -788,7 +788,7 @@ export default async function AgentResourcesPage(props: {
           <SectionCard
             id="vendor-hub"
             className="office-list-card"
-            subtitle="The vendor desk should answer two questions fast: which partner is ready to contact now, and which service lane is already covered well enough to support today’s execution."
+            subtitle="The vendor desk should answer two questions fast: which partner is ready to contact now, and which service area is already covered well enough to support today’s execution."
             title="Vendor desk"
           >
             <ListPageStatsGrid>
@@ -860,11 +860,11 @@ export default async function AgentResourcesPage(props: {
               <div style={vendorColumnStyle}>
                 <div style={subsectionHeaderStyle}>
                   <div>
-                    <strong>Coverage lanes & support cards</strong>
+                    <strong>Coverage sections & support cards</strong>
                     <p style={subsectionIntroStyle}>
                       Category coverage and support cards keep vendor lookup
-                      grounded in the same execution lane instead of feeling
-                      like a detached marketplace.
+                      grounded in the same section instead of feeling like a
+                      detached marketplace.
                     </p>
                   </div>
                 </div>
@@ -881,7 +881,7 @@ export default async function AgentResourcesPage(props: {
                 ) : (
                   <EmptyState
                     className="front-office-inline-empty"
-                    description="Service-lane coverage will appear here as soon as the office publishes category-backed vendor cards."
+                    description="Service coverage will appear here as soon as the office publishes category-backed vendor cards."
                     title="No vendor categories yet"
                   />
                 )}
@@ -944,7 +944,7 @@ export default async function AgentResourcesPage(props: {
                     <p style={subsectionIntroStyle}>
                       The full directory stays below the ready-now stack so
                       agents can still browse every published partner when the
-                      situation needs a wider bench.
+                      situation needs a wider partner list.
                     </p>
                   </div>
                 </div>
@@ -963,7 +963,7 @@ export default async function AgentResourcesPage(props: {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Use this rail when you want the shortest path into the strongest published lane instead of scanning the whole library first."
+            subtitle="Use this quick-start panel when you want the shortest path into the strongest published section instead of scanning the whole library first."
             title="Quick start"
           >
             <div className="office-queue-list">
@@ -977,14 +977,14 @@ export default async function AgentResourcesPage(props: {
                 context={
                   strongestResourceLane
                     ? `${pluralize(strongestResourceLane.count, "item")} published`
-                    : "No lane published"
+                    : "No section published"
                 }
                 description={
                   strongestResourceLane && strongestResourceLane.count > 0
                     ? `${strongestResourceLane.description} Start here: ${strongestResourceLane.startLabel}.`
-                    : "No one lane is populated yet, so the library still needs more published support before it can lead live work cleanly."
+                    : "No one section is populated yet, so the library still needs more published support before it can guide live work cleanly."
                 }
-                title="Strongest published lane"
+                title="Best-covered section"
               />
               <FrontOfficeRailItem
                 badgeLabel={
@@ -998,14 +998,14 @@ export default async function AgentResourcesPage(props: {
                 context={
                   thinnestResourceLane
                     ? `${pluralize(thinnestResourceLane.count, "item")} published`
-                    : "No lane data"
+                    : "No section data"
                 }
                 description={
                   thinnestResourceLane
-                    ? `${thinnestResourceLane.description} This is the thinnest support lane right now, so agents may need to lean on adjacent materials or the vendor desk sooner.`
-                    : "Lane coverage will surface here once shared resources are published."
+                    ? `${thinnestResourceLane.description} This is the thinnest section right now, so agents may need to lean on adjacent materials or the vendor desk sooner.`
+                    : "Section coverage will surface here once shared resources are published."
                 }
-                title="Thinnest support lane"
+                title="Thinnest section"
               />
               <FrontOfficeRailItem
                 badgeLabel={vendorPosture.label}
@@ -1017,15 +1017,15 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="FO / BO"
                 badgeTone="warning"
-                description="Use this hub to open the material, but keep signing, accounting, and archival work in Back Office so the record boundary stays honest."
-                title="Boundary stays explicit"
+                description="Use this hub to open the material, but keep signing, accounting, and archival work in Back Office so the record stays clean."
+                title="Back Office work stays in Back Office"
               />
             </div>
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="This rail is the quick read: which library lanes are healthy, and how much vendor support is actually contact-ready right now."
+            subtitle="This is the quick read: which parts of the library are healthy, and how much vendor support is actually contact-ready right now."
             title="Recent updates"
           >
             <ListPageStatsGrid>
@@ -1185,7 +1185,7 @@ export default async function AgentResourcesPage(props: {
             <SectionCard
               className="office-list-card"
               id="shared-adoption-pulse"
-              subtitle="Leads and office operators should be able to see whether this hub is actually getting used across the visible Front Office bench, not only inside one personal trail."
+              subtitle="Leads and office operators should be able to see whether this hub is actually getting used across the visible Front Office team, not only inside one person's activity."
               title={sharedTracking.scopeLabel}
             >
               <div
@@ -1379,7 +1379,7 @@ export default async function AgentResourcesPage(props: {
                 ) : (
                   <EmptyState
                     className="front-office-inline-empty"
-                    description="Hot spots will appear here once the visible team or office starts reusing the same resource lane."
+                    description="Hot spots will appear here once the visible team or office starts reusing the same resource section."
                     title="No shared hot spots yet"
                   />
                 )}
@@ -1396,7 +1396,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Call prep"
                 badgeTone="accent"
-                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist. Resource opens now stay visible in the audit trail instead of disappearing into raw outbound clicks, and the current resource signal will tell you whether the bench is search-led, follow-through-led, or balanced."
+                description="Open a playbook when the next move is a live call, objection response, showing prep, or Front Office to Back Office handoff checklist. Resource opens now stay visible in the activity log instead of disappearing into raw outbound clicks, and the current resource signal will tell you whether the team is search-led, follow-through-led, or balanced."
                 meta={
                   <>
                     <span>
@@ -1415,7 +1415,7 @@ export default async function AgentResourcesPage(props: {
                   <>
                     <span>
                       {pluralize(templateCount + documentCount, "resource")} in
-                      the send + reference lanes
+                      the send + reference sections
                     </span>
                     <span>Stay manual and reviewable</span>
                   </>
@@ -1425,7 +1425,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Training"
                 badgeTone="accent"
-                description="Use the training lane when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip, and those checkpoints roll back into the same operator signal you see in the side rail."
+                description="Use the training section when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip, and those checkpoints roll back into the same operator signal you see in the side panel."
                 meta={
                   <>
                     <span>
@@ -1452,14 +1452,13 @@ export default async function AgentResourcesPage(props: {
                       )}{" "}
                       ready now
                     </span>
-                    <span>Keep the partner bench visible</span>
+                    <span>Keep the partner list visible</span>
                   </>
                 }
                 title="Bring in the right outside support"
               />
             </div>
           </SectionCard>
-
         </>
       }
       summary={

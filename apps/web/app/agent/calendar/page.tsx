@@ -122,15 +122,17 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             className="office-list-card"
             subtitle={
               isZh
-                ? "把队列拆成回复压力、确认压力、已安排触达压力、待回写、桥接记录、Acre 邮件线程连续性和 BO-ready 交接，让页面读起来更像清晰的待办列表。"
-                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, Acre mail-thread continuity, and BO-ready handoff so the page reads like a clear task list."
+                ? "把队列拆成回复压力、确认压力、已安排触达压力、待保存更新、桥接记录、Acre 邮件连续性和 BO-ready 交接，让页面读起来更像清晰的待办列表。"
+                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, updates not yet saved, bridge logs, Acre mail continuity, and BO-ready handoff so the page reads like a clear task list."
             }
             title={isZh ? "协调压力" : "Coordination pressure"}
           >
             <ListPageStatsGrid>
               <StatCard
                 hint={
-                  isZh ? "从现在开始已安排的预约" : "scheduled appointments from now forward"
+                  isZh
+                    ? "从现在开始已安排的预约"
+                    : "scheduled appointments from now forward"
                 }
                 label={isZh ? "即将到来" : "Upcoming"}
                 value={snapshot.summary.upcomingCount}
@@ -193,7 +195,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 hint={
                   isZh
                     ? "最新回写显示需要调整时间的预约"
-                    : "appointments whose latest writeback says the time needs to move"
+                    : "appointments whose latest saved update says the time needs to move"
                 }
                 label={isZh ? "请求改期" : "Reschedule requested"}
                 tone="accent"
@@ -211,16 +213,18 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               <StatCard
                 hint={
                   isZh
-                    ? "Acre 已打开桥接、但还没有保存回写的预约"
-                    : "appointments where Acre opened the bridge but no writeback has been saved yet"
+                    ? "Acre 已打开桥接、但还没有保存更新的预约"
+                    : "appointments where Acre opened the bridge but no update has been saved yet"
                 }
-                label={isZh ? "待回写" : "Writeback pending"}
+                label={isZh ? "待保存更新" : "Update not saved"}
                 tone="accent"
                 value={snapshot.summary.writebackPendingCount}
               />
               <StatCard
                 hint={
-                  isZh ? "正在 BO 中等待正式跟进的事务" : "formal transaction follow-through waiting in BO"
+                  isZh
+                    ? "正在 BO 中等待正式跟进的事务"
+                    : "formal transaction follow-through waiting in BO"
                 }
                 label={isZh ? "可交接 BO" : "BO-ready"}
                 tone="accent"
@@ -263,7 +267,9 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                       className="office-inline-link front-office-inline-link"
                       href={handoff.href}
                     >
-                      {isZh ? "打开 Back Office 创建流程" : "Open Back Office create flow"}
+                      {isZh
+                        ? "打开 Back Office 创建流程"
+                        : "Open Back Office create flow"}
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -282,12 +288,15 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                       ? "当客户进入谈判、报价等可交接 BO 的阶段后，草稿队列会显示在这里。"
                       : "When a client reaches a BO-ready phase such as negotiation or offer, the draft queue will appear here."
                   }
-                  title={isZh ? "当前没有正式工作流待处理" : "Nothing waiting for formal workflow"}
+                  title={
+                    isZh
+                      ? "当前没有正式工作流待处理"
+                      : "Nothing waiting for formal workflow"
+                  }
                 />
               )}
             </div>
           </SectionCard>
-
         </>
       }
       summary={

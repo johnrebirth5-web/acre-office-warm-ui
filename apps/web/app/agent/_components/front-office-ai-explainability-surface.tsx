@@ -57,13 +57,13 @@ function buildManualConfirmationReason(input: {
   if (!input.allowsDirectFollowUpCreation && crossesBackOfficeBoundary) {
     return input.compact
       ? "A human still decides whether this becomes a formal BO transition or stays a client-facing clarification."
-      : "Acre can point to the formal workflow boundary, but it cannot confirm that package readiness, client intent, or office ownership actually changed off-record. A human still decides whether this becomes a formal Back Office transition or stays a client-facing clarification.";
+      : "Acre can point to the formal handoff point, but it cannot confirm that package readiness, client intent, or office ownership actually changed off-record. A human still decides whether this becomes a formal Back Office transition or stays a client-facing clarification.";
   }
 
   if (!input.allowsDirectFollowUpCreation) {
     return input.compact
       ? "A paused one-click state means the live task or record still needs human review first."
-      : "A paused one-click state means Acre can see unresolved accepted work or a live record that still needs review. It protects the current execution trail instead of quietly stacking a second task or pretending the existing one no longer matters.";
+      : "A paused one-click state means Acre can see unresolved accepted work or a live record that still needs review. It protects the current follow-up path instead of quietly stacking a second task or pretending the existing one no longer matters.";
   }
 
   return input.compact
@@ -89,7 +89,7 @@ function buildAcceptedOutcomeReason(input: {
   if (crossesBackOfficeBoundary) {
     return input.compact
       ? "No new accepted action is recorded until you review the formal workflow transition."
-      : "Because one-click is paused at the formal workflow boundary, Acre is not recording a new accepted action yet. The next auditable event is your review of the formal transition path, not a hidden task creation.";
+      : "Because one-click is paused at the formal handoff point, Acre is not recording a new accepted action yet. The next auditable event is your review of the formal handoff path, not a hidden task creation.";
   }
 
   return input.compact
@@ -107,7 +107,7 @@ function buildExplainabilityMeta(input: {
     input.rankingSignals.length
       ? "Recent history changed priority"
       : "Priority follows the current record",
-    `Current workflow · ${input.boundaryLabel}`,
+    `Current stage · ${input.boundaryLabel}`,
     input.allowsDirectFollowUpCreation
       ? "One-click · creates a shared follow-up only"
       : "One-click · review first",
@@ -190,7 +190,9 @@ export function FrontOfficeAiExplainabilitySurface(props: {
       await copyTextToClipboard(buildStrategyDraftCopyValue(rule));
       setCopyFeedback(`${rule.draftLabel} copied for manual review.`);
     } catch {
-      setCopyFeedback("Clipboard access is not available for the strategy draft.");
+      setCopyFeedback(
+        "Clipboard access is not available for the strategy draft.",
+      );
     }
   }
 
@@ -236,7 +238,9 @@ export function FrontOfficeAiExplainabilitySurface(props: {
                       {step.stepLabel} · {step.statusLabel}
                     </span>
                   </div>
-                  <StatusBadge tone={step.tone}>{step.contextLabel}</StatusBadge>
+                  <StatusBadge tone={step.tone}>
+                    {step.contextLabel}
+                  </StatusBadge>
                 </div>
 
                 <p>{step.detailLabel}</p>
@@ -292,12 +296,16 @@ export function FrontOfficeAiExplainabilitySurface(props: {
             <StatusBadge tone="accent">Copy-ready</StatusBadge>
           </div>
           <p>
-            Each draft includes a review checklist so the next message can stay manual and explicit.
+            Each draft includes a review checklist so the next message can stay
+            manual and explicit.
           </p>
           {copyFeedback ? <p>{copyFeedback}</p> : null}
           <div className="front-office-playbook-grid">
             {strategyRules.map((rule) => (
-              <article className="front-office-playbook-card" key={`${rule.id}-draft`}>
+              <article
+                className="front-office-playbook-card"
+                key={`${rule.id}-draft`}
+              >
                 <div className="front-office-playbook-card-head">
                   <div>
                     <strong>{rule.draftLabel}</strong>
@@ -312,7 +320,10 @@ export function FrontOfficeAiExplainabilitySurface(props: {
                 </pre>
                 <div className="front-office-playbook-template-list">
                   {rule.reviewChecklist.map((item) => (
-                    <article className="front-office-playbook-template" key={`${rule.id}-${item}`}>
+                    <article
+                      className="front-office-playbook-template"
+                      key={`${rule.id}-${item}`}
+                    >
                       <div className="front-office-playbook-template-head">
                         <strong>{item}</strong>
                       </div>
