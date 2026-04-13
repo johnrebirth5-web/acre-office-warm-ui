@@ -3761,7 +3761,7 @@ export async function getFrontOfficeListingsSnapshot(
   const officeLabel = membership?.office?.name?.trim() || "Acre";
   const bioLabel =
     membership?.agentProfile?.bio?.trim() ||
-    "Share your business card, profile, and recent closings without leaving the Front Office output terminal.";
+    "Use this profile sheet to keep business card, contact info, and recent closings beside the listing send.";
   const licenseLabel =
     membership?.agentProfile?.licenseNumber?.trim() &&
     membership?.agentProfile?.licenseState?.trim()

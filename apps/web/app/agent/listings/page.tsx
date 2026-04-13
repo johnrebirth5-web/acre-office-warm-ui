@@ -29,10 +29,10 @@ function buildMaterialStatusLabel(input: {
   featuredCaseCount: number;
 }) {
   if (input.featuredCaseCount > 0) {
-    return "Proof-ready";
+    return "Packet-ready";
   }
 
-  return input.portraitReady ? "Identity-ready" : "Lean package";
+  return input.portraitReady ? "Profile-ready" : "Lean packet";
 }
 
 export default async function AgentListingsPage(props: AgentListingsPageProps) {
@@ -74,13 +74,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Work the outbound desk here: choose the send lane, follow the lane checklist, package the agent materials, keep tracked-link context visible, and manually push the next touch back into Front Office without pretending Acre auto-sends anything."
+      description="Use this workspace as a material center for profile sheets, contact blocks, and proof add-ons beside the tracked listing lane. Keep the route manual, visible, and FO-owned."
       eyebrow="Listings"
       layoutClassName="front-office-listings-layout"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, lane execution steps, and agent-material packaging."
+          subtitle="Use this as the manual outbound desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, lane execution steps, and profile/contact/proof packaging."
           title="Outbound listing workspace"
         >
           <FrontOfficeListingsOutputClient
@@ -591,8 +591,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           <SectionCard
             id="agent-send-package"
             className="office-list-card"
-            subtitle="Business card, intro copy, and proof points stay here as send support so each listing can leave with identity and context, not as a separate profile toy."
-            title="Agent send package"
+            subtitle="Profile sheet, contact block, and proof add-on stay together here so each listing can leave with identity and context, not as a detached profile toy."
+            title="Agent material center"
           >
             <FrontOfficeAgentMaterialWindow
               material={snapshot.agentMaterial}
@@ -620,7 +620,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
               <FrontOfficeRailItem
                 badgeLabel="Bundle"
-                description="Agent materials stay beside the listing so each send can carry identity, intro copy, and proof without becoming a portal or auto-send system."
+                description="Agent materials stay beside the listing so each send can carry profile, contact, and proof without becoming a portal or auto-send system."
                 title="Material package pairing"
               />
             </div>

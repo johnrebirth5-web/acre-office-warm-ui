@@ -29,7 +29,8 @@ export default async function ListingStudioDetailPage(
           <h2>{detail.title}</h2>
           <p>
             Review the imported facts, refine the customer-facing copy, and
-            generate a poster, share page, or PDF from the same Acre packet.
+            generate a poster, share page, or PDF from the same Acre packet
+            with agent info and a scan-ready live packet path.
           </p>
         </div>
       </section>

@@ -41,6 +41,7 @@
   - `/api/listing-studio/listings/[packId]/poster`
   - editorial / open-house / social-square / factsheet 模板切换
   - preview / print / downloadable HTML export
+  - agent info block + scan-ready packet path in the generated poster
 
 ### Explicitly not included in v1
 
@@ -217,12 +218,14 @@
 - `Listing Studio` 是独立 workspace，但仍复用 Acre shell、button、card、stat、input 体系
 - 详情页可以比 BO 更图片驱动，但 spacing、radius、标题层级和交互反馈保持 Acre 一致
 - public share 页和 PDF 可以更偏展示，但不能和后台彻底脱节
+- poster output should keep the agent contact block and scan path readable in preview, print, and downloaded HTML, not only inside the editor shell
 
 ## Known limitations
 
 - 只有 `StreetEasy / Zillow` adapter
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
-- 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，还不是服务端 PNG 渲染或 Canva 工作流
+- 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并带本地生成的 scan-ready code；它还不是服务端 PNG 渲染或 Canva 工作流
+- 如果 packet share 尚未发布，scan path 会回退到原始 source listing，而不是假装始终存在 Acre public packet
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
 - dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖

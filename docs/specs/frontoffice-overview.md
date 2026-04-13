@@ -162,8 +162,11 @@ Current implementation priority note:
 - `/agent/listings` now also supports a route-persistent focused `lane` contract, so `send rescue`, `follow-through`, and `draft lane` re-entry can reopen the same tracked outbound workspace without collapsing everything back into one generic listings desk
 - that same listings route now also surfaces an explicit lane-execution plan, so the active rescue / follow-through / draft path can show its checkpoints and recommended next actions inside the live send workbench instead of leaving lane meaning implicit
 - that same listings rail now also exposes a clearer `profile / contact / proof` material overview, so the agent identity package reads like a reusable outbound support window instead of only a loose set of copy buttons
+- that same listings rail now also behaves more like a reusable `material center`, so the operator can review a profile sheet, contact block, proof add-on, and outbound packet framing together instead of treating them as isolated copy helpers
 - `listing-studio` now also carries a first `poster / template generator` flow, so a saved packet can switch between editorial / open-house / social-square / factsheet templates, preview the generated layout, and export or print a manual HTML poster without depending on Canva or a PNG render pipeline
+- that same `listing-studio` poster flow now also keeps agent info and a scan-ready packet path visible in preview / print / download output, preferring the public Acre packet when published and otherwise falling back to the source listing
 - `AI next-touch suggestions` now also share a first rule-layer strategy contract for `follow-up`, `silent period`, `holiday`, and `lease` guidance, so dashboard and dossier surfaces can explain not only ranked AI suggestions but also why a safe reminder-oriented touch is surfacing now from one shared logic layer
+- that same rule layer now also renders as a shared `playbook`, so dashboard and dossier viewers can read the current step, do-now cue, preparation cue, watch cue, and exact review-first action path without Acre pretending to auto-send anything
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
@@ -288,6 +291,7 @@ Should centralize:
 - business card
 - portrait / profile assets
 - profile / contact / proof overview package
+- profile sheet / outbound packet preview
 - intro posters
 - closing history
 - featured cases
@@ -300,6 +304,7 @@ Should support:
 - listing-derived poster and social-share templates
 - template switching for a small set of repeatable agent-facing layouts
 - manual preview, copy, print, and download flows
+- agent info and scan-ready packet path inside the generated poster
 - Acre-owned export first, not Canva sync first
 
 ### Document center / training center / vendor pool

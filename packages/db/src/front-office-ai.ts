@@ -66,9 +66,33 @@ export type FrontOfficeAiStrategyRule = {
   openDossierHref: string;
 };
 
+export type FrontOfficeAiPlaybookStep = {
+  id: string;
+  kind: FrontOfficeAiStrategyRuleKind;
+  stepLabel: string;
+  title: string;
+  statusLabel: string;
+  tone: FrontOfficeAiTone;
+  contextLabel: string;
+  doNowLabel: string;
+  prepareLabel: string;
+  watchLabel: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  secondaryActionLabel: string;
+  secondaryActionHref: string;
+  detailLabel: string;
+};
+
+export type FrontOfficeAiPlaybookContract = {
+  summaryLabel: string;
+  steps: FrontOfficeAiPlaybookStep[];
+};
+
 export type FrontOfficeAiStrategyContract = {
   summaryLabel: string;
   rules: FrontOfficeAiStrategyRule[];
+  playbook: FrontOfficeAiPlaybookContract;
 };
 
 export type FrontOfficeAiAcceptedActionOutcome = {
@@ -454,6 +478,41 @@ function buildFrontOfficeAiStrategyRuleLabel(kind: FrontOfficeAiStrategyRuleKind
   }
 }
 
+function buildFrontOfficeAiStrategyPlaybookLabels(
+  kind: FrontOfficeAiStrategyRuleKind,
+) {
+  switch (kind) {
+    case "silent_period":
+      return {
+        doNowLabel: "Reopen the conversation with a light touch",
+        prepareLabel:
+          "Confirm the last logged touch and keep the message short, human, and explicit.",
+        watchLabel: "Watch for a reply or a cleaner channel after the reset touch.",
+      };
+    case "holiday":
+      return {
+        doNowLabel: "Schedule a seasonal touch before the holiday window",
+        prepareLabel:
+          "Keep the note low-pressure and personal so the contact stays warm instead of noisy.",
+        watchLabel: "Watch the response for engagement, not urgency.",
+      };
+    case "lease":
+      return {
+        doNowLabel: "Anchor the lease window with a dated next touch",
+        prepareLabel:
+          "Confirm the lease end date and reminder date before the window slips quietly.",
+        watchLabel: "Watch the renewal or move timing stay visible until it resolves.",
+      };
+    default:
+      return {
+        doNowLabel: "Load the follow-up form and set a shared next step",
+        prepareLabel:
+          "Confirm the due date, channel, and owner before you queue anything.",
+        watchLabel: "Watch whether the shared task is completed or rescheduled.",
+      };
+  }
+}
+
 function buildFrontOfficeAiStrategyRuleSourceLabel(
   kind: FrontOfficeAiStrategyRuleKind,
 ) {
@@ -467,6 +526,49 @@ function buildFrontOfficeAiStrategyRuleSourceLabel(
     default:
       return "Rule source · Follow-up";
   }
+}
+
+function buildFrontOfficeAiStrategyPlaybookSummaryLabel(
+  rules: FrontOfficeAiStrategyRule[],
+) {
+  if (!rules.length) {
+    return "Playbook · no active step surfaced";
+  }
+
+  return `Playbook · ${rules.length} review-first step(s) · ${rules
+    .map((rule) => rule.statusLabel.toLowerCase())
+    .join(" · ")}`;
+}
+
+export function buildFrontOfficeAiStrategyPlaybookContract(
+  rules: FrontOfficeAiStrategyRule[],
+): FrontOfficeAiPlaybookContract {
+  const playbookSteps = rules.map((rule, index) => {
+    const playbookLabels = buildFrontOfficeAiStrategyPlaybookLabels(rule.kind);
+
+    return {
+      id: `${rule.id}-step`,
+      kind: rule.kind,
+      stepLabel: `Step ${index + 1}`,
+      title: rule.title,
+      statusLabel: rule.statusLabel,
+      tone: rule.tone,
+      contextLabel: rule.contextLabel,
+      doNowLabel: playbookLabels.doNowLabel,
+      prepareLabel: playbookLabels.prepareLabel,
+      watchLabel: playbookLabels.watchLabel,
+      primaryActionLabel: "Load follow-up form",
+      primaryActionHref: rule.followUpHref,
+      secondaryActionLabel: "Open dossier",
+      secondaryActionHref: rule.openDossierHref,
+      detailLabel: `${rule.description} ${rule.sourceDetail}`,
+    };
+  });
+
+  return {
+    summaryLabel: buildFrontOfficeAiStrategyPlaybookSummaryLabel(rules),
+    steps: playbookSteps,
+  };
 }
 
 function buildFrontOfficeAiStrategyRuleTone(
@@ -774,6 +876,7 @@ export function buildFrontOfficeAiStrategyContract(input: {
   return {
     summaryLabel,
     rules,
+    playbook: buildFrontOfficeAiStrategyPlaybookContract(rules),
   };
 }
 

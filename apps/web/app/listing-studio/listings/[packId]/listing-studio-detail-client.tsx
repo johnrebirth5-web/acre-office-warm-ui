@@ -8,6 +8,7 @@ import {
   buildListingStudioPosterCopyText,
   buildListingStudioPosterDraft,
   buildListingStudioPosterHref,
+  buildListingStudioPosterScanTarget,
   getListingStudioPosterTemplates,
   type ListingStudioPosterTemplateId,
 } from "./listing-studio-poster";
@@ -159,9 +160,31 @@ export function ListingStudioDetailClient({
     [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
   );
   const posterCopyText = useMemo(
-    () => buildListingStudioPosterCopyText(detail, posterDraft),
-    [detail, posterDraft],
+    () =>
+      buildListingStudioPosterCopyText(
+        {
+          ...detail,
+          pack: {
+            ...detail.pack,
+            shareEnabled,
+            shareCode,
+          },
+        },
+        posterDraft,
+      ),
+    [detail, posterDraft, shareCode, shareEnabled],
   );
+  const posterPacketTarget = buildListingStudioPosterScanTarget({
+    ...detail,
+    pack: {
+      ...detail.pack,
+      shareEnabled,
+      shareCode,
+    },
+  });
+  const scanTargetHref = posterPacketTarget.href;
+  const scanTargetLabel = posterPacketTarget.label;
+  const scanTargetHint = posterPacketTarget.hint;
   const activePosterTemplate =
     posterTemplates.find((template) => template.id === posterTemplateId) ??
     posterTemplates[0];
@@ -275,6 +298,18 @@ export function ListingStudioDetailClient({
       setStatusMessage("Poster copy copied.");
     } catch {
       setStatusMessage("Clipboard access is not available for poster copy.");
+    }
+  }
+
+  async function copyScanLink() {
+    try {
+      const absoluteUrl = scanTargetHref.startsWith("http")
+        ? scanTargetHref
+        : `${window.location.origin}${scanTargetHref.startsWith("/") ? scanTargetHref : `/${scanTargetHref}`}`;
+      await navigator.clipboard.writeText(absoluteUrl);
+      setStatusMessage("Scan link copied.");
+    } catch {
+      setStatusMessage("Unable to copy the scan link in this browser.");
     }
   }
 
@@ -548,7 +583,7 @@ export function ListingStudioDetailClient({
         <div className="listing-studio-detail-rail">
           <SectionCard
             className="office-list-card"
-            subtitle="Generate a print-ready HTML poster from the imported packet. The output stays local to Acre and can be copied, printed, or downloaded without any Canva dependency."
+            subtitle="Generate a print-ready HTML poster from the imported packet. The output stays local to Acre and now keeps the agent info and scan path visible in both the preview and the exported HTML."
             title="Poster generator"
           >
             <div className="listing-studio-editor-form">
@@ -666,6 +701,34 @@ export function ListingStudioDetailClient({
                 <Button onClick={() => void copyPosterCopy()} variant="ghost">
                   Copy poster copy
                 </Button>
+              </div>
+              <div className="listing-studio-keyvalue-grid">
+                <div className="listing-studio-keyvalue-card">
+                  <span>Agent info</span>
+                  <strong>{detail.pack.contactName}</strong>
+                  <span>{detail.pack.contactTitle}</span>
+                  <strong>{detail.pack.contactPhone}</strong>
+                  <span>{detail.pack.contactEmail}</span>
+                </div>
+                <div className="listing-studio-keyvalue-card">
+                  <span>Scan path</span>
+                  <strong>{scanTargetLabel}</strong>
+                  <span>{scanTargetHint}</span>
+                  <strong>{scanTargetHref}</strong>
+                </div>
+              </div>
+              <div className="listing-studio-editor-actions">
+                <Button onClick={() => void copyScanLink()} variant="secondary">
+                  Copy scan link
+                </Button>
+                <a
+                  className="office-button office-button-secondary"
+                  href={scanTargetHref}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open scan path
+                </a>
               </div>
               <p className="listing-studio-muted">
                 Preview changes stay manual and reviewable. The poster never auto-sends or syncs to an external template service.

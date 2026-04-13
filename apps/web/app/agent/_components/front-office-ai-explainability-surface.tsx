@@ -1,4 +1,5 @@
 import { StatusBadge } from "@acre/ui";
+import { FrontOfficeLink } from "./front-office-link";
 
 type ExplainabilityTone =
   | "neutral"
@@ -6,6 +7,24 @@ type ExplainabilityTone =
   | "success"
   | "warning"
   | "danger";
+
+type ExplainabilityPlaybookStep = {
+  id: string;
+  kind: string;
+  stepLabel: string;
+  title: string;
+  statusLabel: string;
+  tone: ExplainabilityTone;
+  contextLabel: string;
+  doNowLabel: string;
+  prepareLabel: string;
+  watchLabel: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  secondaryActionLabel: string;
+  secondaryActionHref: string;
+  detailLabel: string;
+};
 
 function boundaryMentionsBackOffice(boundaryLabel: string) {
   return boundaryLabel.toLowerCase().includes("back office");
@@ -103,6 +122,8 @@ function ExplainabilitySignals(props: {
 
 export function FrontOfficeAiExplainabilitySurface(props: {
   helperText?: string;
+  playbookSummary?: string;
+  playbookSteps?: ExplainabilityPlaybookStep[];
   strategySummary?: string;
   strategySignals?: string[];
   whyNowSignals: string[];
@@ -130,6 +151,7 @@ export function FrontOfficeAiExplainabilitySurface(props: {
     boundaryLabel: props.boundaryLabel,
     rankingSignals: props.rankingSignals,
   });
+  const playbookSteps = props.playbookSteps ?? [];
 
   return (
     <div
@@ -146,6 +168,59 @@ export function FrontOfficeAiExplainabilitySurface(props: {
           <div className="list-row-meta front-office-record-meta">
             {helperMeta.map((item) => (
               <span key={item}>{item}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {playbookSteps.length ? (
+        <div className="front-office-ai-explainability-block front-office-playbook-surface">
+          <div className="front-office-ai-explainability-head">
+            <span className="front-office-ai-explainability-kicker">
+              Operational playbook
+            </span>
+            <StatusBadge tone="accent">Do / prepare / watch</StatusBadge>
+          </div>
+          <p>
+            {props.playbookSummary ??
+              "Acre turns the rule layer into step cards so the next move, the prep, and the watchpoint stay visible before anyone accepts a follow-up."}
+          </p>
+          <div className="front-office-playbook-grid">
+            {playbookSteps.map((step) => (
+              <article className="front-office-playbook-card" key={step.id}>
+                <div className="front-office-playbook-card-head">
+                  <div>
+                    <strong>{step.title}</strong>
+                    <span>
+                      {step.stepLabel} · {step.statusLabel}
+                    </span>
+                  </div>
+                  <StatusBadge tone={step.tone}>{step.contextLabel}</StatusBadge>
+                </div>
+
+                <p>{step.detailLabel}</p>
+
+                <div className="list-row-meta front-office-record-meta">
+                  <span>{step.doNowLabel}</span>
+                  <span>{step.prepareLabel}</span>
+                  <span>{step.watchLabel}</span>
+                </div>
+
+                <div className="front-office-playbook-actions">
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={step.primaryActionHref}
+                  >
+                    {step.primaryActionLabel}
+                  </FrontOfficeLink>
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={step.secondaryActionHref}
+                  >
+                    {step.secondaryActionLabel}
+                  </FrontOfficeLink>
+                </div>
+              </article>
             ))}
           </div>
         </div>
