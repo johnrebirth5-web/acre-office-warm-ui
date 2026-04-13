@@ -166,11 +166,14 @@ Current implementation priority note:
 - that same listings rail now also carries an explicit `route block` and `recommended packet mode`, so the operator can organize `profile / contact / proof / route` together and keep the next tracked send tied to the active lane instead of shipping a naked link plus detached identity copy
 - that same listings rail now also behaves more like a manual `launchpad`, so the operator can reopen the stable route, jump back to the current context route, reset to a clean workspace, and copy the preferred companion package without pretending Acre is sending the message automatically
 - that same listings rail now also exposes direct `draft launch links`, so the operator can reopen the same focused lane with the SMS or email companion already loaded into the manual draft assist instead of copying support text first and rebuilding the route by hand
+- that same listings rail now also exposes an `asset readiness board`, so the operator can quickly see whether portrait, contact, proof, and route attachment are send-ready before turning the packet into a live manual outreach
+- that same listings rail now also exposes a route-aware `send plan`, so the operator can copy a recommended manual execution order for the current client or appointment trail instead of improvising the next outbound sequence from the packet pieces alone
 - `listing-studio` now also carries a first `poster / template generator` flow, so a saved packet can switch between editorial / open-house / social-square / factsheet templates, preview the generated layout, and export or print a manual HTML poster without depending on Canva or a PNG render pipeline
 - that same `listing-studio` poster flow now also keeps agent info and a scan-ready packet path visible in preview / print / download output, preferring the public Acre packet when published and otherwise falling back to the source listing
 - that same `listing-studio` packet flow now also lets the agent edit the outbound contact block directly inside the saved packet and review a packet-distribution summary, so share / PDF / poster outputs can reuse one manual contact source without pretending there is a separate template-sync service
 - that same `listing-studio` packet flow now also exposes a first manual `marketing kit`, so operators can copy ready-made social captions, listing blurbs, and follow-up notes from the same saved packet and poster draft instead of rebuilding campaign copy from scratch for every export
 - that same `listing-studio` marketing kit now also exposes direct `campaign bundles`, so operators can copy a full social bundle, listing bundle, or follow-up bundle from the same saved packet instead of assembling the final outbound copy section by section
+- that same `listing-studio` marketing kit now also reads like a first `campaign delivery plan`, so those bundles are arranged into send-ready packages, a manual delivery sequence, and a readiness checklist without pretending Acre already owns campaign orchestration or auto-send
 - `AI next-touch suggestions` now also share a first rule-layer strategy contract for `follow-up`, `silent period`, `holiday`, and `lease` guidance, so dashboard and dossier surfaces can explain not only ranked AI suggestions but also why a safe reminder-oriented touch is surfacing now from one shared logic layer
 - that same rule layer now also renders as a shared `playbook`, so dashboard and dossier viewers can read the current step, do-now cue, preparation cue, watch cue, and exact review-first action path without Acre pretending to auto-send anything
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
@@ -298,6 +301,8 @@ Should centralize:
 - portrait / profile assets
 - profile / contact / proof overview package
 - profile sheet / outbound packet preview
+- asset readiness board for portrait / contact / proof / route status
+- route-aware send plan
 - intro posters
 - closing history
 - featured cases
@@ -310,6 +315,8 @@ Should support:
 - listing-derived poster and social-share templates
 - template switching for a small set of repeatable agent-facing layouts
 - manual preview, copy, print, and download flows
+- send-ready packages built from the same marketing kit
+- manual delivery sequence and readiness checklist
 - agent info and scan-ready packet path inside the generated poster
 - Acre-owned export first, not Canva sync first
 

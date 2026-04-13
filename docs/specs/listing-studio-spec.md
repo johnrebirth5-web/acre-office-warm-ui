@@ -39,6 +39,7 @@
   - packet distribution summary for share / PDF / poster review
   - manual marketing kit sections for caption / blurb / follow-up copy
   - copy-ready campaign bundles built from the same marketing kit
+  - campaign delivery plan with send-ready packages, manual sequence, and readiness checklist
   - delete saved packet
 - 客户分享页：
   - `/share/packs/[code]`
@@ -51,6 +52,7 @@
   - agent info block + scan-ready packet path in the generated poster
   - copy-ready marketing kit variants derived from the same saved packet and poster draft
   - reusable campaign bundles such as social / listing / follow-up copy packs
+  - a delivery-plan layer that organizes those bundles into send-ready package sets, a manual sequence, and readiness checks
 
 ### Explicitly not included in v1
 
@@ -62,6 +64,11 @@
 - background queue / worker
 - browser-cookie-based extension auth
 - unsupported-site generic scraping
+
+## Current manual contract notes
+
+- campaign bundles and delivery-plan package sets remain derived from the same saved packet and current poster draft
+- the delivery-plan layer is still manual and review-first; it does not imply Canva sync, PNG render, scheduled campaigns, or auto-send
 
 ## Core user flow
 

@@ -47,6 +47,27 @@ type MaterialLaunchLink = {
   isPreferred: boolean;
 };
 
+type MaterialReadinessItem = {
+  id: string;
+  label: string;
+  stateLabel: string;
+  tone: "accent" | "success" | "warning";
+  detail: string;
+};
+
+type MaterialSendPlan = {
+  title: string;
+  description: string;
+  steps: Array<{
+    id: string;
+    label: string;
+    detail: string;
+  }>;
+  copyValue: string;
+  preferredLaunchHref: string;
+  preferredLaunchLabel: string;
+};
+
 async function copyTextToClipboard(value: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     throw new Error("Clipboard access is not available in this browser.");
@@ -605,6 +626,124 @@ function buildExecutionLaneOverview(
   };
 }
 
+function buildMaterialReadinessItems(
+  props: FrontOfficeAgentMaterialWindowProps,
+) {
+  const hasContactBlock = Boolean(props.material.phone || props.material.email);
+  const hasProofPackage = props.material.featuredCaseCount > 0;
+
+  return [
+    {
+      id: "portrait",
+      label: "Portrait asset",
+      stateLabel: props.material.portraitReady ? "Ready" : "Missing",
+      tone: props.material.portraitReady ? ("success" as const) : ("warning" as const),
+      detail: props.material.portraitReady
+        ? "The profile sheet can lead with a face-ready identity block."
+        : "Lead with the profile sheet copy, but refresh the portrait before treating this as a polished public-facing packet.",
+    },
+    {
+      id: "contact",
+      label: "Contact block",
+      stateLabel: hasContactBlock ? "Published" : "Needs review",
+      tone: hasContactBlock ? ("success" as const) : ("warning" as const),
+      detail: hasContactBlock
+        ? "Phone and/or email are available, so the packet can carry a reply path beside the tracked listing."
+        : "Business card copy exists, but the direct reply path is still too thin for a stronger outbound packet.",
+    },
+    {
+      id: "proof",
+      label: "Proof add-on",
+      stateLabel: hasProofPackage ? "Ready" : "Identity-first",
+      tone: hasProofPackage ? ("accent" as const) : ("warning" as const),
+      detail: hasProofPackage
+        ? "A featured closing is ready when the client needs confidence after the first touch."
+        : "Keep the packet centered on profile and contact until a stronger proof case is ready.",
+    },
+    {
+      id: "route",
+      label: "Route attachment",
+      stateLabel: props.routeState.focusedRouteLaneLabel,
+      tone: "accent" as const,
+      detail: `The packet stays tied to ${props.routeState.focusedRouteLaneLabel}, so the next manual send can reopen in the same workbench lane.`,
+    },
+  ] satisfies MaterialReadinessItem[];
+}
+
+function buildMaterialReadinessCopyText(input: {
+  items: MaterialReadinessItem[];
+  modeLabel: string;
+}) {
+  return [
+    "Asset readiness board",
+    `Packet mode: ${input.modeLabel}`,
+    ...input.items.map(
+      (item) => `${item.label}: ${item.stateLabel}\n${item.detail}`,
+    ),
+  ].join("\n\n");
+}
+
+function buildMaterialSendPlan(input: {
+  props: FrontOfficeAgentMaterialWindowProps;
+  launchLinks: MaterialLaunchLink[];
+}) {
+  const preferredLaunch =
+    input.launchLinks.find((launchLink) => launchLink.isPreferred) ??
+    input.launchLinks[0];
+  const contextLabel = input.props.targetAppointment
+    ? `${input.props.targetAppointment.title} for ${input.props.targetClient?.fullName ?? "the current client"}`
+    : input.props.targetClient
+      ? `${input.props.targetClient.fullName} in ${input.props.targetClient.stage}`
+      : input.props.routeState.modeContextLabel;
+  const steps = [
+    {
+      id: "send-plan-launch",
+      label: "Open the preferred draft lane",
+      detail: `${preferredLaunch.label} keeps the outbound draft attached to ${input.props.routeState.focusedRouteLaneLabel} instead of dropping into a broad listings desk.`,
+    },
+    {
+      id: "send-plan-identity",
+      label: "Lead with profile and contact",
+      detail:
+        "Start with the profile sheet and contact block so the recipient gets identity and a reply path before any optional proof add-on.",
+    },
+    {
+      id: "send-plan-proof",
+      label: "Attach proof only when it helps",
+      detail:
+        input.props.material.featuredCaseCount > 0
+          ? "Use the proof add-on after there is already interest, objection, or appointment follow-up pressure."
+          : "Skip the proof strip for now and keep the packet centered on identity plus the next-step ask.",
+    },
+    {
+      id: "send-plan-reentry",
+      label: "Reopen through the same route",
+      detail:
+        input.props.targetAppointment
+          ? "After the send or reply, reopen the same route lane so the appointment loop and next writeback stay in one manual trail."
+          : "After the send or reply, reopen the same route lane so the next touch stays in one manual, reviewable trail.",
+    },
+  ];
+
+  return {
+    title: input.props.targetAppointment
+      ? "Appointment send plan"
+      : input.props.targetClient
+        ? "Client send plan"
+        : "Tracked-link send plan",
+    description: `This packet stays manual, but it now has a clear execution order for ${contextLabel}.`,
+    steps,
+    copyValue: [
+      "Recommended send plan",
+      `Context: ${contextLabel}`,
+      `Preferred draft lane: ${preferredLaunch.label}`,
+      ...steps.map((step, index) => `${index + 1}. ${step.label}\n${step.detail}`),
+    ].join("\n\n"),
+    preferredLaunchHref: preferredLaunch.href,
+    preferredLaunchLabel: preferredLaunch.label,
+  } satisfies MaterialSendPlan;
+}
+
 function buildMaterialCopyDetail(props: FrontOfficeAgentMaterialWindowProps) {
   if (props.targetAppointment && props.targetClient) {
     return `Use it beside ${props.targetAppointment.title} so the listing, identity, and appointment continuity stay in one manual send loop for ${props.targetClient.fullName}.`;
@@ -658,6 +797,15 @@ export function FrontOfficeAgentMaterialWindow(
   });
   const launchpadStatus = buildLaunchpadStatus(props);
   const executionLaneOverview = buildExecutionLaneOverview(props);
+  const materialReadinessItems = buildMaterialReadinessItems(props);
+  const materialReadinessCopyText = buildMaterialReadinessCopyText({
+    items: materialReadinessItems,
+    modeLabel: props.routeState.modeLabel,
+  });
+  const materialSendPlan = buildMaterialSendPlan({
+    props,
+    launchLinks,
+  });
   const outboundPacketText = buildOutboundPacketText({
     material: props.material,
     routeState: props.routeState,
@@ -903,6 +1051,68 @@ export function FrontOfficeAgentMaterialWindow(
           <QueueItem
             action={
               <div className="front-office-playbook-actions">
+                <Button
+                  onClick={() =>
+                    void handleCopy("Asset readiness board", materialReadinessCopyText)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Copy readiness board
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Profile sheet", materialPreviewCards[0].copyValue)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy profile sheet
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Contact block", materialPreviewCards[1].copyValue)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy contact block
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Proof add-on", materialPreviewCards[2].copyValue)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy proof add-on
+                </Button>
+              </div>
+            }
+            badgeLabel="Asset readiness"
+            badgeTone={
+              materialReadinessItems.some((item) => item.tone === "warning")
+                ? "warning"
+                : "success"
+            }
+            context={props.routeState.modeLabel}
+            description="Check whether portrait, contact, proof, and route attachment are ready before you turn this packet into a live manual send."
+            meta={
+              <span>
+                {materialReadinessItems
+                  .map((item) => `${item.label}: ${item.stateLabel}`)
+                  .join(" · ")}
+              </span>
+            }
+            title="Asset readiness board"
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
                 {launchLinks.map((launchLink) => (
                   <FrontOfficeLink
                     className="office-inline-link"
@@ -924,6 +1134,48 @@ export function FrontOfficeAgentMaterialWindow(
               </span>
             }
             title="Manual draft launch links"
+          />
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={materialSendPlan.preferredLaunchHref}
+                >
+                  {materialSendPlan.preferredLaunchLabel}
+                </FrontOfficeLink>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Recommended send plan", materialSendPlan.copyValue)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Copy send plan
+                </Button>
+                <Button
+                  onClick={() =>
+                    void handleCopy("Outbound packet", outboundPacketText)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy packet
+                </Button>
+              </div>
+            }
+            badgeLabel="Send plan"
+            badgeTone="accent"
+            context={props.routeState.preferredSupportLaneLabel}
+            description={materialSendPlan.description}
+            meta={
+              <span>
+                {materialSendPlan.steps.map((step) => step.label).join(" · ")}
+              </span>
+            }
+            title={materialSendPlan.title}
           />
           <QueueItem
             action={
@@ -970,20 +1222,18 @@ export function FrontOfficeAgentMaterialWindow(
                 >
                   {props.routeState.focusedRouteLaneActionLabel}
                 </FrontOfficeLink>
-              ) : null
+                ) : null
             }
-            badgeLabel={props.routeState.focusedRouteLanePanelLabel}
-            badgeTone="accent"
-            context={props.routeState.focusedRouteLaneLabel}
+            badgeLabel={executionLaneOverview.badgeLabel}
+            badgeTone={executionLaneOverview.badgeTone}
+            context={executionLaneOverview.title}
             description={props.routeState.focusedRouteLanePanelDescription}
             meta={
               <span>
-                {props.routeState.focusedRouteLaneSteps
-                  .map((step) => step.label)
-                  .join(" · ")}
+                {executionLaneOverview.meta}
               </span>
             }
-            title="Lane execution checklist"
+            title={`${executionLaneOverview.actionLabel} checklist`}
           />
           <QueueItem
             badgeLabel={supportPackageStatus.badgeLabel}
