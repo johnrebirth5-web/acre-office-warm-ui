@@ -1198,25 +1198,23 @@ export const enUSMessages = {
   agentDashboard: {
     eyebrow: "Dashboard",
     title: "Front Office dashboard",
-    description:
-      "Grounded next touches, commitments, cleanup pressure, and handoff signals inside one Front Office command deck.",
+    description: "See today's priorities, follow-up, appointments, and handoff status in one place.",
   },
   agentClients: {
     eyebrow: "Clients",
-    title: "Client process center",
-    description:
-      "Keep intake, follow-up, duplicate review, and FO → BO boundary work inside one client workbench.",
-    allLanes: "All lanes",
+    title: "Clients",
+    description: "Manage leads, follow-up, duplicate review, and client details in one place.",
+    allLanes: "All views",
     followFirst: "Follow first",
-    anchorNow: "Anchor now",
-    viewingLane: "Viewing lane",
-    boundaryReview: "Boundary review",
+    anchorNow: "Needs attention",
+    viewingLane: "Viewings",
+    boundaryReview: "Ready for Back Office",
     duplicateReview: "Duplicate review",
     keepCandidate: "Keep candidate",
   },
   agentCalendar: {
     eyebrow: "Calendar",
-    title: "Calendar coordination desk",
+    title: "Calendar",
     coordinationPressure: "Coordination pressure",
     readyForBackOffice: "Ready for Back Office",
     currentScope: "Current scope",
@@ -1238,14 +1236,13 @@ export const enUSMessages = {
   },
   agentNotifications: {
     eyebrow: "Activity",
-    title: "Activity cleanup center",
-    description:
-      "Keep self-owned cleanup, visible team pressure, calendar writeback, and broader notice follow-through in one Front Office route without blurring the Back Office boundary.",
-    currentRouteFocus: "Current route focus",
-    personalCleanupWorkbench: "Personal cleanup workbench",
-    calendarWritebackLane: "Calendar writeback lane",
-    noticeRoutingLane: "Notice routing lane",
-    keepSectionTargetStable: "Keep this section target stable",
+    title: "Activity",
+    description: "Review follow-up, reminders, team items, and notices from one activity page.",
+    currentRouteFocus: "Current view",
+    personalCleanupWorkbench: "My follow-ups",
+    calendarWritebackLane: "Appointments",
+    noticeRoutingLane: "Notices",
+    keepSectionTargetStable: "Keep this view open",
   },
 } as const;
 

@@ -44,11 +44,11 @@ export const activityViewOptions: Array<{
   value: AgentActivityView;
   label: string;
 }> = [
-  { value: "all", label: "Cleanup overview" },
-  { value: "personal_cleanup", label: "Personal cleanup" },
-  { value: "team_cleanup", label: "Team cleanup workbench" },
-  { value: "appointment_reminders", label: "Calendar writeback" },
-  { value: "general_notices", label: "Notice routing" },
+  { value: "all", label: "Overview" },
+  { value: "personal_cleanup", label: "My follow-ups" },
+  { value: "team_cleanup", label: "Team follow-ups" },
+  { value: "appointment_reminders", label: "Appointments" },
+  { value: "general_notices", label: "Notices" },
 ];
 
 export function getActivityViewFocusLabel(activityView: AgentActivityView) {
@@ -62,7 +62,7 @@ export function getActivityViewFocusLabel(activityView: AgentActivityView) {
     case "general_notices":
       return "Front Office actions, Back Office handoff, shared notices, and awareness-only items";
     default:
-      return "Full command surface with cleanup, reminders, team pressure, and notices";
+      return "Overview of cleanup, reminders, team pressure, and notices";
   }
 }
 
@@ -71,15 +71,15 @@ export function getActivityViewSectionTargetLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Personal cleanup";
+      return "My follow-ups";
     case "team_cleanup":
-      return "Team cleanup";
+      return "Team follow-ups";
     case "appointment_reminders":
-      return "Calendar writeback";
+      return "Appointments";
     case "general_notices":
-      return "Notice routing";
+      return "Notices";
     default:
-      return "Activity center";
+      return "Activity";
   }
 }
 

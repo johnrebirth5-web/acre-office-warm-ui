@@ -624,13 +624,13 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Working the cleanup workbench across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
+      ? "Viewing cleanup, reminders, team pressure, and notices together. Overview stays preview-first while each section still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
-        ? "Focused on owner-owned cleanup pressure only, with duplicate review and send rescue staying in the same pass."
+        ? "Focused on your own follow-up cleanup, including duplicate review and send rescue."
         : activeActivityView === "team_cleanup"
-          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup so the lead workbench stays readable.`
+          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup so team follow-up stays readable.`
           : activeActivityView === "appointment_reminders"
-            ? "Focused on calendar writeback only; confirmation, reschedule, and promised-touch follow-through stay together."
+            ? "Focused on appointment follow-up only; confirmations, reschedules, and promised touchpoints stay together."
             : "Focused on broader notice follow-through without mixing in calendar pressure or owner cleanup.";
   const currentFocusCount =
     activeActivityView === "all"
@@ -674,7 +674,7 @@ export function AgentNotificationsClient({
       key: "personal_cleanup" as const,
       label: "Personal cleanup",
       description:
-        "Self-owned follow-up, send rescue, stale dossier cleanup, appointment writeback, and duplicate review stay together in one cleanup workbench lane.",
+        "Self-owned follow-up, send rescue, stale dossier cleanup, appointment updates, and duplicate review stay together in one section.",
       count: personalCleanupCount,
       tone: personalCleanupTone,
       ownerLabel: "Ownership · Assigned to you",
@@ -730,9 +730,9 @@ export function AgentNotificationsClient({
       : []),
     {
       key: "appointment_reminders" as const,
-      label: "Calendar writeback",
+      label: "Appointments",
       description:
-        "Confirmation, reschedule, external-touch, and countdown pressure stay separate from broader notices so the calendar lane stays clean.",
+        "Confirmation, reschedule, external touch, and countdown pressure stay separate from broader notices so appointment follow-up stays clear.",
       count: appointmentReminderCount,
       tone: appointmentReminderTone,
       ownerLabel: "Ownership · Calendar writeback + personal follow-through",
@@ -757,9 +757,9 @@ export function AgentNotificationsClient({
     },
     {
       key: "general_notices" as const,
-      label: "Notice routing",
+      label: "Notices",
       description:
-        "Non-calendar notices stay in their own lane so Front Office follow-through, Back Office handoff, shared office visibility, and awareness-only items do not blur together.",
+        "Non-calendar notices stay in their own section so follow-through, handoff, shared visibility, and awareness-only items do not blur together.",
       count: generalNoticeCount,
       tone: generalNoticeTone,
       ownerLabel: "Ownership · Personal + shared office visibility",
@@ -788,9 +788,9 @@ export function AgentNotificationsClient({
   const activityLaneTabs: ActivityLaneCard[] = [
     {
       key: "all" as const,
-      label: "Cleanup overview",
+      label: "Overview",
       description:
-        "Keep personal cleanup, team pressure, calendar writeback, and broader notices visible on one stable cleanup route.",
+        "Keep personal cleanup, team pressure, appointments, and notices visible in one stable view.",
       count:
         personalCleanupCount +
         teamCleanupCount +
@@ -1356,9 +1356,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.nextStepLabel ??
           "Open the notice lane and review the next notice.",
-        sectionLabel: nextCard?.sectionLabel ?? "Notice routing",
+        sectionLabel: nextCard?.sectionLabel ?? "Notices",
         meta: [
-          `Target · ${nextCard?.sectionLabel ?? "Notice routing"}`,
+          `Target · ${nextCard?.sectionLabel ?? "Notices"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1391,7 +1391,7 @@ export function AgentNotificationsClient({
         : visibleDuplicatePairs.length
           ? {
               key: "duplicate-review",
-              label: "Review duplicate workbench",
+              label: "Review duplicates",
               description:
                 "Merge duplicate dossiers before the next send or appointment so tracked history, follow-up, and handoff context stay on one surviving record.",
               href: buildDuplicateReviewHref(),
@@ -1399,11 +1399,11 @@ export function AgentNotificationsClient({
               badgeLabel: "Duplicate review",
               meta: [
                 `Bridge · ${activeRouteBridgeLabel}`,
-                "Target · Duplicate review workbench",
+                "Target · Duplicate review",
                 `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                 "Foundation cleanup before next touch",
               ],
-              ctaLabel: "Review duplicate workbench",
+              ctaLabel: "Review duplicates",
             }
           : null
       : activeActivityView === "team_cleanup"
@@ -1534,7 +1534,7 @@ export function AgentNotificationsClient({
                     : visibleDuplicatePairs.length
                       ? {
                           key: "duplicate-review-all",
-                          label: "Review duplicate workbench",
+                          label: "Review duplicates",
                           description:
                             "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
                           href: buildDuplicateReviewHref(),
@@ -1544,7 +1544,7 @@ export function AgentNotificationsClient({
                             `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                             "Foundation cleanup before next touch",
                           ],
-                          ctaLabel: "Review duplicate workbench",
+                          ctaLabel: "Review duplicates",
                         }
                       : null;
 
@@ -2494,7 +2494,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={nextPersonalCleanupItem.href}
                   >
-                    Open next cleanup rail
+                    Open next item
                   </FrontOfficeLink>
                 ) : null}
                 {visibleDuplicatePairs.length ? (
@@ -2502,7 +2502,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={buildDuplicateReviewHref()}
                   >
-                    Open duplicate review workbench
+                    Review duplicates
                   </FrontOfficeLink>
                 ) : null}
                 {isOverviewMode && hiddenCleanupItemCount > 0 ? (
@@ -2510,7 +2510,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={focusAreaCards[0]?.href ?? buildDuplicateReviewHref()}
                   >
-                    Open full personal cleanup workbench
+                    Open full cleanup list
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -2520,8 +2520,8 @@ export function AgentNotificationsClient({
           id="cleanup-center"
           subtitle={
             isOverviewMode
-              ? "Personal cleanup stays self-owned. Overview shows the first few cleanup items so the center stays scan-first; open the workbench to work the full queue."
-              : "Personal cleanup stays self-owned. Surface the loudest issue per client first, then reopen the same workbench directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
+              ? "Personal cleanup stays self-owned. Overview shows the first few items so the page stays scan-first; open the full list when you need the rest of the queue."
+              : "Personal cleanup stays self-owned. Surface the loudest issue per client first, then continue directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
           }
           title="Personal cleanup"
         >
@@ -2974,10 +2974,10 @@ export function AgentNotificationsClient({
           id="notice-stream"
           subtitle={
             isOverviewMode
-              ? "Notice routing stays separate from calendar pressure. Overview keeps this lane preview-sized so broader office context stays useful without taking over the page."
-              : "Notice routing stays separate from calendar pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
+              ? "Notices stay separate from appointment pressure. Overview keeps this section preview-sized so broader office context stays useful without taking over the page."
+              : "Notices stay separate from appointment pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
           }
-          title="Notice routing"
+          title="Notices"
         >
           <div className="list-row-meta front-office-record-meta">
             <span>{generalNoticeCards.length} notice(s) in this lane</span>

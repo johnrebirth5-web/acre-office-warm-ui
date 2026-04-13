@@ -38,7 +38,7 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
     description:
       "Use the full appointment queue, then narrow by coordination or follow-up only when the next move becomes clear.",
     label: "All appointments",
-    routeCopy: "Full calendar workbench",
+    routeCopy: "All appointments",
   },
   day: {
     description:
@@ -56,55 +56,55 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
     description:
       "Focus on appointments that are still waiting on an outside reply or fresh response.",
     label: "Needs reply",
-    routeCopy: "Reply due workbench",
+    routeCopy: "Needs reply",
   },
   confirmation_pending: {
     description:
       "Focus on scheduled appointments that still need an explicit confirmation back from the outside party.",
     label: "Awaiting confirmation",
-    routeCopy: "Confirmation workbench",
+    routeCopy: "Awaiting confirmation",
   },
   confirmed: {
     description:
       "Focus on appointments that are already confirmed outside Acre and only need a last-touch checkpoint or a clean confirmed record before start time.",
     label: "Externally confirmed",
-    routeCopy: "Confirmed workbench",
+    routeCopy: "Confirmed",
   },
   touch_due: {
     description:
       "Focus on appointments where the saved next external touch is already due or overdue.",
     label: "Touch due",
-    routeCopy: "Touch-due workbench",
+    routeCopy: "Touch due",
   },
   touch_scheduled: {
     description:
       "Focus on appointments where the next external touch is already saved but is not due yet.",
     label: "Touch scheduled",
-    routeCopy: "Touch-scheduled workbench",
+    routeCopy: "Touch scheduled",
   },
   missing_next_touch: {
     description:
       "Focus on appointments that still need a saved next-touch deadline before the outside thread stays readable.",
     label: "Missing next touch",
-    routeCopy: "Next-touch workbench",
+    routeCopy: "Missing next touch",
   },
   reschedule_requested: {
     description:
       "Focus on appointments where the outside conversation already asked for a time change or reset.",
     label: "Reschedule requested",
-    routeCopy: "Reschedule workbench",
+    routeCopy: "Reschedule requested",
   },
   bridge_logged: {
     description:
       "Focus on appointments where Acre already logged the bridge and the next writeback step is to reopen the saved plan.",
     label: "Bridge logged",
-    routeCopy: "Bridge workbench",
+    routeCopy: "Bridge opened",
   },
   writeback_pending: {
     description:
       "Focus on appointments where the bridge was opened, but no confirmation or reschedule writeback has been saved yet.",
     label: "Writeback pending",
-    routeCopy: "Writeback-pending workbench",
+    routeCopy: "Writeback pending",
   },
 };
 

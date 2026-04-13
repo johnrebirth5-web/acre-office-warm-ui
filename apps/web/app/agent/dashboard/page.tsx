@@ -158,13 +158,13 @@ function getDashboardCommandLeadText(input: {
   ) {
     return isZh
       ? `${input.snapshot.leadershipQueue.scopeLabel} 现在是当前的指挥重点。先把它清掉，再按下面的顺序处理启动板，这样下一步已落地动作、预约处理、发送风险跟进和重复记录审查都会保持在同一条指挥顺序里。`
-      : `${input.snapshot.leadershipQueue.scopeLabel} is the command lead right now. Clear it first, then work the ordered launchpad below so the next grounded move, appointment work, send-risk follow-through, and duplicate review stay in command order.`;
+      : `${input.snapshot.leadershipQueue.scopeLabel} is the top priority right now. Clear it first, then work the ordered list below so the next move, appointment follow-up, listing follow-up, and duplicate review stay in a clear order.`;
   }
 
   if (input.primaryLaunchpadItem) {
     return isZh
       ? `${input.primaryLaunchpadItem.title} 现在是当前的指挥重点。按下面的顺序处理启动板，让下一步动作保持节奏。`
-      : `${input.primaryLaunchpadItem.title} is the command lead right now. Work the ordered launchpad below so the next move stays in sequence.`;
+      : `${input.primaryLaunchpadItem.title} is the top priority right now. Work the ordered list below so the next move stays in sequence.`;
   }
 
   return isZh
@@ -184,22 +184,22 @@ function getDashboardRoleFocus(role: string, isZh: boolean) {
   switch (role) {
     case "team_lead":
       return {
-        label: isZh ? "团队指挥台" : "Team command deck",
+        label: isZh ? "团队视图" : "Team view",
         description: isZh
           ? "先清掉当前可见的团队清理压力，再把跟进、预约回写、发送轨迹跟进和正式交接都放在同一个 Front Office 指挥面上处理。"
-          : "Clear visible team cleanup first, then keep follow-up, appointment writeback, send-trail follow-through, and formal handoff on the same Front Office command surface.",
+          : "Clear visible team cleanup first, then keep follow-up, appointment updates, listing follow-up, and formal handoff in one Front Office view.",
       };
     case "owner":
     case "office_admin":
       return {
-        label: isZh ? "办公室指挥台" : "Office command deck",
+        label: isZh ? "办公室视图" : "Office view",
         description: isZh
           ? "把办公室执行压力留在这里可见，只有当资料包真正准备好时，再把真正正式的工作移入 Back Office。"
           : "Keep office execution pressure visible here, then move only truly formal work into Back Office once the package is genuinely ready.",
       };
     default:
       return {
-        label: isZh ? "经纪人执行台" : "Agent execution deck",
+        label: isZh ? "经纪人视图" : "Agent view",
         description: isZh
           ? "先从下一个已落地的触达开始，再处理租约时点、约定事项、发送/点击后的跟进和正式交接，不要过早离开 Front Office。"
           : "Start with the next grounded touch, then work lease timing, commitments, send/click follow-through, and formal handoffs without leaving Front Office early.",
@@ -265,7 +265,7 @@ function buildDashboardLaunchpadItems(input: {
             ? "办公室清理"
             : "Office cleanup",
       badgeTone: "danger",
-      title: isZh ? "打开清理指挥中心" : "Open cleanup command center",
+      title: isZh ? "打开清理列表" : "Open cleanup list",
       description: leadingLeadershipItem
         ? `${leadingLeadershipItem.title} is the clearest pressure point right now. ${leadingLeadershipItem.whyNowLabel}`
         : isZh
@@ -279,7 +279,7 @@ function buildDashboardLaunchpadItems(input: {
         "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
       actionLabel:
         leadershipAction?.actionLabel ??
-        (isZh ? "打开清理指挥中心" : "Open cleanup command center"),
+        (isZh ? "打开清理列表" : "Open cleanup list"),
     });
   }
 
@@ -344,13 +344,13 @@ function buildDashboardLaunchpadItems(input: {
       id: "commitments",
       badgeLabel: isZh ? "今天" : "Today",
       badgeTone: "accent",
-      title: isZh ? "打开预约工作台" : "Open appointment workbench",
+      title: isZh ? "打开日历" : "Open calendar",
       description: leadingCommitment
         ? `${leadingCommitment.title} ${
             commitmentAction?.whyNowLabel ??
             (isZh
-              ? "已经在日历上了。用预约工作台在开始前确认准备动作、后续跟进和任何承诺过的下一次触达。"
-              : "is already on the calendar. Use the appointment workbench to confirm prep, follow-through, and any promised next touch before the start window.")
+              ? "已经在日历上了。打开日历，在开始前确认准备动作、后续跟进和任何承诺过的下一次触达。"
+              : "is already on the calendar. Open the calendar to confirm prep, follow-through, and any promised next touch before the start window.")
           }`
         : `${input.snapshot.summary.todayCommitmentCount} appointment or office commitment(s) land today.`,
       metaLabel: commitmentAction
@@ -361,7 +361,7 @@ function buildDashboardLaunchpadItems(input: {
       href: commitmentAction?.href ?? "/agent/calendar",
       actionLabel:
         commitmentAction?.actionLabel ??
-        (isZh ? "打开预约工作台" : "Open appointment workbench"),
+        (isZh ? "打开日历" : "Open calendar"),
     });
   }
 
@@ -402,18 +402,18 @@ function buildDashboardLaunchpadItems(input: {
       id: "engagement",
       badgeLabel: leadingEngagement.engagementLabel,
       badgeTone: leadingEngagement.engagementTone,
-      title: isZh ? "打开发送风险工作台" : "Open send-risk workbench",
+      title: isZh ? "打开房源跟进" : "Open listing follow-up",
       description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the next-step rail to turn that open or quiet send into a concrete next step instead of sending blindly.`,
       metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
       href: leadingEngagement.href,
-      actionLabel: isZh ? "打开下一步轨道" : "Open next-step rail",
+      actionLabel: isZh ? "打开下一步" : "Open next step",
     });
   } else if (input.snapshot.listingOutput.activeListingCount > 0) {
     addItem({
       id: "listing-output",
       badgeLabel: isZh ? "可发送" : "Send-ready",
       badgeTone: "success",
-      title: isZh ? "打开发送风险工作台" : "Open send-risk workbench",
+      title: isZh ? "打开房源跟进" : "Open listing follow-up",
       description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail after you send, and the next-step rail keeps the send-risk trail explicit.`,
       metaLabel:
         input.snapshot.listingOutput.trackedLinkCount > 0
@@ -422,7 +422,7 @@ function buildDashboardLaunchpadItems(input: {
             ? "第一条跟踪发送从房源输出开始"
             : "First tracked send starts from listing output",
       href: "/agent/listings?lane=draft-lane",
-      actionLabel: isZh ? "打开发送风险工作台" : "Open send-risk workbench",
+      actionLabel: isZh ? "打开房源跟进" : "Open listing follow-up",
     });
   }
 
@@ -434,13 +434,13 @@ function buildDashboardLaunchpadItems(input: {
       id: "duplicate-review",
       badgeLabel: isZh ? "审查" : "Review",
       badgeTone: "warning",
-      title: isZh ? "打开重复记录审查工作台" : "Open duplicate review workbench",
+      title: isZh ? "查看重复记录" : "Review duplicates",
       description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Reopen the merge lane before more work lands so intake and follow-up stay on one surviving dossier.`,
       metaLabel: isZh
         ? "重复比较和合并仍留在客户队列内"
         : "Duplicate compare and merge stays in the client queue",
       href: buildClientWorkbenchHref("duplicate_review", "duplicate-review"),
-      actionLabel: isZh ? "打开重复记录审查工作台" : "Open duplicate review workbench",
+      actionLabel: isZh ? "查看重复记录" : "Review duplicates",
     });
   }
 
@@ -749,8 +749,8 @@ export default async function AgentDashboardPage() {
                 >
                   {snapshot.leadershipQueue.visible
                     ? isZh
-                      ? "打开清理指挥中心"
-                      : "Open cleanup command center"
+                      ? "打开清理列表"
+                      : "Open cleanup list"
                     : isZh
                       ? "打开动态中心"
                       : "Open activity center"}
@@ -767,10 +767,10 @@ export default async function AgentDashboardPage() {
             }
             subtitle={
               isZh
-                ? `${roleFocus.label}。先清掉当前指挥重点，再按顺序处理启动板，让清理指挥中心、预约回写、发送风险跟进和重复记录审查保持同一条节奏。`
-                : `${roleFocus.label}. Clear the command lead first, then work the ordered launchpad so cleanup command center, appointment writeback, send-risk follow-through, and duplicate review stay in command order.`
+                ? "先处理最紧急的事项，再继续客户、预约、房源和交接。"
+                : "Start with the most urgent items, then continue through clients, appointments, listings, and handoff."
             }
-            title={isZh ? "Front Office 指挥台" : "Front Office command deck"}
+            title={isZh ? "今日重点" : "Today priorities"}
           >
             <ListPageStatsGrid>
               {heroStats.map((stat) => (
@@ -783,44 +783,6 @@ export default async function AgentDashboardPage() {
                 />
               ))}
             </ListPageStatsGrid>
-
-            <div className="front-office-placeholder-note">
-              <Badge tone={primaryLaunchpadItem?.badgeTone ?? "accent"}>
-                {todayActionCount > 0
-                  ? formatTodayActionLabel(todayActionCount, isZh)
-                  : primaryLaunchpadItem
-                    ? isZh
-                      ? "指挥重点"
-                      : "Command lead"
-                    : isZh
-                      ? "队列检查"
-                      : "Queue check"}
-              </Badge>
-              <p>
-                {`${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount, isZh)}. ` : ""}${commandLeadText}`}
-              </p>
-              <div className="list-row-meta front-office-record-meta">
-                {executionOrder.length ? (
-                  executionOrder.map((item, index) => (
-                    <span key={item.id}>
-                      {getLaunchpadStepContext(index, isZh)} · {item.label} ·{" "}
-                      {item.sequenceLabel} · {item.nextStepLabel}
-                    </span>
-                  ))
-                ) : (
-                  <span>
-                    {isZh
-                      ? "当前没有任何工作道明显高于其他。"
-                      : "No lane is currently elevated above the rest."}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="front-office-placeholder-note">
-              <Badge tone="neutral">{isZh ? "当前真实状态" : "Honest state"}</Badge>
-              <p>{honestStateText}</p>
-            </div>
 
             {primaryLaunchpadItem ? (
               <div className="office-queue-list">
@@ -996,7 +958,7 @@ export default async function AgentDashboardPage() {
                         "duplicate-review",
                       )}
                     >
-                      {isZh ? "打开重复记录审查工作台" : "Open duplicate review workbench"}
+                      {isZh ? "查看重复记录" : "Review duplicates"}
                     </FrontOfficeLink>
                   }
                   badgeLabel={
@@ -1051,7 +1013,7 @@ export default async function AgentDashboardPage() {
                               "duplicate-review",
                             )}
                           >
-                            {isZh ? "打开重复记录审查工作台" : "Open duplicate review workbench"}
+                            {isZh ? "查看重复记录" : "Review duplicates"}
                           </FrontOfficeLink>
                         </>
                       }
@@ -1103,20 +1065,11 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "按指挥顺序处理这些工作道。每一行都是 Acre 已经能看到的、已落地的下一步；如果已经连到具体记录，就直接打开，否则就重新进入共享队列。"
-                : "Work these lanes in command order. Each row is a grounded next move that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
+                ? "这些条目按优先级排列，方便你直接进入下一步。"
+                : "These items are ordered by priority so you can move straight into the next task."
             }
-            title={isZh ? "今日执行工作道" : "Today execution lanes"}
+            title={isZh ? "今日队列" : "Today queue"}
           >
-            <div className="front-office-placeholder-note">
-              <Badge tone="accent">{isZh ? "指挥顺序" : "Command order"}</Badge>
-              <p>
-                {isZh
-                  ? "Front Office 会把实时执行节奏保留在这里。只有当某一行明确指向正式交接或签署工作流时，Back Office 才真正开始，而不是在动作还停留在活跃 dossier 里时就提前切过去。"
-                  : "Front Office keeps the live execution clock here. Back Office starts only when the row explicitly points to a formal handoff or signature workflow, not when the move is still grounded in the active dossier."}
-              </p>
-            </div>
-
             <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => {
                 const action = getDashboardQueueAction({
@@ -1164,13 +1117,13 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-              subtitle={
-                isZh
-                  ? "这里只显示已落地的下一触达建议与共享规则层。每张卡都会在你操作记录前说明安全动作、为什么是现在，以及顺序约束；只有当记录轨迹足够支撑时，队列才会把你重新带回 dossier、日历回写或正式交接。"
-                  : "Grounded next-touch suggestions and the shared rule layer only. Each card states the safe action, why-now signal, and sequence contract before you touch the record; the queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
-              }
-              title={isZh ? "AI 下一触达队列" : "AI next-touch queue"}
-            >
+            subtitle={
+              isZh
+                ? "基于当前记录，给出可以直接跟进的建议。"
+                : "Suggested follow-ups based on the current record history."
+            }
+            title={isZh ? "AI 跟进建议" : "AI follow-up suggestions"}
+          >
               <ListPageStatsGrid>
                 <StatCard
                   hint="grounded AI suggestion and rule-layer opportunities currently visible in this dashboard scope"
@@ -1179,24 +1132,6 @@ export default async function AgentDashboardPage() {
                   value={snapshot.aiQueue.suggestionCount}
                 />
               </ListPageStatsGrid>
-
-              {leadingAiItem ? (
-                <div className="front-office-placeholder-note">
-                  <Badge tone={leadingAiItem.tone}>{isZh ? "安全动作" : "Safe action"}</Badge>
-                  <p>
-                    {leadingAiItem.safeActionLabel}.{" "}
-                    {leadingAiItem.sequenceContractLabel}.{" "}
-                    {leadingAiItem.whyNowLabel}. Acre still waits for your
-                    {isZh
-                      ? "批准，且这里不会自动发送任何内容。"
-                      : "approval, and nothing here auto-sends."}
-                  </p>
-                  <div className="list-row-meta front-office-record-meta">
-                    <span>{leadingAiItem.helperLabel}</span>
-                    <span>{leadingAiItem.contextLabel}</span>
-                  </div>
-                </div>
-              ) : null}
 
               <FrontOfficeDashboardAiQueueClient
                 items={snapshot.aiQueue.items}
@@ -1323,8 +1258,8 @@ export default async function AgentDashboardPage() {
                     )}
                   >
                     {isZh
-                      ? "打开重复记录审查工作台"
-                      : "Open duplicate review workbench"}
+                      ? "查看重复记录"
+                      : "Review duplicates"}
                   </FrontOfficeLink>
                 </>
               ) : undefined
@@ -1523,10 +1458,10 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "已跟踪的发送、打开情况和安静链接应该帮助你判断下一次触达。发送风险工作台会让下一步轨道保持显式；Acre 只会在你发送后记录执行轨迹，不会自动发送，也不会悄悄替你补救线程。"
-                : "Tracked sends, opens, and quiet links should help you decide the next touch. The send-risk workbench keeps the next-step rail explicit; Acre records the execution trail after you send and does not auto-send or silently rescue the thread for you."
+                ? "查看最近发送、打开和后续跟进情况。"
+                : "Review recent sends, opens, and follow-up activity."
             }
-            title={isZh ? "发送风险工作台" : "Send-risk workbench"}
+            title={isZh ? "房源跟进" : "Listing follow-up"}
           >
             <ListPageStatsGrid>
               <StatCard
@@ -1629,7 +1564,7 @@ export default async function AgentDashboardPage() {
                       className="office-button-secondary"
                       href="/agent/listings?lane=draft-lane"
                     >
-                      {isZh ? "打开发送风险工作台" : "Open send-risk workbench"}
+                      {isZh ? "打开房源跟进" : "Open listing follow-up"}
                     </Link>
                   }
                   description={
@@ -1640,15 +1575,6 @@ export default async function AgentDashboardPage() {
                   title={isZh ? "当前范围内没有房源库存" : "No listing inventory in scope"}
                 />
               )}
-            </div>
-
-            <div className="front-office-placeholder-note">
-              <strong>{isZh ? "如何阅读这条工作道" : "How to read this lane"}</strong>
-              <p>
-                {isZh
-                  ? "客户关联发送会把跟踪链接变成真实的执行历史，因此你可以看见谁收到了什么、是否打开，以及下一次触达仍然需要经纪人判断的地方，而不是依赖隐藏自动化。"
-                  : "Client-linked sends turn tracked links into real execution history, so you can see who received what, whether they opened it, and where the next touch still needs agent judgment instead of hidden automation."}
-              </p>
             </div>
 
             <div className="list-column front-office-record-list">
@@ -1680,7 +1606,7 @@ export default async function AgentDashboardPage() {
                       className="office-inline-link front-office-inline-link"
                       href={record.href}
                     >
-                      {isZh ? "打开下一步轨道" : "Open next-step rail"}
+                      {isZh ? "打开下一步" : "Open next step"}
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -1691,7 +1617,7 @@ export default async function AgentDashboardPage() {
                       className="office-button-secondary"
                       href="/agent/listings?lane=draft-lane"
                     >
-                      {isZh ? "打开发送风险工作台" : "Open send-risk workbench"}
+                      {isZh ? "打开房源跟进" : "Open listing follow-up"}
                     </Link>
                   }
                   description={
@@ -1709,10 +1635,10 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "这些项目现在需要正式交易、签署或可审计的文档流程。Front Office 应该先把工作准备好，再有意识地交接，而不是假装正式档案已经存在。"
-                : "These items now need formal transactions, signatures, or auditable document flow. Front Office should tee up the work, then hand off deliberately instead of pretending the formal file already exists."
+                ? "这些客户已进入需要正式流程处理的阶段。"
+                : "These clients are ready for the formal transaction process."
             }
-            title={isZh ? "Front Office -> Back Office 边界" : "Front Office -> Back Office boundary"}
+            title={isZh ? "待交接到 Back Office" : "Ready for Back Office"}
           >
             <div className="list-column front-office-record-list">
               {snapshot.backOffice.items.length ? (
@@ -1781,7 +1707,7 @@ export default async function AgentDashboardPage() {
                   className="office-inline-link front-office-inline-link"
                   href={leadershipCleanupHref}
                 >
-                  {isZh ? "打开清理指挥中心" : "Open cleanup command center"}
+                  {isZh ? "打开清理列表" : "Open cleanup list"}
                 </FrontOfficeLink>
               }
               subtitle={
@@ -1868,8 +1794,8 @@ export default async function AgentDashboardPage() {
               >
                 {snapshot.leadershipQueue.visible
                   ? isZh
-                    ? "打开清理指挥中心"
-                    : "Open cleanup command center"
+                    ? "打开清理列表"
+                    : "Open cleanup list"
                   : isZh
                     ? "打开动态中心"
                     : "Open activity center"}
@@ -1878,7 +1804,7 @@ export default async function AgentDashboardPage() {
             subtitle={
               isZh
                 ? "共享办公室提醒和个人通知链接会帮助你在不离开 Front Office 指挥台的情况下清掉今天的队列。"
-                : "Shared office alerts and personal notice links that help you clear today's queue without leaving the Front Office command deck."
+                : "Shared office alerts and personal notice links that help you clear today's queue without leaving this page."
             }
             title={isZh ? "动态与通知" : "Activity & notices"}
           >
@@ -2273,23 +2199,10 @@ export default async function AgentDashboardPage() {
       summary={
         <>
           <SummaryChip
-            label={isZh ? "当前指挥重点" : "Command lead"}
-            tone="accent"
-            value={primaryLaneLabel}
-          />
-          <SummaryChip
-            label={isZh ? "今日动作" : "Today actions"}
+            label={isZh ? "今日事项" : "Today actions"}
             tone="accent"
             value={todayActionCount}
           />
-          <SummaryChip
-            label={isZh ? "办公室范围" : "Office scope"}
-            value={
-              context.currentOffice?.name ?? context.currentOrganization.name
-            }
-          />
-          <SummaryChip label={isZh ? "访问级别" : "Access"} value={access.label} />
-          <SummaryChip label={isZh ? "角色焦点" : "Role focus"} value={roleFocus.label} />
           <SummaryChip
             label={isZh ? "待跟进" : "Follow-up due"}
             tone="accent"
@@ -2300,7 +2213,7 @@ export default async function AgentDashboardPage() {
             value={snapshot.summary.todayCommitmentCount}
           />
           <SummaryChip
-            label={listingSummaryChip.label}
+            label={isZh ? "房源跟进" : "Listing follow-up"}
             tone="accent"
             value={listingSummaryChip.value}
           />
@@ -2340,13 +2253,13 @@ export default async function AgentDashboardPage() {
           ) : null}
           {clientsSnapshot ? (
             <SummaryChip
-              label={isZh ? "实时联系人" : "Live contacts"}
+              label={isZh ? "客户" : "Clients"}
               value={clientsSnapshot.summary.liveContacts}
             />
           ) : null}
         </>
       }
-      title={isZh ? "Front Office 启动台" : "Front Office launchpad"}
+      title={isZh ? "Front Office 仪表盘" : "Front Office dashboard"}
     />
   );
 }

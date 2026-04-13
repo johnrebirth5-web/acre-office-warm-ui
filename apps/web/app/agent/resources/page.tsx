@@ -596,7 +596,7 @@ export default async function AgentResourcesPage(props: {
                         <strong>Matching vendors</strong>
                         <p style={subsectionIntroStyle}>
                           Vendor hits stay visible beside materials so the next
-                          move can stay inside one FO workbench.
+                          move can stay inside one Front Office page.
                         </p>
                       </div>
                     </div>
@@ -964,7 +964,7 @@ export default async function AgentResourcesPage(props: {
           <SectionCard
             className="office-list-card"
             subtitle="Use this rail when you want the shortest path into the strongest published lane instead of scanning the whole library first."
-            title="Where to start first"
+            title="Quick start"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -1026,7 +1026,7 @@ export default async function AgentResourcesPage(props: {
           <SectionCard
             className="office-list-card"
             subtitle="This rail is the quick read: which library lanes are healthy, and how much vendor support is actually contact-ready right now."
-            title="Hub pulse"
+            title="Recent updates"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -1095,7 +1095,7 @@ export default async function AgentResourcesPage(props: {
           <SectionCard
             className="office-list-card"
             subtitle="Tracked searches, watch progress, opens, and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
-            title="Recent tracked use"
+            title="Recent activity"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -1460,52 +1460,13 @@ export default async function AgentResourcesPage(props: {
             </div>
           </SectionCard>
 
-          <SectionCard
-            className="office-list-card"
-            subtitle="This hub should speed up Front Office execution without pretending the formal system of record moved."
-            title="Boundary reminder"
-          >
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                badgeLabel="FO"
-                badgeTone="accent"
-                description="Use this hub to retrieve playbooks, templates, and vendor contacts while the work is still client-facing and execution-led."
-                title="Stay lightweight in Front Office"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="BO"
-                description="Formal transaction creation, signatures, accounting, and archival workflow still belong in Back Office even if the supporting material starts here."
-                title="Keep the BO record boundary explicit"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="Honest"
-                badgeTone="warning"
-                description="This page does not imply auto-send, two-way sync, hidden vendor ingestion, or provider-backed automation. Agents still choose and perform the next action, even though searches, watch progress, opens, and vendor clicks are now tracked."
-                title="No pretend automation layer"
-              />
-            </div>
-          </SectionCard>
         </>
       }
       summary={
         <>
           <SummaryChip
-            label="Focus lane"
-            tone="accent"
-            value={strongestResourceLane?.label ?? "None"}
-          />
-          <SummaryChip
             label="Resources"
             value={snapshot.summary.resourceCount}
-          />
-          <SummaryChip
-            label="Execution lanes"
-            tone="accent"
-            value={snapshot.summary.resourceTypeCount}
-          />
-          <SummaryChip
-            label="Start action"
-            value={strongestResourceLane?.startLabel ?? "No start action"}
           />
           <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
           <SummaryChip
@@ -1514,36 +1475,12 @@ export default async function AgentResourcesPage(props: {
             value={snapshot.summary.quickContactVendorCount}
           />
           <SummaryChip
-            label="Tracked searches"
-            tone="accent"
-            value={interactionTracking.searchCount}
-          />
-          <SummaryChip
-            label="Watch progress"
-            tone="accent"
-            value={interactionTracking.progressCount}
-          />
-          <SummaryChip
-            label="Training complete"
-            tone="accent"
-            value={interactionTracking.completionCount}
-          />
-          <SummaryChip
-            label="Tracked opens"
-            tone="accent"
-            value={interactionTracking.resourceOpenCount}
-          />
-          <SummaryChip
-            label="Vendor clicks"
-            value={interactionTracking.vendorClickCount}
-          />
-          <SummaryChip
             label="Featured vendors"
             value={snapshot.summary.featuredVendorCount}
           />
         </>
       }
-      title="Tool library & vendor hub"
+      title="Resources"
     />
   );
 }

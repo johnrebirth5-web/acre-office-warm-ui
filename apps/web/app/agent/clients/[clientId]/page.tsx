@@ -475,7 +475,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-overview"
-            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, cleanup, or PDF re-entry lands back on the same workbench and the same return point instead of a fresh admin form.`}
+            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, cleanup, or PDF follow-up can continue from the same client file instead of a fresh admin form.`}
             title="Overview"
           >
             <ListPageStatsGrid>
@@ -501,7 +501,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint="where the record sits across FO execution and BO formal work"
-                label="FO / BO boundary"
+                label="Back Office handoff"
                 tone="accent"
                 value={snapshot.nextStepRail.decisionLabel}
               />
@@ -556,7 +556,7 @@ export default async function AgentClientDetailPage(
                   key: "next-touch",
                   label: snapshot.followUpCue.label,
                   tone: snapshot.followUpCue.tone,
-                  title: "The next touch is the live execution anchor",
+                  title: "The next touch is the current priority",
                   description: snapshot.followUpCue.description,
                   context: snapshot.followUpCue.dueLabel,
                   meta: <span>{snapshot.nextTouchLabel}</span>,
@@ -587,7 +587,7 @@ export default async function AgentClientDetailPage(
                   tone: "neutral",
                   title: "Export a recap that mirrors the live dossier",
                   description:
-                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work or breaking the same return point.",
+                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work or breaking continuity.",
                   meta: (
                     <span>
                       PDF export stays client-facing; formal transaction
@@ -1803,7 +1803,7 @@ export default async function AgentClientDetailPage(
                   title:
                     "Export the same execution story as a client-facing PDF",
                   description:
-                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office or changing the return point.",
+                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office or changing continuity.",
                   meta: (
                     <span>
                       Use it for recap, alignment, and post-meeting

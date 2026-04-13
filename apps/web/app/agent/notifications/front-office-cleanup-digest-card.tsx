@@ -365,8 +365,8 @@ export function FrontOfficeCleanupDigestCard({
         ) : (
           <EmptyState
             className="front-office-inline-empty"
-            description="The live digest is clear right now. Keep using the activity workbench below for direct cleanup and read-state changes."
-            title="No digest pressure"
+            description="The live summary is clear right now. Use the activity list below for direct cleanup and read-state changes."
+            title="Nothing urgent in this summary"
           />
         )}
       </div>

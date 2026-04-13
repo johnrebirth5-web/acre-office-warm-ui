@@ -80,8 +80,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this as the manual outbound desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, lane execution steps, and profile/contact/proof packaging."
-          title="Outbound listing workspace"
+          subtitle="Use this page for listing recommendations, appointment follow-up, tracked-send rescue, clear next steps, and profile/contact/proof packaging."
+          title="Listing follow-up"
         >
           <FrontOfficeListingsOutputClient
             draftAssist={draftAssist}
@@ -466,7 +466,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 badgeLabel={routeState.stableReentryLabel}
                 badgeTone="accent"
                 description={routeState.stableReentryDescription}
-                title="Stable re-entry"
+                title="Saved route"
               />
               {snapshot.targetAppointment ? (
                 <FrontOfficeRailItem
@@ -602,44 +602,16 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             />
           </SectionCard>
 
-          <SectionCard
-            className="office-list-card"
-            subtitle="Acre creates tracked links and writeback context here, but the actual send still happens only when the agent manually pastes and sends the copied content."
-            title="Manual send guardrails"
-          >
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                badgeLabel="Trail"
-                description="Tracked share links stay private, feed click behavior back into Front Office, and become send records when launched from a dossier or appointment."
-                title="Tracked send trail"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="Cue"
-                description="Unopened sends and quiet-after-open behavior should rise back into the same cleanup loop instead of living as invisible clipboard history."
-                title="Follow-up rescue cues"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="Bundle"
-                description="Agent materials stay beside the listing so each send can carry profile, contact, and proof without becoming a portal or auto-send system."
-                title="Material package pairing"
-              />
-            </div>
-          </SectionCard>
         </>
       }
       pageClassName="front-office-listings-page"
       summary={
         <>
           <SummaryChip
-            label="Lane"
-            tone="accent"
-            value={routeState.focusedRouteLaneLabel}
-          />
-          <SummaryChip label="Listings" value={snapshot.summary.listingCount} />
-          <SummaryChip
             label="Public-ready"
             value={snapshot.summary.publicReadyCount}
           />
+          <SummaryChip label="Listings" value={snapshot.summary.listingCount} />
           <SummaryChip
             label="Tracked links"
             value={snapshot.summary.trackedLinks}
@@ -648,17 +620,6 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             label="Tracked clicks"
             tone="accent"
             value={snapshot.summary.trackedClicks}
-          />
-          <SummaryChip
-            label="Pulse"
-            tone="accent"
-            value={usagePulse.pulseLabel}
-          />
-          <SummaryChip label="Route" value={routeState.routeStatusLabel} />
-          <SummaryChip
-            label="Mode"
-            tone={routeState.mode === "tracked-link" ? "default" : "accent"}
-            value={routeState.modeLabel}
           />
           {snapshot.targetClient ? (
             <SummaryChip
@@ -673,15 +634,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               value={snapshot.targetAppointment.typeLabel}
             />
           ) : null}
-          <SummaryChip label="Draft" value={routeState.draftStatusLabel} />
-          <SummaryChip
-            label="Package"
-            value={routeState.preferredSupportLaneLabel}
-          />
-          <SummaryChip label="Materials" value={materialStatusLabel} />
         </>
       }
-      title="Listing outbound workspace"
+      title="Listings"
     />
   );
 }

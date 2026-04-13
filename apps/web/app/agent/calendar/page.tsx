@@ -122,8 +122,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             className="office-list-card"
             subtitle={
               isZh
-                ? "把队列拆成回复压力、确认压力、已安排触达压力、待回写、桥接记录、Acre 邮件线程连续性和 BO-ready 交接，让页面读起来像工作台，而不是草稿导出器。"
-                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, Acre mail-thread continuity, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
+                ? "把队列拆成回复压力、确认压力、已安排触达压力、待回写、桥接记录、Acre 邮件线程连续性和 BO-ready 交接，让页面读起来更像清晰的待办列表。"
+                : "Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, Acre mail-thread continuity, and BO-ready handoff so the page reads like a clear task list."
             }
             title={isZh ? "协调压力" : "Coordination pressure"}
           >
@@ -288,64 +288,15 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             </div>
           </SectionCard>
 
-          <SectionCard
-            className="office-list-card"
-            subtitle={
-              isZh
-                ? "这里说明当前 FO 日历面的操作规则，包括动作优先的外部桥接载荷、可见的回写，以及预约级别的协调指引。"
-                : "These are the operating rules for the current FO calendar surface, including action-first external bridge payloads, visible writeback, and appointment-level coordination guidance."
-            }
-            title={isZh ? "当前范围" : "Current scope"}
-          >
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                badgeLabel="FO"
-                description={
-                  isZh
-                    ? "这里的预约保持轻量且执行优先：带看、会面、链接、地址、备注和提醒信号都会留在这里，并继续喂给动态流。"
-                    : "Appointments stay light and execution-first here: showings, meetings, links, addresses, notes, and reminder signals that also feed the activity stream."
-                }
-                title={isZh ? "日常排期在这里进行" : "Daily scheduling lives here"}
-              />
-              <FrontOfficeRailItem
-                badgeLabel="CRM"
-                description={
-                  isZh
-                    ? "把预约标记为完成后，会通过更新最后联系信号回写到客户记录中。"
-                    : "Marking an appointment complete writes back into the client record by updating the last-contact signal."
-                }
-                title={isZh ? "客户上下文保持活跃" : "Client context stays warm"}
-              />
-              <FrontOfficeRailItem
-                badgeLabel="Sync"
-                description={
-                  isZh
-                    ? "已安排的预约现在可以打开更完整的 Google / Outlook 草稿、可下载的 ICS 导出，或 Acre 内部邮件线程连续性的邮件简报副本；Acre 会把桥接轨迹和经纪人管理的回写一起记录在同一条预约记录里，但不会假装自己已经拥有双向同步。"
-                    : "Scheduled appointments can now open richer Google / Outlook drafts, downloadable ICS exports, or an Acre internal mail-thread continuity copy for the email brief, and Acre records the bridge trail plus the agent-managed writeback on the same appointment record without pretending it already owns a two-way sync."
-                }
-                title={isZh ? "外部桥接以动作为先" : "External bridge is action-first"}
-              />
-              <FrontOfficeRailItem
-                badgeLabel="BO"
-                description={
-                  isZh
-                    ? "正式交易创建、签署流转、财务和归档仍然会继续在 Back Office 中完成。"
-                    : "Formal transaction creation, signature routing, accounting, and archive still continue in Back Office."
-                }
-                title={isZh ? "正式工作流不会重复建设" : "Formal workflow does not duplicate"}
-              />
-            </div>
-          </SectionCard>
         </>
       }
       summary={
         <>
           <SummaryChip
-            label={isZh ? "当前工作道" : "Current lane"}
+            label={isZh ? "当前视图" : "View"}
             tone="accent"
             value={activeCalendarViewConfig.label}
           />
-          <SummaryChip label={isZh ? "访问级别" : "Access"} value={access.label} />
           <SummaryChip
             label={isZh ? "即将到来" : "Upcoming"}
             value={snapshot.summary.upcomingCount}
@@ -385,7 +336,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
           />
         </>
       }
-      title={isZh ? "预约与日历" : "Appointments & calendar"}
+      title={isZh ? "日历" : "Calendar"}
     />
   );
 }

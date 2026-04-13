@@ -68,15 +68,15 @@ function buildActivityFocusDescription(
 ) {
   switch (value) {
     case "personal_cleanup":
-      return "Keep the route centered on owner-owned cleanup first, then widen back into calendar writeback and notice follow-through once the drift is under control.";
+      return "Focus on your own follow-up cleanup first, then widen back into reminders and notices once the urgent items are under control.";
     case "team_cleanup":
-      return "Use this slice when visible-scope leadership pressure matters more than the personal queue, so overdue team execution stays readable.";
+      return "Use this view when team-wide overdue work matters more than your personal queue.";
     case "appointment_reminders":
-      return "Stay inside the calendar-writeback lane when the next move is confirmation, reschedule, or promised external-touch follow-through.";
+      return "Stay here when the next move is a confirmation, reschedule, or appointment follow-up.";
     case "general_notices":
-      return "Use this slice when the next move is office awareness, shared visibility, or a BO-adjacent handoff instead of personal cleanup.";
+      return "Use this view when the next move is a notice, shared visibility update, or handoff instead of personal cleanup.";
     default:
-      return "This route keeps the cleanup workbench visible, then lets you narrow by owner cleanup, team pressure, calendar writeback, or general notices without losing the URL-stable slice.";
+      return "This page keeps cleanup, reminders, team pressure, and notices in one place while letting you narrow the view without losing your place.";
   }
 }
 
@@ -255,7 +255,7 @@ export default async function AgentNotificationsPage(
                     </span>
                   </>
                 }
-                title="Personal cleanup workbench"
+                title="Personal cleanup"
               />
               <FrontOfficeRailItem
                 badgeLabel={getOptionLabel(
@@ -279,7 +279,7 @@ export default async function AgentNotificationsPage(
                     </span>
                   </>
                 }
-                title="Calendar writeback lane"
+                title="Appointments"
               />
               <FrontOfficeRailItem
                 badgeLabel={noticeLaneLabel}
@@ -297,7 +297,7 @@ export default async function AgentNotificationsPage(
                     <span>{getActivityViewOperatorCue("general_notices")}</span>
                   </>
                 }
-                title="Notice routing lane"
+                title="Notices"
               />
             </div>
           </SectionCard>
@@ -420,8 +420,8 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="This digest reads live Front Office cleanup pressure on demand. It stays manual, refreshable, and separate from the workbench below."
-            title="Cleanup digest"
+            subtitle="A quick snapshot of overdue follow-up and reminders."
+            title="Cleanup summary"
           >
             <FrontOfficeCleanupDigestCard
               cleanupDigest={cleanupDigest}
@@ -429,109 +429,41 @@ export default async function AgentNotificationsPage(
               cleanupDigestMailThreadHref={cleanupDigestMailThreadHref}
             />
           </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle="The center should stay practical: reopen a shareable slice, clean the record, move the next touch, and keep formal ops in Back Office."
-            title="How to use this command surface"
-          >
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                badgeLabel="Queue"
-                badgeTone="accent"
-                description="Each client only shows the highest-pressure cleanup signal first, so the queue stays readable instead of repeating every weak signal at once."
-                title="Resolve the loudest issue first"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="CRM"
-                badgeTone="warning"
-                description="Use the duplicate-review block before the next send or appointment so tracked history, follow-up tasks, and handoff context stay on one surviving dossier."
-                title="Merge duplicates before the next touch"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="BO"
-                description="This route should clean execution drift inside Front Office, then send formal transaction, signature, or accounting work back into Back Office instead of duplicating it here."
-                title="Keep the FO and BO boundary honest"
-              />
-              <FrontOfficeRailItem
-                badgeLabel="URL"
-                badgeTone="accent"
-                description="Focus area, lane filter, and read-state now persist in the route URL so the same cleanup pass can be reopened directly after refresh or from a copied link."
-                title="Reopen the same slice without re-filtering"
-              />
-            </div>
-          </SectionCard>
         </>
       }
       summary={
         <>
           <SummaryChip
-            label="Current view"
-            tone="accent"
-            value={activeViewLabel}
-          />
-          <SummaryChip
-            label="Next move"
-            tone="accent"
-            value={getActivityViewNextMoveChipLabel(initialActivityView)}
-          />
-          <SummaryChip label="Section" value={sectionTargetLabel} />
-          <SummaryChip
-            label="Visible now"
+            label="Visible"
             tone="accent"
             value={visibleRouteItemCount}
           />
           <SummaryChip
-            label="Personal cleanup"
+            label="My follow-ups"
             value={personalCleanupCount}
           />
           {dashboardSnapshot.leadershipQueue.visible ? (
             <SummaryChip
-              label="Team cleanup"
+              label="Team follow-ups"
               value={dashboardSnapshot.summary.leadershipPressureCount}
             />
           ) : null}
           <SummaryChip
-            label="Calendar writeback"
+            label="Appointments"
             value={appointmentReminderCards.length}
           />
           <SummaryChip
-            label="Notice routing"
+            label="Notices"
             value={generalNoticeCards.length}
-          />
-          <SummaryChip
-            label="Read state"
-            value={readStateLabel}
-          />
-          <SummaryChip
-            label="Cleanup filter"
-            value={cleanupFilterLabel}
-          />
-          <SummaryChip
-            label="Notice lane"
-            value={noticeLaneLabel}
           />
           <SummaryChip
             label="Urgent cleanup"
             tone="accent"
             value={snapshot.summary.urgentCleanupCount}
           />
-          <SummaryChip
-            label="Potential dupes"
-            value={snapshot.summary.duplicateReviewCount}
-          />
-          <SummaryChip
-            label="Upcoming events"
-            value={snapshot.summary.upcomingEventCount}
-          />
-          <SummaryChip
-            label="Digest items"
-            tone="accent"
-            value={cleanupDigest.summary.totalCount}
-          />
         </>
       }
-      title="Activity cleanup center"
+      title="Activity"
     />
   );
 }

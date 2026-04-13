@@ -240,9 +240,9 @@ function resolveSectionFocusState(
       };
     case frontOfficeClientDossierSectionIds.backOfficeContext:
       return {
-        label: "FO / BO boundary",
+        label: "Back Office handoff",
         description:
-          "Use this section when the dossier needs to explain why Back Office should take the formal record or when cleanup and handoff routes return here from another workbench.",
+          "Use this section when the dossier needs to explain why Back Office should take the formal record or when cleanup and handoff routes return here from another section.",
         href: `#${frontOfficeClientDossierSectionIds.backOfficeContext}`,
       };
     case frontOfficeClientDossierSectionIds.nextStepRail:
@@ -355,7 +355,7 @@ export function FrontOfficeClientDossierClient(
   const primaryRailActions = [
     {
       href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
-      label: "Open current workbench rail",
+      label: "Open current section",
     },
     {
       href: props.snapshot.nextStepRail.primaryActionHref,
@@ -566,12 +566,12 @@ export function FrontOfficeClientDossierClient(
             key: "section-focus",
             label: "Re-entry focus",
             tone: "accent",
-            title: `You're back in the ${sectionFocus.label} workbench`,
+            title: `You're back in ${sectionFocus.label}`,
             description: sectionFocus.description,
             context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
             meta: (
               <span>
-                Workbench return point · {sectionFocus.href.replace(/^#/, "")}
+                Section link · {sectionFocus.href.replace(/^#/, "")}
               </span>
             ),
             actions: [
@@ -581,7 +581,7 @@ export function FrontOfficeClientDossierClient(
               },
               {
                 href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
-                label: "Jump to next-step rail",
+                label: "Jump to next steps",
               },
             ],
           },
@@ -599,7 +599,7 @@ export function FrontOfficeClientDossierClient(
             key: "cue",
             label: props.snapshot.followUpCue.label,
             tone: props.snapshot.followUpCue.tone,
-            title: "Follow-up is the active re-entry lane",
+            title: "Follow-up is the active section",
             description: props.snapshot.followUpCue.description,
             context: props.snapshot.followUpCue.dueLabel,
             meta: (

@@ -356,7 +356,7 @@ function buildRouteSheetText(input: {
     routeContext,
     `Primary lane: ${input.routeState.focusedRouteLaneLabel}`,
     `Support package: ${input.routeState.preferredSupportLaneLabel}`,
-    `Stable re-entry: ${input.routeState.stableReentryLabel}`,
+    `Saved route: ${input.routeState.stableReentryLabel}`,
     `Next manual action: ${input.routeState.focusedRouteLaneActionLabel}`,
   ].join("\n");
 }
@@ -414,7 +414,7 @@ function buildMaterialPreviewCards(input: {
           ? `Use this profile block beside ${input.targetAppointment.title} so the send keeps identity and appointment continuity in view.`
           : input.targetClient
             ? `Use this profile block while ${input.targetClient.fullName} stays in ${input.targetClient.stage}.`
-            : "Use this profile block as the identity anchor for the next tracked send.",
+            : "Use this profile block as the identity reference for the next tracked send.",
       preview: profileSheetText,
       copyLabel: "Copy profile sheet",
       copyValue: profileSheetText,
@@ -449,7 +449,7 @@ function buildMaterialPreviewCards(input: {
       badgeTone: "accent" as const,
       title: "Route block",
       description:
-        "Keep the lane, support package, and stable re-entry visible so the send can be reopened without rebuilding context.",
+        "Keep the lane, support package, and saved route visible so the send can be reopened without rebuilding context.",
       preview: routeSheetText,
       copyLabel: "Copy route block",
       copyValue: routeSheetText,
@@ -575,9 +575,9 @@ function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
 function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
   if (props.targetClient && props.targetAppointment) {
     return {
-      badgeLabel: "Launchpad",
+      badgeLabel: "Context",
       badgeTone: "success" as const,
-      title: "Appointment-linked launchpad",
+      title: "Appointment context",
       description:
         "The stable route, preferred support package, and packet mode are all aligned to the appointment trail, so the next manual send can stay reviewable instead of restarting from a raw listing link.",
     };
@@ -585,18 +585,18 @@ function buildLaunchpadStatus(props: FrontOfficeAgentMaterialWindowProps) {
 
   if (props.targetClient) {
     return {
-      badgeLabel: "Launchpad",
+      badgeLabel: "Context",
       badgeTone: "accent" as const,
-      title: "Client-linked launchpad",
+      title: "Client context",
       description:
         "The stable route and packet mode are aligned to the client trail, so you can keep the next manual send in the same execution lane without pretending anything auto-sent.",
     };
   }
 
   return {
-    badgeLabel: "Launchpad",
+    badgeLabel: "Context",
     badgeTone: "warning" as const,
-    title: "Tracked-link launchpad",
+    title: "Tracked link context",
     description:
       "The stable route keeps the tracked link reusable while the preferred support package and packet mode stay manual, reviewable, and FO-owned.",
   };
@@ -662,15 +662,15 @@ function buildLaunchpadDraftAssist(input: {
   const title =
     input.channel === "sms"
       ? input.targetAppointment
-        ? `${input.targetAppointment.title} SMS launch`
+        ? `${input.targetAppointment.title} SMS draft`
         : input.targetClient
-          ? `${input.targetClient.fullName} SMS launch`
-          : "SMS launchpad"
+          ? `${input.targetClient.fullName} SMS draft`
+          : "SMS draft"
       : input.targetAppointment
-        ? `${input.targetAppointment.title} email launch`
+        ? `${input.targetAppointment.title} email draft`
         : input.targetClient
-          ? `${input.targetClient.fullName} email launch`
-          : "Email launchpad";
+          ? `${input.targetClient.fullName} email draft`
+          : "Email draft";
   const subjectLine =
     input.channel === "email"
       ? input.targetAppointment
@@ -704,11 +704,11 @@ function buildMaterialLaunchLinks(input: {
     {
       id: "sms-launch",
       label:
-        preferredLane === "sms" ? "Open preferred SMS launch" : "Open SMS launch",
+        preferredLane === "sms" ? "Open preferred SMS draft" : "Open SMS draft",
       note:
         preferredLane === "sms" ? "Preferred companion" : "SMS companion",
       description:
-        "Reopen the same listings workbench with the SMS companion already loaded into the draft lane.",
+        "Reopen the same listings page with the SMS companion already loaded into the draft section.",
       href: buildAgentListingsHref({
         clientId: input.targetClient?.id ?? null,
         appointmentId: input.targetAppointment?.id ?? null,
@@ -726,12 +726,12 @@ function buildMaterialLaunchLinks(input: {
       id: "email-launch",
       label:
         preferredLane === "email"
-          ? "Open preferred email launch"
-          : "Open email launch",
+          ? "Open preferred email draft"
+          : "Open email draft",
       note:
         preferredLane === "email" ? "Preferred companion" : "Email companion",
       description:
-        "Reopen the same listings workbench with the email companion already loaded into the draft lane.",
+        "Reopen the same listings page with the email companion already loaded into the draft section.",
       href: buildAgentListingsHref({
         clientId: input.targetClient?.id ?? null,
         appointmentId: input.targetAppointment?.id ?? null,
@@ -815,7 +815,7 @@ function buildMaterialReadinessItems(
       label: "Route attachment",
       stateLabel: props.routeState.focusedRouteLaneLabel,
       tone: "accent" as const,
-      detail: `The packet stays tied to ${props.routeState.focusedRouteLaneLabel}, so the next manual send can reopen in the same workbench lane.`,
+      detail: `The packet stays tied to ${props.routeState.focusedRouteLaneLabel}, so the next manual send can reopen in the same section.`,
     },
   ] satisfies MaterialReadinessItem[];
 }
@@ -1169,9 +1169,9 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Launchpad</strong>
+          <strong>Context</strong>
           <span>
-            Keep the stable route, preferred support package, and packet mode
+            Keep the saved route, preferred support package, and packet mode
             visible before you launch any manual send.
           </span>
         </div>
@@ -1183,14 +1183,14 @@ export function FrontOfficeAgentMaterialWindow(
                   className="office-inline-link"
                   href={props.routeState.stableHref}
                 >
-                  Open stable route
+                  Open saved view
                 </FrontOfficeLink>
                 {props.routeState.stableHref !== props.routeState.contextHref ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.contextHref}
                   >
-                    Open context route
+                    Open current view
                   </FrontOfficeLink>
                 ) : null}
                 {props.routeState.contextHref !== props.routeState.cleanHref ? (
@@ -1198,7 +1198,7 @@ export function FrontOfficeAgentMaterialWindow(
                     className="office-inline-link"
                     href={props.routeState.cleanHref}
                   >
-                    Reset workspace
+                    Reset filters
                   </FrontOfficeLink>
                 ) : null}
                 <Button
@@ -1490,13 +1490,13 @@ export function FrontOfficeAgentMaterialWindow(
             badgeLabel="Draft links"
             badgeTone="accent"
             context={props.routeState.focusedRouteLaneLabel}
-            description="These links reopen the same listings workbench with the companion package already loaded into the draft lane. Acre still only preloads copy; it does not send anything automatically."
+            description="These links reopen the same listings page with the companion package already loaded into the draft section. Acre still only preloads copy; it does not send anything automatically."
             meta={
               <span>
                 {launchLinks.map((launchLink) => launchLink.note).join(" · ")}
               </span>
             }
-            title="Manual draft launch links"
+            title="Draft links"
           />
           <QueueItem
             action={
@@ -1610,7 +1610,7 @@ export function FrontOfficeAgentMaterialWindow(
             title={supportPackageStatus.title}
           />
           <QueueItem
-            badgeLabel="BO boundary"
+            badgeLabel="Back Office only"
             badgeTone="warning"
             description="Use this window for copy, identity, and proof only; signatures, accounting, and archive still belong in Back Office."
             title="Leave record work in Back Office"

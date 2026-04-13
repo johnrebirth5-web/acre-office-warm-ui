@@ -199,7 +199,7 @@ export function FrontOfficeClientLeaseReminderClient(
           badgeTone={props.snapshot.nextStepRail.decisionTone}
           description="Use this reminder to drive the client conversation in Front Office. Formal transaction, contract, or admin work still belongs in Back Office once the file becomes formal."
           meta={<span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>}
-          title="FO / BO boundary"
+          title="Back Office handoff"
         />
       </div>
 

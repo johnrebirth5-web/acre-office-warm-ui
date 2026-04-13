@@ -245,14 +245,12 @@ export function FrontOfficeDashboardAiQueueClient(
               }
               badgeLabel={item.statusLabel}
               badgeTone={item.tone}
-              context={`${item.sequenceLabel} · ${item.sequenceContractLabel}`}
-              description={`${item.description} ${item.safeActionLabel}.`}
+              context={item.contextLabel}
+              description={item.description}
               key={item.id}
               meta={
                 <>
                   <div className="list-row-meta front-office-record-meta">
-                    <span>{item.safeActionLabel}</span>
-                    <span>{item.sequenceContractLabel}</span>
                     <span>{item.whyNowLabel}</span>
                   </div>
                 <FrontOfficeAiExplainabilitySurface
@@ -285,8 +283,8 @@ export function FrontOfficeDashboardAiQueueClient(
           <EmptyState
             description={
               props.items.length && resolvedItemIds.length
-                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded command-deck move."
-                : "Nothing grounded outranks your manual queue right now. Keep the command deck in order with follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail can support the next move."
+                ? "This follow-up has been recorded. If more work is needed later, it will show up here again."
+                : "No suggestions need attention right now."
             }
             title={
               props.items.length && resolvedItemIds.length

@@ -53,20 +53,12 @@ export default async function PublicListingSharePage(
             <strong>{snapshot.agentLabel}</strong>
           </article>
           <article>
-            <span>Tracking</span>
-            <strong>{snapshot.trackingLabel}</strong>
-          </article>
-          <article>
             <span>Channel</span>
             <strong>{snapshot.channelLabel}</strong>
           </article>
           <article>
-            <span>Reply lane</span>
-            <strong>{snapshot.replyLaneLabel}</strong>
-          </article>
-          <article>
-            <span>Next step</span>
-            <strong>{snapshot.nextStepLabel}</strong>
+            <span>Availability</span>
+            <strong>{snapshot.statusLabel}</strong>
           </article>
         </div>
 
@@ -100,12 +92,7 @@ export default async function PublicListingSharePage(
           <strong>{snapshot.organizationLabel}</strong>
           <p>{snapshot.followUpLabel}</p>
           <p>{snapshot.privacyLabel}</p>
-          <p>
-            This {snapshot.shareSurfaceLabel.toLowerCase()} keeps the
-            conversation aligned without sending you into Back Office tools.
-            Use the contact buttons above if you want to talk through the
-            listing or the next step.
-          </p>
+          <p>Use the contact buttons above if you want to talk through the listing.</p>
         </div>
       </section>
     </main>

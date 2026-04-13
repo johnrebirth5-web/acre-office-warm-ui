@@ -204,14 +204,14 @@ function buildStableRouteReentry(input: {
 }) {
   if (input.draftAssist) {
     return {
-      label: "Stable re-entry",
+      label: "Saved route",
       description: `Use the stable link to come back to the ${input.focusedRouteLaneLabel.toLowerCase()} with the same draft payload, recipient binding, and appointment context intact. Use the clean route only if you want to drop the draft and restart from a plain manual template.`,
     };
   }
 
   if (input.mode === "appointment-linked") {
     return {
-      label: "Stable re-entry",
+      label: "Saved route",
       description:
         "Use the stable link to come back to the appointment follow-through lane with the same client, appointment, and writeback trail intact. Use the clean route only if you want to restart without the appointment thread.",
     };
@@ -219,14 +219,14 @@ function buildStableRouteReentry(input: {
 
   if (input.mode === "client-linked") {
     return {
-      label: "Stable re-entry",
+      label: "Saved route",
       description:
         "Use the stable link to come back to the client follow-through lane with the same dossier and tracked send trail intact. Use the clean route only if you want to restart without the client binding.",
     };
   }
 
   return {
-    label: "Stable re-entry",
+    label: "Saved route",
     description:
       "Use the stable link to reopen the send rescue lane with the same tracked-link context intact. Use the clean route only if you want to start a fresh generic listings workspace.",
   };
@@ -549,7 +549,7 @@ function buildFocusedRouteLane(input: {
       focusedRouteLaneDescription: input.draftAssist
         ? "A deep-linked draft assist is active here. Re-enter this lane when you want the assisted copy and tracked listing link to travel together."
         : "A draft lane shell is selected here, but no assisted copy is loaded yet. Re-enter from a draft assist link to carry the copied channel with the listing trail.",
-      focusedRouteLanePanelLabel: "Draft lane workbench",
+      focusedRouteLanePanelLabel: "Drafts",
       focusedRouteLanePanelDescription:
         "Keep the assisted draft, channel choice, and tracked link together before copying anything into a manual send.",
       focusedRouteLaneSteps: [
@@ -584,7 +584,7 @@ function buildFocusedRouteLane(input: {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Appointment follow-through lane",
         focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName} and ${input.snapshot.targetAppointment.title} tied to the same tracked send trail, so the next touch does not fall back to a generic outbound workspace.`,
-        focusedRouteLanePanelLabel: "Appointment follow-through workbench",
+        focusedRouteLanePanelLabel: "Appointment follow-up",
         focusedRouteLanePanelDescription:
           "Stay inside the appointment thread so the next send, reminder, or writeback continues the same conversation.",
         focusedRouteLaneSteps: [
@@ -616,7 +616,7 @@ function buildFocusedRouteLane(input: {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Client follow-through lane",
         focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName}'s dossier bound to the outbound send trail, so the next touch re-enters from the same client context instead of a generic tracked link.`,
-        focusedRouteLanePanelLabel: "Client follow-through workbench",
+        focusedRouteLanePanelLabel: "Client follow-up",
         focusedRouteLanePanelDescription:
           "Stay in the client trail so the next send, reaction, or rescue pass remains attached to the same dossier.",
         focusedRouteLaneSteps: [
@@ -648,7 +648,7 @@ function buildFocusedRouteLane(input: {
       focusedRouteLaneLabel: "Follow-through lane",
       focusedRouteLaneDescription:
         "This lane shell is selected, but no bound client or appointment trail is attached yet. Re-enter from a dossier or appointment when you want the next touch to inherit writeback instead of generic outbound state.",
-      focusedRouteLanePanelLabel: "Follow-through workbench",
+      focusedRouteLanePanelLabel: "Follow-up",
       focusedRouteLanePanelDescription:
         "Attach the lane to a client or appointment before you copy anything so the next step keeps a visible execution trail.",
       focusedRouteLaneSteps: [
@@ -680,7 +680,7 @@ function buildFocusedRouteLane(input: {
     focusedRouteLaneLabel: "Send rescue lane",
     focusedRouteLaneDescription:
       "Use this lane to reopen quiet tracked sends, rescue no-reply follow-up, and keep the next manual touch tied to the same listing trail.",
-    focusedRouteLanePanelLabel: "Send rescue workbench",
+    focusedRouteLanePanelLabel: "Send follow-up",
     focusedRouteLanePanelDescription:
       "Use this lane to reopen a quiet send, decide the next manual reaction, and keep the tracked trail intact.",
     focusedRouteLaneSteps: [
