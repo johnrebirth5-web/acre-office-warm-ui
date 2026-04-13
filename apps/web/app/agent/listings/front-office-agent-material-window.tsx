@@ -46,12 +46,13 @@ function buildMaterialBundle(input: {
   material: FrontOfficeAgentMaterialSnapshot;
   targetClient?: FrontOfficeListingsTargetClient | null;
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+  routeState: FrontOfficeListingsRouteState;
 }) {
   if (input.targetClient && input.targetAppointment) {
     return {
       title: `Appointment packet for ${input.targetClient.fullName}`,
       description:
-        "Use this packet when the listing needs to travel with profile, contact, proof, and appointment continuity instead of as a naked link.",
+        "Use this packet when the listing needs to travel with profile, contact, proof, and route continuity instead of as a naked link.",
       steps: [
         {
           id: "bundle-profile",
@@ -78,6 +79,13 @@ function buildMaterialBundle(input: {
               ? "Include one recent closing if the client still needs confidence before or after the appointment."
               : "Use the business card and profile identity so the packet still carries credibility even without featured closings.",
         },
+        {
+          id: "bundle-route",
+          badgeLabel: "Route",
+          badgeTone: "accent" as const,
+          title: "Keep the route attached",
+          description: `${input.routeState.focusedRouteLaneLabel} stays the safest handoff path, and the stable link keeps the same appointment context ready for the next manual send.`,
+        },
       ],
     };
   }
@@ -86,7 +94,7 @@ function buildMaterialBundle(input: {
     return {
       title: `Client packet for ${input.targetClient.fullName}`,
       description:
-        "Keep the listing, profile sheet, contact block, and agent proof together so the client can move from interest into the next touch without extra explanation.",
+        "Keep the listing, profile sheet, contact block, agent proof, and route together so the client can move from interest into the next touch without extra explanation.",
       steps: [
         {
           id: "bundle-profile",
@@ -114,6 +122,13 @@ function buildMaterialBundle(input: {
               ? "Use a featured closing when the client is active but needs confidence, not on every first touch."
               : "You have no featured closing package yet, so lead with identity and a clear next-step ask instead.",
         },
+        {
+          id: "bundle-route",
+          badgeLabel: "Route",
+          badgeTone: "accent" as const,
+          title: "Keep the route attached",
+          description: `${input.routeState.focusedRouteLaneLabel} keeps the next touch in the same outbound trail instead of restarting from a raw listing link.`,
+        },
       ],
     };
   }
@@ -121,7 +136,7 @@ function buildMaterialBundle(input: {
   return {
     title: "Generic outbound packet",
     description:
-      "When no client context is selected, keep profile, contact, and proof materials organized so the next tracked send can become client-linked without rebuilding the packet from scratch.",
+      "When no client context is selected, keep profile, contact, proof, and route materials organized so the next tracked send can become client-linked without rebuilding the packet from scratch.",
     steps: [
       {
         id: "bundle-profile",
@@ -148,6 +163,14 @@ function buildMaterialBundle(input: {
           input.material.featuredCaseCount > 0
             ? "Featured cases are best used after there is already some engagement, not as a replacement for basic context."
             : "Build the send around agent identity first while the proof package is still light.",
+      },
+      {
+        id: "bundle-route",
+        badgeLabel: "Route",
+        badgeTone: "accent" as const,
+        title: "Keep the route attached",
+        description:
+          "Generic mode still keeps the tracked link active, but it should stay manual until a client or appointment binding appears.",
       },
     ],
   };
@@ -195,21 +218,36 @@ function buildProofSheetText(material: FrontOfficeAgentMaterialSnapshot) {
   ].join("\n");
 }
 
-function buildOutboundPacketText(input: {
-  material: FrontOfficeAgentMaterialSnapshot;
+function buildRouteSheetText(input: {
   routeState: FrontOfficeListingsRouteState;
   targetClient?: FrontOfficeListingsTargetClient | null;
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
 }) {
-  const contextLine = input.targetAppointment
+  const routeContext = input.targetAppointment
     ? `Route context: appointment-linked to ${input.targetAppointment.title} for ${input.targetClient?.fullName ?? "the current client"}.`
     : input.targetClient
       ? `Route context: client-linked to ${input.targetClient.fullName} while ${input.targetClient.stage} stays active.`
       : `Route context: ${input.routeState.modeContextLabel}.`;
 
   return [
+    "Route block",
+    routeContext,
+    `Primary lane: ${input.routeState.focusedRouteLaneLabel}`,
+    `Support package: ${input.routeState.preferredSupportLaneLabel}`,
+    `Stable re-entry: ${input.routeState.stableReentryLabel}`,
+    `Next manual action: ${input.routeState.focusedRouteLaneActionLabel}`,
+  ].join("\n");
+}
+
+function buildOutboundPacketText(input: {
+  material: FrontOfficeAgentMaterialSnapshot;
+  routeState: FrontOfficeListingsRouteState;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  return [
     "Outbound packet",
-    contextLine,
+    buildRouteSheetText(input),
     buildProfileSheetText(input.material),
     buildContactSheetText(input.material),
     buildProofSheetText(input.material),
@@ -218,12 +256,18 @@ function buildOutboundPacketText(input: {
 
 function buildMaterialPreviewCards(input: {
   material: FrontOfficeAgentMaterialSnapshot;
+  routeState: FrontOfficeListingsRouteState;
   targetClient?: FrontOfficeListingsTargetClient | null;
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
 }) {
   const profileSheetText = buildProfileSheetText(input.material);
   const contactSheetText = buildContactSheetText(input.material);
   const proofSheetText = buildProofSheetText(input.material);
+  const routeSheetText = buildRouteSheetText({
+    routeState: input.routeState,
+    targetClient: input.targetClient,
+    targetAppointment: input.targetAppointment,
+  });
 
   return [
     {
@@ -265,6 +309,17 @@ function buildMaterialPreviewCards(input: {
       copyLabel: "Copy proof add-on",
       copyValue: proofSheetText,
     },
+    {
+      id: "route-block",
+      badgeLabel: "Route",
+      badgeTone: "accent" as const,
+      title: "Route block",
+      description:
+        "Keep the lane, support package, and stable re-entry visible so the send can be reopened without rebuilding context.",
+      preview: routeSheetText,
+      copyLabel: "Copy route block",
+      copyValue: routeSheetText,
+    },
   ] satisfies MaterialPreviewCard[];
 }
 
@@ -274,7 +329,7 @@ function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
       badgeLabel: "Appointment-linked",
       badgeTone: "accent" as const,
       title: `Packet stays aligned to ${props.targetClient.fullName}`,
-      description: `Use the profile sheet, contact block, and proof add-on beside ${props.targetAppointment.title} so the send keeps both client identity and appointment continuity in one loop.`,
+      description: `Use the profile sheet, contact block, proof add-on, and route block beside ${props.targetAppointment.title} so the send keeps both client identity and appointment continuity in one loop.`,
     };
   }
 
@@ -284,7 +339,7 @@ function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
       badgeTone: "success" as const,
       title: `Packet stays aligned to ${props.targetClient.fullName}`,
       description:
-        "Everything copied from this window should travel with the client-linked send trail instead of becoming detached profile material.",
+        "Everything copied from this window should travel with the client-linked send trail, including the route block, instead of becoming detached profile material.",
     };
   }
 
@@ -293,7 +348,7 @@ function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
     badgeTone: "warning" as const,
     title: "Generic outbound packet",
     description:
-      "Keep profile, contact, and proof ready here so the next tracked listing can turn into a client-linked packet without rebuilding the copy from scratch.",
+      "Keep profile, contact, proof, and route ready here so the next tracked listing can turn into a client-linked packet without rebuilding the copy from scratch.",
   };
 }
 
@@ -426,9 +481,11 @@ export function FrontOfficeAgentMaterialWindow(
     material: props.material,
     targetClient: props.targetClient,
     targetAppointment: props.targetAppointment,
+    routeState: props.routeState,
   });
   const materialPreviewCards = buildMaterialPreviewCards({
     material: props.material,
+    routeState: props.routeState,
     targetClient: props.targetClient,
     targetAppointment: props.targetAppointment,
   });
@@ -587,6 +644,14 @@ export function FrontOfficeAgentMaterialWindow(
           >
             Copy proof add-on
           </Button>
+          <Button
+            onClick={() => void handleCopy("Route block", materialPreviewCards[3].copyValue)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            Copy route block
+          </Button>
         </div>
 
         {feedback ? (
@@ -734,15 +799,15 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>{bundle.title}</strong>
-          <span>{bundle.description}</span>
+          <strong>Recommended packet mode</strong>
+          <span>{bundle.title}</span>
         </div>
         <div className="front-office-playbook-template-list">
           <article className="front-office-playbook-template">
             <div className="front-office-playbook-template-head">
               <div>
                 <strong>Outbound packet preview</strong>
-                <span>Profile, contact, and proof stay together here.</span>
+                <span>Profile, contact, proof, and route stay together here.</span>
               </div>
               <Button
                 onClick={() =>
@@ -760,6 +825,7 @@ export function FrontOfficeAgentMaterialWindow(
             </pre>
           </article>
         </div>
+        <p>{bundle.description}</p>
         <div className="office-queue-list">
           {bundle.steps.map((step) => (
             <QueueItem
