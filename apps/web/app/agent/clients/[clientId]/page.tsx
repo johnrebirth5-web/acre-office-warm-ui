@@ -592,7 +592,7 @@ export default async function AgentClientDetailPage(
                     <span>
                       PDF export stays client-facing; formal transaction
                       documents still live separately and Back Office remains
-                      the source of truth.
+                      the formal record.
                     </span>
                   ),
                   actions: [
@@ -1476,11 +1476,11 @@ export default async function AgentClientDetailPage(
                   key: "bo-lane",
                   label: primaryHandoff
                     ? "Back Office record"
-                    : "Back Office source of truth",
+                    : "Back Office home",
                   tone: primaryHandoff ? primaryHandoff.tone : "accent",
                   title: "The formal deal status still lives in Back Office",
                   description:
-                    "Closing dates, final milestones, and the finished transaction record remain on the shared Back Office side. Front Office should point to that outcome, not recreate it, and keep the client-facing follow-up tied to the same formal source of truth.",
+                    "Closing dates, final milestones, and the finished transaction record remain on the shared Back Office side. Front Office should point to that outcome, not recreate it, and keep the client-facing follow-up tied to the same formal record.",
                   actions: [primaryHandoffAction],
                 },
                 {

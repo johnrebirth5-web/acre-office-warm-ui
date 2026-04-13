@@ -2077,7 +2077,7 @@ export function AgentNotificationsClient({
               <strong>Operator shortcuts</strong>
               <p>
                 Jump straight into the cleanup, calendar, or notice pass you
-                reopen most often without rebuilding the route state by hand.
+                reopen most often without rebuilding the filters by hand.
               </p>
             </div>
             <div className={styles.bulkPanelActions}>
@@ -2547,7 +2547,7 @@ export function AgentNotificationsClient({
           <div className="list-row-meta front-office-record-meta">
             <span>Owner-assigned Front Office cleanup only</span>
             {activeCleanupFilter !== "all" ? (
-              <span>{activeCleanupFilterLabel} focus applied</span>
+              <span>{activeCleanupFilterLabel} filter on</span>
             ) : null}
             {isOverviewMode && hiddenCleanupItemCount > 0 ? (
               <span>
@@ -2688,7 +2688,7 @@ export function AgentNotificationsClient({
           <div className="list-row-meta front-office-record-meta">
             <span>{leadershipQueue.scopeLabel}</span>
             {activeLeadershipFilter !== "all" ? (
-              <span>{activeLeadershipFilterLabel} focus applied</span>
+              <span>{activeLeadershipFilterLabel} filter on</span>
             ) : null}
             {!isOverviewMode && teamCleanupCount < totalTeamCleanupSignals ? (
               <span>
@@ -2878,7 +2878,7 @@ export function AgentNotificationsClient({
           <div className="list-row-meta front-office-record-meta">
             <span>Calendar-owned follow-up slice</span>
             {activeReminderFilter !== "all" ? (
-              <span>{activeReminderFilterLabel} focus applied</span>
+              <span>{activeReminderFilterLabel} filter on</span>
             ) : null}
             {isOverviewMode && hiddenAppointmentReminderCount > 0 ? (
               <span>
@@ -2974,7 +2974,7 @@ export function AgentNotificationsClient({
           id="notice-stream"
           subtitle={
             isOverviewMode
-              ? "Notices stay separate from appointment pressure. Overview keeps this section preview-sized so broader office context stays useful without taking over the page."
+              ? "Notices stay separate from appointment pressure. Overview keeps this section compact so broader office visibility stays useful without taking over the page."
               : "Notices stay separate from appointment pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
           }
           title="Notices"
@@ -2982,7 +2982,7 @@ export function AgentNotificationsClient({
           <div className="list-row-meta front-office-record-meta">
             <span>{generalNoticeCards.length} notice(s) in this view</span>
             {activeNoticeStreamFilter !== "all" ? (
-              <span>{activeNoticeStreamFilterLabel} focus applied</span>
+              <span>{activeNoticeStreamFilterLabel} filter on</span>
             ) : null}
             {isOverviewMode && hiddenGeneralNoticeCount > 0 ? (
               <span>

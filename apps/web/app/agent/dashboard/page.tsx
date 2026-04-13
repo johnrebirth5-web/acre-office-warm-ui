@@ -1403,8 +1403,8 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "预约和共享办公室事项会保留在同一个 FO 日历视图里。Google、Outlook、ICS 和邮件都仍然是显式桥接动作，而不是双向同步。"
-                : "Appointments and shared office commitments stay in one FO calendar view. Google, Outlook, ICS, and email remain explicit bridge actions, not two-way sync."
+                ? "预约和共享办公室事项会保留在同一个 Front Office 日历视图里。Google、Outlook、ICS 和邮件都仍然是你从这里主动打开的草稿动作。"
+                : "Appointments and shared office commitments stay in one Front Office calendar view. Google, Outlook, ICS, and email remain manual draft actions that you open from here."
             }
             title={isZh ? "日历与约定事项" : "Calendar & commitments"}
           >
@@ -1756,8 +1756,8 @@ export default async function AgentDashboardPage() {
                   }
                   description={
                     isZh
-                      ? "当前没有任何内容需要正式 BO 档案。继续处理实时 FO 队列，直到某个资料包、签署或交易真正需要可审计归属。"
-                      : "Nothing needs a formal BO file right now. Keep working the live FO queue until a package, signature, or transaction truly needs auditable ownership."
+                      ? "当前没有任何内容需要正式的 Back Office 记录。继续处理实时 Front Office 队列，直到某个资料包、签署或交易真正需要可审计归属。"
+                      : "Nothing needs a formal Back Office record right now. Keep working the live Front Office queue until a package, signature, or transaction truly needs auditable ownership."
                   }
                   title={
                     isZh
@@ -2040,8 +2040,8 @@ export default async function AgentDashboardPage() {
                   className="front-office-inline-empty"
                   description={
                     isZh
-                      ? "当共享资料库被填充后，已发布的 FO 资源会显示在这里。"
-                      : "Published FO resources will surface here once the shared library is populated."
+                      ? "当共享资料库有内容后，已发布的 Front Office 资源会显示在这里。"
+                      : "Published Front Office resources will surface here once the shared library has content."
                   }
                   title={isZh ? "还没有发布资源" : "No resources published"}
                 />
@@ -2123,8 +2123,8 @@ export default async function AgentDashboardPage() {
                 <StatCard
                   hint={
                     isZh
-                      ? "当前可见 FO 范围内的成员"
-                      : "members in the visible FO scope"
+                      ? "当前可见 Front Office 范围内的成员"
+                      : "members in the visible Front Office scope"
                   }
                   label={isZh ? "可见成员" : "Visible members"}
                   value={resourcePulse.visibleMembershipCount}

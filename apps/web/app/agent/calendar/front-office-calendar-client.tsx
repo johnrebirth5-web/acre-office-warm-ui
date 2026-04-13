@@ -433,7 +433,7 @@ const quickWritebackActions: Array<{
     value: "confirmed",
     label: "Confirmed / clear touch",
     description:
-      "Mark the outside plan confirmed and clear the current checkpoint deadline.",
+      "Mark the outside plan confirmed and clear the current next-touch reminder.",
   },
   {
     value: "reschedule_requested",
@@ -1058,8 +1058,8 @@ export function FrontOfficeCalendarClient(
       value: "confirmed" as const,
       label: isZh ? "已确认 / 清除触达" : "Confirmed / clear touch",
       description: isZh
-        ? "把外部计划标记为已确认，并清除当前检查点截止时间。"
-        : "Mark the outside plan confirmed and clear the current checkpoint deadline.",
+        ? "把外部计划标记为已确认，并清除当前的下次触达提醒。"
+        : "Mark the outside plan confirmed and clear the current next-touch reminder.",
     },
     {
       value: "reschedule_requested" as const,
@@ -1394,7 +1394,7 @@ export function FrontOfficeCalendarClient(
     }));
     setFeedback({
       tone: "success",
-      message: `${suggestion.label} loaded into the update form. Save it when ready to keep the next checkpoint visible in Acre.`,
+      message: `${suggestion.label} loaded into the update form. Save it when ready to keep the next step visible in Acre.`,
     });
     scrollToWritebackSection();
   }
@@ -2015,12 +2015,12 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message: checkpointContinuation
-          ? `Quick coordination checkpoint saved. ${checkpointContinuation}`
+          ? `Quick update saved. ${checkpointContinuation}`
           : externalStatus === "confirmed"
-            ? "Confirmation update saved and the current promised checkpoint was cleared."
+            ? "Confirmation update saved and the current promised next step was cleared."
             : suggestedPreset
-              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next checkpoint.`
-              : "Quick coordination checkpoint saved.",
+              ? `Quick update saved with ${suggestedPreset.label} loaded as the next step.`
+              : "Quick update saved.",
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -2093,8 +2093,8 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message: checkpointContinuation
-          ? `Checkpoint preset saved. ${checkpointContinuation}`
-          : `${preset.label} saved to Acre as the next promised checkpoint.`,
+          ? `Follow-up preset saved. ${checkpointContinuation}`
+          : `${preset.label} saved to Acre as the next planned step.`,
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -2301,8 +2301,7 @@ export function FrontOfficeCalendarClient(
         actionLabel: payload.actionLabel,
         manualOnlyDetail:
           payload.manualOnlyDetail ?? "This action was recorded here only.",
-        followUpDetail:
-          payload.followUpDetail ?? "Save the checkpoint form below.",
+        followUpDetail: payload.followUpDetail ?? "Save the update form below.",
         followUpCadenceLabel:
           checkpoint?.label ??
           payload.followUpCadenceLabel ??
@@ -2312,7 +2311,7 @@ export function FrontOfficeCalendarClient(
           checkpoint?.nextStep ??
           payload.followUpCadenceDetail ??
           payload.followUpDetail ??
-          "Save the checkpoint form below.",
+          "Save the update form below.",
         resultKind: payload.result.kind,
         checkpoint: checkpoint ?? {
           label:
@@ -2322,8 +2321,8 @@ export function FrontOfficeCalendarClient(
           detail:
             payload.followUpCadenceDetail ??
             payload.followUpDetail ??
-            "Save the checkpoint form below.",
-          nextStep: payload.followUpDetail ?? "Save the checkpoint form below.",
+            "Save the update form below.",
+          nextStep: payload.followUpDetail ?? "Save the update form below.",
           sourceNote:
             payload.manualOnlyDetail ?? "This action was recorded here only.",
         },
@@ -3332,8 +3331,8 @@ export function FrontOfficeCalendarClient(
                             variant="secondary"
                           >
                             {isZh
-                              ? "载入建议检查点"
-                              : "Load suggested checkpoint"}
+                              ? "载入建议下一步"
+                              : "Load suggested next step"}
                           </Button>
                         ) : null}
                       </div>
@@ -3846,11 +3845,11 @@ export function FrontOfficeCalendarClient(
                 <p>
                   {agendaViewMode === "day"
                     ? isZh
-                      ? "这是一个真实的单日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存检查点。"
-                      : "This is a real single-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save checkpoints from the same page."
+                      ? "这是一个真实的单日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存下一步。"
+                      : "This is a real single-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save next steps from the same page."
                     : isZh
-                      ? "这是一个真实的七日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存检查点。"
-                      : "This is a real seven-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save checkpoints from the same page."}
+                      ? "这是一个真实的七日议程视角，不是概念示意。你仍然可以在同一页打开草稿、载入更新和保存下一步。"
+                      : "This is a real seven-day agenda view, not just placeholder copy. You can still open draft actions, load updates, and save next steps from the same page."}
                 </p>
               </div>
             </div>
