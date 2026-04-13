@@ -72,7 +72,7 @@ function buildPageDescription(
   handoffPrefill: FrontOfficeHandoffPrefillState | null,
 ) {
   if (!handoffPrefill) {
-    return "Create a transaction using the current office intake schema. Office admins can now adjust intake fields directly from this page without leaving the form.";
+    return "Create a transaction from this page. Office admins can adjust intake fields here when needed.";
   }
 
   if (handoffPrefill.kind === "available") {

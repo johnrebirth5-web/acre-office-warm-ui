@@ -370,7 +370,7 @@ export const enUSMessages = {
   officeTransactions: {
     title: "Transactions",
     description:
-      "Live office transaction list with schema-driven search, summary chips, and quick create.",
+      "Live office transaction list with search, filters, summary, and quick create.",
     search: "Search",
     searchPlaceholder:
       "Search transaction, contact, address, owner, or MLS...",
@@ -379,7 +379,7 @@ export const enUSMessages = {
     reset: "Reset",
     createTransaction: "New transaction",
     createTransactionSubtitle:
-      "Create a new transaction from the current office field schema without leaving the list.",
+      "Create a new transaction from the current office fields without leaving the list.",
     pageSize: "Rows",
     anyValue: "Any {label}",
     from: "From",
@@ -413,7 +413,7 @@ export const enUSMessages = {
     builtIn: "Built-in",
     custom: "Custom",
     operationalFieldsBody:
-      "Shared filters that are not part of the transaction field schema.",
+      "Shared filters that apply across the office.",
     builtInFieldsBody:
       "Visible built-in transaction fields from Settings > Fields.",
     customFieldsBody:
@@ -432,15 +432,15 @@ export const enUSMessages = {
     tableImportantDate: "Important date",
     createCleanTransactionRecord: "Create a clean transaction record",
     createCleanTransactionRecordBody:
-      "The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure.",
+      "The record uses the current office fields so pipeline, reporting, and finance stay aligned.",
     createModalBody:
-      "Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start.",
+      "Open a new office transaction, assign the owner, and capture finance details from the start.",
     next: "Next →",
   },
   officeContacts: {
     title: "Contacts",
     description:
-      "Live office contacts with stage filtering, search, and quick create from the current schema.",
+      "Live office contacts with stage filtering, search, and quick create.",
     contactList: "Contact list",
     contactListSubtitle:
       "Search, filter, and review the current office contact set.",
@@ -451,7 +451,7 @@ export const enUSMessages = {
     reset: "Reset",
     createContact: "New contact",
     createContactSubtitle:
-      "Create a contact from the current office contact schema without leaving this page.",
+      "Create a contact from the current office fields without leaving this page.",
     tableContact: "Contact",
     tableStage: "Stage",
     tableIntentBudget: "Intent / budget",
@@ -463,16 +463,16 @@ export const enUSMessages = {
     createModalKicker: "Contacts",
     createModalTitle: "Create contact",
     createModalBody:
-      "Add a lead or client profile with the current office contact schema so follow-up can start immediately.",
+      "Add a lead or client profile so follow-up can start immediately.",
     closeCreateModal: "Close create contact modal",
     close: "Close",
     contactDetails: "Contact details",
     contactDetailsBody:
-      "Capture the person's core identity, current stage, and follow-up context using the shared office contact schema.",
+      "Capture the person's core identity, current stage, and follow-up context.",
     selectPlaceholder: "Select...",
     saveProfileLead: "Save the profile to start office follow-up",
     saveProfileLeadBody:
-      "Contact fields stay aligned with the centralized schema in Settings, so the roster and detail pages remain consistent.",
+      "Contact fields stay consistent across the list and detail pages.",
     noContactInfo: "No direct contact info recorded",
     allStages: "All stages",
     warm: "Warm",
@@ -679,13 +679,13 @@ export const enUSMessages = {
     directCreateUnavailableTitle:
       "Direct non-transaction creation is not available yet.",
     directCreateUnavailableBody:
-      "You can manage and monitor requests here today, but standalone HR, finance, admin, and generic signature requests still need additional platform support before they can start from `/office/signatures`.",
+      "You can manage and monitor requests here today, but new standalone HR, finance, admin, and generic signature requests still need to start somewhere else.",
     availableToday: "Available today",
     directCreateAvailableTitle:
-      "Existing drafts and transaction-backed context requests remain fully usable.",
+      "Existing drafts and transaction-linked requests remain fully usable.",
     directCreateAvailableBody:
-      "For now, start from a transaction PDF, optionally prefill from a template, save the draft, then return here to continue, send, or monitor the request.",
-    currentAuthoringPath: "Current authoring path",
+      "For now, start from a transaction PDF, optionally use a template, save the draft, then return here to continue, send, or monitor it.",
+    currentAuthoringPath: "Current process",
     currentAuthoringPathValue:
       "Transaction PDF -> recipients and delivery -> PDF field placement",
     templateReuse: "Template reuse",
@@ -696,18 +696,18 @@ export const enUSMessages = {
     requestsTrackedHere: "Requests tracked here",
     noRequestsInCurrentFilterSet: "No requests in the current filter set",
     driveRoutingTitle:
-      "Drive routing is exposed as an operational path, not a hidden settings dependency.",
+      "Drive routing stays visible.",
     driveRoutingBody:
-      "Drive routing stays visible here so operations can see how completed signature packets archive for both transaction-backed and context-labeled requests.",
+      "Drive routing stays visible here so operations can see where completed requests are archived.",
     genericEnvelopes: "Generic envelopes",
     transactionEnvelopes: "Transaction envelopes",
-    simpleArchivalTitle: "Drive archival remains intentionally simple.",
+    simpleArchivalTitle: "Drive archival stays simple.",
     simpleArchivalBody:
-      "Template admins can still route completed generic and transaction envelopes through Signature Drive, but the underlying sync remains the same synchronous in-product flow.",
+      "Completed generic and transaction envelopes can still route through Signature Drive. The sync flow remains the same.",
     settings: "Settings",
     liveQueueFiltersTitle: "Live queue filters",
     liveQueueFiltersSubtitle:
-      "Filter existing signature requests by lifecycle, category, sender, internal subject, or signer/recipient. This narrows the live queue; it does not create a new standalone draft.",
+      "Filter existing signature requests by lifecycle, category, sender, internal subject, or signer/recipient.",
     statusFilter: "Status",
     allStatuses: "All statuses",
     pendingSend: "Pending Send",
@@ -737,7 +737,7 @@ export const enUSMessages = {
       "Completed non-transaction envelopes currently route to {target} in Signature Drive.",
     requestTableTitle: "Signature requests",
     requestTableSubtitle:
-      "Every row here is a real existing request. Use this table to continue drafts, review live envelopes, and confirm archive state while the actual new-request path remains transaction-PDF based.",
+      "Use this table to continue drafts, review live envelopes, and confirm archive status.",
     tableRequest: "Request",
     tablePath: "Path",
     tableRequestedBy: "Requested by",
@@ -760,7 +760,7 @@ export const enUSMessages = {
     noRequestsMatchedTitle:
       "No signature requests matched the current filters",
     noRequestsMatchedBody:
-      "Clear a filter, continue an existing draft, or start from a transaction PDF and let the request return here once it becomes a real live envelope.",
+      "Clear a filter, continue an existing draft, or start from a transaction PDF.",
     rolesSummary:
       "{signers} signer · {approvers} approver · {cc} CC",
     driveSyncRetryFailed: "Drive sync retry failed.",
@@ -770,17 +770,17 @@ export const enUSMessages = {
     blockerTransactionRequiredDetail:
       "Standalone HR, finance, admin, and generic requests cannot be started here yet because new signature drafts still begin from a transaction-linked request.",
     blockerRecipientsRequiredTitle:
-      "Recipients and fields are still set up inside that flow",
+      "Recipients and fields are still set up there",
     blockerRecipientsRequiredDetail:
-      "Signer routing, recipient ownership, and field placement are still configured through the current transaction-based authoring flow.",
+      "Signer routing, recipients, and field placement are still configured through the current transaction-based flow.",
     blockerEditorNeedsPdfTitle:
       "The editor still opens from a transaction PDF",
     blockerEditorNeedsPdfDetail:
-      "The current editor expects a transaction PDF as its starting document, so there is not yet a blank standalone authoring path for non-transaction requests.",
+      "The current editor still needs a transaction PDF to get started, so non-transaction requests do not have a blank starting point yet.",
     blockerGenericMissingTitle:
       "Generic templates are not fully reusable yet",
     blockerGenericMissingDetail:
-      "Templates already cover transaction, HR, finance, and admin use cases, but generic standalone templates are not fully supported yet.",
+      "Templates already cover transaction, HR, finance, and admin use cases, but generic templates are not fully supported yet.",
     openRequest: "Open request",
     openTransaction: "Open transaction",
   },
@@ -788,22 +788,22 @@ export const enUSMessages = {
     title: "Signature templates",
     eyebrow: "Documents",
     description:
-      "Maintain the reusable signature library from one place, track which templates already have live drafts, and keep the library honest about the current transaction-PDF authoring model.",
+      "Maintain reusable signature templates and track which ones already have live drafts.",
     backToSignatures: "Back to signatures",
     genericCategoryNote:
-      "The current schema only allows transaction, HR, finance, and admin template categories. `generic` still exists only as request context metadata.",
+      "Templates currently support transaction, HR, finance, and admin categories. Generic remains request-only.",
     templates: "Templates",
     active: "Active",
     nonTransaction: "HR / finance / admin",
     genericCategory: "Generic category",
-    schemaPending: "Schema pending",
+    schemaPending: "Category pending",
     liveDrafts: "Live drafts",
     statsActiveHint:
       "Active templates available for the next authoring session.",
     statsInactiveHint:
       "Templates intentionally parked but still retained in the library.",
     statsNonTransactionHint:
-      "HR, finance, and admin templates currently available outside the pure transaction lane. Generic still remains request-level context only.",
+      "HR, finance, and admin templates are currently available outside the main transaction flow. Generic is still request-only.",
     statsUsedHint:
       "Templates that already have at least one request in circulation or history.",
     statsLiveDraftsHint:
@@ -811,7 +811,7 @@ export const enUSMessages = {
     usedAtLeastOnce: "Used at least once",
     libraryControlsTitle: "Library controls",
     libraryControlsSubtitle:
-      "Filter the template library by name, category, operational status, or whether a template already has a live draft in motion. This library still feeds the current transaction-PDF authoring path.",
+      "Filter the template library by name, category, status, or whether a template already has a live draft.",
     searchPlaceholder: "Template name, description, latest request...",
     categoryLabel: "Category",
     statusLabel: "Status",
@@ -826,7 +826,7 @@ export const enUSMessages = {
       "{note} Showing {filtered} of {total} templates.",
     tableTitle: "Template library",
     tableSubtitle:
-      "Templates remain reusable blueprints inside the existing transaction-PDF signature flow, while this library shows whether each one already has a live draft or recent request activity you can continue here.",
+      "This library shows whether each template already has a live draft or recent request activity.",
     tableTemplate: "Template",
     tableCategory: "Category",
     tableStructure: "Structure",
@@ -853,7 +853,7 @@ export const enUSMessages = {
     useTemplate: "Use template",
     selectedTemplateTitle: "Selected template",
     selectedTemplateSubtitle:
-      "The template library remains the place to maintain reusable metadata and delivery defaults, while the latest live request link brings you back into the real transaction-backed editor when that template is already in motion.",
+      "Maintain reusable defaults here, and use the latest live request link when this template is already in progress.",
     statsRecipientRolesHint: "Recipient roles defined on this template.",
     statsFieldsHint:
       "Field placements carried into the editor when the template is applied.",
@@ -861,7 +861,7 @@ export const enUSMessages = {
       "Draft or pending-send requests already tied to this template.",
     statsTotalUsesHint: "Total request count using this template.",
     selectedTemplateHelper:
-      "Templates still apply on top of a source PDF in the real request editor. This page centralizes upkeep, keeps category support truthful, and gives you a direct way back to the latest live request when one already exists.",
+      "Templates are still applied on top of a source PDF. This page keeps template details up to date and links you back to live work when available.",
     metaCategory: "Category",
     metaSupportedCategories: "Supported template categories",
     metaGenericCategory: "Generic category",
@@ -1042,7 +1042,7 @@ export const enUSMessages = {
     reimbursement: "Reimbursement",
     filteredTransactionsTitle: "Filtered transactions",
     filteredTransactionsSubtitle:
-      "The on-screen table highlights key operating columns, while CSV export keeps the full report schema and the same {sortLabel} row order.",
+      "The on-screen table highlights key columns, while CSV export keeps the full report and the same {sortLabel} row order.",
     tableTransaction: "Transaction",
     tableCreated: "Created",
     tableOwner: "Owner",

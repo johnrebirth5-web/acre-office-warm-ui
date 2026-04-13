@@ -968,7 +968,7 @@ export function TransactionIntakeWorkspace({
               </strong>
               <p>
                 {modalFooterDescription ??
-                  "This step creates the transaction using the current office schema and prepares it for the next workflow actions."}
+                  "This step creates the transaction and prepares it for the next workflow actions."}
               </p>
             </div>
           ) : (

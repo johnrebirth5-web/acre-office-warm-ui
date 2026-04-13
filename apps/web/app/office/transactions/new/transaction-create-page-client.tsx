@@ -106,7 +106,7 @@ function buildFieldModuleSnapshotFromSchema(
   return {
     module: "transaction",
     label: "Transaction fields",
-    description: "Transaction field schema shared with the create flow.",
+    description: "Transaction fields used in the create flow.",
     summary: {
       fieldCount: schema.builtInFields.length + schema.customFields.length,
       customFieldCount: schema.customFields.length,
@@ -267,12 +267,12 @@ export function TransactionCreatePageClient({
       headerActions={mode === "modal" ? editFieldsButton : undefined}
       modalDescription={
         modalDescription ??
-        "Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start."
+        "Open a new office transaction, assign the owner, and capture finance details from the start."
       }
       modalEyebrow={modalEyebrow ?? "Transactions"}
       modalFooterDescription={
         modalFooterDescription ??
-        "The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure."
+        "The record uses the current office fields so pipeline, reporting, and finance stay aligned."
       }
       modalFooterTitle={modalFooterTitle ?? "Create a clean transaction record"}
       mode="create"
@@ -392,8 +392,8 @@ export function TransactionCreatePageClient({
                 canManageFields={canManageFields}
                 hideModuleRail={true}
                 onModuleSnapshotChange={handleFieldModuleChange}
-                panelDescription="This is the same shared transaction schema used by Create transaction, Settings > Fields, and the office search/filter surfaces."
-                panelTitle="Transaction field schema"
+                panelDescription="These transaction fields are used by create, settings, and office filters."
+                panelTitle="Transaction fields"
                 snapshot={embeddedFieldSettingsSnapshot}
               />
             </div>

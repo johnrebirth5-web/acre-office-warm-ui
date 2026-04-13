@@ -231,7 +231,7 @@ export async function TransactionDetailWorkspace({
         defaultExpanded
         sectionKey="intake-fields"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Review and update transaction values using the current centralized intake schema."
+        subtitle="Review and update transaction values."
         title="Intake fields"
       >
         <TransactionIntakeWorkspace

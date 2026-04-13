@@ -919,7 +919,7 @@ export function buildListingStudioMarketingKit(
     {
       id: "checklist-manual",
       title: "Manual send only",
-      note: "No auto-send or external campaign orchestration is implied by this surface.",
+      note: "Review and send it manually.",
       ready: true,
     },
   ];
