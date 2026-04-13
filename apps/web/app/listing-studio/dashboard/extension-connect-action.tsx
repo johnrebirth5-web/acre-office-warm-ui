@@ -346,7 +346,9 @@ export function ListingStudioExtensionConnectAction(
   }
 
   let actionLabel = "Connect Chrome extension";
-  if (browserConnectionState === "connected") {
+  if (browserConnectionState === "checking") {
+    actionLabel = "Checking...";
+  } else if (browserConnectionState === "connected") {
     actionLabel = "Connected in this browser";
   } else if (browserConnectionState === "pending" || isConnecting) {
     actionLabel = "Connecting...";
@@ -355,6 +357,11 @@ export function ListingStudioExtensionConnectAction(
       ? "Add to Chrome"
       : "Install Chrome extension";
   }
+
+  const isActionDisabled =
+    browserConnectionState === "checking" ||
+    browserConnectionState === "connected" ||
+    isConnecting;
 
   return (
     <div className="listing-studio-banner-grid">
@@ -376,7 +383,7 @@ export function ListingStudioExtensionConnectAction(
         <p className="listing-studio-banner-meta">{panelMessage}</p>
         <div className="listing-studio-connect-action">
           <Button
-            disabled={browserConnectionState === "connected" || isConnecting}
+            disabled={isActionDisabled}
             onClick={handleClick}
             variant="primary"
           >
