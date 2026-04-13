@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 import { Button, ConfirmActionDialog, SectionCard, TextareaInput, TextInput } from "@acre/ui";
 import {
+  buildListingStudioMarketingKit,
   buildListingStudioPosterCopyText,
   buildListingStudioPosterDraft,
   buildListingStudioPosterHref,
@@ -276,6 +277,10 @@ export function ListingStudioDetailClient({
       ),
     [packetPreviewDetail, posterDraft],
   );
+  const marketingKit = useMemo(
+    () => buildListingStudioMarketingKit(packetPreviewDetail, posterDraft),
+    [packetPreviewDetail, posterDraft],
+  );
   const posterPacketTarget = buildListingStudioPosterScanTarget(packetPreviewDetail);
   const scanTargetHref = posterPacketTarget.href;
   const scanTargetLabel = posterPacketTarget.label;
@@ -390,6 +395,15 @@ export function ListingStudioDetailClient({
       setStatusMessage("Poster copy copied.");
     } catch {
       setStatusMessage("Clipboard access is not available for poster copy.");
+    }
+  }
+
+  async function copyMarketingKitCopy(label: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatusMessage(`${label} copied.`);
+    } catch {
+      setStatusMessage(`Clipboard access is not available for ${label.toLowerCase()}.`);
     }
   }
 
@@ -864,6 +878,87 @@ export function ListingStudioDetailClient({
                   No external template sync, PNG render, or auto-send is implied by this packet summary.
                 </span>
               </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="Copy-ready captions, blurbs, and follow-up notes generated from the saved packet. The kit stays manual, review-first, and Acre-owned."
+            title="Marketing kit"
+          >
+            <div className="listing-studio-editor-form">
+              <div className="listing-studio-keyvalue-grid">
+                <div className="listing-studio-keyvalue-card">
+                  <span>Marketing angle</span>
+                  <strong>Caption, blurb, follow-up</strong>
+                  <span>
+                    Everything below is derived from the same saved packet and the current poster draft.
+                  </span>
+                </div>
+                <div className="listing-studio-keyvalue-card">
+                  <span>Export posture</span>
+                  <strong>Manual and review-first</strong>
+                  <span>
+                    No Canva sync, PNG render, or auto-send is implied by these copy blocks.
+                  </span>
+                </div>
+              </div>
+
+              <div className="listing-studio-detail-section-list">
+                {marketingKit.sections.map((section) => (
+                  <div className="listing-studio-detail-section-block" key={section.title}>
+                    <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                      <strong>{section.title}</strong>
+                      <Button
+                        onClick={() =>
+                          void copyMarketingKitCopy(
+                            `${section.title} block`,
+                            [
+                              section.title,
+                              section.subtitle,
+                              ...section.variants.map(
+                                (variant) => `\n${variant.label}\n${variant.note}\n${variant.text}`,
+                              ),
+                            ].join("\n"),
+                          )
+                        }
+                        variant="ghost"
+                      >
+                        Copy section
+                      </Button>
+                    </div>
+                    <p className="listing-studio-muted">{section.subtitle}</p>
+                    <div className="listing-studio-keyvalue-grid">
+                      {section.variants.map((variant) => (
+                        <div className="listing-studio-keyvalue-card" key={variant.id}>
+                          <div className="listing-studio-card-meta">
+                            <span className="office-status-badge office-status-badge-neutral">
+                              {variant.note}
+                            </span>
+                            <span className="office-status-badge office-status-badge-success">
+                              {section.title}
+                            </span>
+                          </div>
+                          <strong>{variant.label}</strong>
+                          <span>{variant.text}</span>
+                          <div className="listing-studio-editor-actions">
+                            <Button
+                              onClick={() => void copyMarketingKitCopy(variant.label, variant.text)}
+                              variant="secondary"
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="listing-studio-muted">
+                {marketingKit.summaryLine}. The kit keeps the scan path, contact block, and packet copy aligned without pretending there is an external marketing service behind it.
+              </p>
             </div>
           </SectionCard>
 
