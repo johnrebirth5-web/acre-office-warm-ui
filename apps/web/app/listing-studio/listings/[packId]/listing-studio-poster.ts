@@ -46,9 +46,39 @@ export type ListingStudioMarketingKitBundle = {
   text: string;
 };
 
+export type ListingStudioCampaignPackage = {
+  id: string;
+  title: string;
+  note: string;
+  description: string;
+  text: string;
+};
+
+export type ListingStudioCampaignSequenceStep = {
+  id: string;
+  title: string;
+  note: string;
+  detail: string;
+};
+
+export type ListingStudioCampaignChecklistItem = {
+  id: string;
+  title: string;
+  note: string;
+  ready: boolean;
+};
+
+export type ListingStudioCampaignDeliveryPlan = {
+  summary: string;
+  packages: ListingStudioCampaignPackage[];
+  sequence: ListingStudioCampaignSequenceStep[];
+  checklist: ListingStudioCampaignChecklistItem[];
+};
+
 export type ListingStudioMarketingKit = {
   sections: ListingStudioMarketingKitSection[];
   bundles: ListingStudioMarketingKitBundle[];
+  deliveryPlan: ListingStudioCampaignDeliveryPlan;
   fullText: string;
   summaryLine: string;
 };
@@ -640,6 +670,131 @@ export function buildListingStudioMarketingKit(
       ]).trim(),
     },
   ];
+  const deliveryPlanPackages: ListingStudioCampaignPackage[] = [
+    {
+      id: "social-package",
+      title: "Social send-ready package",
+      note: "Post + scan path",
+      description:
+        "A ready-to-paste social package for a new-listing drop, repost, or story share.",
+      text: joinWithLineBreaks([
+        "Social send-ready package",
+        "",
+        "Use in this order:",
+        "1. Short caption",
+        "2. Social caption",
+        "3. Share caption",
+        "",
+        `Best for: ${headline} in ${locationLine}`,
+        `Contact: ${contactName} · ${contactPhone}`,
+        `Scan path: ${packetPath}`,
+      ]).trim(),
+    },
+    {
+      id: "listing-package",
+      title: "Listing send-ready package",
+      note: "Blurb + contact",
+      description:
+        "A longer-form listing package for newsletters, office updates, or brokerage summaries.",
+      text: joinWithLineBreaks([
+        "Listing send-ready package",
+        "",
+        "Use in this order:",
+        "1. Paragraph blurb",
+        "2. Fact-led blurb",
+        "",
+        `Best for: ${headline} summaries and broker-facing writeups.`,
+        `CTA: ${cta}`,
+        `Packet path: ${packetPath}`,
+      ]).trim(),
+    },
+    {
+      id: "followup-package",
+      title: "Follow-up send-ready package",
+      note: "Text + email + reminder",
+      description:
+        "A manual follow-up package for post-tour notes, warm leads, and reminder outreach.",
+      text: joinWithLineBreaks([
+        "Follow-up send-ready package",
+        "",
+        "Use in this order:",
+        "1. Text follow-up",
+        "2. Email follow-up",
+        "3. Reminder note",
+        "",
+        `Best for: ${headline} follow-up after a showing or packet review.`,
+        `Contact: ${contactName} · ${contactEmail}`,
+      ]).trim(),
+    },
+  ];
+  const deliveryPlanSequence: ListingStudioCampaignSequenceStep[] = [
+    {
+      id: "sequence-lock",
+      title: "Lock the packet",
+      note: "Review the source",
+      detail:
+        "Confirm the headline, hero asset, contact block, and scan path before copying anything out.",
+    },
+    {
+      id: "sequence-pick",
+      title: "Pick a package",
+      note: "Match the channel",
+      detail:
+        "Choose the social, listing, or follow-up package that best fits the next manual send.",
+    },
+    {
+      id: "sequence-copy",
+      title: "Copy the bundle",
+      note: "Use the ready text",
+      detail:
+        "Copy the full package or the section block that matches the channel you are preparing.",
+    },
+    {
+      id: "sequence-send",
+      title: "Send manually",
+      note: "Review first",
+      detail:
+        "Paste into the target channel, review the message, and send by hand. Acre does not auto-send.",
+    },
+  ];
+  const deliveryPlanChecklist: ListingStudioCampaignChecklistItem[] = [
+    {
+      id: "checklist-packet",
+      title: "Packet summary is ready",
+      note: "Headline and summary come from the saved packet.",
+      ready: Boolean(headline && summary),
+    },
+    {
+      id: "checklist-contact",
+      title: "Contact block is ready",
+      note: "The agent name, title, phone, and email stay visible in the package.",
+      ready: Boolean(contactName || contactTitle || contactPhone || contactEmail),
+    },
+    {
+      id: "checklist-hero",
+      title: "Hero asset is chosen",
+      note: "The poster and packet both point at the same selected visual.",
+      ready: Boolean(draft.coverAssetId),
+    },
+    {
+      id: "checklist-scan",
+      title: "Scan path is visible",
+      note: "The package includes the packet or source-listing path for manual sharing.",
+      ready: Boolean(packetPath),
+    },
+    {
+      id: "checklist-manual",
+      title: "Manual send only",
+      note: "No auto-send or external campaign orchestration is implied by this surface.",
+      ready: true,
+    },
+  ];
+  const deliveryPlan: ListingStudioCampaignDeliveryPlan = {
+    summary: summaryLine,
+    packages: deliveryPlanPackages,
+    sequence: deliveryPlanSequence,
+    checklist: deliveryPlanChecklist,
+  };
   const fullText = [summaryLine, ...sections.map(formatMarketingSectionText)]
     .filter(Boolean)
     .join("\n\n");
@@ -648,6 +803,7 @@ export function buildListingStudioMarketingKit(
     summaryLine,
     sections,
     bundles,
+    deliveryPlan,
     fullText,
   };
 }

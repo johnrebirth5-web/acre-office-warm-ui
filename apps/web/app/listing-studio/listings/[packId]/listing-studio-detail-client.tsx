@@ -922,11 +922,96 @@ export function ListingStudioDetailClient({
                   </span>
                 </div>
                 <div className="listing-studio-keyvalue-card">
-                  <span>Bundle sets</span>
-                  <strong>{marketingKit.bundles.length} campaign bundles</strong>
+                  <span>Delivery plan</span>
+                  <strong>
+                    {marketingKit.deliveryPlan.sequence.length} steps · {marketingKit.deliveryPlan.checklist.length} checks
+                  </strong>
                   <span>
-                    Use the bundle cards below when you want one copy block instead of section-by-section assembly.
+                    The package below is arranged as send-ready bundles, a manual sequence, and a readiness checklist.
                   </span>
+                </div>
+              </div>
+
+              <div className="listing-studio-detail-section-list">
+                <div className="listing-studio-detail-section-block">
+                  <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                    <strong>Send-ready packages</strong>
+                    <span className="office-status-badge office-status-badge-neutral">
+                      {marketingKit.deliveryPlan.packages.length} package sets
+                    </span>
+                  </div>
+                  <div className="listing-studio-keyvalue-grid">
+                    {marketingKit.deliveryPlan.packages.map((campaignPackage) => (
+                      <div className="listing-studio-keyvalue-card" key={campaignPackage.id}>
+                        <div className="listing-studio-card-meta">
+                          <span className="office-status-badge office-status-badge-neutral">
+                            {campaignPackage.note}
+                          </span>
+                          <span className="office-status-badge office-status-badge-success">
+                            Send-ready
+                          </span>
+                        </div>
+                        <strong>{campaignPackage.title}</strong>
+                        <span>{campaignPackage.description}</span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>{campaignPackage.text}</span>
+                        <div className="listing-studio-editor-actions">
+                          <Button
+                            onClick={() => void copyMarketingKitCopy(campaignPackage.title, campaignPackage.text)}
+                            variant="secondary"
+                          >
+                            Copy package
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="listing-studio-detail-section-block">
+                  <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                    <strong>Delivery sequence</strong>
+                    <span className="office-status-badge office-status-badge-neutral">
+                      Manual review path
+                    </span>
+                  </div>
+                  <div className="listing-studio-detail-section-items">
+                    {marketingKit.deliveryPlan.sequence.map((step, index) => (
+                      <div className="listing-studio-keyvalue-card" key={step.id}>
+                        <div className="listing-studio-card-meta">
+                          <span className="office-status-badge office-status-badge-neutral">
+                            Step {index + 1}
+                          </span>
+                          <span className="office-status-badge office-status-badge-success">
+                            {step.note}
+                          </span>
+                        </div>
+                        <strong>{step.title}</strong>
+                        <span>{step.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="listing-studio-detail-section-block">
+                  <div className="listing-studio-editor-actions" style={{ justifyContent: "space-between" }}>
+                    <strong>Readiness checklist</strong>
+                    <span className="office-status-badge office-status-badge-neutral">
+                      {marketingKit.deliveryPlan.summary}
+                    </span>
+                  </div>
+                  <div className="listing-studio-keyvalue-grid">
+                    {marketingKit.deliveryPlan.checklist.map((item) => (
+                      <div className="listing-studio-keyvalue-card" key={item.id}>
+                        <div className="listing-studio-card-meta">
+                          <span className={`office-status-badge ${item.ready ? "office-status-badge-success" : "office-status-badge-warning"}`}>
+                            {item.ready ? "Ready" : "Review"}
+                          </span>
+                        </div>
+                        <strong>{item.title}</strong>
+                        <span>{item.note}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
