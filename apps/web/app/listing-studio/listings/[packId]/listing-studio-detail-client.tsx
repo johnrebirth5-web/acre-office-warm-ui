@@ -21,6 +21,13 @@ function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
 }
 
+function normalizeBulletPointsInput(value: string) {
+  return value
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function buildPosterUrl(input: {
   packId: string;
   templateId: ListingStudioPosterTemplateId;
@@ -30,6 +37,10 @@ function buildPosterUrl(input: {
   cta: string;
   footer: string;
   coverAssetId: string | null;
+  contactName?: string;
+  contactTitle?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   download?: boolean;
   print?: boolean;
 }) {
@@ -44,6 +55,10 @@ function buildPosterUrl(input: {
       footer: input.footer,
       coverAssetId: input.coverAssetId,
     },
+    contactName: input.contactName,
+    contactTitle: input.contactTitle,
+    contactPhone: input.contactPhone,
+    contactEmail: input.contactEmail,
     download: input.download,
     print: input.print,
   });
@@ -57,6 +72,10 @@ export function ListingStudioDetailClient({
   const [summary, setSummary] = useState(detail.pack.summary);
   const [agentNote, setAgentNote] = useState(detail.pack.agentNote);
   const [bulletText, setBulletText] = useState(detail.pack.bulletPoints.join("\n"));
+  const [contactName, setContactName] = useState(detail.pack.contactName);
+  const [contactTitle, setContactTitle] = useState(detail.pack.contactTitle);
+  const [contactPhone, setContactPhone] = useState(detail.pack.contactPhone);
+  const [contactEmail, setContactEmail] = useState(detail.pack.contactEmail);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
     detail.pack.selectedAssetIds,
   );
@@ -91,10 +110,49 @@ export function ListingStudioDetailClient({
     initialPosterDraft.coverAssetId,
   );
 
+  const normalizedBulletPoints = useMemo(
+    () => normalizeBulletPointsInput(bulletText),
+    [bulletText],
+  );
   const heroAssetId =
     coverAssetId ?? selectedAssetIds[0] ?? detail.assets[0]?.id ?? null;
   const shareUrl = buildShareUrl(shareCode);
   const posterTemplates = getListingStudioPosterTemplates();
+  const packetPreviewDetail = useMemo(
+    () => ({
+      ...detail,
+      pack: {
+        ...detail.pack,
+        headline,
+        summary,
+        bulletPoints: normalizedBulletPoints,
+        selectedAssetIds,
+        coverAssetId,
+        agentNote,
+        shareEnabled,
+        shareCode,
+        contactName,
+        contactTitle,
+        contactPhone,
+        contactEmail,
+      },
+    }),
+    [
+      agentNote,
+      contactEmail,
+      contactName,
+      contactPhone,
+      contactTitle,
+      coverAssetId,
+      detail,
+      headline,
+      normalizedBulletPoints,
+      selectedAssetIds,
+      shareCode,
+      shareEnabled,
+      summary,
+    ],
+  );
   const posterDraft = useMemo(
     () => ({
       templateId: posterTemplateId,
@@ -126,8 +184,25 @@ export function ListingStudioDetailClient({
         cta: posterCta,
         footer: posterFooter,
         coverAssetId: posterCoverAssetId,
+        contactName,
+        contactTitle,
+        contactPhone,
+        contactEmail,
       }),
-    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+    [
+      contactEmail,
+      contactName,
+      contactPhone,
+      contactTitle,
+      detail.packId,
+      posterCta,
+      posterCoverAssetId,
+      posterFooter,
+      posterHeadline,
+      posterKicker,
+      posterSubheadline,
+      posterTemplateId,
+    ],
   );
   const posterPrintUrl = useMemo(
     () =>
@@ -141,8 +216,25 @@ export function ListingStudioDetailClient({
         footer: posterFooter,
         coverAssetId: posterCoverAssetId,
         print: true,
+        contactName,
+        contactTitle,
+        contactPhone,
+        contactEmail,
       }),
-    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+    [
+      contactEmail,
+      contactName,
+      contactPhone,
+      contactTitle,
+      detail.packId,
+      posterCta,
+      posterCoverAssetId,
+      posterFooter,
+      posterHeadline,
+      posterKicker,
+      posterSubheadline,
+      posterTemplateId,
+    ],
   );
   const posterDownloadUrl = useMemo(
     () =>
@@ -156,32 +248,35 @@ export function ListingStudioDetailClient({
         footer: posterFooter,
         coverAssetId: posterCoverAssetId,
         download: true,
+        contactName,
+        contactTitle,
+        contactPhone,
+        contactEmail,
       }),
-    [detail.packId, posterCta, posterCoverAssetId, posterFooter, posterHeadline, posterKicker, posterSubheadline, posterTemplateId],
+    [
+      contactEmail,
+      contactName,
+      contactPhone,
+      contactTitle,
+      detail.packId,
+      posterCta,
+      posterCoverAssetId,
+      posterFooter,
+      posterHeadline,
+      posterKicker,
+      posterSubheadline,
+      posterTemplateId,
+    ],
   );
   const posterCopyText = useMemo(
     () =>
       buildListingStudioPosterCopyText(
-        {
-          ...detail,
-          pack: {
-            ...detail.pack,
-            shareEnabled,
-            shareCode,
-          },
-        },
+        packetPreviewDetail,
         posterDraft,
       ),
-    [detail, posterDraft, shareCode, shareEnabled],
+    [packetPreviewDetail, posterDraft],
   );
-  const posterPacketTarget = buildListingStudioPosterScanTarget({
-    ...detail,
-    pack: {
-      ...detail.pack,
-      shareEnabled,
-      shareCode,
-    },
-  });
+  const posterPacketTarget = buildListingStudioPosterScanTarget(packetPreviewDetail);
   const scanTargetHref = posterPacketTarget.href;
   const scanTargetLabel = posterPacketTarget.label;
   const scanTargetHint = posterPacketTarget.hint;
@@ -214,13 +309,6 @@ export function ListingStudioDetailClient({
     });
   }
 
-  function normalizeBulletPoints() {
-    return bulletText
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-
   function savePack() {
     setIsSaving(true);
     setStatusMessage("");
@@ -235,10 +323,14 @@ export function ListingStudioDetailClient({
           body: JSON.stringify({
             headline,
             summary,
-            bulletPoints: normalizeBulletPoints(),
+            bulletPoints: normalizedBulletPoints,
             selectedAssetIds,
             coverAssetId,
             agentNote,
+            contactName,
+            contactTitle,
+            contactPhone,
+            contactEmail,
           }),
         });
 
@@ -602,7 +694,7 @@ export function ListingStudioDetailClient({
                     key={template.id}
                     onClick={() => {
                       const nextDraft = buildListingStudioPosterDraft(
-                        detail,
+                        packetPreviewDetail,
                         template.id,
                         posterCoverAssetId,
                       );
@@ -705,10 +797,10 @@ export function ListingStudioDetailClient({
               <div className="listing-studio-keyvalue-grid">
                 <div className="listing-studio-keyvalue-card">
                   <span>Agent info</span>
-                  <strong>{detail.pack.contactName}</strong>
-                  <span>{detail.pack.contactTitle}</span>
-                  <strong>{detail.pack.contactPhone}</strong>
-                  <span>{detail.pack.contactEmail}</span>
+                  <strong>{contactName || "Acre listing studio"}</strong>
+                  <span>{contactTitle || "Listing presentation"}</span>
+                  <strong>{contactPhone || "Phone not published"}</strong>
+                  <span>{contactEmail || "Email not published"}</span>
                 </div>
                 <div className="listing-studio-keyvalue-card">
                   <span>Scan path</span>
@@ -738,10 +830,67 @@ export function ListingStudioDetailClient({
 
           <SectionCard
             className="office-list-card"
+            subtitle="One saved packet feeds the poster, PDF export, and share page. The current contact block stays visible across every reviewable output."
+            title="Packet distribution"
+          >
+            <div className="listing-studio-keyvalue-grid">
+              <div className="listing-studio-keyvalue-card">
+                <span>Live packet</span>
+                <strong>{shareEnabled && shareUrl ? "Published share page" : "Source listing fallback"}</strong>
+                <span>
+                  {shareEnabled && shareUrl
+                    ? `Packet link: ${shareUrl}`
+                    : "Publish the share link to route scan paths away from the source listing."}
+                </span>
+              </div>
+              <div className="listing-studio-keyvalue-card">
+                <span>Poster outputs</span>
+                <strong>Preview, print, HTML download</strong>
+                <span>
+                  All three outputs reuse the same manual packet copy, hero asset, and agent contact block.
+                </span>
+              </div>
+              <div className="listing-studio-keyvalue-card">
+                <span>PDF export</span>
+                <strong>Saved packet snapshot</strong>
+                <span>
+                  The PDF follows the latest saved contact details, selected assets, and packet summary.
+                </span>
+              </div>
+              <div className="listing-studio-keyvalue-card">
+                <span>Review mode</span>
+                <strong>Manual and review-first</strong>
+                <span>
+                  No external template sync, PNG render, or auto-send is implied by this packet summary.
+                </span>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="These fields only affect the customer-facing packet. The imported snapshot stays unchanged."
             title="Packet editor"
           >
             <div className="listing-studio-editor-form">
+              <div className="listing-studio-keyvalue-grid">
+                <label className="listing-studio-filter-field">
+                  <span>Contact name</span>
+                  <TextInput value={contactName} onChange={(event) => setContactName(event.target.value)} />
+                </label>
+                <label className="listing-studio-filter-field">
+                  <span>Contact title</span>
+                  <TextInput value={contactTitle} onChange={(event) => setContactTitle(event.target.value)} />
+                </label>
+                <label className="listing-studio-filter-field">
+                  <span>Contact phone</span>
+                  <TextInput value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
+                </label>
+                <label className="listing-studio-filter-field">
+                  <span>Contact email</span>
+                  <TextInput value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
+                </label>
+              </div>
               <label className="listing-studio-filter-field">
                 <span>Headline</span>
                 <TextInput value={headline} onChange={(event) => setHeadline(event.target.value)} />

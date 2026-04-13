@@ -1367,6 +1367,10 @@ export async function updateStudioListingPack(input: {
   selectedAssetIds?: string[];
   coverAssetId?: string | null;
   agentNote?: string;
+  contactName?: string;
+  contactTitle?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }) {
   const existing = await prisma.studioListingPack.findFirst({
     where: {
@@ -1384,6 +1388,14 @@ export async function updateStudioListingPack(input: {
 
   if (!existing) {
     return null;
+  }
+
+  function resolveContactField(value: string | undefined, fallback: string | null | undefined) {
+    if (value === undefined) {
+      return fallback?.trim() || "";
+    }
+
+    return value.trim();
   }
 
   const allowedAssetIds = new Set(existing.snapshot.assets.map((asset) => asset.id));
@@ -1408,6 +1420,10 @@ export async function updateStudioListingPack(input: {
       selectedAssetIdsJson: selectedAssetIds,
       coverAssetId: nextCoverAssetId,
       agentNote: input.agentNote?.trim() || "",
+      contactName: resolveContactField(input.contactName, existing.contactName),
+      contactTitle: resolveContactField(input.contactTitle, existing.contactTitle),
+      contactPhone: resolveContactField(input.contactPhone, existing.contactPhone),
+      contactEmail: resolveContactField(input.contactEmail, existing.contactEmail),
     },
   });
 
