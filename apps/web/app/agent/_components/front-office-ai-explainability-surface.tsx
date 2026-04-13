@@ -56,8 +56,8 @@ function buildManualConfirmationReason(input: {
 
   if (!input.allowsDirectFollowUpCreation && crossesBackOfficeBoundary) {
     return input.compact
-      ? "A human still decides whether this becomes a formal BO transition or stays a client-facing clarification."
-      : "Acre can point to the formal handoff point, but it cannot confirm that package readiness, client intent, or office ownership actually changed off-record. A human still decides whether this becomes a formal Back Office transition or stays a client-facing clarification.";
+      ? "A human still decides whether this becomes a formal Back Office handoff or stays a client-facing clarification."
+      : "Acre can point to the formal handoff point, but it cannot confirm that document readiness, client intent, or ownership actually changed off-record. A human still decides whether this becomes a formal Back Office handoff or stays a client-facing clarification.";
   }
 
   if (!input.allowsDirectFollowUpCreation) {
@@ -389,8 +389,8 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <article className="front-office-ai-explainability-card">
           <span className="front-office-ai-explainability-kicker">
             {props.allowsDirectFollowUpCreation
-              ? "Why one-click is safe"
-              : "Why one-click is paused"}
+              ? "Why quick create is safe"
+              : "Why quick create is paused"}
           </span>
           <p>{props.oneClickReason}</p>
           <p>{acceptedOutcomeReason}</p>

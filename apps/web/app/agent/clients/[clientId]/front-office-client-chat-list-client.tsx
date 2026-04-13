@@ -39,7 +39,7 @@ export function FrontOfficeClientChatListClient(
   const contactPathDescription = props.snapshot.phone
     ? "A direct number is already on file, so the fastest move is to call first, use the intro script, and then leave the client with one clear next step."
     : props.snapshot.email
-      ? "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the dossier is more complete than it is."
+      ? "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the client page is more complete than it is."
       : "No direct contact path is captured yet, so finish the contact record before trying to execute the playbook or send anything outbound.";
 
   async function handleCopy(label: string, value: string) {
@@ -123,7 +123,7 @@ export function FrontOfficeClientChatListClient(
 
       <div className="front-office-playbook-surface">
         <div className="front-office-playbook-header">
-          <strong>Why this lane now</strong>
+          <strong>Why this matters now</strong>
           <p>{props.snapshot.playbook.focusDescription}</p>
         </div>
 

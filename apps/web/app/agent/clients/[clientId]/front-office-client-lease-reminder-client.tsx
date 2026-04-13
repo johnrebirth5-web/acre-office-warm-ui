@@ -97,7 +97,10 @@ export function FrontOfficeClientLeaseReminderClient(
   function applyLeaseReminderPreset(leadDays: number) {
     setFormState((current) => ({
       ...current,
-      leaseReminderAt: buildDateValueWithOffset(current.leaseEndDate, -leadDays),
+      leaseReminderAt: buildDateValueWithOffset(
+        current.leaseEndDate,
+        -leadDays,
+      ),
     }));
   }
 
@@ -184,12 +187,13 @@ export function FrontOfficeClientLeaseReminderClient(
           badgeTone={props.snapshot.followUpCue.tone}
           description={
             props.snapshot.leaseReminder.needsAttention
-              ? "This lease window is now part of the active execution pressure. Turn it into a dated follow-up so the renewal or move conversation has a real owner."
-              : "Load a renewal follow-up into the shared FO form whenever this lease timing needs a concrete call, text, or email task."
+              ? "This lease window now needs active follow-up. Turn it into a dated task so the renewal or move conversation has a real owner."
+              : "Load a renewal follow-up into the shared follow-up form whenever this lease timing needs a concrete call, text, or email task."
           }
           meta={
             <span>
-              Suggested task · Check {firstName}&apos;s lease renewal or move timing
+              Suggested task · Check {firstName}&apos;s lease renewal or move
+              timing
             </span>
           }
           title="Turn lease timing into a shared follow-up"
@@ -206,20 +210,26 @@ export function FrontOfficeClientLeaseReminderClient(
       <div className="front-office-placeholder-note">
         <strong>Set lease reminder</strong>
         <p>
-          Capture the lease end and reminder date here so renewal,
-          remarketing, and move planning stay visible in Front Office. When
-          the reminder becomes the live execution pressure, turn it into a real
-          follow-up instead of assuming Acre will send something automatically.
+          Capture the lease end and reminder date here so renewal, remarketing,
+          and move planning stay visible in Front Office. When the reminder
+          becomes the live priority, turn it into a real follow-up instead of
+          assuming Acre will send something automatically.
         </p>
         <div className="list-row-meta front-office-record-meta">
           <a className="office-inline-link" href={leaseFollowUpHref}>
             Load renewal follow-up
           </a>
-          <a className="office-inline-link" href={`#${FRONT_OFFICE_FOLLOW_UP_FORM_ID}`}>
+          <a
+            className="office-inline-link"
+            href={`#${FRONT_OFFICE_FOLLOW_UP_FORM_ID}`}
+          >
             Open follow-up form
           </a>
           {props.snapshot.summary.openTaskCount ? (
-            <a className="office-inline-link" href="#front-office-follow-up-queue">
+            <a
+              className="office-inline-link"
+              href="#front-office-follow-up-queue"
+            >
               Review queue
             </a>
           ) : null}

@@ -396,7 +396,7 @@ export default async function AgentClientDetailPage(
     ...snapshot.handoffs.map((handoff) => ({
       id: `handoff-${handoff.id}`,
       title: handoff.stageLabel,
-      badgeLabel: "BO status",
+      badgeLabel: "Back Office status",
       badgeTone: handoff.tone,
       context: handoff.statusLabel,
       description: handoff.summary,
@@ -500,7 +500,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.leaseReminder.statusLabel}
               />
               <StatCard
-                hint="where the record sits across FO execution and BO formal work"
+                hint="where the record sits across Front Office execution and Back Office formal work"
                 label="Formal workflow"
                 tone="accent"
                 value={snapshot.nextStepRail.decisionLabel}
@@ -534,7 +534,7 @@ export default async function AgentClientDetailPage(
               />
               <StatCard
                 hint="draft or ready formal workflow entries"
-                label="BO handoffs"
+                label="Back Office handoffs"
                 tone="accent"
                 value={snapshot.summary.openHandoffCount}
               />
@@ -591,8 +591,8 @@ export default async function AgentClientDetailPage(
                   meta: (
                     <span>
                       PDF export stays client-facing; formal transaction
-                      documents still live separately and BO remains the source
-                      of truth.
+                      documents still live separately and Back Office remains
+                      the source of truth.
                     </span>
                   ),
                   actions: [
@@ -620,7 +620,7 @@ export default async function AgentClientDetailPage(
                 <strong>{snapshot.followUpCue.dueLabel}</strong>
               </div>
               <div className="office-detail-field">
-                <span>Formal lane</span>
+                <span>Formal workflow</span>
                 <strong>
                   {primaryHandoff
                     ? `${primaryHandoff.stageLabel} · ${primaryHandoff.statusLabel}`
@@ -759,7 +759,9 @@ export default async function AgentClientDetailPage(
                 items={[
                   {
                     key: "fo-lane",
-                    label: primaryHandoff ? "FO supports BO" : "Stay in FO",
+                    label: primaryHandoff
+                      ? "Front Office supports Back Office"
+                      : "Stay in Front Office",
                     tone: "accent",
                     title: primaryHandoff
                       ? "Daily coordination still stays in Front Office"
@@ -772,7 +774,7 @@ export default async function AgentClientDetailPage(
                     key: "bo-lane",
                     label: primaryHandoff
                       ? primaryHandoff.statusLabel
-                      : "BO later",
+                      : "Back Office later",
                     tone: primaryHandoff ? primaryHandoff.tone : "warning",
                     title: primaryHandoff
                       ? "Formal milestones stay on the Back Office record"
@@ -963,7 +965,9 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "bo-lane",
-                  label: primaryHandoff ? "BO live" : "BO later",
+                  label: primaryHandoff
+                    ? "Back Office live"
+                    : "Back Office later",
                   tone: primaryHandoff ? primaryHandoff.tone : "warning",
                   title: primaryHandoff
                     ? "The deal file stays in Back Office once terms turn formal"
@@ -1059,14 +1063,14 @@ export default async function AgentClientDetailPage(
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="where this client currently sits across FO prep and the shared BO offer file"
+                hint="where this client currently sits across Front Office prep and the shared Back Office offer file"
                 label="Deal stage"
                 tone="accent"
                 value={snapshot.negotiation.boundaryLabel}
               />
               <StatCard
                 hint="formal Back Office offer records already tracked in the linked transaction"
-                label="BO offers"
+                label="Back Office offers"
                 value={snapshot.negotiation.offerCount}
               />
               <StatCard
@@ -1161,7 +1165,7 @@ export default async function AgentClientDetailPage(
                         className="office-inline-link"
                         href={offer.href}
                       >
-                        Open BO offer
+                        Open Back Office offer
                       </FrontOfficeLink>
                     }
                     badgeLabel={offer.statusLabel}
@@ -1216,14 +1220,14 @@ export default async function AgentClientDetailPage(
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="where this client currently sits across FO prep and the live BO contract file"
+                hint="where this client currently sits across Front Office prep and the live Back Office contract file"
                 label="Contract stage"
                 tone="accent"
                 value={snapshot.inspection.boundaryLabel}
               />
               <StatCard
-                hint="open checklist work already living on the shared BO transaction"
-                label="BO open tasks"
+                hint="open checklist work already living on the shared Back Office transaction"
+                label="Back Office open tasks"
                 value={snapshot.inspection.openTaskCount}
               />
               <StatCard
@@ -1232,7 +1236,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.inspection.pendingSignatureCount}
               />
               <StatCard
-                hint="incoming transaction updates still waiting on BO review"
+                hint="incoming transaction updates still waiting on Back Office review"
                 label="Review queue"
                 value={snapshot.inspection.pendingIncomingUpdateCount}
               />
@@ -1296,7 +1300,9 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "bo-lane",
-                  label: primaryHandoff ? "BO live" : "BO required",
+                  label: primaryHandoff
+                    ? "Back Office live"
+                    : "Back Office required",
                   tone: primaryHandoff ? primaryHandoff.tone : "warning",
                   title: "Formal contract work stays in Back Office",
                   description:
@@ -1468,7 +1474,9 @@ export default async function AgentClientDetailPage(
                 },
                 {
                   key: "bo-lane",
-                  label: primaryHandoff ? "BO record" : "BO source of truth",
+                  label: primaryHandoff
+                    ? "Back Office record"
+                    : "Back Office source of truth",
                   tone: primaryHandoff ? primaryHandoff.tone : "accent",
                   title: "The formal deal status still lives in Back Office",
                   description:
@@ -1822,7 +1830,7 @@ export default async function AgentClientDetailPage(
                   key: "bo-status",
                   label: primaryHandoff
                     ? primaryHandoff.statusLabel
-                    : "BO not active",
+                    : "Back Office not active",
                   tone: primaryHandoff?.tone ?? "neutral",
                   title: primaryHandoff
                     ? `${primaryHandoff.stageLabel} is the current formal workflow`

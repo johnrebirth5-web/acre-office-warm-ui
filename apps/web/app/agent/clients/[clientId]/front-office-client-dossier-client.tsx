@@ -570,9 +570,7 @@ export function FrontOfficeClientDossierClient(
             description: sectionFocus.description,
             context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
             meta: (
-              <span>
-                Section link · {sectionFocus.href.replace(/^#/, "")}
-              </span>
+              <span>Section link · {sectionFocus.href.replace(/^#/, "")}</span>
             ),
             actions: [
               {
@@ -702,7 +700,7 @@ export function FrontOfficeClientDossierClient(
             </FormField>
 
             <FormField
-              helper="Recommended so stale pressure and the next-touch rail stay honest."
+              helper="Recommended so stale pressure and the next-touch summary stay honest."
               label="Due date"
             >
               <TextInput
@@ -788,8 +786,8 @@ export function FrontOfficeClientDossierClient(
               <strong>Needs action now</strong>
               <p>
                 These tasks are overdue, undated, or otherwise driving the live
-                workflow pressure. Clear them first so the next-touch rail stays
-                honest.
+                workflow pressure. Clear them first so the next-touch summary
+                stays honest.
               </p>
             </div>
             <div className="office-queue-list">
@@ -848,7 +846,7 @@ export function FrontOfficeClientDossierClient(
                                   void handleTaskUpdate(
                                     task.id,
                                     { status: "queued" },
-                                    "Follow-up moved back to the queued lane.",
+                                    "Follow-up moved back to the queued list.",
                                   )
                                 }
                                 size="sm"
@@ -1026,7 +1024,7 @@ export function FrontOfficeClientDossierClient(
                                   void handleTaskUpdate(
                                     task.id,
                                     { status: "queued" },
-                                    "Follow-up moved back to the queued lane.",
+                                    "Follow-up moved back to the queued list.",
                                   )
                                 }
                                 size="sm"
@@ -1152,7 +1150,8 @@ export function FrontOfficeClientDossierClient(
               <strong>Recently resolved</strong>
               <p>
                 Keep the last completed or canceled tasks visible here so the
-                next touch does not repeat work this client record already closed.
+                next touch does not repeat work this client record already
+                closed.
               </p>
             </div>
             <div className="office-queue-list">

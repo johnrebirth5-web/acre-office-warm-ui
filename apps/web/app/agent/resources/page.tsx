@@ -827,7 +827,7 @@ export default async function AgentResourcesPage(props: {
                     <p style={subsectionIntroStyle}>
                       Featured and quick-contact vendors stay at the front so an
                       agent can call, email, or open a site without breaking the
-                      FO flow.
+                      Front Office workflow.
                     </p>
                   </div>
                   {snapshot.vendors.length ? (
@@ -1015,7 +1015,7 @@ export default async function AgentResourcesPage(props: {
                 title="Vendor posture"
               />
               <FrontOfficeRailItem
-                badgeLabel="FO / BO"
+                badgeLabel="Front Office / Back Office"
                 badgeTone="warning"
                 description="Use this hub to open the material, but keep signing, accounting, and archival work in Back Office so the record stays clean."
                 title="Back Office work stays in Back Office"
@@ -1256,7 +1256,7 @@ export default async function AgentResourcesPage(props: {
 
               <ListPageStatsGrid>
                 <StatCard
-                  hint="members in the visible FO scope"
+                  hint="members in the visible Front Office scope"
                   label="Visible members"
                   value={sharedTracking.visibleMembershipCount}
                 />
@@ -1442,7 +1442,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Vendor"
                 badgeTone="warning"
-                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same FO hub, so partner touch shows up in the same signal mix as search, open, and progress work."
+                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same Front Office hub, so partner touch shows up in the same signal mix as search, open, and progress work."
                 meta={
                   <>
                     <span>
