@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`Listing Studio` 是 Acre 的第三个 workspace，面向 agent 处理“外部房源采集 -> 客户材料整理 -> 分享 / PDF / 海报模板导出”的链路。
+`Listing Studio` 是 Acre `Front Office` 下的 listings-output 模块，面向 agent 处理“外部房源采集 -> 客户材料整理 -> 分享 / PDF / 海报模板导出”的链路。
 
 它不是现有 FO curated listing，也不是 BO internal listing admin。它的真源来自 `StreetEasy / Zillow` 等外部房源详情页，以及 Chrome Extension 在页面内发起的一键保存动作。
 
@@ -10,7 +10,7 @@
 
 ### Included in v1
 
-- 独立 workspace：
+- `Front Office` 内的 studio 路由入口：
   - `/listing-studio/dashboard`
   - `/listing-studio/listings`
   - `/listing-studio/listings/[packId]`
@@ -101,9 +101,9 @@
 7. background worker 使用 Acre extension token 调用 `/api/listing-studio/imports`
 8. 服务端同步创建 import、snapshot、assets、pack
 9. 浮层进入 success 状态，显示 `Saved to Listing Studio` 和 `Open in Acre`
-10. agent 回到 `/listing-studio/listings` 时，可立即看到新的 listing card
+10. agent 回到 `Front Office -> Studio` 列表时，可立即看到新的 listing card（当前兼容路径仍为 `/listing-studio/listings`）
 
-## Workspace structure
+## Module structure
 
 ### Dashboard
 
@@ -166,7 +166,7 @@
 
 用于：
 
-- 打开 `Listing Studio` 页面
+- 打开 `Front Office` 内的 `Listing Studio` 页面
 - 编辑 pack
 - 发布 share
 - 下载 PDF
@@ -234,7 +234,7 @@
 ## UI contract
 
 - 视觉语言跟随 Acre BO / FO，而不是另起品牌
-- `Listing Studio` 是独立 workspace，但仍复用 Acre shell、button、card、stat、input 体系
+- `Listing Studio` 不再作为第三个独立 workspace 暴露给用户，而是挂在 `Front Office` shell 与侧边导航内
 - 详情页可以比 BO 更图片驱动，但 spacing、radius、标题层级和交互反馈保持 Acre 一致
 - public share 页和 PDF 可以更偏展示，但不能和后台彻底脱节
 - poster output should keep the agent contact block and scan path readable in preview, print, and downloaded HTML, not only inside the editor shell

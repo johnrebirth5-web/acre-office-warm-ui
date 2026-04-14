@@ -135,17 +135,20 @@ Trade-off：
 - 其他模块现在看起来相对轻
 - 这是因为 listings 会成为后续很多功能的上游数据源
 
-## 关键决策 6.5：`Listing Studio` 作为第三个 workspace 独立出来，而不是塞进现有 FO / BO listings
+## 关键决策 6.5：`Listing Studio` 保持独立数据域，但产品入口收口到 `Front Office`
 
 原因：
 
 - 用户要的主体验是“在 `StreetEasy / Zillow` 页面内一键保存到 Acre”，而不是在现有 FO `/agent/listings` 或 BO `/office/listings` 里手动贴链接导入
 - `Listing Studio` 处理的是“外部房源抓取、原始页面快照、客户版整理材料”，语义上不同于当前 FO curated listing 和 BO internal listing admin
+- 但产品层已经把它归入 `Front Office -> Listings / External Output`，继续把它放成第三个 workspace 会让 agent 端工作区切换和信息架构割裂
 - 如果直接复用现有 listing 表和页面，会把“外部抓取事实层”和“内部可编辑 marketing listing”混在一起，后续很难收敛
 
 影响：
 
-- 当前新增第三个 workspace：`/listing-studio/*`
+- `Listing Studio` 继续保留独立数据模型、权限组和 `/listing-studio/*` 兼容路由
+- 但前端壳层和导航现在收口到 `Front Office`，不再把 `Listing Studio` 当成第三个 workspace 暴露给用户
+- `Back Office` 的 workspace switcher 只指向 `Front Office`；进入 FO 后再从侧边导航进入 `Studio`
 - 数据层新增独立模型：
   - `StudioListingImport`
   - `StudioListingSnapshot`
@@ -156,8 +159,8 @@ Trade-off：
 
 Trade-off：
 
-- 导航、权限、数据模型都比“复用已有 listing 模块”更重
-- 但这样能把源站抓取事实、客户版 pack、公开分享和未来 `Poster Studio / Collections` 的边界一次理顺
+- 路由前缀、权限和数据模型仍然比“完全塞回 FO listings 页面”更重
+- 但这样能保住源站抓取事实、客户版 pack、公开分享和未来 `Poster Studio / Collections` 的边界，同时让 agent 的日常入口回到统一的 `Front Office`
 
 ## 关键决策 6.6：Chrome Extension 使用 Acre challenge + extension token，不借网页登录 cookie
 

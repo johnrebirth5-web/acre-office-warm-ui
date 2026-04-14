@@ -152,11 +152,7 @@ export const zhCNMessages = {
     shortcuts: {
       frontOffice: {
         label: "Front Office",
-        description: "客户、外联、日历和主动跟进",
-      },
-      listingStudio: {
-        label: "Listing Studio",
-        description: "保存房源、分享链接和 PDF 输出",
+        description: "客户、外联、日历、studio 输出与主动跟进",
       },
     },
   },
@@ -172,14 +168,11 @@ export const zhCNMessages = {
       clients: "客户",
       calendar: "日历",
       listings: "房源",
+      studio: "Studio",
       activity: "动态",
       resources: "资源",
     },
     shortcuts: {
-      listingStudio: {
-        label: "Listing Studio",
-        description: "抓取房源资料、生成客户可读输出，并管理外发材料",
-      },
       backOffice: {
         label: "Back Office",
         description: "交易、签名、财务与正式交接工作流",

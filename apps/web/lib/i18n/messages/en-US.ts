@@ -154,11 +154,7 @@ export const enUSMessages = {
     shortcuts: {
       frontOffice: {
         label: "Front Office",
-        description: "Clients, outreach, calendar, and active follow-up",
-      },
-      listingStudio: {
-        label: "Listing Studio",
-        description: "Saved listings, sharing, and PDF exports",
+        description: "Clients, outreach, calendar, studio outputs, and active follow-up",
       },
     },
   },
@@ -174,15 +170,11 @@ export const enUSMessages = {
       clients: "Clients",
       calendar: "Calendar",
       listings: "Listings",
+      studio: "Studio",
       activity: "Activity",
       resources: "Resources",
     },
     shortcuts: {
-      listingStudio: {
-        label: "Listing Studio",
-        description:
-          "Capture listings, client-ready exports, and outbound materials",
-      },
       backOffice: {
         label: "Back Office",
         description:

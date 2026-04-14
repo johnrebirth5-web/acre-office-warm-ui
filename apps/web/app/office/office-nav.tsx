@@ -268,11 +268,6 @@ export function OfficeNav({
           label: t((messages) => messages.officeNav.shortcuts.frontOffice.label),
           description: t((messages) => messages.officeNav.shortcuts.frontOffice.description),
         },
-        {
-          href: "/listing-studio/dashboard",
-          label: t((messages) => messages.officeNav.shortcuts.listingStudio.label),
-          description: t((messages) => messages.officeNav.shortcuts.listingStudio.description),
-        },
       ]}
     />
   );

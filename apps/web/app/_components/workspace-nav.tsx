@@ -219,7 +219,10 @@ export function WorkspaceNav({
       );
     }
 
-    return effectiveLocation.path === path;
+    return (
+      effectiveLocation.path === path ||
+      effectiveLocation.path.startsWith(`${path}/`)
+    );
   }
 
   function isMobileSectionActive(href: string) {

@@ -17,6 +17,7 @@ export function AgentNav() {
         { href: "/agent/clients", label: t((messages) => messages.agentNav.items.clients) },
         { href: "/agent/calendar", label: t((messages) => messages.agentNav.items.calendar) },
         { href: "/agent/listings", label: t((messages) => messages.agentNav.items.listings) },
+        { href: "/listing-studio/dashboard", label: t((messages) => messages.agentNav.items.studio) },
         { href: "/agent/notifications", label: t((messages) => messages.agentNav.items.activity) },
         { href: "/agent/resources", label: t((messages) => messages.agentNav.items.resources) },
       ],
@@ -35,11 +36,6 @@ export function AgentNav() {
       switcherClassName="agent-company-switcher"
       switcherLabel={t((messages) => messages.agentNav.switcherLabel)}
       switcherShortcuts={[
-        {
-          href: "/listing-studio/dashboard",
-          label: t((messages) => messages.agentNav.shortcuts.listingStudio.label),
-          description: t((messages) => messages.agentNav.shortcuts.listingStudio.description),
-        },
         {
           href: "/office/dashboard",
           label: t((messages) => messages.agentNav.shortcuts.backOffice.label),

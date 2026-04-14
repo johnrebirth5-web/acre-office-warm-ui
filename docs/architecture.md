@@ -2,7 +2,7 @@
 
 ## 概览
 
-当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，主线 `Office / Front Office / Listing Studio` 页面已大幅切到真实 Prisma 数据，但仍保留少量 legacy demo helper”的阶段。
+当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，主线 `Office / Front Office` 页面（其中已包含 `Listing Studio` 模块）已大幅切到真实 Prisma 数据，但仍保留少量 legacy demo helper”的阶段。
 
 更准确地说：
 
@@ -235,6 +235,7 @@
   - `/listing-studio/listings/[packId]`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
+  - 页面入口虽仍保留 `listing-studio` 路由前缀，但当前已挂到 `Front Office` workspace shell 中，而不是单独第三个 workspace
   - 核心复用：
     - `StudioListingImport / Snapshot / Asset / Pack / ShareEvent`
     - `StudioListingExtensionToken / StudioListingExtensionChallenge`
