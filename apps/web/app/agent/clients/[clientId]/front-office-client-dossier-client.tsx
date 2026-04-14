@@ -19,7 +19,6 @@ import {
 } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import {
-  FrontOfficeClientActionGroup,
   FrontOfficeClientGuidanceQueue,
   frontOfficeClientDossierSectionIds,
 } from "./front-office-client-dossier-shared";
@@ -352,17 +351,9 @@ export function FrontOfficeClientDossierClient(
         label: props.snapshot.followUpCue.action.label,
         opensInNewTab: props.snapshot.followUpCue.action.opensInNewTab,
       };
-  const primaryRailActions = [
-    {
-      href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
-      label: "Open current section",
-    },
-    {
-      href: props.snapshot.nextStepRail.primaryActionHref,
-      label: props.snapshot.nextStepRail.primaryActionLabel,
-      opensInNewTab: props.snapshot.nextStepRail.primaryActionOpensInNewTab,
-    },
-  ];
+  const showSectionFocus =
+    Boolean(sectionHash) &&
+    sectionHash !== `#${frontOfficeClientDossierSectionIds.nextStepRail}`;
 
   useEffect(() => {
     setFormState(buildEmptyFormState(props.suggestedFollowUp));
@@ -562,27 +553,33 @@ export function FrontOfficeClientDossierClient(
     <div className="office-list-page-stack">
       <FrontOfficeClientGuidanceQueue
         items={[
-          {
-            key: "section-focus",
-            label: "Re-entry focus",
-            tone: "accent",
-            title: `You're back in ${sectionFocus.label}`,
-            description: sectionFocus.description,
-            context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
-            meta: (
-              <span>Section link · {sectionFocus.href.replace(/^#/, "")}</span>
-            ),
-            actions: [
-              {
-                href: sectionFocus.href,
-                label: `Review ${sectionFocus.label}`,
-              },
-              {
-                href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
-                label: "Jump to next steps",
-              },
-            ],
-          },
+          ...(showSectionFocus
+            ? [
+                {
+                  key: "section-focus",
+                  label: "Re-entry focus",
+                  tone: "accent" as const,
+                  title: `You're back in ${sectionFocus.label}`,
+                  description: sectionFocus.description,
+                  context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
+                  meta: (
+                    <span>
+                      Section link · {sectionFocus.href.replace(/^#/, "")}
+                    </span>
+                  ),
+                  actions: [
+                    {
+                      href: sectionFocus.href,
+                      label: `Review ${sectionFocus.label}`,
+                    },
+                    {
+                      href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
+                      label: "Jump to next steps",
+                    },
+                  ],
+                },
+              ]
+            : []),
           {
             key: "workflow",
             label: props.snapshot.workflow.pressureLabel,
@@ -608,15 +605,6 @@ export function FrontOfficeClientDossierClient(
             ),
             actions: [followUpCueAction],
           },
-          {
-            key: "boundary",
-            label: props.snapshot.nextStepRail.decisionLabel,
-            tone: props.snapshot.nextStepRail.decisionTone,
-            title: props.snapshot.nextStepRail.decisionTitle,
-            description: props.snapshot.nextStepRail.decisionDescription,
-            meta: <span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>,
-            actions: primaryRailActions,
-          },
         ]}
       />
 
@@ -640,19 +628,13 @@ export function FrontOfficeClientDossierClient(
           label="Next touch"
           value={props.snapshot.followUpCue.dueLabel}
         />
-        <StatCard
-          hint="active follow-up tasks that should land within the next 7 days"
-          label="Due this week"
-          value={props.snapshot.summary.dueSoonTaskCount}
-        />
       </ListPageStatsGrid>
 
       <div className="front-office-placeholder-note">
         <strong>Create or reset the next touch</strong>
         <p>
-          Keep this in Front Office even when a formal Back Office record
-          exists. The goal here is to make the next client move explicit,
-          without recreating formal transaction or admin work.
+          Keep the next client move explicit here without rebuilding formal
+          transaction work somewhere else.
         </p>
         {props.suggestedFollowUp?.sourceLabel ? (
           <p className="front-office-calendar-feedback is-success">
@@ -662,7 +644,6 @@ export function FrontOfficeClientDossierClient(
         <div className="list-row-meta front-office-record-meta">
           <span>{props.snapshot.workflow.pressureLabel}</span>
           <span>{props.snapshot.followUpCue.label}</span>
-          <span>{props.snapshot.leaseReminder.statusLabel}</span>
           <span>{props.snapshot.nextStepRail.decisionLabel}</span>
         </div>
         {quickTemplates.length ? (
@@ -765,15 +746,6 @@ export function FrontOfficeClientDossierClient(
             ) : null}
           </div>
         </form>
-      </div>
-
-      <div className="front-office-placeholder-note">
-        <strong>Follow-up queue</strong>
-        <p>
-          Completing or rescheduling tasks here updates the same Front Office
-          next-touch clock. Offer, contract, signature, and other formal admin
-          work still belongs on the shared Back Office record.
-        </p>
       </div>
 
       <div
@@ -960,179 +932,189 @@ export function FrontOfficeClientDossierClient(
         ) : null}
 
         {upcomingTasks.length ? (
-          <div className="office-list-page-stack">
-            <div className="front-office-placeholder-note">
-              <strong>Queued next touches</strong>
-              <p>
-                These follow-ups already have working dates. Keep them visible,
-                but spend most of your time on the urgent block above.
-              </p>
-            </div>
-            <div className="office-queue-list">
-              {upcomingTasks.map((task) => {
-                const isEditing = editingTaskId === task.id;
+          <details
+            className="front-office-client-disclosure"
+            open={!urgentTasks.length}
+          >
+            <summary className="front-office-client-disclosure-summary">
+              <div className="front-office-client-disclosure-copy">
+                <strong>Queued next touches</strong>
+                <span>
+                  These follow-ups already have working dates. Keep them close,
+                  but spend most of your time on the urgent block above.
+                </span>
+              </div>
+              <span className="front-office-client-disclosure-action">
+                {upcomingTasks.length} queued
+              </span>
+            </summary>
+            <div className="front-office-client-disclosure-body">
+              <div className="office-queue-list">
+                {upcomingTasks.map((task) => {
+                  const isEditing = editingTaskId === task.id;
 
-                return (
-                  <QueueItem
-                    action={
-                      <div className="front-office-follow-up-actions">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              disabled={isBusy || !taskDraft.title.trim()}
-                              onClick={() => void handleTaskEditSave(task.id)}
-                              size="sm"
-                              type="button"
-                              variant="secondary"
-                            >
-                              {activeTaskId === task.id ? "Saving..." : "Save"}
-                            </Button>
-                            <Button
-                              disabled={isBusy}
-                              onClick={() => cancelTaskEdit()}
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Cancel
-                            </Button>
-                          </>
+                  return (
+                    <QueueItem
+                      action={
+                        <div className="front-office-follow-up-actions">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                disabled={isBusy || !taskDraft.title.trim()}
+                                onClick={() => void handleTaskEditSave(task.id)}
+                                size="sm"
+                                type="button"
+                                variant="secondary"
+                              >
+                                {activeTaskId === task.id ? "Saving..." : "Save"}
+                              </Button>
+                              <Button
+                                disabled={isBusy}
+                                onClick={() => cancelTaskEdit()}
+                                size="sm"
+                                type="button"
+                                variant="ghost"
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              {task.statusValue !== "in_progress" ? (
+                                <Button
+                                  disabled={isBusy}
+                                  onClick={() =>
+                                    void handleTaskUpdate(
+                                      task.id,
+                                      { status: "in_progress" },
+                                      "Follow-up moved into in-progress work.",
+                                    )
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  {activeTaskId === task.id
+                                    ? "Saving..."
+                                    : "Start now"}
+                                </Button>
+                              ) : (
+                                <Button
+                                  disabled={isBusy}
+                                  onClick={() =>
+                                    void handleTaskUpdate(
+                                      task.id,
+                                      { status: "queued" },
+                                      "Follow-up moved back to the queued list.",
+                                    )
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  {activeTaskId === task.id
+                                    ? "Saving..."
+                                    : "Back to queued"}
+                                </Button>
+                              )}
+                              <Button
+                                disabled={isBusy}
+                                onClick={() =>
+                                  void handleTaskUpdate(
+                                    task.id,
+                                    { status: "completed" },
+                                    "Follow-up completed. Workflow pressure has been recalculated.",
+                                  )
+                                }
+                                size="sm"
+                                type="button"
+                                variant="secondary"
+                              >
+                                {activeTaskId === task.id
+                                  ? "Saving..."
+                                  : "Mark complete"}
+                              </Button>
+                              <Button
+                                disabled={isBusy}
+                                onClick={() =>
+                                  void handleTaskUpdate(
+                                    task.id,
+                                    { dueAt: shiftDateValue(task.dueAtValue, 7) },
+                                    "Follow-up pushed out by one week.",
+                                  )
+                                }
+                                size="sm"
+                                type="button"
+                                variant="ghost"
+                              >
+                                Next week
+                              </Button>
+                              <Button
+                                disabled={isBusy}
+                                onClick={() => startTaskEdit(task)}
+                                size="sm"
+                                type="button"
+                                variant="ghost"
+                              >
+                                Edit
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      }
+                      badgeLabel={task.statusLabel}
+                      badgeTone={task.tone}
+                      context={task.queueLabel}
+                      description={task.dueLabel}
+                      key={task.id}
+                      meta={
+                        isEditing ? (
+                          <div className="office-list-page-stack">
+                            <div className="list-row-meta front-office-record-meta">
+                              <span>{task.helperLabel}</span>
+                              <span>Created {task.createdAtLabel}</span>
+                              <span>Updated {task.updatedAtLabel}</span>
+                            </div>
+                            <div className="office-form-grid">
+                              <FormField
+                                className="office-form-grid-span-2"
+                                helper="Keep the action title direct so the queue stays readable."
+                                label="Edit task title"
+                              >
+                                <TextInput
+                                  name="title"
+                                  onChange={handleTaskDraftChange}
+                                  value={taskDraft.title}
+                                />
+                              </FormField>
+                              <FormField
+                                helper="Clear the date if you need to reset the next-touch timing."
+                                label="Edit due date"
+                              >
+                                <TextInput
+                                  name="dueAt"
+                                  onChange={handleTaskDraftChange}
+                                  type="date"
+                                  value={taskDraft.dueAt}
+                                />
+                              </FormField>
+                            </div>
+                          </div>
                         ) : (
-                          <>
-                            {task.statusValue !== "in_progress" ? (
-                              <Button
-                                disabled={isBusy}
-                                onClick={() =>
-                                  void handleTaskUpdate(
-                                    task.id,
-                                    { status: "in_progress" },
-                                    "Follow-up moved into in-progress work.",
-                                  )
-                                }
-                                size="sm"
-                                type="button"
-                                variant="ghost"
-                              >
-                                {activeTaskId === task.id
-                                  ? "Saving..."
-                                  : "Start now"}
-                              </Button>
-                            ) : (
-                              <Button
-                                disabled={isBusy}
-                                onClick={() =>
-                                  void handleTaskUpdate(
-                                    task.id,
-                                    { status: "queued" },
-                                    "Follow-up moved back to the queued list.",
-                                  )
-                                }
-                                size="sm"
-                                type="button"
-                                variant="ghost"
-                              >
-                                {activeTaskId === task.id
-                                  ? "Saving..."
-                                  : "Back to queued"}
-                              </Button>
-                            )}
-                            <Button
-                              disabled={isBusy}
-                              onClick={() =>
-                                void handleTaskUpdate(
-                                  task.id,
-                                  { status: "completed" },
-                                  "Follow-up completed. Workflow pressure has been recalculated.",
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="secondary"
-                            >
-                              {activeTaskId === task.id
-                                ? "Saving..."
-                                : "Mark complete"}
-                            </Button>
-                            <Button
-                              disabled={isBusy}
-                              onClick={() =>
-                                void handleTaskUpdate(
-                                  task.id,
-                                  { dueAt: shiftDateValue(task.dueAtValue, 7) },
-                                  "Follow-up pushed out by one week.",
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Next week
-                            </Button>
-                            <Button
-                              disabled={isBusy}
-                              onClick={() => startTaskEdit(task)}
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Edit
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    }
-                    badgeLabel={task.statusLabel}
-                    badgeTone={task.tone}
-                    context={task.queueLabel}
-                    description={task.dueLabel}
-                    key={task.id}
-                    meta={
-                      isEditing ? (
-                        <div className="office-list-page-stack">
                           <div className="list-row-meta front-office-record-meta">
                             <span>{task.helperLabel}</span>
                             <span>Created {task.createdAtLabel}</span>
                             <span>Updated {task.updatedAtLabel}</span>
                           </div>
-                          <div className="office-form-grid">
-                            <FormField
-                              className="office-form-grid-span-2"
-                              helper="Keep the action title direct so the queue stays readable."
-                              label="Edit task title"
-                            >
-                              <TextInput
-                                name="title"
-                                onChange={handleTaskDraftChange}
-                                value={taskDraft.title}
-                              />
-                            </FormField>
-                            <FormField
-                              helper="Clear the date if you need to reset the next-touch timing."
-                              label="Edit due date"
-                            >
-                              <TextInput
-                                name="dueAt"
-                                onChange={handleTaskDraftChange}
-                                type="date"
-                                value={taskDraft.dueAt}
-                              />
-                            </FormField>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="list-row-meta front-office-record-meta">
-                          <span>{task.helperLabel}</span>
-                          <span>Created {task.createdAtLabel}</span>
-                          <span>Updated {task.updatedAtLabel}</span>
-                        </div>
-                      )
-                    }
-                    title={task.title}
-                  />
-                );
-              })}
+                        )
+                      }
+                      title={task.title}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </details>
         ) : null}
 
         {!orderedActiveTasks.length ? (
@@ -1145,57 +1127,63 @@ export function FrontOfficeClientDossierClient(
         ) : null}
 
         {resolvedTasks.length ? (
-          <div className="office-list-page-stack">
-            <div className="front-office-placeholder-note">
-              <strong>Recently resolved</strong>
-              <p>
-                Keep the last completed or canceled tasks visible here so the
-                next touch does not repeat work this client record already
-                closed.
-              </p>
+          <details className="front-office-client-disclosure">
+            <summary className="front-office-client-disclosure-summary">
+              <div className="front-office-client-disclosure-copy">
+                <strong>Recently resolved</strong>
+                <span>
+                  Keep the latest completed or canceled tasks nearby without
+                  letting history crowd the live queue.
+                </span>
+              </div>
+              <span className="front-office-client-disclosure-action">
+                {resolvedTasks.length} resolved
+              </span>
+            </summary>
+            <div className="front-office-client-disclosure-body">
+              <div className="office-queue-list">
+                {resolvedTasks.map((task) => (
+                  <QueueItem
+                    action={
+                      <div className="front-office-follow-up-actions">
+                        <Button
+                          disabled={isBusy}
+                          onClick={() =>
+                            void handleTaskUpdate(
+                              task.id,
+                              {
+                                status: "queued",
+                                dueAt: shiftDateValue(task.dueAtValue, 1),
+                              },
+                              "Resolved follow-up reopened for a new next touch.",
+                            )
+                          }
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          {activeTaskId === task.id ? "Saving..." : "Reopen"}
+                        </Button>
+                      </div>
+                    }
+                    badgeLabel={task.statusLabel}
+                    badgeTone={task.tone}
+                    context={task.queueLabel}
+                    description={task.dueLabel}
+                    key={task.id}
+                    meta={
+                      <div className="list-row-meta front-office-record-meta">
+                        <span>{task.helperLabel}</span>
+                        <span>Created {task.createdAtLabel}</span>
+                        <span>Updated {task.updatedAtLabel}</span>
+                      </div>
+                    }
+                    title={task.title}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="office-queue-list">
-              {resolvedTasks.map((task) => (
-                <QueueItem
-                  action={
-                    <div className="front-office-follow-up-actions">
-                      <Button
-                        disabled={isBusy}
-                        onClick={() =>
-                          void handleTaskUpdate(
-                            task.id,
-                            {
-                              status: "queued",
-                              dueAt: shiftDateValue(task.dueAtValue, 1),
-                            },
-                            "Resolved follow-up reopened for a new next touch.",
-                          )
-                        }
-                        size="sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        {activeTaskId === task.id ? "Saving..." : "Reopen"}
-                      </Button>
-                    </div>
-                  }
-                  badgeLabel={task.statusLabel}
-                  badgeTone={task.tone}
-                  context={task.queueLabel}
-                  description={task.dueLabel}
-                  key={task.id}
-                  meta={
-                    <div className="list-row-meta front-office-record-meta">
-                      <span>{task.helperLabel}</span>
-                      <span>Created {task.createdAtLabel}</span>
-                      <span>Updated {task.updatedAtLabel}</span>
-                    </div>
-                  }
-                  title={task.title}
-                />
-              ))}
-            </div>
-          </div>
+          </details>
         ) : null}
       </div>
     </div>
