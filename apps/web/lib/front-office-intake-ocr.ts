@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 export type FrontOfficeLeadIntakeOcrProvider = "local_tesseract";
 export type FrontOfficeLeadIntakeOcrProviderChain =
   readonly FrontOfficeLeadIntakeOcrProvider[];
@@ -56,11 +58,17 @@ const FRONT_OFFICE_LEAD_INTAKE_OCR_CAPABILITY: FrontOfficeLeadIntakeOcrCapabilit
     fallbackStory: "transcript_fallback",
   };
 
+const tesseractRequire = createRequire(import.meta.url);
+
 export function resolveFrontOfficeLeadIntakeOcrContract(): FrontOfficeLeadIntakeOcrResolver {
   return {
     capability: FRONT_OFFICE_LEAD_INTAKE_OCR_CAPABILITY,
     selectedProvider: FRONT_OFFICE_LEAD_INTAKE_OCR_PROVIDER_CHAIN[0],
   };
+}
+
+export function resolveFrontOfficeLeadIntakeOcrNodeWorkerPath() {
+  return tesseractRequire.resolve("tesseract.js/src/worker-script/node/index.js");
 }
 
 export function normalizeFrontOfficeLeadIntakeOcrText(value: string) {
@@ -99,7 +107,9 @@ export async function recognizeFrontOfficeLeadIntakeOcrImage(
     recognizeImage ??
     (async (blob: Blob) => {
       const { recognize } = await import("tesseract.js");
-      const { data } = await recognize(blob, "eng+chi_sim");
+      const { data } = await recognize(blob, "eng+chi_sim", {
+        workerPath: resolveFrontOfficeLeadIntakeOcrNodeWorkerPath(),
+      });
       return String(data.text ?? "");
     });
 
