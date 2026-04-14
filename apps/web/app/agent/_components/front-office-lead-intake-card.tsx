@@ -821,7 +821,6 @@ export function FrontOfficeLeadIntakeCard(
   ] = useState<string | null>(null);
   const [assistFeedback, setAssistFeedback] =
     useState<AssistFeedbackState>(null);
-  const [assistProgressMessage, setAssistProgressMessage] = useState("");
   const [isExtractingAssist, setIsExtractingAssist] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [duplicatePreviewCandidates, setDuplicatePreviewCandidates] = useState<
@@ -831,8 +830,6 @@ export function FrontOfficeLeadIntakeCard(
     useState<DuplicatePreviewHydrationState>(
       props.hydrateDuplicatePreviewCandidates ? "idle" : "ready",
     );
-  const [duplicatePreviewHydrationError, setDuplicatePreviewHydrationError] =
-    useState<string | null>(null);
   const assistRunIdRef = useRef(0);
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending || isExtractingAssist;
@@ -852,7 +849,6 @@ export function FrontOfficeLeadIntakeCard(
     setAssistReviewedFieldKeys([]);
     setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback(null);
-    setAssistProgressMessage("");
     setIsExtractingAssist(false);
   }
 
@@ -1065,7 +1061,6 @@ export function FrontOfficeLeadIntakeCard(
     setAssistResult(null);
     setAssistReviewedFieldKeys([]);
     setAssistFeedback(null);
-    setAssistProgressMessage("Extracting key fields...");
     setIsExtractingAssist(true);
 
     const isCurrentRun = () => assistRunIdRef.current === assistRunId;
@@ -1099,7 +1094,6 @@ export function FrontOfficeLeadIntakeCard(
         !response.ok ||
         (!payload?.rawText?.trim() && !payload?.aiExtraction?.fields.length)
       ) {
-        setAssistProgressMessage("");
         setAssistFeedback({
           tone: "error",
           message: [
@@ -1132,18 +1126,6 @@ export function FrontOfficeLeadIntakeCard(
         feedbackParts.push(`${result.reviewFieldCount} need review.`);
       }
 
-      if (result.safeApplyFieldCount > 0) {
-        feedbackParts.push(`${result.safeApplyFieldCount} ready after review.`);
-      }
-
-      if (result.previewOnlyFieldCount > 0) {
-        feedbackParts.push(`${result.previewOnlyFieldCount} kept as preview.`);
-      }
-
-      if (payload.aiExtraction?.model) {
-        feedbackParts.push(`Model: ${payload.aiExtraction.model}.`);
-      }
-
       if (!isCurrentRun()) {
         return;
       }
@@ -1154,7 +1136,6 @@ export function FrontOfficeLeadIntakeCard(
 
       setAssistResult(result);
       setAssistReviewedFieldKeys(autoReviewedFieldKeys);
-      setAssistProgressMessage("");
       setAssistFeedback({
         tone: result.fields.length ? "success" : "neutral",
         message: feedbackParts.join(" "),
@@ -1164,7 +1145,6 @@ export function FrontOfficeLeadIntakeCard(
         return;
       }
 
-      setAssistProgressMessage("");
       setAssistFeedback({
         tone: "error",
         message:
@@ -1273,58 +1253,6 @@ export function FrontOfficeLeadIntakeCard(
   const deferredDuplicatePreviewNeedles = useDeferredValue(
     duplicatePreviewNeedles,
   );
-  const duplicateGateSignals = useMemo(
-    () =>
-      buildDuplicateGateSignals({
-        formState,
-        assistResult,
-        reviewedFieldKeys: assistReviewedFieldKeys,
-      }),
-    [assistResult, assistReviewedFieldKeys, formState],
-  );
-  const pendingDuplicateIdentityAssistCount = useMemo(
-    () =>
-      assistResult?.fields.filter((field) => {
-        if (
-          field.suggestedAction === "preview_only" ||
-          (field.field !== "fullName" &&
-            field.field !== "phone" &&
-            field.field !== "email")
-        ) {
-          return false;
-        }
-
-        const currentValue = formState[field.field as LeadFormFieldKey].trim();
-
-        if (
-          normalizeCompactValue(currentValue) ===
-          normalizeCompactValue(field.value)
-        ) {
-          return false;
-        }
-
-        return true;
-      }).length ?? 0,
-    [assistResult, formState],
-  );
-  const duplicatePreviewSourceSummary = useMemo(() => {
-    const hasLiveFormNeedle = duplicatePreviewNeedles.some(
-      (needle) => needle.sourceLabel === "the current form",
-    );
-    const hasReviewedAssistNeedle = duplicatePreviewNeedles.some(
-      (needle) => needle.sourceLabel === "the assist suggestion",
-    );
-
-    if (hasLiveFormNeedle && hasReviewedAssistNeedle) {
-      return "the live form plus extracted values";
-    }
-
-    if (hasReviewedAssistNeedle) {
-      return "extracted values";
-    }
-
-    return "the live form";
-  }, [duplicatePreviewNeedles]);
   const pendingReviewableAssistCount = useMemo(
     () =>
       assistResult?.fields.filter((field) => {
@@ -1348,8 +1276,6 @@ export function FrontOfficeLeadIntakeCard(
       }).length ?? 0,
     [assistResult, formDefaults, formState, manuallyEditedFields],
   );
-  const shouldShowDuplicatePreviewSurface =
-    duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
   const assistVisibleFields = useMemo(() => {
     if (!assistResult) {
       return [];
@@ -1396,7 +1322,6 @@ export function FrontOfficeLeadIntakeCard(
 
     const controller = new AbortController();
     setDuplicatePreviewHydrationState("loading");
-    setDuplicatePreviewHydrationError(null);
 
     void fetch("/api/clients", {
       signal: controller.signal,
@@ -1428,11 +1353,6 @@ export function FrontOfficeLeadIntakeCard(
         }
 
         setDuplicatePreviewHydrationState("error");
-        setDuplicatePreviewHydrationError(
-          error instanceof Error
-            ? error.message
-            : "Could not load duplicate preview candidates.",
-        );
       });
 
     return () => {
@@ -1452,6 +1372,7 @@ export function FrontOfficeLeadIntakeCard(
       }),
     [deferredDuplicatePreviewNeedles, duplicatePreviewCandidates],
   );
+  const shouldShowDuplicatePreviewSurface = duplicatePreviewMatches.length > 0;
 
   return (
     <SectionCard
@@ -1465,23 +1386,6 @@ export function FrontOfficeLeadIntakeCard(
       title={props.title ?? "Quick lead intake"}
     >
       <div className="front-office-lead-intake-shell">
-        <div className="front-office-lead-intake-copy">
-          <strong>Fast enough for the first call.</strong>
-          <p>
-            Capture only what the next touch needs now: who the lead is, what
-            they want, where they are looking, and when follow-up should happen.
-          </p>
-          <div className="front-office-record-meta">
-            <span>
-              {props.sourceSurface === "dashboard"
-                ? "Dashboard entry"
-                : "Clients page entry"}
-            </span>
-            <span>Creates a real client record</span>
-            <span>Keeps formal Back Office handoff separate</span>
-          </div>
-        </div>
-
         <form
           className="front-office-calendar-form front-office-lead-intake-form"
           onSubmit={handleSubmit}
@@ -1489,26 +1393,16 @@ export function FrontOfficeLeadIntakeCard(
           <div className="front-office-lead-intake-assist">
             <div className="front-office-lead-intake-assist-copy">
               <strong>Quick field extract</strong>
-              <p>
-                Drop in one WeChat screenshot or paste a short chat excerpt.
-                Acre only pulls key fields for review.
-              </p>
-              <div className="front-office-record-meta">
-                <span>Screenshot or transcript</span>
-                <span>Review before apply</span>
-                <span>No auto-create</span>
-              </div>
+              <p>Paste a short chat or drop one screenshot.</p>
             </div>
 
             <div className="office-form-grid front-office-lead-intake-assist-grid">
               <FormField
                 className="office-form-grid-span-2"
                 helper={
-                  assistImage
-                    ? `Selected screenshot: ${assistImage.name}`
-                    : "Optional. PNG / JPG chat screenshots work best."
+                  assistImage ? `Selected screenshot: ${assistImage.name}` : undefined
                 }
-                label="Screenshot OCR upload"
+                label="Screenshot"
               >
                 <input
                   accept="image/*"
@@ -1522,8 +1416,7 @@ export function FrontOfficeLeadIntakeCard(
 
               <FormField
                 className="office-form-grid-span-3"
-                helper="Optional. Paste 3-8 contiguous lines so the lead name, one contact clue, and one workflow clue stay together."
-                label="Transcript or chat text"
+                label="Chat text"
               >
                 <TextareaInput
                   disabled={isBusy}
@@ -1555,13 +1448,8 @@ export function FrontOfficeLeadIntakeCard(
               </Button>
             </div>
 
-            {assistProgressMessage ? (
-              <p className="front-office-calendar-feedback is-neutral">
-                {assistProgressMessage}
-              </p>
-            ) : null}
-
-            {assistFeedback ? (
+            {assistFeedback &&
+            (assistFeedback.tone === "error" || !assistResult?.fields.length) ? (
               <p
                 className={`front-office-calendar-feedback ${
                   assistFeedback.tone === "success"
@@ -1575,24 +1463,10 @@ export function FrontOfficeLeadIntakeCard(
               </p>
             ) : null}
 
-            {!assistResult && !assistImage && !assistTranscript.trim() ? (
-              <EmptyState
-                description="Use one clean screenshot or a short chat excerpt. Acre will only pull key fields into review."
-                title="Extract key fields from chat"
-              />
-            ) : null}
-
             {assistResult ? (
               <div className="front-office-lead-intake-assist-result">
                 <div className="front-office-lead-intake-assist-head">
                   <strong>{assistResult.summaryLabel}</strong>
-                  <div className="front-office-record-meta">
-                    <span>{assistResult.safeApplyFieldCount} ready to fill</span>
-                    <span>{assistResult.reviewFieldCount} need checking</span>
-                    {assistResult.previewOnlyFieldCount > 0 ? (
-                      <span>{assistResult.previewOnlyFieldCount} preview only</span>
-                    ) : null}
-                  </div>
                 </div>
 
                 {assistResult.fields.some(
@@ -1627,16 +1501,21 @@ export function FrontOfficeLeadIntakeCard(
                           <div className="front-office-lead-intake-assist-field-head">
                             <strong>{field.label}</strong>
                             <div className="front-office-lead-intake-assist-field-tags">
-                              <StatusBadge
-                                tone={getAssistFieldConfidenceTone(field)}
-                              >
-                                {field.confidenceLabel}
-                              </StatusBadge>
-                              <StatusBadge
-                                tone={getAssistFieldBadgeTone(field)}
-                              >
-                                {getAssistFieldBadge(field)}
-                              </StatusBadge>
+                              {getAssistFieldConfidenceTone(field) !==
+                              "success" ? (
+                                <StatusBadge
+                                  tone={getAssistFieldConfidenceTone(field)}
+                                >
+                                  {field.confidenceLabel}
+                                </StatusBadge>
+                              ) : null}
+                              {field.suggestedAction === "preview_only" ? (
+                                <StatusBadge
+                                  tone={getAssistFieldBadgeTone(field)}
+                                >
+                                  {getAssistFieldBadge(field)}
+                                </StatusBadge>
+                              ) : null}
                               {matchesSuggestion ? (
                                 <StatusBadge tone="accent">In form</StatusBadge>
                               ) : null}
@@ -1645,13 +1524,15 @@ export function FrontOfficeLeadIntakeCard(
                           <p className="front-office-lead-intake-assist-value">
                             {field.value}
                           </p>
-                          <p className="front-office-lead-intake-assist-note">
-                            {field.evidenceLabel}
-                          </p>
+                          {field.suggestedAction === "preview_only" ||
+                          getAssistFieldConfidenceTone(field) !== "success" ? (
+                            <p className="front-office-lead-intake-assist-note">
+                              {field.evidenceLabel}
+                            </p>
+                          ) : null}
                           {field.suggestedAction === "preview_only" ? (
                             <p className="front-office-lead-intake-assist-note">
-                              Manual only. Copy the useful part into Notes if
-                              you want to keep it.
+                              Keep this in Notes manually if you need it.
                             </p>
                           ) : null}
                           {!matchesSuggestion &&
@@ -1697,8 +1578,8 @@ export function FrontOfficeLeadIntakeCard(
                             <p className="front-office-lead-intake-assist-note">
                               {assistReplaceConfirmationFieldKey ===
                               getAssistFieldReviewKey(field)
-                                ? "Click once more to replace the current form value."
-                                : "Current form value stays until you confirm replace."}
+                                ? "Click again to replace the current value."
+                                : "Current value stays until you confirm replace."}
                             </p>
                           ) : null}
                         </article>
@@ -1720,98 +1601,54 @@ export function FrontOfficeLeadIntakeCard(
             <div className="front-office-duplicate-surface">
               <div className="front-office-duplicate-head">
                 <strong>Possible duplicate</strong>
-                <p>Check the closest existing client before you create a new record.</p>
+                <p>Check this before saving a new client.</p>
               </div>
 
-              <div className="front-office-record-meta">
-                <span>Source: {duplicatePreviewSourceSummary}</span>
-                <span>Compare name, contact info, and stage</span>
-                <span>Save still checks live name, phone, and email</span>
+              <div className="office-queue-list">
+                {duplicatePreviewMatches.map((match) => (
+                  <article
+                    className="office-queue-item"
+                    key={`preview-${match.id}`}
+                  >
+                    <div className="office-queue-item-top">
+                      <strong>{match.fullName}</strong>
+                      <StatusBadge
+                        tone={match.matchStrength >= 4 ? "warning" : "accent"}
+                      >
+                        {match.confidenceLabel}
+                      </StatusBadge>
+                    </div>
+                    <p>
+                      {match.stage} · {match.sourceLabel}
+                    </p>
+                    <div className="front-office-record-meta">
+                      <span>{match.matchReasons.join(" · ")}</span>
+                      <span>{match.nextTouchLabel}</span>
+                    </div>
+                    <div className="front-office-merge-actions">
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={match.href}
+                      >
+                        Review record
+                      </FrontOfficeLink>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={duplicateReviewHref}
+                      >
+                        {duplicateReviewLabel}
+                      </FrontOfficeLink>
+                    </div>
+                  </article>
+                ))}
               </div>
-
-              {duplicatePreviewMatches.length ? (
-                <div className="office-queue-list">
-                  {duplicatePreviewMatches.map((match) => (
-                    <article
-                      className="office-queue-item"
-                      key={`preview-${match.id}`}
-                    >
-                      <div className="office-queue-item-top">
-                        <strong>{match.fullName}</strong>
-                        <StatusBadge
-                          tone={match.matchStrength >= 4 ? "warning" : "accent"}
-                        >
-                          {match.confidenceLabel}
-                        </StatusBadge>
-                      </div>
-                      <p>
-                        {match.stage} · {match.sourceLabel}
-                      </p>
-                      <div className="front-office-record-meta">
-                        <span>{match.matchReasons.join(" · ")}</span>
-                        <span>{match.nextTouchLabel}</span>
-                        <span>Visible Front Office scope</span>
-                      </div>
-                      <div className="front-office-merge-actions">
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={match.href}
-                        >
-                          Review visible record
-                        </FrontOfficeLink>
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={duplicateReviewHref}
-                        >
-                          {duplicateReviewLabel}
-                        </FrontOfficeLink>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  description={
-                    pendingDuplicateIdentityAssistCount > 0
-                      ? "Review name, phone, or email first, then compare the closest visible record."
-                      : "No visible match right now. Save-time duplicate checks still run against the live form."
-                  }
-                  title={
-                    pendingDuplicateIdentityAssistCount > 0
-                      ? "Duplicate preview is waiting on identity"
-                      : "No visible duplicate warning"
-                  }
-                />
-              )}
             </div>
           ) : null}
-
-          {duplicatePreviewHydrationState === "loading" &&
-          deferredDuplicatePreviewNeedles.length ? (
-            <p className="front-office-calendar-feedback is-neutral">
-              Loading visible clients for an early duplicate preview...
-            </p>
-          ) : null}
-
-          {duplicatePreviewHydrationState === "error" &&
-          deferredDuplicatePreviewNeedles.length ? (
-            <p className="front-office-calendar-feedback is-neutral">
-              {duplicatePreviewHydrationError ??
-                "Could not load the visible duplicate preview right now."}
-            </p>
-          ) : null}
-
-          <p className="front-office-calendar-feedback is-neutral">
-            Only fields you apply go into the live form. Nothing auto-creates or auto-sends.
-          </p>
 
           <div className="office-form-grid front-office-lead-intake-grid">
             <FormField
               className="office-form-grid-span-2"
-              helper={
-                fieldErrors.fullName ??
-                "Required. Use the best name you have right now."
-              }
+              helper={fieldErrors.fullName}
               label="Full name"
             >
               <TextInput
@@ -1899,10 +1736,7 @@ export function FrontOfficeLeadIntakeCard(
 
             <FormField
               className="office-form-grid-span-2"
-              helper={
-                fieldErrors.preferredAreas ??
-                "Comma-separated is enough for fast capture."
-              }
+              helper={fieldErrors.preferredAreas}
               label="Preferred areas"
             >
               <TextInput
@@ -1915,10 +1749,7 @@ export function FrontOfficeLeadIntakeCard(
             </FormField>
 
             <FormField
-              helper={
-                fieldErrors.nextFollowUpAt ??
-                "Default is tomorrow so the next-touch queue stays active."
-              }
+              helper={fieldErrors.nextFollowUpAt}
               label="Next follow-up"
             >
               <TextInput
@@ -1932,10 +1763,7 @@ export function FrontOfficeLeadIntakeCard(
 
             <FormField
               className="office-form-grid-span-3"
-              helper={
-                fieldErrors.notes ??
-                "Optional. Capture one concrete detail from the first conversation."
-              }
+              helper={fieldErrors.notes}
               label="Notes"
             >
               <TextareaInput
