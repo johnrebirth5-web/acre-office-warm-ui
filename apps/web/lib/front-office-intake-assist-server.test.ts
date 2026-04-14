@@ -7,6 +7,7 @@ import {
   validateFrontOfficeLeadIntakeAssistServerInput,
 } from "./front-office-intake-assist-server";
 import { resolveFrontOfficeLeadIntakeOcrContract } from "./front-office-intake-ocr";
+import type { FrontOfficeLeadIntakeAiExtraction } from "./front-office-intake-ai";
 
 test("reads intake server form data with transcript and image", () => {
   const formData = new FormData();
@@ -106,6 +107,51 @@ test("combines transcript and server OCR into one hybrid extract", async () => {
     result.rawText,
     "Client text line 1\nClient text line 2\n\nOCR line 1\nOCR line 2\nOCR line 3",
   );
+});
+
+test("prefers OpenAI image extraction before local OCR when the screenshot already yields fields", async () => {
+  let recognizeCalls = 0;
+
+  const result = await extractFrontOfficeLeadIntakeAssistServer({
+    image: new Blob(["fake screenshot bytes"], { type: "image/png" }),
+    recognizeImage: async () => {
+      recognizeCalls += 1;
+      return "OCR should not run";
+    },
+    extractWithOpenAi: async () =>
+      ({
+        provider: "openai",
+        model: "gpt-5.4-mini",
+        fields: [
+          {
+            field: "fullName",
+            value: "Jamie Chen",
+            evidence: "Name shown in the screenshot thread.",
+            provenance: "conversation_inference",
+            explicit: false,
+            riskFlags: [],
+          },
+          {
+            field: "budgetMax",
+            value: "5500",
+            evidence: "Budget up to $5,500.",
+            provenance: "conversation_inference",
+            explicit: false,
+            riskFlags: [],
+          },
+        ],
+      }) satisfies FrontOfficeLeadIntakeAiExtraction,
+  });
+
+  assert.equal(recognizeCalls, 0);
+  assert.equal(result.sourceMode, "image");
+  assert.equal(result.hadImage, true);
+  assert.equal(result.ocrSucceeded, false);
+  assert.equal(result.transcriptFallbackUsed, false);
+  assert.equal(result.metadata.provenance.image.ocrAttempted, false);
+  assert.equal(result.metadata.provenance.image.ocrSucceeded, false);
+  assert.deepEqual(result.metadata.warnings, []);
+  assert.equal(result.rawText, "Name: Jamie Chen\nBudget: 5500");
 });
 
 test("rejects empty payloads before OCR work starts", () => {
@@ -222,6 +268,65 @@ test("uses the transcript as a fallback when OCR fails on a hybrid payload", asy
     ["ocr_failed", "transcript_fallback"],
   );
   assert.equal(result.rawText, "Chat text line 1\nChat text line 2");
+});
+
+test("retries OpenAI after OCR fallback adds readable text for a screenshot-only payload", async () => {
+  let recognizeCalls = 0;
+  const openAiPayloads: string[] = [];
+
+  const result = await extractFrontOfficeLeadIntakeAssistServer({
+    image: new Blob(["fake screenshot bytes"], { type: "image/png" }),
+    recognizeImage: async () => {
+      recognizeCalls += 1;
+      return "Buyer from WeChat. Jamie Chen wants LIC. Budget up to $5,500.";
+    },
+    extractWithOpenAi: async ({ rawText, ocrText }) => {
+      openAiPayloads.push(`${rawText}__OCR__${ocrText}`);
+
+      if (!ocrText) {
+        return null;
+      }
+
+      return {
+        provider: "openai",
+        model: "gpt-5.4-mini",
+        fields: [
+          {
+            field: "fullName",
+            value: "Jamie Chen",
+            evidence: "Jamie Chen wants LIC.",
+            provenance: "conversation_inference",
+            explicit: false,
+            riskFlags: [],
+          },
+        ],
+      };
+    },
+  });
+
+  assert.equal(recognizeCalls, 1);
+  assert.equal(openAiPayloads.length, 2);
+  assert.equal(result.ocrSucceeded, true);
+  assert.equal(result.metadata.provenance.image.ocrAttempted, true);
+  assert.equal(result.metadata.provenance.image.ocrSucceeded, true);
+  assert.equal(
+    result.rawText,
+    "Buyer from WeChat. Jamie Chen wants LIC. Budget up to $5,500.",
+  );
+  assert.deepEqual(result.aiExtraction, {
+    provider: "openai",
+    model: "gpt-5.4-mini",
+    fields: [
+      {
+        field: "fullName",
+        value: "Jamie Chen",
+        evidence: "Jamie Chen wants LIC.",
+        provenance: "conversation_inference",
+        explicit: false,
+        riskFlags: [],
+      },
+    ],
+  });
 });
 
 test("resolves a local-only OCR contract with a single provider chain", () => {

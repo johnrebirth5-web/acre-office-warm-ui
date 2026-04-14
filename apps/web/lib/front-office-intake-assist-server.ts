@@ -386,6 +386,33 @@ async function recognizeFrontOfficeLeadIntakeAssistImage(image: Blob) {
   return recognizeFrontOfficeLeadIntakeOcrImage(image);
 }
 
+async function attemptFrontOfficeLeadIntakeAssistOpenAi(
+  input: Pick<
+    FrontOfficeLeadIntakeAssistServerInput,
+    "image" | "extractWithOpenAi"
+  > & {
+    rawText: string;
+    transcriptText: string;
+    ocrText: string;
+    sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode;
+  },
+) {
+  try {
+    const extractWithOpenAi =
+      input.extractWithOpenAi ?? extractFrontOfficeLeadIntakeWithOpenAi;
+
+    return await extractWithOpenAi({
+      rawText: input.rawText,
+      transcriptText: input.transcriptText,
+      ocrText: input.ocrText,
+      image: input.image ?? null,
+      sourceMode: input.sourceMode,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function extractFrontOfficeLeadIntakeAssistServer(
   input: FrontOfficeLeadIntakeAssistServerInput,
 ): Promise<FrontOfficeLeadIntakeAssistServerResult> {
@@ -393,12 +420,29 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
     input.transcriptText ?? "",
   );
   const hadImage = Boolean(input.image);
+  const sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode =
+    hadImage && transcriptText
+      ? "hybrid"
+      : hadImage
+        ? "image"
+        : "text";
+  const initialRawText = combineAssistText(transcriptText, "");
 
   let ocrText = "";
+  let ocrAttempted = false;
   let ocrSucceeded = false;
-  let transcriptFallbackUsed = false;
+  let aiExtraction = await attemptFrontOfficeLeadIntakeAssistOpenAi({
+    rawText: initialRawText,
+    transcriptText,
+    ocrText: "",
+    image: input.image ?? null,
+    sourceMode,
+    extractWithOpenAi: input.extractWithOpenAi,
+  });
 
-  if (input.image) {
+  if (input.image && !aiExtraction?.fields.length) {
+    ocrAttempted = true;
+
     try {
       const recognizeImage =
         input.recognizeImage ?? recognizeFrontOfficeLeadIntakeAssistImage;
@@ -412,29 +456,19 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
     }
   }
 
-  transcriptFallbackUsed = hadImage && Boolean(transcriptText) && !ocrText;
-  const sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode =
-    hadImage && transcriptText
-      ? "hybrid"
-      : hadImage
-        ? "image"
-        : "text";
+  const transcriptFallbackUsed =
+    ocrAttempted && hadImage && Boolean(transcriptText) && !ocrText;
   const rawText = combineAssistText(transcriptText, ocrText);
-  let aiExtraction: FrontOfficeLeadIntakeAiExtraction | null = null;
 
-  try {
-    const extractWithOpenAi =
-      input.extractWithOpenAi ?? extractFrontOfficeLeadIntakeWithOpenAi;
-
-    aiExtraction = await extractWithOpenAi({
+  if (!aiExtraction?.fields.length && ocrText) {
+    aiExtraction = await attemptFrontOfficeLeadIntakeAssistOpenAi({
       rawText,
       transcriptText,
       ocrText,
       image: input.image ?? null,
       sourceMode,
+      extractWithOpenAi: input.extractWithOpenAi,
     });
-  } catch {
-    aiExtraction = null;
   }
 
   const previewText =
@@ -453,9 +487,9 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
       transcriptText,
       image: input.image ?? null,
       ocr: buildFrontOfficeLeadIntakeOcrMetadata({
-        attempted: hadImage,
+        attempted: ocrAttempted,
         succeeded: ocrSucceeded,
-        fallbackUsed: hadImage && Boolean(transcriptText) && !ocrText,
+        fallbackUsed: transcriptFallbackUsed,
       }),
       transcriptFallbackUsed,
       sourceMode,
