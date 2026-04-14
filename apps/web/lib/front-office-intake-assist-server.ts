@@ -6,6 +6,11 @@ import {
   recognizeFrontOfficeLeadIntakeOcrImage,
   type FrontOfficeLeadIntakeOcrMetadata,
 } from "./front-office-intake-ocr";
+import {
+  buildFrontOfficeLeadIntakeAiPreviewText,
+  extractFrontOfficeLeadIntakeWithOpenAi,
+} from "./front-office-intake-openai";
+import type { FrontOfficeLeadIntakeAiExtraction } from "./front-office-intake-ai";
 
 type FrontOfficeLeadIntakeAssistServerSourceMode =
   | "text"
@@ -65,6 +70,7 @@ type FrontOfficeLeadIntakeAssistServerInput = {
   transcriptText?: string;
   image?: Blob | null;
   recognizeImage?: (image: Blob) => Promise<string>;
+  extractWithOpenAi?: typeof extractFrontOfficeLeadIntakeWithOpenAi;
 };
 
 type FrontOfficeLeadIntakeAssistRouteContext = {
@@ -90,6 +96,7 @@ type FrontOfficeLeadIntakeAssistServerResult = {
   hadImage: boolean;
   ocrSucceeded: boolean;
   transcriptFallbackUsed: boolean;
+  aiExtraction: FrontOfficeLeadIntakeAiExtraction | null;
   metadata: FrontOfficeLeadIntakeAssistServerMetadata;
 };
 
@@ -356,7 +363,7 @@ export async function handleFrontOfficeLeadIntakeAssistServerRoute(
     image: validation.image,
   });
 
-  if (!extraction.rawText) {
+  if (!extraction.rawText && !extraction.aiExtraction?.fields.length) {
     return NextResponse.json(
       {
         error: extraction.hadImage
@@ -406,22 +413,42 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
   }
 
   transcriptFallbackUsed = hadImage && Boolean(transcriptText) && !ocrText;
-  const rawText = combineAssistText(transcriptText, ocrText);
   const sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode =
     hadImage && transcriptText
       ? "hybrid"
       : hadImage
         ? "image"
         : "text";
+  const rawText = combineAssistText(transcriptText, ocrText);
+  let aiExtraction: FrontOfficeLeadIntakeAiExtraction | null = null;
+
+  try {
+    const extractWithOpenAi =
+      input.extractWithOpenAi ?? extractFrontOfficeLeadIntakeWithOpenAi;
+
+    aiExtraction = await extractWithOpenAi({
+      rawText,
+      transcriptText,
+      ocrText,
+      image: input.image ?? null,
+      sourceMode,
+    });
+  } catch {
+    aiExtraction = null;
+  }
+
+  const previewText =
+    !rawText && aiExtraction ? buildFrontOfficeLeadIntakeAiPreviewText(aiExtraction) : rawText;
 
   return {
-    rawText,
+    rawText: previewText,
     sourceMode,
     transcriptText,
     ocrText,
     hadImage,
     ocrSucceeded,
     transcriptFallbackUsed,
+    aiExtraction,
     metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
       transcriptText,
       image: input.image ?? null,
@@ -433,7 +460,7 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
       transcriptFallbackUsed,
       sourceMode,
       warningCodes:
-        !rawText && hadImage ? ["no_readable_text"] : undefined,
+        !previewText && hadImage ? ["no_readable_text"] : undefined,
     }),
   };
 }

@@ -1,3 +1,8 @@
+import type {
+  FrontOfficeLeadIntakeAiFieldSuggestion,
+  FrontOfficeLeadIntakeAiRiskFlag,
+} from "../../../lib/front-office-intake-ai";
+
 export type FrontOfficeLeadIntakeAssistDraft = Partial<{
   fullName: string;
   phone: string;
@@ -536,6 +541,64 @@ function buildConversationContext(
     riskFlags: [...riskFlags],
     cautionLabels,
     speakerNameCandidates,
+  };
+}
+
+function mergeConversationContextWithAiFields(
+  context: ConversationContext,
+  aiFields: FrontOfficeLeadIntakeAiFieldSuggestion[],
+): ConversationContext {
+  if (!aiFields.length) {
+    return context;
+  }
+
+  const aiRiskFlags = uniqueStrings(
+    aiFields.flatMap((field) => field.riskFlags),
+  ) as FrontOfficeLeadIntakeAiRiskFlag[];
+
+  if (!aiRiskFlags.length) {
+    return context;
+  }
+
+  return {
+    hasMultiplePeople:
+      context.hasMultiplePeople || aiRiskFlags.includes("multiple_people"),
+    hasHouseholdContext:
+      context.hasHouseholdContext || aiRiskFlags.includes("household_context"),
+    hasContactOwnerRisk:
+      context.hasContactOwnerRisk ||
+      aiRiskFlags.includes("contact_owner_unclear"),
+    hasSpeakerSwitching:
+      context.hasSpeakerSwitching || aiRiskFlags.includes("speaker_switching"),
+    hasLowSignalText:
+      context.hasLowSignalText || aiRiskFlags.includes("low_signal_extract"),
+    riskFlags: uniqueStrings([
+      ...context.riskFlags,
+      ...aiRiskFlags,
+    ]) as FrontOfficeLeadIntakeAssistRiskFlag[],
+    cautionLabels: uniqueStrings([
+      ...context.cautionLabels,
+      ...buildCautionLabels(
+        aiRiskFlags as FrontOfficeLeadIntakeAssistRiskFlag[],
+      ),
+    ]),
+    speakerNameCandidates: context.speakerNameCandidates,
+  };
+}
+
+function buildParsedValueFromAiField(
+  field: FrontOfficeLeadIntakeAiFieldSuggestion | undefined,
+): ParsedAssistValue | null {
+  if (!field?.value.trim()) {
+    return null;
+  }
+
+  return {
+    value: field.value.trim(),
+    evidence: field.evidence.trim() || field.value.trim(),
+    provenance: field.provenance,
+    explicit: field.explicit,
+    riskFlags: field.riskFlags as FrontOfficeLeadIntakeAssistRiskFlag[],
   };
 }
 
@@ -1739,21 +1802,47 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
   rawText: string;
   sourceMode: IntakeSourceMode;
   now?: Date;
+  prefilledFields?: FrontOfficeLeadIntakeAiFieldSuggestion[];
 }) {
   const now = input.now ?? new Date();
   const normalizedText = normalizeWhitespace(input.rawText);
   const lines = splitMeaningfulLines(normalizedText);
-  const context = buildConversationContext(lines, normalizedText);
+  const aiFieldMap = new Map(
+    (input.prefilledFields ?? []).map((field) => [field.field, field]),
+  );
+  const baseContext = buildConversationContext(lines, normalizedText);
+  const context = mergeConversationContextWithAiFields(
+    baseContext,
+    input.prefilledFields ?? [],
+  );
   const source = parseSource(input.sourceMode, normalizedText);
-  const name = parseName(lines, context);
-  const phone = parsePhone(lines, context);
-  const email = parseEmail(lines, context);
-  const stage = parseStage(normalizedText, lines);
-  const intent = parseIntent(normalizedText, lines);
-  const budgetMax = parseBudgetMax(lines, normalizedText);
-  const preferredAreas = parsePreferredAreas(lines);
-  const nextFollowUpAt = parseNextFollowUpAt(lines, normalizedText, now);
-  const notes = buildNotes(lines, normalizedText, source.value, context);
+  const name =
+    buildParsedValueFromAiField(aiFieldMap.get("fullName")) ??
+    parseName(lines, context);
+  const phone =
+    buildParsedValueFromAiField(aiFieldMap.get("phone")) ??
+    parsePhone(lines, context);
+  const email =
+    buildParsedValueFromAiField(aiFieldMap.get("email")) ??
+    parseEmail(lines, context);
+  const stage =
+    buildParsedValueFromAiField(aiFieldMap.get("stage")) ??
+    parseStage(normalizedText, lines);
+  const intent =
+    buildParsedValueFromAiField(aiFieldMap.get("intent")) ??
+    parseIntent(normalizedText, lines);
+  const budgetMax =
+    buildParsedValueFromAiField(aiFieldMap.get("budgetMax")) ??
+    parseBudgetMax(lines, normalizedText);
+  const preferredAreas =
+    buildParsedValueFromAiField(aiFieldMap.get("preferredAreas")) ??
+    parsePreferredAreas(lines);
+  const nextFollowUpAt =
+    buildParsedValueFromAiField(aiFieldMap.get("nextFollowUpAt")) ??
+    parseNextFollowUpAt(lines, normalizedText, now);
+  const notes =
+    buildParsedValueFromAiField(aiFieldMap.get("notes")) ??
+    buildNotes(lines, normalizedText, source.value, context);
 
   const draft: FrontOfficeLeadIntakeAssistDraft = {
     fullName: name?.value,

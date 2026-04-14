@@ -219,6 +219,7 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
         hadImage: true,
         ocrSucceeded: false,
         transcriptFallbackUsed: true,
+        aiExtraction: null,
         metadata: {
           ocr: {
             capability: {
@@ -282,6 +283,7 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
     hadImage: true,
     ocrSucceeded: false,
     transcriptFallbackUsed: true,
+    aiExtraction: null,
     metadata: {
       ocr: {
         capability: {

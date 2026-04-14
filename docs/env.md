@@ -471,6 +471,18 @@ ACRE_SECURE_COOKIES=false
 - 当前 `db:validate` 脚本里带了一个本地占位格式的连接串，用于在没有真实 secret 的情况下完成 schema 语法校验
 - 这不等于已经接入真实数据库
 
+## 当前可选但按需启用的环境变量
+
+- `OPENAI_API_KEY`
+- `OPENAI_INTAKE_ASSIST_MODEL`
+
+补充说明：
+
+- 当前 `/agent` quick lead intake 的服务端增强版 `OCR / transcript assist` 会在检测到 `OPENAI_API_KEY` 时尝试调用 OpenAI 做结构化字段提取，默认模型为 `gpt-5.4-mini`
+- 该能力仍然保持 `review-first`：只生成待审查建议，不自动创建 lead，不自动发送，不绕过现有 live form
+- 如果 `OPENAI_API_KEY` 未配置、请求失败、或模型没有返回可用字段，当前代码会自动回退到现有本地 OCR + 本地规则提取链路
+- `OPENAI_INTAKE_ASSIST_MODEL` 仅用于覆盖默认模型；未配置时默认走 `gpt-5.4-mini`
+
 ## 暂未实现但未来大概率会新增的环境变量
 
 以下变量当前还不存在于代码里，因此不要提前假设已经接入：
@@ -478,7 +490,6 @@ ACRE_SECURE_COOKIES=false
 - `NEXTAUTH_SECRET` 或同类 auth secret
 - `NEXTAUTH_URL` 或应用 base URL
 - `S3_*` / `R2_*` 对象存储相关变量
-- AI provider key
 - OCR provider key
 - 邮件 / 短信服务 key
 - 第三方地产平台集成 key
@@ -487,8 +498,8 @@ ACRE_SECURE_COOKIES=false
 
 补充说明：
 
-- 当前 `/agent` quick lead intake 的首版 `OCR / transcript assist` 使用浏览器侧 `tesseract.js`，不需要单独的 OCR provider key
-- 因此上面的 `OCR provider key` 仍然属于未来增强项，而不是当前代码已经依赖的配置
+- 当前 `/agent` quick lead intake 仍然不依赖独立 OCR provider key
+- OCR 目前仍以本地 `tesseract.js` 为基础，OpenAI 只参与结构化字段提取，不替代现有 review-first 边界
 
 ## 开发环境建议
 

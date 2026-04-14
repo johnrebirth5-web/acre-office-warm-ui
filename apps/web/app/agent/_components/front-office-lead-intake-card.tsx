@@ -26,6 +26,7 @@ import {
   type FrontOfficeLeadIntakeAssistField,
   type FrontOfficeLeadIntakeAssistResult,
 } from "./front-office-lead-intake-assist";
+import type { FrontOfficeLeadIntakeAiExtraction } from "../../../lib/front-office-intake-ai";
 import {
   buildFrontOfficeLeadDuplicatePreview,
   type FrontOfficeLeadDuplicatePreviewCandidate,
@@ -96,6 +97,7 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   hadImage: boolean;
   ocrSucceeded: boolean;
   transcriptFallbackUsed: boolean;
+  aiExtraction?: FrontOfficeLeadIntakeAiExtraction | null;
   sourceSurface: string | null;
   metadata: {
     ocr: {
@@ -1666,7 +1668,10 @@ export function FrontOfficeLeadIntakeCard(
         return;
       }
 
-      if (!response.ok || !payload?.rawText?.trim()) {
+      if (
+        !response.ok ||
+        (!payload?.rawText?.trim() && !payload?.aiExtraction?.fields.length)
+      ) {
         setAssistProgressMessage("");
         setAssistFeedback({
           tone: "error",
@@ -1684,8 +1689,9 @@ export function FrontOfficeLeadIntakeCard(
       }
 
       const result = extractFrontOfficeLeadIntakeAssist({
-        rawText: payload.rawText,
+        rawText: payload.rawText ?? "",
         sourceMode: payload.sourceMode ?? "text",
+        prefilledFields: payload.aiExtraction?.fields ?? [],
       });
       const feedbackParts: string[] = [];
       const ocrLabel = buildAssistServerOcrLabel(payload.metadata);
@@ -1708,6 +1714,12 @@ export function FrontOfficeLeadIntakeCard(
 
       if (payload.hadImage && payload.ocrSucceeded) {
         feedbackParts.push("Local OCR extracted the screenshot text.");
+      }
+
+      if (payload.aiExtraction?.fields.length) {
+        feedbackParts.push(
+          `OpenAI ${payload.aiExtraction.model} reviewed the intake text and suggested ${payload.aiExtraction.fields.length} field(s).`,
+        );
       }
 
       if (transcriptText) {
