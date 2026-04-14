@@ -30,7 +30,6 @@ import {
   getActivityViewBridgeLabel,
   getActivityViewNextMoveLabel,
   getActivityViewOperatorCue,
-  getActivityViewSectionTargetLabel,
   getActivityViewTriageOrderLabel,
   generalNoticeLaneConfig,
   getActivityViewAnchor,
@@ -877,34 +876,6 @@ export function AgentNotificationsClient({
       ? ""
       : getActivityViewAnchor(activeActivityView)
   }`;
-  const sectionTargetLabel =
-    getActivityViewSectionTargetLabel(activeActivityView);
-  const summaryPanelBlocks = [
-    {
-      key: "focus",
-      label: "Section target",
-      title: activeLaneTab.label,
-      description: `${sectionTargetLabel} · ${currentPassSummaryLabel}`,
-    },
-    {
-      key: "next",
-      label: "Next move",
-      title: activeRouteBridgeLabel,
-      description: getActivityViewNextMoveLabel(activeActivityView),
-    },
-    {
-      key: "route",
-      label: "Lane contract",
-      title: activeLaneTab.sliceLabel,
-      description: `${activeLaneTab.ownerLabel} · ${activeLaneTab.pressureLabel}`,
-    },
-    {
-      key: "operator",
-      label: "Operator cue",
-      title: getActivityViewOperatorCue(activeActivityView),
-      description: getActivityViewTriageOrderLabel(activeActivityView),
-    },
-  ] as const;
   const summaryHighlights = [
     {
       key: "scope",
@@ -914,22 +885,8 @@ export function AgentNotificationsClient({
     {
       key: "route",
       label: "Route",
-      value: "Stable on reopen",
+      value: activeLaneTab.sliceLabel,
     },
-    {
-      key: "triage",
-      label: "Triage order",
-      value: getActivityViewTriageOrderLabel(activeActivityView),
-    },
-    ...(showNotificationControls
-      ? [
-          {
-            key: "personal-notices",
-            label: "Personal notices",
-            value: `${mutableVisibleNotificationIds.length} mutable in this slice`,
-          },
-        ]
-      : []),
     ...(showNotificationControls && unreadVisibleNotificationCount > 0
       ? [
           {
@@ -944,7 +901,7 @@ export function AgentNotificationsClient({
           {
             key: "selection",
             label: "Selection",
-            value: `${selectedVisibleNotificationIds.length} notice(s) selected`,
+            value: `${selectedVisibleNotificationIds.length} selected`,
           },
         ]
       : []),
@@ -1048,93 +1005,6 @@ export function AgentNotificationsClient({
       card.streamKey === "back_office" &&
       cardMatchesReadState(card, activeReadState),
   ).length;
-  const quickFocusShortcuts: ActivityShortcut[] = [
-    {
-      key: "follow-up",
-      label: "Follow-up due",
-      count: followUpShortcutCount,
-      href: buildAgentNotificationsHref({
-        pathname,
-        activityView: "personal_cleanup",
-        cleanupFilter: "follow_up",
-        filter: activeReminderFilter,
-        noticeStreamFilter: activeNoticeStreamFilter,
-        readState: activeReadState,
-        leadershipFilter: activeLeadershipFilter,
-        anchor: "#cleanup-center",
-      }),
-    },
-    {
-      key: "appointment-writeback",
-      label: "Appointment follow-up",
-      count: appointmentWritebackShortcutCount,
-      href: buildAgentNotificationsHref({
-        pathname,
-        activityView: "personal_cleanup",
-        cleanupFilter: "appointment_writeback",
-        filter: activeReminderFilter,
-        noticeStreamFilter: activeNoticeStreamFilter,
-        readState: activeReadState,
-        leadershipFilter: activeLeadershipFilter,
-        anchor: "#cleanup-center",
-      }),
-    },
-    {
-      key: "duplicate-review",
-      label: "Duplicate review",
-      count: duplicateReviewShortcutCount,
-      href: buildDuplicateReviewHref(),
-    },
-    ...(leadershipQueue.visible
-      ? [
-          {
-            key: "team-overdue",
-            label: "Team overdue tasks",
-            count: teamOverdueShortcutCount,
-            href: buildAgentNotificationsHref({
-              pathname,
-              activityView: "team_cleanup",
-              cleanupFilter: activeCleanupFilter,
-              filter: activeReminderFilter,
-              noticeStreamFilter: activeNoticeStreamFilter,
-              readState: activeReadState,
-              leadershipFilter: "overdue_task",
-              anchor: "#team-cleanup-pressure",
-            }),
-          },
-        ]
-      : []),
-    {
-      key: "confirmation-due",
-      label: "Confirmation due",
-      count: confirmationShortcutCount,
-      href: buildAgentNotificationsHref({
-        pathname,
-        activityView: "appointment_reminders",
-        cleanupFilter: activeCleanupFilter,
-        filter: "confirmation_due",
-        noticeStreamFilter: activeNoticeStreamFilter,
-        readState: activeReadState,
-        leadershipFilter: activeLeadershipFilter,
-        anchor: "#appointment-reminder-pressure",
-      }),
-    },
-    {
-      key: "bo-handoff",
-      label: "BO handoff notices",
-      count: backOfficeNoticeShortcutCount,
-      href: buildAgentNotificationsHref({
-        pathname,
-        activityView: "general_notices",
-        cleanupFilter: activeCleanupFilter,
-        filter: activeReminderFilter,
-        noticeStreamFilter: "back_office",
-        readState: activeReadState,
-        leadershipFilter: activeLeadershipFilter,
-        anchor: "#notice-stream",
-      }),
-    },
-  ].filter((shortcut) => shortcut.count > 0);
   const personalCleanupWorkbenchCards: ActivityWorkbenchCard[] =
     personalCleanupTrackConfig.map((track) => {
       const matchingItems =
@@ -1937,17 +1807,6 @@ export function AgentNotificationsClient({
               {currentFocusCount} item(s)
             </StatusBadge>
           </div>
-          <div className={styles.summaryPanelGrid}>
-            {summaryPanelBlocks.map((block) => (
-              <article className={styles.summaryPanelBlock} key={block.key}>
-                <span className={styles.summaryPanelBlockEyebrow}>
-                  {block.label}
-                </span>
-                <strong>{block.title}</strong>
-                <p>{block.description}</p>
-              </article>
-            ))}
-          </div>
           <div className={styles.summaryPanelPills}>
             {summaryHighlights.map((highlight) => (
               <span className={styles.summaryPanelPill} key={highlight.key}>
@@ -2070,29 +1929,6 @@ export function AgentNotificationsClient({
             );
           })}
         </div>
-
-        {quickFocusShortcuts.length ? (
-          <div className={styles.bulkPanel}>
-            <div className={styles.bulkPanelHeader}>
-              <strong>Operator shortcuts</strong>
-              <p>
-                Jump straight into the cleanup, calendar, or notice pass you
-                reopen most often without rebuilding the filters by hand.
-              </p>
-            </div>
-            <div className={styles.bulkPanelActions}>
-              {quickFocusShortcuts.map((shortcut) => (
-                <FrontOfficeLink
-                  className="office-button-secondary office-button-sm"
-                  href={shortcut.href}
-                  key={shortcut.key}
-                >
-                  {shortcut.label} ({shortcut.count})
-                </FrontOfficeLink>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         <FilterBar className="office-notification-filter-grid office-list-filters">
           {showPersonalCleanupSection ? (
