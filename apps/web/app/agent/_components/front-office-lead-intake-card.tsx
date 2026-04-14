@@ -658,7 +658,7 @@ function buildDuplicatePreviewNeedles(input: {
   ) {
     appendNeedle(
       reviewedAssistFullName,
-      "the reviewed assist suggestion",
+      "the assist suggestion",
       getReviewedAssistFieldValue({
         assistResult: input.assistResult,
         reviewedFieldKeys: input.reviewedFieldKeys,
@@ -718,11 +718,6 @@ function buildDuplicateGateSignals(input: {
   for (const field of identityFields ?? []) {
     const fieldKey = field.field as keyof LeadFormState;
     const currentValue = input.formState[fieldKey].trim();
-    const reviewState = input.reviewedFieldKeys.includes(
-      getAssistFieldReviewKey(field),
-    )
-      ? "reviewed in assist"
-      : "still pending review";
 
     if (
       normalizeCompactValue(currentValue) === normalizeCompactValue(field.value)
@@ -733,7 +728,7 @@ function buildDuplicateGateSignals(input: {
     appendSignal(
       field.label,
       field.value,
-      `${field.confidenceLabel.toLowerCase()} suggestion, ${reviewState}`,
+      `${field.confidenceLabel.toLowerCase()} suggestion from the extract`,
     );
   }
 
@@ -902,51 +897,6 @@ export function FrontOfficeLeadIntakeCard(
     }
   }
 
-  function toggleAssistFieldReviewed(field: FrontOfficeLeadIntakeAssistField) {
-    const reviewKey = getAssistFieldReviewKey(field);
-
-    setAssistReplaceConfirmationFieldKey((current) =>
-      current === reviewKey ? null : current,
-    );
-    setAssistReviewedFieldKeys((current) =>
-      current.includes(reviewKey)
-        ? current.filter((entry) => entry !== reviewKey)
-        : [...current, reviewKey],
-    );
-  }
-
-  function handleReviewUnresolvedAssistSections() {
-    if (!assistResult) {
-      return;
-    }
-
-    const reviewableFieldKeys = assistResult.fields
-      .filter(
-        (field) =>
-          field.suggestedAction !== "preview_only" &&
-          normalizeCompactValue(formState[field.field as LeadFormFieldKey]) !==
-            normalizeCompactValue(field.value),
-      )
-      .map((field) => getAssistFieldReviewKey(field));
-
-    if (!reviewableFieldKeys.length) {
-      setAssistFeedback({
-        tone: "neutral",
-        message: "Nothing new is waiting for review right now.",
-      });
-      return;
-    }
-
-    setAssistReviewedFieldKeys((current) => [
-      ...new Set([...current, ...reviewableFieldKeys]),
-    ]);
-    setAssistReplaceConfirmationFieldKey(null);
-    setAssistFeedback({
-      tone: "success",
-      message: `${reviewableFieldKeys.length} field(s) marked reviewed.`,
-    });
-  }
-
   function handleApplyAssistField(field: FrontOfficeLeadIntakeAssistField) {
     if (field.suggestedAction === "preview_only") {
       setAssistFeedback({
@@ -958,14 +908,6 @@ export function FrontOfficeLeadIntakeCard(
     }
 
     const reviewKey = getAssistFieldReviewKey(field);
-
-    if (!assistReviewedFieldKeys.includes(reviewKey)) {
-      setAssistFeedback({
-        tone: "neutral",
-        message: `Review ${field.label} first, then apply it into the intake form.`,
-      });
-      return;
-    }
 
     const targetField = field.field as LeadFormFieldKey;
     const currentValue = formState[targetField].trim();
@@ -983,7 +925,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistReplaceConfirmationFieldKey(reviewKey);
       setAssistFeedback({
         tone: "neutral",
-        message: `${field.label} already has a live form value. Click apply once more only if you want to replace that current value with the reviewed assist suggestion.`,
+        message: `${field.label} already has a live form value. Click once more only if you want to replace it with the extracted value.`,
       });
       return;
     }
@@ -1009,7 +951,7 @@ export function FrontOfficeLeadIntakeCard(
       tone: "success",
       message: needsReplaceConfirmation
         ? `${field.label} replaced the previous live value after explicit confirmation.`
-        : `${field.label} was copied into the intake form from a reviewed assist suggestion.`,
+        : `${field.label} was copied into the intake form.`,
     });
   }
 
@@ -1030,9 +972,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistFeedback({
         tone: "neutral",
         message:
-          assistReviewedFieldKeys.length > 0
-            ? "No reviewed blank fields were waiting. Acre kept your current form values in place."
-            : "Review one or more assist fields first, then use the reviewed-blank-fields action.",
+          "No empty form fields were waiting. Acre kept your current form values in place.",
       });
       return;
     }
@@ -1061,7 +1001,7 @@ export function FrontOfficeLeadIntakeCard(
     }
     setAssistFeedback({
       tone: "success",
-      message: `${mergeOutcome.appliedFields.length} reviewed suggestion(s) were copied into blank or default form fields.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
+      message: `${mergeOutcome.appliedFields.length} extracted field(s) were copied into blank or default form fields.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
     });
   }
 
@@ -1208,7 +1148,12 @@ export function FrontOfficeLeadIntakeCard(
         return;
       }
 
+      const autoReviewedFieldKeys = result.fields
+        .filter((field) => field.suggestedAction !== "preview_only")
+        .map((field) => getAssistFieldReviewKey(field));
+
       setAssistResult(result);
+      setAssistReviewedFieldKeys(autoReviewedFieldKeys);
       setAssistProgressMessage("");
       setAssistFeedback({
         tone: result.fields.length ? "success" : "neutral",
@@ -1358,26 +1303,24 @@ export function FrontOfficeLeadIntakeCard(
           return false;
         }
 
-        return !assistReviewedFieldKeys.includes(
-          getAssistFieldReviewKey(field),
-        );
+        return true;
       }).length ?? 0,
-    [assistResult, assistReviewedFieldKeys, formState],
+    [assistResult, formState],
   );
   const duplicatePreviewSourceSummary = useMemo(() => {
     const hasLiveFormNeedle = duplicatePreviewNeedles.some(
       (needle) => needle.sourceLabel === "the current form",
     );
     const hasReviewedAssistNeedle = duplicatePreviewNeedles.some(
-      (needle) => needle.sourceLabel === "the reviewed assist suggestion",
+      (needle) => needle.sourceLabel === "the assist suggestion",
     );
 
     if (hasLiveFormNeedle && hasReviewedAssistNeedle) {
-      return "the live form plus reviewed assist values";
+      return "the live form plus extracted values";
     }
 
     if (hasReviewedAssistNeedle) {
-      return "reviewed assist values";
+      return "extracted values";
     }
 
     return "the live form";
@@ -1389,26 +1332,21 @@ export function FrontOfficeLeadIntakeCard(
           return false;
         }
 
-        const reviewKey = getAssistFieldReviewKey(field);
         const fieldKey = field.field as LeadFormFieldKey;
         const currentValue = formState[fieldKey].trim();
 
         return (
-          !assistReviewedFieldKeys.includes(reviewKey) &&
+          isBlankOrUntouchedDefaultField({
+            fieldKey,
+            currentValue,
+            defaultFormState: formDefaults,
+            manuallyEditedFields,
+          }) &&
           normalizeCompactValue(currentValue) !==
             normalizeCompactValue(field.value)
         );
       }).length ?? 0,
-    [assistResult, assistReviewedFieldKeys, formState],
-  );
-  const reviewedReviewableAssistCount = useMemo(
-    () =>
-      assistResult?.fields.filter(
-        (field) =>
-          field.suggestedAction !== "preview_only" &&
-          assistReviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
-      ).length ?? 0,
-    [assistResult, assistReviewedFieldKeys],
+    [assistResult, formDefaults, formState, manuallyEditedFields],
   );
   const shouldShowDuplicatePreviewSurface =
     duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
@@ -1649,13 +1587,11 @@ export function FrontOfficeLeadIntakeCard(
                 <div className="front-office-lead-intake-assist-head">
                   <strong>{assistResult.summaryLabel}</strong>
                   <div className="front-office-record-meta">
-                    <span>{assistResult.safeApplyFieldCount} ready after review</span>
+                    <span>{assistResult.safeApplyFieldCount} ready to fill</span>
                     <span>{assistResult.reviewFieldCount} need checking</span>
                     {assistResult.previewOnlyFieldCount > 0 ? (
                       <span>{assistResult.previewOnlyFieldCount} preview only</span>
                     ) : null}
-                    <span>{pendingReviewableAssistCount} pending</span>
-                    <span>{reviewedReviewableAssistCount} reviewed</span>
                   </div>
                 </div>
 
@@ -1664,20 +1600,12 @@ export function FrontOfficeLeadIntakeCard(
                 ) ? (
                   <div className="front-office-lead-intake-actions front-office-lead-intake-assist-actions">
                     <Button
-                      disabled={isBusy}
-                      onClick={handleReviewUnresolvedAssistSections}
-                      type="button"
-                      variant="secondary"
-                    >
-                      Mark all fields reviewed
-                    </Button>
-                    <Button
-                      disabled={isBusy || reviewedReviewableAssistCount === 0}
+                      disabled={isBusy || pendingReviewableAssistCount === 0}
                       onClick={handleApplyReviewedAssistFields}
                       type="button"
                       variant="secondary"
                     >
-                      Apply reviewed fields
+                      Fill empty fields
                     </Button>
                   </div>
                 ) : null}
@@ -1687,9 +1615,6 @@ export function FrontOfficeLeadIntakeCard(
                     assistVisibleFields.map((field) => {
                       const currentValue =
                         formState[field.field as keyof LeadFormState].trim();
-                      const isReviewed = assistReviewedFieldKeys.includes(
-                        getAssistFieldReviewKey(field),
-                      );
                       const matchesSuggestion =
                         normalizeCompactValue(currentValue) ===
                         normalizeCompactValue(field.value);
@@ -1715,12 +1640,6 @@ export function FrontOfficeLeadIntakeCard(
                               {matchesSuggestion ? (
                                 <StatusBadge tone="accent">In form</StatusBadge>
                               ) : null}
-                              {isReviewed &&
-                              field.suggestedAction !== "preview_only" ? (
-                                <StatusBadge tone="success">
-                                  Reviewed
-                                </StatusBadge>
-                              ) : null}
                             </div>
                           </div>
                           <p className="front-office-lead-intake-assist-value">
@@ -1729,29 +1648,17 @@ export function FrontOfficeLeadIntakeCard(
                           <p className="front-office-lead-intake-assist-note">
                             {field.evidenceLabel}
                           </p>
-                          {field.suggestedAction !== "preview_only" ? (
-                            <label className="front-office-record-meta">
-                              <input
-                                checked={isReviewed}
-                                disabled={isBusy}
-                                onChange={() => {
-                                  toggleAssistFieldReviewed(field);
-                                }}
-                                type="checkbox"
-                              />
-                              <span>Mark reviewed</span>
-                            </label>
-                          ) : (
+                          {field.suggestedAction === "preview_only" ? (
                             <p className="front-office-lead-intake-assist-note">
                               Manual only. Copy the useful part into Notes if
                               you want to keep it.
                             </p>
-                          )}
+                          ) : null}
                           {!matchesSuggestion &&
                           field.suggestedAction !== "preview_only" ? (
                             <div className="front-office-merge-actions">
                               <Button
-                                disabled={isBusy || !isReviewed}
+                                disabled={isBusy}
                                 onClick={() => {
                                   handleApplyAssistField(field);
                                 }}
@@ -1774,7 +1681,7 @@ export function FrontOfficeLeadIntakeCard(
                                     ? "Confirm replace live value"
                                     : "Replace current value"
                                   : currentValue
-                                    ? "Apply to form"
+                                    ? "Update form"
                                     : "Fill form"}
                               </Button>
                             </div>
@@ -1895,7 +1802,7 @@ export function FrontOfficeLeadIntakeCard(
           ) : null}
 
           <p className="front-office-calendar-feedback is-neutral">
-            Only reviewed fields go into the live form. Nothing auto-creates or auto-sends.
+            Only fields you apply go into the live form. Nothing auto-creates or auto-sends.
           </p>
 
           <div className="office-form-grid front-office-lead-intake-grid">

@@ -1296,11 +1296,11 @@ function buildSuggestedActionLabel(
 ) {
   switch (action) {
     case "safe_apply":
-      return "Safe after review";
+      return "Ready to fill";
     case "review_first":
-      return "Review before apply";
+      return "Check before fill";
     case "preview_only":
-      return "Keep preview-only";
+      return "Preview only";
   }
 }
 
