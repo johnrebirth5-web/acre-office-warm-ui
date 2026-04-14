@@ -1699,9 +1699,9 @@ export function FrontOfficeLeadIntakeCard(
                           className="front-office-lead-intake-assist-field"
                           key={`${field.field}-${field.value}`}
                         >
-                          <div className="office-queue-item-top">
+                          <div className="front-office-lead-intake-assist-field-head">
                             <strong>{field.label}</strong>
-                            <div className="front-office-record-meta">
+                            <div className="front-office-lead-intake-assist-field-tags">
                               <StatusBadge
                                 tone={getAssistFieldConfidenceTone(field)}
                               >
