@@ -147,30 +147,6 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   };
 };
 
-type IntakeReviewSectionKey =
-  | "identity"
-  | "qualification"
-  | "context"
-  | "timing"
-  | "notes";
-
-type IntakeReviewSection = {
-  key: IntakeReviewSectionKey;
-  label: string;
-  description: string;
-  batchCue: string;
-  fieldKeys: LeadFormFieldKey[];
-  reviewableCount: number;
-  safeApplyCount: number;
-  reviewFirstCount: number;
-  previewOnlyCount: number;
-  pendingCount: number;
-  reviewedCount: number;
-  fieldSummary: string;
-  actionHint: string;
-  priorityRank: number;
-};
-
 type DuplicatePreviewHydrationState = "idle" | "loading" | "ready" | "error";
 type CreateLeadApiErrorCode =
   | "authentication_required"
@@ -214,6 +190,19 @@ const intentOptions = [
   "Investor",
   "Unknown",
 ] as const;
+
+const assistFieldDisplayOrder: LeadFormFieldKey[] = [
+  "fullName",
+  "phone",
+  "email",
+  "intent",
+  "stage",
+  "budgetMax",
+  "preferredAreas",
+  "nextFollowUpAt",
+  "source",
+  "notes",
+];
 
 const maxAssistImageSizeBytes = 10 * 1024 * 1024;
 
@@ -453,33 +442,6 @@ function getAssistFieldConfidenceTone(field: FrontOfficeLeadIntakeAssistField) {
   return "neutral" as const;
 }
 
-function getAssistFieldProvenanceTone(field: FrontOfficeLeadIntakeAssistField) {
-  switch (field.provenance) {
-    case "explicit_line":
-      return "success" as const;
-    case "pattern_match":
-      return "accent" as const;
-    case "conversation_inference":
-      return "warning" as const;
-    case "assist_mode":
-      return "neutral" as const;
-    case "summary_preview":
-      return "neutral" as const;
-  }
-}
-
-function summarizeLabelList(labels: string[], emptyLabel: string, limit = 4) {
-  if (!labels.length) {
-    return emptyLabel;
-  }
-
-  if (labels.length <= limit) {
-    return labels.join(", ");
-  }
-
-  return `${labels.slice(0, limit).join(", ")} +${labels.length - limit} more`;
-}
-
 function buildDuplicateNextStepLabels(reasons: string[]) {
   const hasEmail = reasons.some((reason) => reason.startsWith("Same email"));
   const hasPhone = reasons.some((reason) => reason.startsWith("Same phone"));
@@ -517,238 +479,6 @@ function buildDuplicateNextStepLabels(reasons: string[]) {
   ];
 }
 
-function getAssistReviewSectionKey(
-  fieldKey: LeadFormFieldKey,
-): IntakeReviewSectionKey {
-  switch (fieldKey) {
-    case "fullName":
-    case "phone":
-    case "email":
-      return "identity";
-    case "source":
-    case "stage":
-    case "intent":
-      return "qualification";
-    case "budgetMax":
-    case "preferredAreas":
-      return "context";
-    case "nextFollowUpAt":
-      return "timing";
-    case "notes":
-      return "notes";
-  }
-}
-
-function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
-  switch (sectionKey) {
-    case "identity":
-      return {
-        label: "Identity",
-        description:
-          "Start here. Confirm who this lead is before anything else, because duplicate preview, save-time checks, and every later section batch lean on these values first.",
-      };
-    case "qualification":
-      return {
-        label: "Qualification",
-        description:
-          "Batch source, stage, and intent together after identity is clear so the intake lands in the right active follow-up view without rereading the full transcript.",
-      };
-    case "context":
-      return {
-        label: "Context",
-        description:
-          "Batch budget and area clues together after identity is clear; they usually steer the first real follow-up and keep the next call scoped.",
-      };
-    case "timing":
-      return {
-        label: "Timing",
-        description:
-          "Lock the exact next follow-up date after identity is clear so the lead does not drift cold and the next-touch clock stays useful.",
-      };
-    case "notes":
-      return {
-        label: "Notes",
-        description:
-          "Use the notes field for anything worth preserving that should stay manual, previewable, and easy to scan later.",
-      };
-  }
-}
-
-function getAssistReviewSectionBatchCue(input: {
-  sectionKey: IntakeReviewSectionKey;
-  pendingCount: number;
-  reviewFirstCount: number;
-  previewOnlyCount: number;
-}) {
-  if (input.pendingCount > 0) {
-    switch (input.sectionKey) {
-      case "identity":
-        return "Operator start: resolve unresolved identity before any section batch.";
-      case "qualification":
-        return "Operator next: batch source, stage, and intent together after identity is clear.";
-      case "context":
-        return "Operator next: batch budget and area together after identity is clear.";
-      case "timing":
-        return "Operator next: lock the exact next-touch date after identity is clear.";
-      case "notes":
-        return "Operator last: notes stay manual unless you rewrite them.";
-    }
-  }
-
-  if (input.reviewFirstCount > 0) {
-    return "Operator next: manual-confirmation fields come before safe apply in this section batch.";
-  }
-
-  if (input.previewOnlyCount > 0) {
-    return "Operator last: preview-only stays manual.";
-  }
-
-  return "Operator ready: safe after review.";
-}
-
-function buildAssistReviewSections(input: {
-  assistResult: FrontOfficeLeadIntakeAssistResult;
-  reviewedFieldKeys: string[];
-  formState: LeadFormState;
-  defaultFormState: LeadFormState;
-  manuallyEditedFields: LeadFormFieldKey[];
-}) {
-  const sectionKeys: IntakeReviewSectionKey[] = [
-    "identity",
-    "qualification",
-    "context",
-    "timing",
-    "notes",
-  ];
-
-  return sectionKeys.map((sectionKey) => {
-    const meta = getAssistReviewSectionMeta(sectionKey);
-    const fieldKeys = input.assistResult.fields
-      .filter(
-        (field) =>
-          getAssistReviewSectionKey(field.field as LeadFormFieldKey) ===
-          sectionKey,
-      )
-      .map((field) => field.field as LeadFormFieldKey);
-    const sectionFields = input.assistResult.fields.filter((field) =>
-      fieldKeys.includes(field.field as LeadFormFieldKey),
-    );
-
-    const reviewableCount = sectionFields.filter(
-      (field) => field.suggestedAction !== "preview_only",
-    ).length;
-    const safeApplyCount = sectionFields.filter(
-      (field) => field.suggestedAction === "safe_apply",
-    ).length;
-    const reviewFirstCount = sectionFields.filter(
-      (field) => field.suggestedAction === "review_first",
-    ).length;
-    const previewOnlyCount = sectionFields.filter(
-      (field) => field.suggestedAction === "preview_only",
-    ).length;
-    const pendingCount = sectionFields.filter((field) => {
-      if (field.suggestedAction === "preview_only") {
-        return false;
-      }
-
-      const reviewKey = getAssistFieldReviewKey(field);
-      const fieldKey = field.field as LeadFormFieldKey;
-      const currentValue = input.formState[fieldKey].trim();
-
-      return (
-        !input.reviewedFieldKeys.includes(reviewKey) &&
-        normalizeCompactValue(currentValue) !==
-          normalizeCompactValue(field.value)
-      );
-    }).length;
-    const reviewedCount = sectionFields.filter((field) =>
-      input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
-    ).length;
-    const unresolvedCount = pendingCount;
-    const manualConfirmationCount = sectionFields.filter(
-      (field) =>
-        field.suggestedAction === "review_first" &&
-        !input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
-    ).length;
-
-    return {
-      key: sectionKey,
-      label: meta.label,
-      description: meta.description,
-      batchCue: getAssistReviewSectionBatchCue({
-        sectionKey,
-        pendingCount,
-        reviewFirstCount,
-        previewOnlyCount,
-      }),
-      fieldKeys,
-      reviewableCount,
-      safeApplyCount,
-      reviewFirstCount,
-      previewOnlyCount,
-      pendingCount,
-      reviewedCount,
-      fieldSummary: summarizeLabelList(
-        sectionFields.map((field) => field.label),
-        "none",
-        3,
-      ),
-      actionHint:
-        unresolvedCount > 0
-          ? sectionKey === "identity"
-            ? "Operator start: clear unresolved identity first so duplicate preview and compare decisions stay accurate."
-            : sectionKey === "timing"
-              ? "Operator next: resolve timing early so the next-touch clock stays useful."
-              : "Operator next: clear the unresolved fields here before moving to safer apply or preview-only values."
-          : manualConfirmationCount > 0
-            ? "Operator next: these fields still need explicit manual confirmation before anything can move into the form."
-            : sectionKey === "notes"
-              ? "Operator last: keep manual notes at the end because they rarely gate the next save."
-              : "Operator next: review this section as a batch, then apply the reviewed blank fields together.",
-      priorityRank:
-        unresolvedCount > 0
-          ? 0
-          : manualConfirmationCount > 0
-            ? 1
-            : previewOnlyCount > 0
-              ? 2
-              : 3,
-    } satisfies IntakeReviewSection;
-  });
-}
-
-function buildAssistReviewOrderLabels(sections: IntakeReviewSection[]) {
-  return sections
-    .filter((section) => section.reviewableCount > 0)
-    .slice(0, 3)
-    .map((section) =>
-      section.pendingCount > 0
-        ? `${section.label} unresolved first`
-        : section.reviewFirstCount > 0 &&
-            section.reviewedCount < section.reviewFirstCount
-          ? `${section.label} manual confirm next`
-          : `${section.label} ready`,
-    );
-}
-
-function buildAssistReviewFocusLabels(sections: IntakeReviewSection[]) {
-  return sections
-    .filter(
-      (section) =>
-        section.pendingCount > 0 ||
-        (section.reviewFirstCount > 0 &&
-          section.reviewedCount < section.reviewFirstCount),
-    )
-    .slice(0, 3)
-    .map((section) =>
-      section.pendingCount > 0
-        ? `Resolve ${section.label.toLowerCase()} unresolved (${section.pendingCount})`
-        : `${section.label} manual confirmation (${
-            section.reviewFirstCount - section.reviewedCount
-          })`,
-    );
-}
-
 function isBlankOrUntouchedDefaultField(input: {
   fieldKey: LeadFormFieldKey;
   currentValue: string;
@@ -777,117 +507,6 @@ function liveFieldNeedsReplaceConfirmation(input: {
   return (
     Boolean(input.currentValue.trim()) && !isBlankOrUntouchedDefaultField(input)
   );
-}
-
-function getAssistFieldStatus(input: {
-  field: FrontOfficeLeadIntakeAssistField;
-  formState: LeadFormState;
-  defaultFormState: LeadFormState;
-  appliedFields: LeadFormFieldKey[];
-  manuallyEditedFields: LeadFormFieldKey[];
-  replaceConfirmationFieldKey: string | null;
-  reviewedFieldKeys: string[];
-}) {
-  const fieldKey = input.field.field as LeadFormFieldKey;
-  const currentValue = input.formState[fieldKey].trim();
-  const suggestedValue = input.field.value.trim();
-  const isReviewed = input.reviewedFieldKeys.includes(
-    getAssistFieldReviewKey(input.field),
-  );
-  const needsReplaceConfirmation = liveFieldNeedsReplaceConfirmation({
-    fieldKey,
-    currentValue,
-    defaultFormState: input.defaultFormState,
-    manuallyEditedFields: input.manuallyEditedFields,
-  });
-  const matchesSuggestion =
-    normalizeCompactValue(currentValue) ===
-    normalizeCompactValue(suggestedValue);
-
-  if (matchesSuggestion && input.appliedFields.includes(fieldKey)) {
-    return "Applied from reviewed assist";
-  }
-
-  if (matchesSuggestion && isReviewed) {
-    return "Reviewed and matches current form";
-  }
-
-  if (matchesSuggestion) {
-    return "Matches current form";
-  }
-
-  if (input.field.suggestedAction === "preview_only") {
-    return isReviewed ? "Reviewed preview only" : "Preview stays manual";
-  }
-
-  if (
-    input.replaceConfirmationFieldKey === getAssistFieldReviewKey(input.field)
-  ) {
-    return "Awaiting replace confirmation before the live value changes";
-  }
-
-  if (isReviewed && currentValue && !matchesSuggestion) {
-    return input.manuallyEditedFields.includes(fieldKey)
-      ? "Reviewed, but your manual live value stays in control"
-      : "Reviewed, but the live form still keeps the current value";
-  }
-
-  if (needsReplaceConfirmation) {
-    return isReviewed
-      ? "Reviewed, but the live form still keeps your current value"
-      : "Review pending. The live form still keeps your current value";
-  }
-
-  if (isReviewed) {
-    return "Reviewed and ready to fill the live form";
-  }
-
-  if (
-    isBlankOrUntouchedDefaultField({
-      fieldKey,
-      currentValue,
-      defaultFormState: input.defaultFormState,
-      manuallyEditedFields: input.manuallyEditedFields,
-    })
-  ) {
-    return "Review pending before apply";
-  }
-
-  return "Current form keeps your live value until review";
-}
-
-function getAssistFieldLiveValueLabel(input: {
-  field: FrontOfficeLeadIntakeAssistField;
-  formState: LeadFormState;
-  defaultFormState: LeadFormState;
-  manuallyEditedFields: LeadFormFieldKey[];
-}) {
-  const fieldKey = input.field.field as LeadFormFieldKey;
-  const currentValue = input.formState[fieldKey].trim();
-
-  if (!currentValue) {
-    return "Live form is still blank";
-  }
-
-  if (
-    normalizeCompactValue(currentValue) ===
-    normalizeCompactValue(input.field.value)
-  ) {
-    return `Live form now matches: ${currentValue}`;
-  }
-
-  if (input.manuallyEditedFields.includes(fieldKey)) {
-    return `Manual live value stays in control: ${currentValue}`;
-  }
-
-  if (
-    normalizeCompactValue(currentValue) ===
-    normalizeCompactValue(input.defaultFormState[fieldKey].trim())
-  ) {
-    return `Default live value still in form: ${currentValue}`;
-  }
-
-  return `Current live value: ${currentValue}`;
 }
 
 function mergeLeadFormStateWithReviewedAssistFields(
@@ -1201,9 +820,6 @@ export function FrontOfficeLeadIntakeCard(
   const [assistReviewedFieldKeys, setAssistReviewedFieldKeys] = useState<
     string[]
   >([]);
-  const [assistAppliedFields, setAssistAppliedFields] = useState<
-    LeadFormFieldKey[]
-  >([]);
   const [
     assistReplaceConfirmationFieldKey,
     setAssistReplaceConfirmationFieldKey,
@@ -1239,7 +855,6 @@ export function FrontOfficeLeadIntakeCard(
     assistRunIdRef.current += 1;
     setAssistResult(null);
     setAssistReviewedFieldKeys([]);
-    setAssistAppliedFields([]);
     setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback(null);
     setAssistProgressMessage("");
@@ -1271,25 +886,6 @@ export function FrontOfficeLeadIntakeCard(
       current.includes(fieldKey) ? current : [...current, fieldKey],
     );
     setAssistReplaceConfirmationFieldKey(null);
-
-    setAssistAppliedFields((current) => {
-      if (!current.includes(fieldKey)) {
-        return current;
-      }
-
-      const assistField = assistResult?.fields.find(
-        (field) => field.field === fieldKey,
-      );
-
-      if (!assistField) {
-        return current.filter((entry) => entry !== fieldKey);
-      }
-
-      return normalizeCompactValue(value) ===
-        normalizeCompactValue(assistField.value)
-        ? current
-        : current.filter((entry) => entry !== fieldKey);
-    });
 
     if (
       fieldKey === "fullName" ||
@@ -1324,29 +920,19 @@ export function FrontOfficeLeadIntakeCard(
       return;
     }
 
-    const unresolvedSectionFieldKeys = assistReviewSections
-      .filter(
-        (section) =>
-          section.pendingCount > 0 ||
-          (section.reviewFirstCount > 0 &&
-            section.reviewedCount < section.reviewFirstCount),
-      )
-      .flatMap((section) => section.fieldKeys);
-
     const reviewableFieldKeys = assistResult.fields
       .filter(
         (field) =>
-          unresolvedSectionFieldKeys.includes(
-            field.field as LeadFormFieldKey,
-          ) && field.suggestedAction !== "preview_only",
+          field.suggestedAction !== "preview_only" &&
+          normalizeCompactValue(formState[field.field as LeadFormFieldKey]) !==
+            normalizeCompactValue(field.value),
       )
       .map((field) => getAssistFieldReviewKey(field));
 
     if (!reviewableFieldKeys.length) {
       setAssistFeedback({
         tone: "neutral",
-        message:
-          "There are no unresolved sections left to batch-review. Safe suggestions and reviewed fields are already separated below.",
+        message: "Nothing new is waiting for review right now.",
       });
       return;
     }
@@ -1354,9 +940,10 @@ export function FrontOfficeLeadIntakeCard(
     setAssistReviewedFieldKeys((current) => [
       ...new Set([...current, ...reviewableFieldKeys]),
     ]);
+    setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback({
       tone: "success",
-      message: `${reviewableFieldKeys.length} suggestion(s) from unresolved sections were marked reviewed. ${assistReviewOrderLabels.length ? `Next up: ${assistReviewOrderLabels.join(", ")}.` : "Apply the reviewed-blank-fields action next if you want to copy them into blank live fields."}`,
+      message: `${reviewableFieldKeys.length} field(s) marked reviewed.`,
     });
   }
 
@@ -1407,9 +994,6 @@ export function FrontOfficeLeadIntakeCard(
       [targetField]: field.value,
     }));
     setFieldErrors((current) => omitFieldError(current, targetField));
-    setAssistAppliedFields((current) =>
-      current.includes(targetField) ? current : [...current, targetField],
-    );
     setManuallyEditedFields((current) =>
       current.filter((entry) => entry !== targetField),
     );
@@ -1466,9 +1050,6 @@ export function FrontOfficeLeadIntakeCard(
     setManuallyEditedFields((current) =>
       current.filter((field) => !mergeOutcome.appliedFields.includes(field)),
     );
-    setAssistAppliedFields((current) => [
-      ...new Set([...current, ...mergeOutcome.appliedFields]),
-    ]);
     setAssistReplaceConfirmationFieldKey(null);
     if (
       mergeOutcome.appliedFields.includes("fullName") ||
@@ -1481,95 +1062,6 @@ export function FrontOfficeLeadIntakeCard(
     setAssistFeedback({
       tone: "success",
       message: `${mergeOutcome.appliedFields.length} reviewed suggestion(s) were copied into blank or default form fields.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
-    });
-  }
-
-  function handleReviewAssistSection(fieldKeys: LeadFormFieldKey[]) {
-    if (!assistResult) {
-      return;
-    }
-
-    const reviewedKeys = assistResult.fields
-      .filter(
-        (field) =>
-          fieldKeys.includes(field.field as LeadFormFieldKey) &&
-          field.suggestedAction !== "preview_only",
-      )
-      .map((field) => getAssistFieldReviewKey(field));
-
-    if (!reviewedKeys.length) {
-      setAssistFeedback({
-        tone: "neutral",
-        message:
-          "That section only contains preview-only fields right now, so there is nothing batch-reviewable yet.",
-      });
-      return;
-    }
-
-    setAssistReviewedFieldKeys((current) => [
-      ...new Set([...current, ...reviewedKeys]),
-    ]);
-    setAssistReplaceConfirmationFieldKey(null);
-    setAssistFeedback({
-      tone: "success",
-      message: `${reviewedKeys.length} field(s) in this section were marked reviewed. ${assistReviewOrderLabels.length ? `Current review order: ${assistReviewOrderLabels.join(", ")}.` : "Apply the reviewed blank fields when you are ready."}`,
-    });
-  }
-
-  function handleApplyReviewedAssistSection(fieldKeys: LeadFormFieldKey[]) {
-    if (!assistResult) {
-      return;
-    }
-
-    const filteredFields = assistResult.fields.filter((field) =>
-      fieldKeys.includes(field.field as LeadFormFieldKey),
-    );
-
-    const mergeOutcome = mergeLeadFormStateWithReviewedAssistFields(
-      formState,
-      filteredFields,
-      formDefaults,
-      manuallyEditedFields,
-      assistReviewedFieldKeys,
-    );
-
-    if (!mergeOutcome.appliedFields.length) {
-      setAssistFeedback({
-        tone: "neutral",
-        message:
-          "No reviewed blank fields were waiting in that section. Review the section first or keep the current live values in place.",
-      });
-      return;
-    }
-
-    setFormState(mergeOutcome.nextState);
-    setFieldErrors((current) => {
-      let nextErrors = current;
-
-      for (const field of mergeOutcome.appliedFields) {
-        nextErrors = omitFieldError(nextErrors, field);
-      }
-
-      return nextErrors;
-    });
-    setManuallyEditedFields((current) =>
-      current.filter((field) => !mergeOutcome.appliedFields.includes(field)),
-    );
-    setAssistAppliedFields((current) => [
-      ...new Set([...current, ...mergeOutcome.appliedFields]),
-    ]);
-    setAssistReplaceConfirmationFieldKey(null);
-    if (
-      mergeOutcome.appliedFields.includes("fullName") ||
-      mergeOutcome.appliedFields.includes("phone") ||
-      mergeOutcome.appliedFields.includes("email")
-    ) {
-      setDuplicateMatches([]);
-      setFeedback((current) => (current?.tone === "error" ? null : current));
-    }
-    setAssistFeedback({
-      tone: "success",
-      message: `${mergeOutcome.appliedFields.length} reviewed field(s) were copied from the section into blank or default form values.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
     });
   }
 
@@ -1632,13 +1124,8 @@ export function FrontOfficeLeadIntakeCard(
     assistRunIdRef.current = assistRunId;
     setAssistResult(null);
     setAssistReviewedFieldKeys([]);
-    setAssistAppliedFields([]);
     setAssistFeedback(null);
-    setAssistProgressMessage(
-      assistImage
-        ? "Running the local-only OCR resolver on the server..."
-        : "Parsing the pasted transcript through the local-only resolver...",
-    );
+    setAssistProgressMessage("Extracting key fields...");
     setIsExtractingAssist(true);
 
     const isCurrentRun = () => assistRunIdRef.current === assistRunId;
@@ -1694,75 +1181,27 @@ export function FrontOfficeLeadIntakeCard(
         prefilledFields: payload.aiExtraction?.fields ?? [],
       });
       const feedbackParts: string[] = [];
-      const ocrLabel = buildAssistServerOcrLabel(payload.metadata);
-      const provenanceLabel = buildAssistServerProvenanceLabel(
-        payload.metadata,
-      );
-      const warningLabel = buildAssistServerWarningLabel(payload.metadata);
-
-      if (ocrLabel) {
-        feedbackParts.push(ocrLabel);
-      }
-
-      if (provenanceLabel) {
-        feedbackParts.push(provenanceLabel);
-      }
-
-      if (warningLabel) {
-        feedbackParts.push(warningLabel);
-      }
-
-      if (payload.hadImage && payload.ocrSucceeded) {
-        feedbackParts.push("Local OCR extracted the screenshot text.");
-      }
-
-      if (payload.aiExtraction?.fields.length) {
-        feedbackParts.push(
-          `OpenAI ${payload.aiExtraction.model} reviewed the intake text and suggested ${payload.aiExtraction.fields.length} field(s).`,
-        );
-      }
-
-      if (transcriptText) {
-        feedbackParts.push("Transcript parsed.");
-      }
 
       if (result.fields.length) {
-        feedbackParts.push(`${result.fields.length} lead field(s) detected.`);
-        feedbackParts.push("Nothing changed in the live intake form yet.");
+        feedbackParts.push(`${result.fields.length} key field(s) extracted.`);
       } else {
-        feedbackParts.push("No structured lead fields were detected yet.");
-      }
-
-      if (result.safeApplyFieldCount > 0) {
-        feedbackParts.push(
-          `${result.safeApplyFieldCount} suggestion(s) are safe to apply after review.`,
-        );
+        feedbackParts.push("No key fields detected yet.");
       }
 
       if (result.reviewFieldCount > 0) {
-        feedbackParts.push(
-          `${result.reviewFieldCount} field(s) stayed in review-first mode.`,
-        );
+        feedbackParts.push(`${result.reviewFieldCount} need review.`);
+      }
+
+      if (result.safeApplyFieldCount > 0) {
+        feedbackParts.push(`${result.safeApplyFieldCount} ready after review.`);
       }
 
       if (result.previewOnlyFieldCount > 0) {
-        feedbackParts.push(
-          `${result.previewOnlyFieldCount} field(s) stayed preview-only.`,
-        );
+        feedbackParts.push(`${result.previewOnlyFieldCount} kept as preview.`);
       }
 
-      if (result.safetySummary.tone === "warning") {
-        feedbackParts.push(result.safetySummary.label);
-      }
-
-      if (result.readinessSummary.tone === "warning") {
-        feedbackParts.push(result.readinessSummary.label);
-      }
-
-      if (payload.hadImage && payload.transcriptFallbackUsed) {
-        feedbackParts.push(
-          "Local OCR could not finish, so Acre used the pasted transcript as the fallback extract.",
-        );
+      if (payload.aiExtraction?.model) {
+        feedbackParts.push(`Model: ${payload.aiExtraction.model}.`);
       }
 
       if (!isCurrentRun()) {
@@ -1971,83 +1410,42 @@ export function FrontOfficeLeadIntakeCard(
       ).length ?? 0,
     [assistResult, assistReviewedFieldKeys],
   );
-  const assistReviewSections = useMemo(
-    () =>
-      assistResult
-        ? buildAssistReviewSections({
-            assistResult,
-            reviewedFieldKeys: assistReviewedFieldKeys,
-            formState,
-            defaultFormState: formDefaults,
-            manuallyEditedFields,
-          }).sort((left, right) => {
-            if (left.priorityRank !== right.priorityRank) {
-              return left.priorityRank - right.priorityRank;
-            }
-
-            if (left.pendingCount !== right.pendingCount) {
-              return right.pendingCount - left.pendingCount;
-            }
-
-            if (left.reviewFirstCount !== right.reviewFirstCount) {
-              return right.reviewFirstCount - left.reviewFirstCount;
-            }
-
-            return left.label.localeCompare(right.label);
-          })
-        : [],
-    [
-      assistResult,
-      assistReviewedFieldKeys,
-      formDefaults,
-      formState,
-      manuallyEditedFields,
-    ],
-  );
-  const manualAssistOverrideCount = useMemo(
-    () =>
-      assistResult?.fields.filter((field) => {
-        if (field.suggestedAction === "preview_only") {
-          return false;
-        }
-
-        const fieldKey = field.field as LeadFormFieldKey;
-        const currentValue = formState[fieldKey].trim();
-
-        return (
-          Boolean(currentValue) &&
-          manuallyEditedFields.includes(fieldKey) &&
-          normalizeCompactValue(currentValue) !==
-            normalizeCompactValue(field.value)
-        );
-      }).length ?? 0,
-    [assistResult, formState, manuallyEditedFields],
-  );
   const shouldShowDuplicatePreviewSurface =
     duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
-  const unresolvedAssistSectionCount = useMemo(
-    () =>
-      assistReviewSections.filter((section) => section.pendingCount > 0).length,
-    [assistReviewSections],
-  );
-  const assistReviewOrderLabels = useMemo(
-    () => buildAssistReviewOrderLabels(assistReviewSections),
-    [assistReviewSections],
-  );
-  const assistReviewFocusLabels = useMemo(
-    () => buildAssistReviewFocusLabels(assistReviewSections),
-    [assistReviewSections],
-  );
-  const manualConfirmationAssistSectionCount = useMemo(
-    () =>
-      assistReviewSections.filter(
-        (section) =>
-          section.pendingCount === 0 &&
-          section.reviewFirstCount > 0 &&
-          section.reviewedCount < section.reviewFirstCount,
-      ).length,
-    [assistReviewSections],
-  );
+  const assistVisibleFields = useMemo(() => {
+    if (!assistResult) {
+      return [];
+    }
+
+    const orderIndex = new Map(
+      assistFieldDisplayOrder.map((fieldKey, index) => [fieldKey, index]),
+    );
+
+    return [...assistResult.fields].sort((left, right) => {
+      const leftIndex =
+        orderIndex.get(left.field as LeadFormFieldKey) ??
+        assistFieldDisplayOrder.length;
+      const rightIndex =
+        orderIndex.get(right.field as LeadFormFieldKey) ??
+        assistFieldDisplayOrder.length;
+
+      if (leftIndex !== rightIndex) {
+        return leftIndex - rightIndex;
+      }
+
+      if (left.suggestedAction !== right.suggestedAction) {
+        if (left.suggestedAction === "preview_only") {
+          return 1;
+        }
+
+        if (right.suggestedAction === "preview_only") {
+          return -1;
+        }
+      }
+
+      return left.label.localeCompare(right.label);
+    });
+  }, [assistResult]);
 
   useEffect(() => {
     if (
@@ -2152,22 +1550,15 @@ export function FrontOfficeLeadIntakeCard(
         >
           <div className="front-office-lead-intake-assist">
             <div className="front-office-lead-intake-assist-copy">
-              <strong>Transcript review</strong>
+              <strong>Quick field extract</strong>
               <p>
-                Drop in a WeChat screenshot or paste the chat thread. Acre shows
-                the source clearly, labels OCR and fallback separately, starts
-                with unresolved identity, groups the rest into review sections,
-                and waits for manual confirmation before anything touches the
-                live intake form.
+                Drop in one WeChat screenshot or paste a short chat excerpt.
+                Acre only pulls key fields for review.
               </p>
               <div className="front-office-record-meta">
-                <span>Transcript + OCR source</span>
-                <span>Fallbacks are labeled</span>
-                <span>Identity comes first</span>
-                <span>Then review the rest</span>
-                <span>Preview stays manual</span>
-                <span>Local Tesseract OCR only</span>
-                <span>No auto-create or auto-send</span>
+                <span>Screenshot or transcript</span>
+                <span>Review before apply</span>
+                <span>No auto-create</span>
               </div>
             </div>
 
@@ -2214,7 +1605,7 @@ export function FrontOfficeLeadIntakeCard(
                 }}
                 type="button"
               >
-                {isExtractingAssist ? "Reviewing..." : "Run intake review"}
+                {isExtractingAssist ? "Extracting..." : "Extract key fields"}
               </Button>
               <Button
                 disabled={isBusy}
@@ -2222,7 +1613,7 @@ export function FrontOfficeLeadIntakeCard(
                 type="button"
                 variant="secondary"
               >
-                Clear assist
+                Clear
               </Button>
             </div>
 
@@ -2248,8 +1639,8 @@ export function FrontOfficeLeadIntakeCard(
 
             {!assistResult && !assistImage && !assistTranscript.trim() ? (
               <EmptyState
-                description="Best results usually come from one tighter chat screenshot crop or 3-8 contiguous transcript lines that keep a name, one contact clue, and one workflow clue together. Review stays field-by-field, unresolved identity stays ahead of safe apply, and assist never auto-creates the lead."
-                title="Start with one screenshot or a short chat excerpt"
+                description="Use one clean screenshot or a short chat excerpt. Acre will only pull key fields into review."
+                title="Extract key fields from chat"
               />
             ) : null}
 
@@ -2257,209 +1648,16 @@ export function FrontOfficeLeadIntakeCard(
               <div className="front-office-lead-intake-assist-result">
                 <div className="front-office-lead-intake-assist-head">
                   <strong>{assistResult.summaryLabel}</strong>
-                  <p>
-                    Acre keeps the raw extract as a preview and waits for you to
-                    review before applying anything. Unresolved identity stays
-                    at the top, then qualification, context, timing, and notes
-                    move as separate section batches. Preview-only notes stay
-                    manual until you rewrite them.
-                  </p>
                   <div className="front-office-record-meta">
-                    <span>
-                      Recognized:{" "}
-                      {summarizeLabelList(
-                        assistResult.recognizedFieldLabels,
-                        "none yet",
-                      )}
-                    </span>
-                    <span>
-                      Manual confirmation:{" "}
-                      {summarizeLabelList(
-                        assistResult.manualConfirmationFieldLabels,
-                        "none",
-                      )}
-                    </span>
-                    <span>
-                      Not extracted:{" "}
-                      {summarizeLabelList(
-                        assistResult.ignoredFieldLabels,
-                        "none",
-                      )}
-                    </span>
-                  </div>
-                  <p className="front-office-calendar-feedback is-neutral">
-                    <strong>Ignored fields stay out of the live form.</strong>{" "}
-                    {assistResult.ignoredFieldReasonLabel} They only move back
-                    in when the extract gives them clearer evidence.
-                  </p>
-                  <div className="front-office-record-meta">
-                    <span>
-                      {assistResult.safeApplyFieldCount} safe after review
-                    </span>
-                    <span>
-                      {assistResult.reviewFieldCount} unresolved-first
-                    </span>
-                    <span>
-                      {assistResult.previewOnlyFieldCount} preview-only
-                    </span>
-                    <span>
-                      {pendingReviewableAssistCount} still waiting on review
-                    </span>
+                    <span>{assistResult.safeApplyFieldCount} ready after review</span>
+                    <span>{assistResult.reviewFieldCount} need checking</span>
+                    {assistResult.previewOnlyFieldCount > 0 ? (
+                      <span>{assistResult.previewOnlyFieldCount} preview only</span>
+                    ) : null}
+                    <span>{pendingReviewableAssistCount} pending</span>
                     <span>{reviewedReviewableAssistCount} reviewed</span>
-                    <span>
-                      {unresolvedAssistSectionCount} unresolved sections
-                    </span>
-                    <span>
-                      {manualConfirmationAssistSectionCount} manual-confirmation
-                      sections
-                    </span>
-                    <span>
-                      Live form values stay in control until replace is
-                      confirmed
-                    </span>
-                    {manualAssistOverrideCount > 0 ? (
-                      <span>
-                        {manualAssistOverrideCount} manual override(s)
-                      </span>
-                    ) : null}
-                    {assistReviewOrderLabels.length ? (
-                      <span>
-                        Queue order: {assistReviewOrderLabels.join(" · ")}
-                      </span>
-                    ) : null}
-                    {assistReviewFocusLabels.length ? (
-                      <span>
-                        Resolve first: {assistReviewFocusLabels.join(" · ")}
-                      </span>
-                    ) : null}
                   </div>
                 </div>
-
-                <div className="office-queue-list">
-                  {assistReviewSections.map((section) => (
-                    <article
-                      className="office-queue-item"
-                      key={`assist-section-${section.key}`}
-                    >
-                      <div className="office-queue-item-top">
-                        <strong>{section.label}</strong>
-                        <StatusBadge
-                          tone={section.pendingCount > 0 ? "warning" : "accent"}
-                        >
-                          {section.reviewableCount} reviewable
-                        </StatusBadge>
-                      </div>
-                      <p>{section.description}</p>
-                      <div className="front-office-record-meta">
-                        <span>{section.batchCue}</span>
-                        <span>{section.fieldSummary}</span>
-                        <span>{section.safeApplyCount} safe</span>
-                        <span>{section.reviewFirstCount} unresolved-first</span>
-                        <span>{section.previewOnlyCount} preview-only</span>
-                        <span>{section.pendingCount} still pending</span>
-                        <span>{section.reviewedCount} reviewed</span>
-                        {section.pendingCount > 0 ? (
-                          <span>Resolve unresolved fields first</span>
-                        ) : section.reviewFirstCount > 0 &&
-                          section.reviewedCount < section.reviewFirstCount ? (
-                          <span>Manual confirmation next</span>
-                        ) : (
-                          <span>Safe apply later</span>
-                        )}
-                      </div>
-                      <p>{section.actionHint}</p>
-                      <div className="front-office-merge-actions">
-                        <Button
-                          disabled={isBusy || section.reviewableCount === 0}
-                          onClick={() => {
-                            handleReviewAssistSection(section.fieldKeys);
-                          }}
-                          size="sm"
-                          type="button"
-                          variant="secondary"
-                        >
-                          Review {section.label.toLowerCase()} batch
-                        </Button>
-                        <Button
-                          disabled={isBusy || section.reviewedCount === 0}
-                          onClick={() => {
-                            handleApplyReviewedAssistSection(section.fieldKeys);
-                          }}
-                          size="sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          Apply reviewed {section.label.toLowerCase()} batch
-                        </Button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <p
-                  className={`front-office-calendar-feedback ${
-                    assistResult.safetySummary.tone === "warning"
-                      ? "is-neutral"
-                      : "is-success"
-                  }`}
-                >
-                  <strong>{assistResult.safetySummary.label}</strong>{" "}
-                  {assistResult.safetySummary.detail}
-                </p>
-
-                <p
-                  className={`front-office-calendar-feedback ${
-                    assistResult.readinessSummary.tone === "warning"
-                      ? "is-neutral"
-                      : "is-success"
-                  }`}
-                >
-                  <strong>{assistResult.readinessSummary.label}</strong>{" "}
-                  {assistResult.readinessSummary.detail}
-                </p>
-
-                {assistResult.readinessSummary.nextStepLabels.length ? (
-                  <div className="front-office-record-meta">
-                    {assistResult.readinessSummary.nextStepLabels.map(
-                      (label) => (
-                        <span key={label}>{label}</span>
-                      ),
-                    )}
-                  </div>
-                ) : null}
-
-                {assistResult.safetySummary.cautionLabels.length ? (
-                  <div className="front-office-record-meta">
-                    {assistResult.safetySummary.cautionLabels.map((label) => (
-                      <span key={label}>{label}</span>
-                    ))}
-                  </div>
-                ) : null}
-
-                {duplicateGateSignals.length ? (
-                  <div className="front-office-record-meta">
-                    {duplicateGateSignals.map((label) => (
-                      <span key={label}>{label}</span>
-                    ))}
-                  </div>
-                ) : null}
-
-                {pendingDuplicateIdentityAssistCount > 0 ? (
-                  <p className="front-office-calendar-feedback is-neutral">
-                    {pendingDuplicateIdentityAssistCount} identity suggestion(s)
-                    are still pending review, so duplicate preview and save-time
-                    duplicate checks ignore them until you move them into the
-                    live form.
-                  </p>
-                ) : null}
-
-                {manualAssistOverrideCount > 0 ? (
-                  <p className="front-office-calendar-feedback is-neutral">
-                    {manualAssistOverrideCount} reviewed suggestion(s) are
-                    currently overridden by your live form edits. Saving still
-                    uses the live form values only.
-                  </p>
-                ) : null}
 
                 {assistResult.fields.some(
                   (field) => field.suggestedAction !== "preview_only",
@@ -2471,7 +1669,7 @@ export function FrontOfficeLeadIntakeCard(
                       type="button"
                       variant="secondary"
                     >
-                      Review unresolved sections in batch
+                      Mark all fields reviewed
                     </Button>
                     <Button
                       disabled={isBusy || reviewedReviewableAssistCount === 0}
@@ -2479,23 +1677,14 @@ export function FrontOfficeLeadIntakeCard(
                       type="button"
                       variant="secondary"
                     >
-                      Apply reviewed unresolved fields
+                      Apply reviewed fields
                     </Button>
                   </div>
                 ) : null}
 
-                {pendingReviewableAssistCount > 0 ? (
-                  <p className="front-office-calendar-feedback is-neutral">
-                    {pendingReviewableAssistCount} reviewable suggestion(s) are
-                    still pending. Acre keeps unresolved and manual-confirmation
-                    fields ahead of safe apply, and create still uses only the
-                    live form values.
-                  </p>
-                ) : null}
-
                 <div className="front-office-lead-intake-assist-field-list">
-                  {assistResult.fields.length ? (
-                    assistResult.fields.map((field) => {
+                  {assistVisibleFields.length ? (
+                    assistVisibleFields.map((field) => {
                       const currentValue =
                         formState[field.field as keyof LeadFormState].trim();
                       const isReviewed = assistReviewedFieldKeys.includes(
@@ -2523,63 +1712,41 @@ export function FrontOfficeLeadIntakeCard(
                               >
                                 {getAssistFieldBadge(field)}
                               </StatusBadge>
-                              <StatusBadge
-                                tone={getAssistFieldProvenanceTone(field)}
-                              >
-                                {field.provenanceLabel}
-                              </StatusBadge>
+                              {matchesSuggestion ? (
+                                <StatusBadge tone="accent">In form</StatusBadge>
+                              ) : null}
+                              {isReviewed &&
+                              field.suggestedAction !== "preview_only" ? (
+                                <StatusBadge tone="success">
+                                  Reviewed
+                                </StatusBadge>
+                              ) : null}
                             </div>
                           </div>
-                          <p>{field.value}</p>
-                          <div className="front-office-record-meta">
-                            <span>{field.reasonLabel}</span>
-                            <span>{field.suggestedActionLabel}</span>
-                            <span>{field.reviewHintLabel}</span>
-                            <span>
-                              {getAssistFieldStatus({
-                                field,
-                                formState,
-                                defaultFormState: formDefaults,
-                                appliedFields: assistAppliedFields,
-                                manuallyEditedFields,
-                                replaceConfirmationFieldKey:
-                                  assistReplaceConfirmationFieldKey,
-                                reviewedFieldKeys: assistReviewedFieldKeys,
-                              })}
-                            </span>
-                            <span>
-                              {getAssistFieldLiveValueLabel({
-                                field,
-                                formState,
-                                defaultFormState: formDefaults,
-                                manuallyEditedFields,
-                              })}
-                            </span>
-                          </div>
-                          <div className="front-office-record-meta">
-                            <span>{field.sourceDetailLabel}</span>
-                            <span>Evidence: {field.evidenceLabel}</span>
-                            {field.cautionLabels.map((label) => (
-                              <span key={`${field.field}-${label}`}>
-                                {label}
-                              </span>
-                            ))}
-                          </div>
-                          <label className="front-office-record-meta">
-                            <input
-                              checked={isReviewed}
-                              disabled={isBusy}
-                              onChange={() => {
-                                toggleAssistFieldReviewed(field);
-                              }}
-                              type="checkbox"
-                            />
-                            <span>
-                              {field.suggestedAction === "preview_only"
-                                ? "I reviewed this preview"
-                                : "I reviewed this field"}
-                            </span>
-                          </label>
+                          <p className="front-office-lead-intake-assist-value">
+                            {field.value}
+                          </p>
+                          <p className="front-office-lead-intake-assist-note">
+                            {field.evidenceLabel}
+                          </p>
+                          {field.suggestedAction !== "preview_only" ? (
+                            <label className="front-office-record-meta">
+                              <input
+                                checked={isReviewed}
+                                disabled={isBusy}
+                                onChange={() => {
+                                  toggleAssistFieldReviewed(field);
+                                }}
+                                type="checkbox"
+                              />
+                              <span>Mark reviewed</span>
+                            </label>
+                          ) : (
+                            <p className="front-office-lead-intake-assist-note">
+                              Manual only. Copy the useful part into Notes if
+                              you want to keep it.
+                            </p>
+                          )}
                           {!matchesSuggestion &&
                           field.suggestedAction !== "preview_only" ? (
                             <div className="front-office-merge-actions">
@@ -2607,8 +1774,8 @@ export function FrontOfficeLeadIntakeCard(
                                     ? "Confirm replace live value"
                                     : "Replace current value"
                                   : currentValue
-                                    ? "Apply reviewed suggestion"
-                                    : "Apply reviewed field"}
+                                    ? "Apply to form"
+                                    : "Fill form"}
                               </Button>
                             </div>
                           ) : null}
@@ -2620,19 +1787,11 @@ export function FrontOfficeLeadIntakeCard(
                             defaultFormState: formDefaults,
                             manuallyEditedFields,
                           }) ? (
-                            <p>
+                            <p className="front-office-lead-intake-assist-note">
                               {assistReplaceConfirmationFieldKey ===
                               getAssistFieldReviewKey(field)
-                                ? "A second click is now required before Acre replaces the current live form value."
-                                : "This suggestion is reviewed, but the live form still keeps the current value until you explicitly confirm a replace."}
-                            </p>
-                          ) : null}
-                          {!matchesSuggestion &&
-                          field.suggestedAction === "preview_only" ? (
-                            <p>
-                              Preview-only text stays manual. Rewrite it in your
-                              own words or paste the useful part into the notes
-                              field yourself.
+                                ? "Click once more to replace the current form value."
+                                : "Current form value stays until you confirm replace."}
                             </p>
                           ) : null}
                         </article>
@@ -2646,12 +1805,6 @@ export function FrontOfficeLeadIntakeCard(
                     />
                   )}
                 </div>
-
-                <p className="front-office-lead-intake-assist-preview">
-                  {assistResult.rawText.length > 280
-                    ? `${assistResult.rawText.slice(0, 280)}...`
-                    : assistResult.rawText}
-                </p>
               </div>
             ) : null}
           </div>
@@ -2659,23 +1812,14 @@ export function FrontOfficeLeadIntakeCard(
           {shouldShowDuplicatePreviewSurface ? (
             <div className="front-office-duplicate-surface">
               <div className="front-office-duplicate-head">
-                <strong>Early duplicate warning</strong>
-                <p>
-                  Acre checks visible-scope collisions from{" "}
-                  {duplicatePreviewSourceSummary} before you submit. Open the
-                  closest existing record first, compare contact info and stage,
-                  and only create a separate record if this is truly a different
-                  lead.
-                </p>
+                <strong>Possible duplicate</strong>
+                <p>Check the closest existing client before you create a new record.</p>
               </div>
 
               <div className="front-office-record-meta">
-                <span>Open the existing record first</span>
-                <span>Compare contact info, stage, and next touch</span>
-                <span>Use duplicate review if this is the same lead</span>
-                <span>
-                  Save-time gate still checks live name, phone, and email
-                </span>
+                <span>Source: {duplicatePreviewSourceSummary}</span>
+                <span>Compare name, contact info, and stage</span>
+                <span>Save still checks live name, phone, and email</span>
               </div>
 
               {duplicatePreviewMatches.length ? (
@@ -2701,14 +1845,6 @@ export function FrontOfficeLeadIntakeCard(
                         <span>{match.nextTouchLabel}</span>
                         <span>Visible Front Office scope</span>
                       </div>
-                      <p>{match.recommendedActionLabel}</p>
-                      <div className="front-office-record-meta">
-                        {buildDuplicateNextStepLabels(match.matchReasons).map(
-                          (label) => (
-                            <span key={`${match.id}-${label}`}>{label}</span>
-                          ),
-                        )}
-                      </div>
                       <div className="front-office-merge-actions">
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
@@ -2730,13 +1866,13 @@ export function FrontOfficeLeadIntakeCard(
                 <EmptyState
                   description={
                     pendingDuplicateIdentityAssistCount > 0
-                      ? "Identity suggestions are still pending review, so Acre is intentionally holding back duplicate preview until those values enter the live form. Review the name, phone, or email first, then compare the closest visible record."
-                      : "No visible collision is showing yet. That does not bypass the final duplicate gate: save-time checks still verify the live name, phone, and email before create. Compare the closest visible record first if this lead already exists."
+                      ? "Review name, phone, or email first, then compare the closest visible record."
+                      : "No visible match right now. Save-time duplicate checks still run against the live form."
                   }
                   title={
                     pendingDuplicateIdentityAssistCount > 0
-                      ? "Duplicate preview is waiting on reviewed identity fields"
-                      : "No visible duplicate warning yet"
+                      ? "Duplicate preview is waiting on identity"
+                      : "No visible duplicate warning"
                   }
                 />
               )}
@@ -2759,8 +1895,7 @@ export function FrontOfficeLeadIntakeCard(
           ) : null}
 
           <p className="front-office-calendar-feedback is-neutral">
-            Create uses the live form only. OCR / transcript review stays
-            unresolved-first, and nothing auto-creates or auto-sends.
+            Only reviewed fields go into the live form. Nothing auto-creates or auto-sends.
           </p>
 
           <div className="office-form-grid front-office-lead-intake-grid">

@@ -1905,8 +1905,8 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
       context,
     }),
     summaryLabel: fields.length
-      ? `Review queue: ${fields.length} intake field(s) · ${reviewFieldCount} unresolved-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
-      : "Review queue empty · no structured lead fields detected yet",
+      ? `${fields.length} key field(s) extracted`
+      : "No key fields detected yet",
     safeApplyFieldCount,
     reviewFieldCount,
     previewOnlyFieldCount,

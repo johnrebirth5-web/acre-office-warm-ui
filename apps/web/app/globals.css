@@ -14454,12 +14454,12 @@ body,
 .front-office-lead-intake-assist-field-list {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
 .front-office-lead-intake-assist-field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   padding: 12px 13px;
   border: 1px solid rgba(183, 198, 219, 0.34);
   border-radius: 16px;
@@ -14482,6 +14482,22 @@ body,
   color: #23364f;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.front-office-lead-intake-assist-value {
+  margin: 0;
+  color: #203247;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.front-office-lead-intake-assist-note {
+  margin: 0;
+  color: #61778f;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .front-office-lead-intake-assist-field.is-empty {
