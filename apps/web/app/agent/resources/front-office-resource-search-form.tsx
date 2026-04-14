@@ -53,17 +53,17 @@ export function FrontOfficeResourceSearchForm(props: { initialQuery: string }) {
 
   return (
     <FilterBar as="form" method="GET" onSubmit={handleSubmit}>
-      <FilterField className="office-form-grid-span-2" label="Search this hub">
+      <FilterField className="office-form-grid-span-2" label="Search">
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
-          placeholder="Search playbooks, templates, vendors, tags, or headlines"
+          placeholder="Search playbooks, templates, vendors, or tags"
           type="search"
         />
       </FilterField>
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
-          Search hub
+          Search
         </button>
         {props.initialQuery ? (
           <a className="office-button-secondary" href="/agent/resources">

@@ -100,14 +100,16 @@ export function FrontOfficeResourceProgressActions(props: {
             onClick={() => handleProgressClick(milestone.value)}
             type="button"
           >
-            {milestone.label}
+            {milestone.value === 25
+              ? "25%"
+              : milestone.value === 50
+                ? "50%"
+                : "Complete"}
           </button>
         ))}
       </div>
       <p className="office-form-helper" style={{ margin: 0 }}>
-        Training progress stays manual and reviewable: log the milestone you
-        actually reached after you watch the clip so the operator signal stays
-        honest.
+        Log only the checkpoint you actually reached.
       </p>
       {feedback ? (
         <p
