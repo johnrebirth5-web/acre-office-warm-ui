@@ -18105,8 +18105,7 @@ body,
 }
 
 .listing-studio-rail-priority-card {
-  position: sticky;
-  top: 18px;
+  position: static;
 }
 
 .listing-studio-source-card {
