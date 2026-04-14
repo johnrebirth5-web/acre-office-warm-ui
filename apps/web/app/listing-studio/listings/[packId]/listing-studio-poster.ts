@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 
 export type ListingStudioPosterTemplateId =
@@ -220,10 +219,38 @@ function buildPosterPacketAbsoluteUrl(
   }
 }
 
+function buildDeterministicDigestBytes(value: string, length = 32) {
+  const encoder = new TextEncoder();
+  const input = encoder.encode(value);
+  const source = input.length ? input : new Uint8Array([0]);
+  const bytes: number[] = [];
+  let seed = 0x811c9dc5;
+
+  for (const unit of source) {
+    seed ^= unit;
+    seed = Math.imul(seed, 0x01000193) >>> 0;
+    seed ^= seed >>> 13;
+    seed = Math.imul(seed, 0x85ebca6b) >>> 0;
+  }
+
+  while (bytes.length < length) {
+    seed = (seed + 0x9e3779b9) >>> 0;
+    let mixed = seed;
+    mixed ^= mixed >>> 16;
+    mixed = Math.imul(mixed, 0x85ebca6b) >>> 0;
+    mixed ^= mixed >>> 13;
+    mixed = Math.imul(mixed, 0xc2b2ae35) >>> 0;
+    mixed ^= mixed >>> 16;
+    bytes.push(mixed & 0xff, (mixed >>> 8) & 0xff, (mixed >>> 16) & 0xff, (mixed >>> 24) & 0xff);
+  }
+
+  return bytes.slice(0, length);
+}
+
 function buildQrLikeMatrix(value: string, size = 29) {
   const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
   const reserved = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
-  const digest = Array.from(createHash("sha256").update(value).digest());
+  const digest = buildDeterministicDigestBytes(value);
 
   function mark(x: number, y: number, dark: boolean) {
     if (x < 0 || y < 0 || x >= size || y >= size) {
