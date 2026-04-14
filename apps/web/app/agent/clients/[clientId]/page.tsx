@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeClientDetail } from "@acre/db";
@@ -25,6 +24,7 @@ import {
 } from "./front-office-client-dossier-shared";
 import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
 import {
+  getSessionAccess,
   requireSessionContext,
 } from "../../../../lib/auth-session";
 
@@ -140,33 +140,6 @@ function getChatListStrategyDescription(
   return "No direct contact path is captured yet, so finish the contact record before trying to execute the playbook or send anything outbound.";
 }
 
-function FrontOfficeSectionDisclosure(props: {
-  children: ReactNode;
-  defaultOpen?: boolean;
-  description: string;
-  title: string;
-}) {
-  return (
-    <details
-      className="front-office-client-disclosure"
-      open={props.defaultOpen}
-    >
-      <summary className="front-office-client-disclosure-summary">
-        <div className="front-office-client-disclosure-copy">
-          <strong>{props.title}</strong>
-          <span>{props.description}</span>
-        </div>
-        <span className="front-office-client-disclosure-action">
-          Review
-        </span>
-      </summary>
-      <div className="front-office-client-disclosure-body">
-        {props.children}
-      </div>
-    </details>
-  );
-}
-
 export default async function AgentClientDetailPage(
   props: AgentClientDetailPageProps,
 ) {
@@ -178,6 +151,7 @@ export default async function AgentClientDetailPage(
 
   const { clientId } = await props.params;
   const searchParams = await props.searchParams;
+  const access = getSessionAccess(context);
   const canUseAi = can(context.currentMembership, "ai:use");
   const suggestedFollowUpTitle = searchParams.followUpTitle?.trim() || "";
   const suggestedFollowUpDueAt =
@@ -209,13 +183,24 @@ export default async function AgentClientDetailPage(
   const currentRailItem =
     snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
     snapshot.nextStepRail.items[0];
-  const appointmentRailItem =
-    snapshot.nextStepRail.items.find((item) => item.id === "appointment") ??
-    currentRailItem;
   const listingRailItem =
     snapshot.nextStepRail.items.find((item) => item.id === "listing_output") ??
     snapshot.nextStepRail.items[2] ??
     currentRailItem;
+  const appointmentRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "appointment") ??
+    currentRailItem;
+  const offerRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "offer_prep") ??
+    currentRailItem;
+  const inspectionRailItem =
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "inspection_support",
+    ) ?? currentRailItem;
+  const closingRailItem =
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "closing_suggestion",
+    ) ?? currentRailItem;
   const currentSectionLabel = currentRailItem.returnPoint.label;
   const currentSectionDescription = currentRailItem.returnPoint.description;
   const currentSectionHref = currentRailItem.returnPoint.href;
@@ -501,24 +486,57 @@ export default async function AgentClientDetailPage(
                 value={snapshot.workflow.pressureLabel}
               />
               <StatCard
-                hint="the dated next-touch anchor driving the follow-up surface"
-                label="Next touch"
+                hint="the current next-touch cue this client record is surfacing"
+                label="Follow-up cue"
                 tone="accent"
-                value={snapshot.followUpCue.dueLabel}
+                value={snapshot.followUpCue.label}
               />
               <StatCard
-                hint="open or in-progress follow-up tasks"
-                label="Open follow-up"
+                hint="renewal or remarketing timing currently attached to this client"
+                label="Lease reminder"
                 tone={
-                  snapshot.summary.openTaskCount > 0 ? "accent" : "default"
+                  snapshot.leaseReminder.needsAttention ? "accent" : "default"
                 }
-                value={snapshot.summary.openTaskCount}
+                value={snapshot.leaseReminder.statusLabel}
               />
               <StatCard
                 hint="where the record sits across Front Office execution and Back Office formal work"
                 label="Formal workflow"
                 tone="accent"
                 value={snapshot.nextStepRail.decisionLabel}
+              />
+            </ListPageStatsGrid>
+
+            <ListPageStatsGrid>
+              <StatCard
+                hint="open or in-progress follow-up tasks"
+                label="Open follow-up"
+                tone="accent"
+                value={snapshot.summary.openTaskCount}
+              />
+              <StatCard
+                hint="tasks that already need action, re-dating, or a real due date"
+                label="Needs action now"
+                tone={
+                  snapshot.summary.attentionTaskCount > 0 ? "accent" : "default"
+                }
+                value={snapshot.summary.attentionTaskCount}
+              />
+              <StatCard
+                hint="active follow-up tasks due in the next 7 days"
+                label="Due this week"
+                value={snapshot.summary.dueSoonTaskCount}
+              />
+              <StatCard
+                hint="scheduled appointments from now forward"
+                label="Upcoming appointments"
+                value={snapshot.summary.upcomingAppointmentCount}
+              />
+              <StatCard
+                hint="draft or ready formal workflow entries"
+                label="Back Office handoffs"
+                tone="accent"
+                value={snapshot.summary.openHandoffCount}
               />
             </ListPageStatsGrid>
 
@@ -535,14 +553,49 @@ export default async function AgentClientDetailPage(
                   actions: [workflowAction],
                 },
                 {
+                  key: "next-touch",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "The next touch is the current priority",
+                  description: snapshot.followUpCue.description,
+                  context: snapshot.followUpCue.dueLabel,
+                  meta: <span>{snapshot.nextTouchLabel}</span>,
+                  actions: [
+                    followUpCueAction,
+                    ...(snapshot.leaseReminder.reminderAtValue
+                      ? [
+                          {
+                            href: leaseFollowUpHref,
+                            label: "Load renewal follow-up",
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+                {
                   key: "boundary",
                   label: snapshot.nextStepRail.decisionLabel,
                   tone: snapshot.nextStepRail.decisionTone,
                   title: snapshot.nextStepRail.decisionTitle,
                   description: snapshot.nextStepRail.decisionDescription,
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "pdf",
+                  label: "Client-ready PDF",
+                  tone: "neutral",
+                  title: "Export a recap that mirrors the live client record",
+                  description:
+                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work or breaking continuity.",
+                  meta: (
+                    <span>
+                      PDF export stays client-facing; formal transaction
+                      documents still live separately and Back Office remains
+                      the formal record.
+                    </span>
+                  ),
                   actions: [
-                    primaryHandoffAction,
                     {
                       href: `/api/agent/clients/${snapshot.id}/pdf`,
                       label: "Download client PDF",
@@ -558,9 +611,21 @@ export default async function AgentClientDetailPage(
                 <span>Current section</span>
                 <strong>{currentSectionLabel}</strong>
               </div>
+              <div className="office-detail-field office-detail-field-wide">
+                <span>Section note</span>
+                <strong>{currentSectionDescription}</strong>
+              </div>
               <div className="office-detail-field">
                 <span>Next touch</span>
                 <strong>{snapshot.followUpCue.dueLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Formal workflow</span>
+                <strong>
+                  {primaryHandoff
+                    ? `${primaryHandoff.stageLabel} · ${primaryHandoff.statusLabel}`
+                    : "Front Office only for now"}
+                </strong>
               </div>
               <div className="office-detail-field">
                 <span>Source</span>
@@ -571,6 +636,14 @@ export default async function AgentClientDetailPage(
                 <strong>{snapshot.intentLabel}</strong>
               </div>
               <div className="office-detail-field">
+                <span>Budget</span>
+                <strong>{snapshot.budgetLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Preferred areas</span>
+                <strong>{snapshot.preferredAreasLabel}</strong>
+              </div>
+              <div className="office-detail-field">
                 <span>Owner</span>
                 <strong>{snapshot.ownerLabel}</strong>
               </div>
@@ -578,56 +651,27 @@ export default async function AgentClientDetailPage(
                 <span>Last touch</span>
                 <strong>{snapshot.lastTouchLabel}</strong>
               </div>
-            </div>
-
-            <FrontOfficeSectionDisclosure
-              defaultOpen={false}
-              description="Secondary client profile data stays available here, but it no longer stretches the default overview."
-              title="Reference details"
-            >
-              <div className="office-detail-grid">
-                <div className="office-detail-field office-detail-field-wide">
-                  <span>Section note</span>
-                  <strong>{currentSectionDescription}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Formal workflow</span>
-                  <strong>
-                    {primaryHandoff
-                      ? `${primaryHandoff.stageLabel} · ${primaryHandoff.statusLabel}`
-                      : "Front Office only for now"}
-                  </strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Budget</span>
-                  <strong>{snapshot.budgetLabel}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Preferred areas</span>
-                  <strong>{snapshot.preferredAreasLabel}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Lease end</span>
-                  <strong>{snapshot.leaseReminder.leaseEndDateLabel}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Lease reminder</span>
-                  <strong>{snapshot.leaseReminder.reminderAtLabel}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Email</span>
-                  <strong>{snapshot.email || "No email captured"}</strong>
-                </div>
-                <div className="office-detail-field">
-                  <span>Phone</span>
-                  <strong>{snapshot.phone || "No phone captured"}</strong>
-                </div>
-                <div className="office-detail-field office-detail-field-wide">
-                  <span>Notes</span>
-                  <strong>{snapshot.notesLabel}</strong>
-                </div>
+              <div className="office-detail-field">
+                <span>Lease end</span>
+                <strong>{snapshot.leaseReminder.leaseEndDateLabel}</strong>
               </div>
-            </FrontOfficeSectionDisclosure>
+              <div className="office-detail-field">
+                <span>Lease reminder</span>
+                <strong>{snapshot.leaseReminder.reminderAtLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Email</span>
+                <strong>{snapshot.email || "No email captured"}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Phone</span>
+                <strong>{snapshot.phone || "No phone captured"}</strong>
+              </div>
+              <div className="office-detail-field office-detail-field-wide">
+                <span>Notes</span>
+                <strong>{snapshot.notesLabel}</strong>
+              </div>
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -711,6 +755,59 @@ export default async function AgentClientDetailPage(
             title="Appointments & follow-up"
           >
             <div className="office-list-page-stack">
+              <FrontOfficeClientGuidanceQueue
+                items={[
+                  {
+                    key: "fo-lane",
+                    label: primaryHandoff
+                      ? "Front Office supports Back Office"
+                      : "Stay in Front Office",
+                    tone: "accent",
+                    title: primaryHandoff
+                      ? "Daily coordination still stays in Front Office"
+                      : "Daily next touches and meetings stay in Front Office",
+                    description: primaryHandoff
+                      ? "Even with a live transaction file, calls, confirmations, reschedules, and client-facing reminders should keep moving from this client page."
+                      : "Use follow-up tasks, next-touch dates, and appointment scheduling here before the work becomes a formal offer or contract file.",
+                  },
+                  {
+                    key: "bo-lane",
+                    label: primaryHandoff
+                      ? primaryHandoff.statusLabel
+                      : "Back Office later",
+                    tone: primaryHandoff ? primaryHandoff.tone : "warning",
+                    title: primaryHandoff
+                      ? "Formal milestones stay on the Back Office record"
+                      : "Do not open Back Office just to hold a reminder",
+                    description: primaryHandoff
+                      ? primaryHandoff.summary
+                      : "A next-touch reminder, showing confirmation, or viewing recap is still Front Office work. Create the formal file only when negotiation, application, or contract work needs it.",
+                    actions: [primaryHandoffAction],
+                  },
+                  {
+                    key: "current-state",
+                    label: snapshot.workflow.pressureLabel,
+                    tone: snapshot.workflow.pressureTone,
+                    title: snapshot.workflow.nextStepTitle,
+                    description: `${snapshot.workflow.nextStepDescription} The appointment cards below now call out the external status, saved update status, next-touch pressure, and a direct link back to the calendar update form.`,
+                    meta: (
+                      <span>
+                        {currentRailItem.stepLabel} ·{" "}
+                        {currentRailItem.ownershipLabel}
+                      </span>
+                    ),
+                    actions: [
+                      followUpPrimaryAction,
+                      {
+                        href: appointmentRailItem.actionHref,
+                        label: appointmentRailItem.actionLabel,
+                        opensInNewTab: appointmentRailItem.actionOpensInNewTab,
+                      },
+                    ],
+                  },
+                ]}
+              />
+
               <div className="office-queue-list">
                 {snapshot.appointments.length ? (
                   snapshot.appointments.map((appointment) => (
@@ -964,74 +1061,139 @@ export default async function AgentClientDetailPage(
             )}
             title="Offer & negotiation"
           >
-            <FrontOfficeSectionDisclosure
-              description={`${snapshot.negotiation.nextMoveLabel} · ${snapshot.negotiation.boundaryLabel}. Open this only when you're actively preparing, comparing, or escalating an offer path.`}
-              title="Offer prep workspace"
-            >
-              <ListPageStatsGrid>
-                <StatCard
-                  hint="where this client currently sits across Front Office prep and the shared Back Office offer file"
-                  label="Deal stage"
-                  tone="accent"
-                  value={snapshot.negotiation.boundaryLabel}
-                />
-                <StatCard
-                  hint="formal Back Office offer records already tracked in the linked transaction"
-                  label="Back Office offers"
-                  value={snapshot.negotiation.offerCount}
-                />
-                <StatCard
-                  hint="offers that are close to expiration in the shared formal workflow"
-                  label="Expiring soon"
-                  value={snapshot.negotiation.expiringSoonCount}
-                />
-                <StatCard
-                  hint={snapshot.negotiation.nextMoveDescription}
-                  label="Next move"
-                  tone="accent"
-                  value={snapshot.negotiation.nextMoveLabel}
-                />
-              </ListPageStatsGrid>
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across Front Office prep and the shared Back Office offer file"
+                label="Deal stage"
+                tone="accent"
+                value={snapshot.negotiation.boundaryLabel}
+              />
+              <StatCard
+                hint="formal Back Office offer records already tracked in the linked transaction"
+                label="Back Office offers"
+                value={snapshot.negotiation.offerCount}
+              />
+              <StatCard
+                hint="offers that are close to expiration in the shared formal workflow"
+                label="Expiring soon"
+                value={snapshot.negotiation.expiringSoonCount}
+              />
+              <StatCard
+                hint="accepted offer or current primary state"
+                label="Accepted / primary"
+                value={snapshot.negotiation.acceptedOfferLabel}
+              />
+              <StatCard
+                hint={snapshot.negotiation.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.negotiation.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.negotiation.operatorDescription}
+                label="Current focus"
+                tone="accent"
+                value={snapshot.negotiation.operatorLabel}
+              />
+            </ListPageStatsGrid>
 
-              <div className="office-queue-list">
-                {snapshot.negotiation.offers.length ? (
-                  snapshot.negotiation.offers.map((offer) => (
-                    <QueueItem
-                      action={
-                        <FrontOfficeLink
-                          className="office-inline-link"
-                          href={offer.href}
-                        >
-                          Open Back Office offer
-                        </FrontOfficeLink>
-                      }
-                      badgeLabel={offer.statusLabel}
-                      badgeTone={offer.statusTone}
-                      context={offer.partyLabel}
-                      description={[offer.priceLabel, offer.expirationLabel]
-                        .filter(Boolean)
-                        .join(" · ")}
-                      key={offer.id}
-                      meta={<span>{offer.updatedAtLabel}</span>}
-                      title={offer.title}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.negotiation.nextMoveLabel,
+                  description: snapshot.negotiation.nextMoveDescription,
+                  context: snapshot.negotiation.operatorLabel,
+                  meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.negotiation.primaryActionHref,
+                      label: snapshot.negotiation.primaryActionLabel,
+                    },
+                  ],
+                },
+                {
+                  key: "fo-lane",
+                  label: "Current focus",
+                  tone: offerRailItem.ownershipTone,
+                  title: snapshot.negotiation.operatorLabel,
+                  description: snapshot.negotiation.operatorDescription,
+                  context: snapshot.negotiation.boundaryLabel,
+                  meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return here",
+                  tone: "neutral",
+                  title: offerRailItem.returnPoint.label,
+                  description: offerRailItem.returnDescription,
+                  context: snapshot.negotiation.boundaryLabel,
+                  meta: <span>{offerRailItem.returnPoint.description}</span>,
+                  actions: [
+                    {
+                      href: offerRailItem.returnPoint.href,
+                      label: "Come back here",
+                    },
+                  ],
+                },
+                {
+                  key: "current-state",
+                  label: snapshot.negotiation.boundaryLabel,
+                  tone: snapshot.negotiation.boundaryTone,
+                  title: snapshot.negotiation.boundaryTitle,
+                  description: snapshot.negotiation.boundaryDescription,
+                  meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.negotiation.primaryActionHref,
+                      label: snapshot.negotiation.primaryActionLabel,
+                    },
+                  ],
+                },
+              ]}
+            />
+
+            <div className="office-queue-list">
+              {snapshot.negotiation.offers.length ? (
+                snapshot.negotiation.offers.map((offer) => (
+                  <QueueItem
                     action={
                       <FrontOfficeLink
-                        className="office-button-secondary"
-                        href={snapshot.negotiation.primaryActionHref}
+                        className="office-inline-link"
+                        href={offer.href}
                       >
-                        {snapshot.negotiation.primaryActionLabel}
+                        Open Back Office offer
                       </FrontOfficeLink>
                     }
-                    description={snapshot.negotiation.emptyStateDescription}
-                    title={snapshot.negotiation.emptyStateTitle}
+                    badgeLabel={offer.statusLabel}
+                    badgeTone={offer.statusTone}
+                    context={offer.partyLabel}
+                    description={[offer.priceLabel, offer.expirationLabel]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    key={offer.id}
+                    meta={<span>{offer.updatedAtLabel}</span>}
+                    title={offer.title}
                   />
-                )}
-              </div>
-            </FrontOfficeSectionDisclosure>
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={snapshot.negotiation.primaryActionHref}
+                    >
+                      {snapshot.negotiation.primaryActionLabel}
+                    </FrontOfficeLink>
+                  }
+                  description={snapshot.negotiation.emptyStateDescription}
+                  title={snapshot.negotiation.emptyStateTitle}
+                />
+              )}
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -1056,72 +1218,150 @@ export default async function AgentClientDetailPage(
             )}
             title="Inspection & contract support"
           >
-            <FrontOfficeSectionDisclosure
-              description={`${snapshot.inspection.nextMoveLabel} · ${snapshot.inspection.boundaryLabel}. Keep this tucked away until contract support, signatures, or inspection coordination is actually active.`}
-              title="Inspection & contract workspace"
-            >
-              <ListPageStatsGrid>
-                <StatCard
-                  hint="where this client currently sits across Front Office prep and the live Back Office contract file"
-                  label="Contract stage"
-                  tone="accent"
-                  value={snapshot.inspection.boundaryLabel}
-                />
-                <StatCard
-                  hint="open checklist work already living on the shared Back Office transaction"
-                  label="Back Office open tasks"
-                  value={snapshot.inspection.openTaskCount}
-                />
-                <StatCard
-                  hint="open signature requests that still need send / review / signer progress"
-                  label="Pending signatures"
-                  value={snapshot.inspection.pendingSignatureCount}
-                />
-                <StatCard
-                  hint={snapshot.inspection.nextMoveDescription}
-                  label="Next move"
-                  tone="accent"
-                  value={snapshot.inspection.nextMoveLabel}
-                />
-              </ListPageStatsGrid>
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across Front Office prep and the live Back Office contract file"
+                label="Contract stage"
+                tone="accent"
+                value={snapshot.inspection.boundaryLabel}
+              />
+              <StatCard
+                hint="open checklist work already living on the shared Back Office transaction"
+                label="Back Office open tasks"
+                value={snapshot.inspection.openTaskCount}
+              />
+              <StatCard
+                hint="open signature requests that still need send / review / signer progress"
+                label="Pending signatures"
+                value={snapshot.inspection.pendingSignatureCount}
+              />
+              <StatCard
+                hint="incoming transaction updates still waiting on Back Office review"
+                label="Review queue"
+                value={snapshot.inspection.pendingIncomingUpdateCount}
+              />
+              <StatCard
+                hint={snapshot.inspection.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.inspection.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.inspection.operatorDescription}
+                label="Current focus"
+                tone="accent"
+                value={snapshot.inspection.operatorLabel}
+              />
+            </ListPageStatsGrid>
 
-              <div className="office-queue-list">
-                {snapshot.inspection.items.length ? (
-                  snapshot.inspection.items.map((item) => (
-                    <QueueItem
-                      action={
-                        <FrontOfficeLink
-                          className="office-inline-link"
-                          href={item.href}
-                        >
-                          {item.actionLabel}
-                        </FrontOfficeLink>
-                      }
-                      badgeLabel={item.statusLabel}
-                      badgeTone={item.statusTone}
-                      context={item.contextLabel}
-                      description={item.description}
-                      key={item.id}
-                      meta={<span>{item.metaLabel}</span>}
-                      title={item.title}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.inspection.nextMoveLabel,
+                  description: snapshot.inspection.nextMoveDescription,
+                  context: snapshot.inspection.operatorLabel,
+                  meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.inspection.primaryActionHref,
+                      label: snapshot.inspection.primaryActionLabel,
+                    },
+                  ],
+                },
+                {
+                  key: "fo-lane",
+                  label: "Current focus",
+                  tone: inspectionRailItem.ownershipTone,
+                  title: snapshot.inspection.operatorLabel,
+                  description: snapshot.inspection.operatorDescription,
+                  context: snapshot.inspection.boundaryLabel,
+                  meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return here",
+                  tone: "neutral",
+                  title: inspectionRailItem.returnPoint.label,
+                  description: inspectionRailItem.returnDescription,
+                  context: snapshot.inspection.boundaryLabel,
+                  meta: (
+                    <span>{inspectionRailItem.returnPoint.description}</span>
+                  ),
+                  actions: [
+                    {
+                      href: inspectionRailItem.returnPoint.href,
+                      label: "Come back here",
+                    },
+                  ],
+                },
+                {
+                  key: "bo-lane",
+                  label: primaryHandoff
+                    ? "Back Office live"
+                    : "Back Office required",
+                  tone: primaryHandoff ? primaryHandoff.tone : "warning",
+                  title: "Formal contract work stays in Back Office",
+                  description:
+                    "Open tasks, signatures, and incoming update review should stay on the shared Back Office transaction instead of turning this client page into a second inspection checklist.",
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "current-state",
+                  label: snapshot.inspection.boundaryLabel,
+                  tone: snapshot.inspection.boundaryTone,
+                  title: snapshot.inspection.boundaryTitle,
+                  description: snapshot.inspection.boundaryDescription,
+                  meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.inspection.primaryActionHref,
+                      label: snapshot.inspection.primaryActionLabel,
+                    },
+                  ],
+                },
+              ]}
+            />
+
+            <div className="office-queue-list">
+              {snapshot.inspection.items.length ? (
+                snapshot.inspection.items.map((item) => (
+                  <QueueItem
                     action={
                       <FrontOfficeLink
-                        className="office-button-secondary"
-                        href={snapshot.inspection.primaryActionHref}
+                        className="office-inline-link"
+                        href={item.href}
                       >
-                        {snapshot.inspection.primaryActionLabel}
+                        {item.actionLabel}
                       </FrontOfficeLink>
                     }
-                    description={snapshot.inspection.emptyStateDescription}
-                    title={snapshot.inspection.emptyStateTitle}
+                    badgeLabel={item.statusLabel}
+                    badgeTone={item.statusTone}
+                    context={item.contextLabel}
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
                   />
-                )}
-              </div>
-            </FrontOfficeSectionDisclosure>
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={snapshot.inspection.primaryActionHref}
+                    >
+                      {snapshot.inspection.primaryActionLabel}
+                    </FrontOfficeLink>
+                  }
+                  description={snapshot.inspection.emptyStateDescription}
+                  title={snapshot.inspection.emptyStateTitle}
+                />
+              )}
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -1147,98 +1387,179 @@ export default async function AgentClientDetailPage(
             )}
             title="Closing & win suggestions"
           >
-            <FrontOfficeSectionDisclosure
-              description={`${snapshot.closing.nextMoveLabel} · ${snapshot.closing.boundaryLabel}. Keep this closed until the file is truly in closing, win recap, or post-close follow-through.`}
-              title="Closing workspace"
-            >
-              <ListPageStatsGrid>
-                <StatCard
-                  hint="where this client currently sits across pre-close planning, formal handoff, fresh win follow-through, and post-close nurture"
-                  label="Close stage"
-                  tone={
-                    snapshot.closing.boundaryTone === "neutral"
-                      ? "default"
-                      : "accent"
-                  }
-                  value={snapshot.closing.boundaryLabel}
-                />
-                <StatCard
-                  hint="formal shared transaction state currently attached to this client record and owned by Back Office"
-                  label="Deal status"
-                  value={snapshot.closing.transactionStatusLabel}
-                />
-                <StatCard
-                  hint="next shared milestone date captured from the linked transaction"
-                  label="Key date"
-                  value={snapshot.closing.keyDateLabel}
-                />
-                <StatCard
-                  hint={snapshot.closing.nextMoveDescription}
-                  label="Next move"
-                  tone="accent"
-                  value={snapshot.closing.nextMoveLabel}
-                />
-              </ListPageStatsGrid>
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across pre-close planning, formal handoff, fresh win follow-through, and post-close nurture"
+                label="Close stage"
+                tone={
+                  snapshot.closing.boundaryTone === "neutral"
+                    ? "default"
+                    : "accent"
+                }
+                value={snapshot.closing.boundaryLabel}
+              />
+              <StatCard
+                hint="formal shared transaction state currently attached to this client record and owned by Back Office"
+                label="Deal status"
+                value={snapshot.closing.transactionStatusLabel}
+              />
+              <StatCard
+                hint="next shared milestone date captured from the linked transaction"
+                label="Key date"
+                value={snapshot.closing.keyDateLabel}
+              />
+              <StatCard
+                hint="latest client-facing follow-up timing already visible in Front Office and tied back to the formal record"
+                label="Next touch"
+                tone="accent"
+                value={snapshot.closing.nextTouchLabel}
+              />
+              <StatCard
+                hint={snapshot.closing.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.closing.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.closing.operatorDescription}
+                label="Current focus"
+                tone="accent"
+                value={snapshot.closing.operatorLabel}
+              />
+            </ListPageStatsGrid>
 
-              <div className="office-queue-list">
-                {snapshot.closing.suggestions.length ? (
-                  snapshot.closing.suggestions.map((item) => (
-                    <QueueItem
-                      action={
-                        item.opensInNewTab ? (
-                          <a
-                            className="office-inline-link"
-                            href={item.href}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            {item.actionLabel}
-                          </a>
-                        ) : (
-                          <FrontOfficeLink
-                            className="office-inline-link"
-                            href={item.href}
-                          >
-                            {item.actionLabel}
-                          </FrontOfficeLink>
-                        )
-                      }
-                      badgeLabel={item.statusLabel}
-                      badgeTone={item.statusTone}
-                      context={item.contextLabel}
-                      description={item.description}
-                      key={item.id}
-                      meta={<span>{item.metaLabel}</span>}
-                      title={item.title}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.closing.nextMoveLabel,
+                  description: snapshot.closing.nextMoveDescription,
+                  context: snapshot.closing.operatorLabel,
+                  meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.closing.primaryActionHref,
+                      label: snapshot.closing.primaryActionLabel,
+                      opensInNewTab:
+                        snapshot.closing.primaryActionOpensInNewTab,
+                    },
+                  ],
+                },
+                {
+                  key: "fo-lane",
+                  label: "Current focus",
+                  tone: closingRailItem.ownershipTone,
+                  title: snapshot.closing.operatorLabel,
+                  description: snapshot.closing.operatorDescription,
+                  context: snapshot.closing.boundaryLabel,
+                  meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return here",
+                  tone: "neutral",
+                  title: closingRailItem.returnPoint.label,
+                  description: closingRailItem.returnDescription,
+                  context: snapshot.closing.boundaryLabel,
+                  meta: <span>{closingRailItem.returnPoint.description}</span>,
+                  actions: [
+                    {
+                      href: closingRailItem.returnPoint.href,
+                      label: "Come back here",
+                    },
+                  ],
+                },
+                {
+                  key: "bo-lane",
+                  label: primaryHandoff
+                    ? "Back Office record"
+                    : "Back Office home",
+                  tone: primaryHandoff ? primaryHandoff.tone : "accent",
+                  title: "The formal deal status still lives in Back Office",
+                  description:
+                    "Closing dates, final milestones, and the finished transaction record remain on the shared Back Office side. Front Office should point to that outcome, not recreate it, and keep the client-facing follow-up tied to the same formal record.",
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "current-state",
+                  label: snapshot.closing.boundaryLabel,
+                  tone: snapshot.closing.boundaryTone,
+                  title: snapshot.closing.boundaryTitle,
+                  description: snapshot.closing.boundaryDescription,
+                  meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.closing.primaryActionHref,
+                      label: snapshot.closing.primaryActionLabel,
+                      opensInNewTab:
+                        snapshot.closing.primaryActionOpensInNewTab,
+                    },
+                  ],
+                },
+              ]}
+            />
+
+            <div className="office-queue-list">
+              {snapshot.closing.suggestions.length ? (
+                snapshot.closing.suggestions.map((item) => (
+                  <QueueItem
                     action={
-                      snapshot.closing.primaryActionOpensInNewTab ? (
+                      item.opensInNewTab ? (
                         <a
-                          className="office-button-secondary"
-                          href={snapshot.closing.primaryActionHref}
+                          className="office-inline-link"
+                          href={item.href}
                           rel="noreferrer"
                           target="_blank"
                         >
-                          {snapshot.closing.primaryActionLabel}
+                          {item.actionLabel}
                         </a>
                       ) : (
                         <FrontOfficeLink
-                          className="office-button-secondary"
-                          href={snapshot.closing.primaryActionHref}
+                          className="office-inline-link"
+                          href={item.href}
                         >
-                          {snapshot.closing.primaryActionLabel}
+                          {item.actionLabel}
                         </FrontOfficeLink>
                       )
                     }
-                    description={snapshot.closing.emptyStateDescription}
-                    title={snapshot.closing.emptyStateTitle}
+                    badgeLabel={item.statusLabel}
+                    badgeTone={item.statusTone}
+                    context={item.contextLabel}
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
                   />
-                )}
-              </div>
-            </FrontOfficeSectionDisclosure>
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    snapshot.closing.primaryActionOpensInNewTab ? (
+                      <a
+                        className="office-button-secondary"
+                        href={snapshot.closing.primaryActionHref}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {snapshot.closing.primaryActionLabel}
+                      </a>
+                    ) : (
+                      <FrontOfficeLink
+                        className="office-button-secondary"
+                        href={snapshot.closing.primaryActionHref}
+                      >
+                        {snapshot.closing.primaryActionLabel}
+                      </FrontOfficeLink>
+                    )
+                  }
+                  description={snapshot.closing.emptyStateDescription}
+                  title={snapshot.closing.emptyStateTitle}
+                />
+              )}
+            </div>
           </SectionCard>
 
           {canUseAi ? (
@@ -1279,85 +1600,80 @@ export default async function AgentClientDetailPage(
                 subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so you can see whether the suggestion actually helped move the client forward."
                 title="Accepted AI actions & outcomes"
               >
-                <FrontOfficeSectionDisclosure
-                  description="Outcome tracking is still here, but it starts collapsed so it doesn't compete with the active client workflow."
-                  title="AI outcome history"
-                >
-                  <ListPageStatsGrid>
-                    <StatCard
-                      hint="accepted follow-up or tracked-send actions tied to this client record"
-                      label="Accepted actions"
-                      value={snapshot.aiAcceptedActions.acceptedCount}
-                    />
-                    <StatCard
-                      hint="accepted actions that already produced a completion or tracked open"
-                      label="Positive outcomes"
-                      tone="accent"
-                      value={snapshot.aiAcceptedActions.positiveOutcomeCount}
-                    />
-                  </ListPageStatsGrid>
+                <ListPageStatsGrid>
+                  <StatCard
+                    hint="accepted follow-up or tracked-send actions tied to this client record"
+                    label="Accepted actions"
+                    value={snapshot.aiAcceptedActions.acceptedCount}
+                  />
+                  <StatCard
+                    hint="accepted actions that already produced a completion or tracked open"
+                    label="Positive outcomes"
+                    tone="accent"
+                    value={snapshot.aiAcceptedActions.positiveOutcomeCount}
+                  />
+                </ListPageStatsGrid>
 
-                  {snapshot.aiAcceptedActions.breakdown.length ? (
-                    <div className="list-row-meta front-office-record-meta">
-                      {snapshot.aiAcceptedActions.breakdown.map((item) => (
-                        <span key={item.label}>
-                          {item.label} · {item.summary}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {snapshot.aiAcceptedActions.windows.length ? (
-                    <div className="office-queue-list">
-                      {snapshot.aiAcceptedActions.windows.map((window) => (
-                        <article className="office-queue-item" key={window.label}>
-                          <strong>{window.label}</strong>
-                          <p>{window.summary}</p>
-                          {window.items.length ? (
-                            <div className="list-row-meta front-office-record-meta">
-                              {window.items.map((item) => (
-                                <span key={`${window.label}-${item.label}`}>
-                                  {item.label} · {item.summary}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p>No accepted AI actions in this window yet.</p>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="office-queue-list">
-                    {snapshot.aiAcceptedActions.items.length ? (
-                      snapshot.aiAcceptedActions.items.map((item) => (
-                        <QueueItem
-                          action={
-                            <FrontOfficeLink
-                              className="office-inline-link"
-                              href={item.href}
-                            >
-                              {item.actionLabel}
-                            </FrontOfficeLink>
-                          }
-                          badgeLabel={item.statusLabel}
-                          badgeTone={item.statusTone}
-                          context={item.contextLabel}
-                          description={item.description}
-                          key={item.id}
-                          meta={<span>{item.helperLabel}</span>}
-                          title={item.title}
-                        />
-                      ))
-                    ) : (
-                      <EmptyState
-                        description="When you accept an AI follow-up or use AI draft assist to create a tracked send, Acre will show the resulting task or engagement outcome here."
-                        title="No accepted AI actions yet"
-                      />
-                    )}
+                {snapshot.aiAcceptedActions.breakdown.length ? (
+                  <div className="list-row-meta front-office-record-meta">
+                    {snapshot.aiAcceptedActions.breakdown.map((item) => (
+                      <span key={item.label}>
+                        {item.label} · {item.summary}
+                      </span>
+                    ))}
                   </div>
-                </FrontOfficeSectionDisclosure>
+                ) : null}
+
+                {snapshot.aiAcceptedActions.windows.length ? (
+                  <div className="office-queue-list">
+                    {snapshot.aiAcceptedActions.windows.map((window) => (
+                      <article className="office-queue-item" key={window.label}>
+                        <strong>{window.label}</strong>
+                        <p>{window.summary}</p>
+                        {window.items.length ? (
+                          <div className="list-row-meta front-office-record-meta">
+                            {window.items.map((item) => (
+                              <span key={`${window.label}-${item.label}`}>
+                                {item.label} · {item.summary}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p>No accepted AI actions in this window yet.</p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="office-queue-list">
+                  {snapshot.aiAcceptedActions.items.length ? (
+                    snapshot.aiAcceptedActions.items.map((item) => (
+                      <QueueItem
+                        action={
+                          <FrontOfficeLink
+                            className="office-inline-link"
+                            href={item.href}
+                          >
+                            {item.actionLabel}
+                          </FrontOfficeLink>
+                        }
+                        badgeLabel={item.statusLabel}
+                        badgeTone={item.statusTone}
+                        context={item.contextLabel}
+                        description={item.description}
+                        key={item.id}
+                        meta={<span>{item.helperLabel}</span>}
+                        title={item.title}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      description="When you accept an AI follow-up or use AI draft assist to create a tracked send, Acre will show the resulting task or engagement outcome here."
+                      title="No accepted AI actions yet"
+                    />
+                  )}
+                </div>
               </SectionCard>
             </div>
           ) : null}
@@ -1464,147 +1780,165 @@ export default async function AgentClientDetailPage(
                   meta: <span>{currentRailItem.metaLabel}</span>,
                   actions: buildRailItemActions(currentRailItem),
                 },
+                {
+                  key: "follow-up-cue",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "Follow-up stays front and center",
+                  context: snapshot.followUpCue.dueLabel,
+                  description: snapshot.followUpCue.description,
+                  meta: <span>{snapshot.nextTouchLabel}</span>,
+                  actions: [
+                    followUpCueAction,
+                    {
+                      href: leaseReminderSectionHref,
+                      label: "Lease reminder",
+                    },
+                    ...(snapshot.leaseReminder.reminderAtValue
+                      ? [
+                          {
+                            href: leaseFollowUpHref,
+                            label: "Load renewal follow-up",
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+                {
+                  key: "pdf",
+                  label: "Client recap",
+                  tone: "neutral",
+                  title:
+                    "Export the same execution story as a client-facing PDF",
+                  description:
+                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without turning admin work into duplicate notes here.",
+                  meta: (
+                    <span>
+                      Use it for recap, alignment, and post-meeting
+                      follow-through.
+                    </span>
+                  ),
+                  actions: [
+                    {
+                      href: `/api/agent/clients/${snapshot.id}/pdf`,
+                      label: "Download client PDF",
+                      opensInNewTab: true,
+                    },
+                  ],
+                },
+                {
+                  key: "bo-status",
+                  label: primaryHandoff
+                    ? primaryHandoff.statusLabel
+                    : "Back Office not active",
+                  tone: primaryHandoff?.tone ?? "neutral",
+                  title: primaryHandoff
+                    ? `${primaryHandoff.stageLabel} is the current formal workflow`
+                    : "Formal workflow is not active yet",
+                  description: primaryHandoff
+                    ? primaryHandoff.summary
+                    : "Stay here until negotiation, application, offer, or contract work needs a formal record.",
+                  meta: (
+                    <span>
+                      {primaryHandoff
+                        ? primaryHandoff.updatedAtLabel
+                        : "Open Back Office only when the work becomes formal, auditable, or finance-driven."}
+                    </span>
+                  ),
+                  actions: [primaryHandoffAction],
+                },
               ]}
             />
 
-            <FrontOfficeSectionDisclosure
-              defaultOpen={false}
-              description="Open the full lane map only when you need every jump target, the contact card, or the PDF shortcut."
-              title="Detailed lane map"
-            >
-              <div className="office-queue-list">
-                {snapshot.nextStepRail.items.map((item) => (
-                  <QueueItem
-                    action={
-                      <FrontOfficeClientActionGroup
-                        actions={buildRailItemActions(item)}
-                      />
-                    }
-                    badgeLabel={item.statusLabel}
-                    badgeTone={item.statusTone}
-                    context={`${item.stepLabel} · ${item.ownershipLabel}`}
-                    description={item.description}
-                    key={item.id}
-                    meta={
-                      <span>
-                        {item.isCurrent ? "Current focus · " : ""}
-                        {item.metaLabel}
-                      </span>
-                    }
-                    title={item.title}
+            <div className="front-office-placeholder-note">
+              <strong>Working order</strong>
+              <p>
+                Open the matching section first. Use the second jump only when
+                the work needs calendar scheduling, listing output, the shared
+                formal record, or a PDF export that should mirror the same
+                story.
+              </p>
+            </div>
+
+            <div className="office-queue-list">
+              {snapshot.nextStepRail.items.map((item) => (
+                <QueueItem
+                  action={
+                    <FrontOfficeClientActionGroup
+                      actions={buildRailItemActions(item)}
+                    />
+                  }
+                  badgeLabel={item.statusLabel}
+                  badgeTone={item.statusTone}
+                  context={`${item.stepLabel} · ${item.ownershipLabel}`}
+                  description={item.description}
+                  key={item.id}
+                  meta={
+                    <span>
+                      {item.isCurrent ? "Current focus · " : ""}
+                      {item.metaLabel}
+                    </span>
+                  }
+                  title={item.title}
+                />
+              ))}
+              <QueueItem
+                action={
+                  <FrontOfficeClientActionGroup actions={[followUpCueAction]} />
+                }
+                badgeLabel={snapshot.followUpCue.label}
+                badgeTone={snapshot.followUpCue.tone}
+                context={snapshot.followUpCue.dueLabel}
+                description={snapshot.followUpCue.description}
+                meta={<span>{snapshot.nextTouchLabel}</span>}
+                title="Follow-up cue"
+              />
+              <QueueItem
+                badgeLabel={snapshot.workflow.pressureLabel}
+                badgeTone={snapshot.workflow.pressureTone}
+                description={snapshot.workflow.pressureDescription}
+                meta={<span>{snapshot.workflow.nextStepDescription}</span>}
+                title={snapshot.workflow.nextStepTitle}
+              />
+              <QueueItem
+                action={
+                  <FrontOfficeClientActionGroup
+                    actions={[
+                      snapshot.email
+                        ? {
+                            href: `mailto:${snapshot.email}`,
+                            label: "Email client",
+                          }
+                        : {
+                            href: null,
+                            label: "",
+                          },
+                      snapshot.phone
+                        ? {
+                            href: `tel:${snapshot.phone}`,
+                            label: "Call client",
+                          }
+                        : {
+                            href: null,
+                            label: "",
+                          },
+                    ]}
                   />
-                ))}
-                <QueueItem
-                  action={
-                    <FrontOfficeClientActionGroup
-                      actions={[
-                        followUpCueAction,
-                        {
-                          href: leaseReminderSectionHref,
-                          label: "Lease reminder",
-                        },
-                        ...(snapshot.leaseReminder.reminderAtValue
-                          ? [
-                              {
-                                href: leaseFollowUpHref,
-                                label: "Load renewal follow-up",
-                              },
-                            ]
-                          : []),
-                      ]}
-                    />
-                  }
-                  badgeLabel={snapshot.followUpCue.label}
-                  badgeTone={snapshot.followUpCue.tone}
-                  context={snapshot.followUpCue.dueLabel}
-                  description={snapshot.followUpCue.description}
-                  meta={<span>{snapshot.nextTouchLabel}</span>}
-                  title="Follow-up cue"
-                />
-                <QueueItem
-                  action={
-                    <FrontOfficeClientActionGroup actions={[primaryHandoffAction]} />
-                  }
-                  badgeLabel={
-                    primaryHandoff
-                      ? primaryHandoff.statusLabel
-                      : "Back Office not active"
-                  }
-                  badgeTone={primaryHandoff?.tone ?? "neutral"}
-                  context={
-                    primaryHandoff
-                      ? primaryHandoff.updatedAtLabel
-                      : "Open Back Office only when the work becomes formal."
-                  }
-                  description={
-                    primaryHandoff?.summary ??
-                    "Stay here until negotiation, application, offer, or contract work needs a formal record."
-                  }
-                  meta={<span>{snapshot.nextStepRail.decisionMetaLabel}</span>}
-                  title={
-                    primaryHandoff
-                      ? `${primaryHandoff.stageLabel} is the current formal workflow`
-                      : "Formal workflow is not active yet"
-                  }
-                />
-                <QueueItem
-                  action={
-                    <FrontOfficeClientActionGroup
-                      actions={[
-                        {
-                          href: `/api/agent/clients/${snapshot.id}/pdf`,
-                          label: "Download client PDF",
-                          opensInNewTab: true,
-                        },
-                      ]}
-                    />
-                  }
-                  badgeLabel={snapshot.workflow.pressureLabel}
-                  badgeTone={snapshot.workflow.pressureTone}
-                  description={snapshot.workflow.pressureDescription}
-                  meta={<span>{snapshot.workflow.nextStepDescription}</span>}
-                  title="Export or review the current execution story"
-                />
-                <QueueItem
-                  action={
-                    <FrontOfficeClientActionGroup
-                      actions={[
-                        snapshot.email
-                          ? {
-                              href: `mailto:${snapshot.email}`,
-                              label: "Email client",
-                            }
-                          : {
-                              href: null,
-                              label: "",
-                            },
-                        snapshot.phone
-                          ? {
-                              href: `tel:${snapshot.phone}`,
-                              label: "Call client",
-                            }
-                          : {
-                              href: null,
-                              label: "",
-                            },
-                      ]}
-                    />
-                  }
-                  badgeLabel="Contact"
-                  badgeTone="neutral"
-                  description={
-                    [
-                      snapshot.phone ? `Phone: ${snapshot.phone}` : "",
-                      snapshot.email ? `Email: ${snapshot.email}` : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "No direct contact info on record yet."
-                  }
-                  meta={<span>{snapshot.lastTouchLabel}</span>}
-                  title="Use the latest contact info"
-                />
-              </div>
-            </FrontOfficeSectionDisclosure>
+                }
+                badgeLabel="Contact"
+                badgeTone="neutral"
+                description={
+                  [
+                    snapshot.phone ? `Phone: ${snapshot.phone}` : "",
+                    snapshot.email ? `Email: ${snapshot.email}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "No direct contact info on record yet."
+                }
+                meta={<span>{snapshot.lastTouchLabel}</span>}
+                title="Use the latest contact info"
+              />
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -1613,99 +1947,150 @@ export default async function AgentClientDetailPage(
             subtitle="Once formal transaction work starts, this page should point to the shared Back Office record instead of duplicating it."
             title="Formal workflow"
           >
-            <FrontOfficeSectionDisclosure
-              defaultOpen={false}
-              description="Formal transaction status remains available here, but it stays folded until you actually need the Back Office record."
-              title="Formal workflow records"
-            >
-              <div className="office-queue-list">
-                {snapshot.handoffs.length ? (
-                  snapshot.handoffs.map((handoff) => (
-                    <QueueItem
-                      action={
-                        <FrontOfficeLink
-                          className="office-inline-link"
-                          href={handoff.href}
-                        >
-                          {handoff.statusLabel === "Committed"
-                            ? "Open transaction"
-                            : "Open create flow"}
-                        </FrontOfficeLink>
-                      }
-                      badgeLabel={handoff.statusLabel}
-                      badgeTone={handoff.tone}
-                      description={handoff.summary}
-                      key={handoff.id}
-                      meta={<span>{handoff.updatedAtLabel}</span>}
-                      title={handoff.stageLabel}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    description="When this client reaches negotiation, offer, application, or contract-style stages, the formal workflow queue will show up here."
-                    title="No formal workflow yet"
-                  />
-                )}
-              </div>
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "boundary",
+                  label: snapshot.nextStepRail.decisionLabel,
+                  tone: snapshot.nextStepRail.decisionTone,
+                  title:
+                    "Front Office keeps the client work moving; Back Office holds the formal record",
+                  description:
+                    "Use this section to see when the client still needs agent follow-up here and when the next step belongs in the formal workflow.",
+                  meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+                {
+                  key: "fo-follow-up",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "Client-facing next steps still stay here",
+                  description: primaryHandoff
+                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this client page while the authoritative record stays in Back Office."
+                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and next-touch follow-up still belong here until the work becomes formal and needs a shared record.",
+                  meta: <span>{snapshot.contract.handoff.summary}</span>,
+                  actions: [followUpPrimaryAction],
+                },
+              ]}
+            />
 
-              <div className="office-queue-list">
-                {snapshot.linkedTransactions.length ? (
-                  snapshot.linkedTransactions.map((transaction) => (
-                    <QueueItem
-                      action={
-                        <FrontOfficeLink
-                          className="office-inline-link"
-                          href={transaction.href}
-                        >
-                          Open transaction
-                        </FrontOfficeLink>
-                      }
-                      badgeLabel={transaction.statusLabel}
-                      badgeTone="accent"
-                      description={transaction.roleLabel}
-                      key={transaction.id}
-                      title={transaction.label}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
+            <div className="office-queue-list">
+              {snapshot.handoffs.length ? (
+                snapshot.handoffs.map((handoff) => (
+                  <QueueItem
                     action={
-                      <Link
-                        className="office-button-secondary"
-                        href="/office/transactions"
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={handoff.href}
                       >
-                        Open Back Office
-                      </Link>
+                        {handoff.statusLabel === "Committed"
+                          ? "Open transaction"
+                          : "Open create flow"}
+                      </FrontOfficeLink>
                     }
-                    description="Linked transaction records will appear here after the formal workflow begins."
-                    title="No linked transactions"
+                    badgeLabel={handoff.statusLabel}
+                    badgeTone={handoff.tone}
+                    description={handoff.summary}
+                    key={handoff.id}
+                    meta={<span>{handoff.updatedAtLabel}</span>}
+                    title={handoff.stageLabel}
                   />
-                )}
-              </div>
-            </FrontOfficeSectionDisclosure>
+                ))
+              ) : (
+                <EmptyState
+                  description="When this client reaches negotiation, offer, application, or contract-style stages, the formal workflow queue will show up here."
+                  title="No formal workflow yet"
+                />
+              )}
+            </div>
+
+            <div className="office-queue-list">
+              {snapshot.linkedTransactions.length ? (
+                snapshot.linkedTransactions.map((transaction) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={transaction.href}
+                      >
+                        Open transaction
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={transaction.statusLabel}
+                    badgeTone="accent"
+                    description={transaction.roleLabel}
+                    key={transaction.id}
+                    title={transaction.label}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <Link
+                      className="office-button-secondary"
+                      href="/office/transactions"
+                    >
+                      Open Back Office
+                    </Link>
+                  }
+                  description="Linked transaction records will appear here after the formal workflow begins."
+                  title="No linked transactions"
+                />
+              )}
+            </div>
           </SectionCard>
         </>
       }
       summary={
         <>
           <SummaryChip label="Stage" tone="accent" value={snapshot.stage} />
+          <SummaryChip label="Access" value={access.label} />
+          <SummaryChip
+            label="Workflow"
+            tone="accent"
+            value={snapshot.nextStepRail.decisionLabel}
+          />
           <SummaryChip
             label="Pressure"
             value={snapshot.workflow.pressureLabel}
           />
           <SummaryChip
-            label="Next touch"
+            label="Follow-up cue"
             tone="accent"
-            value={snapshot.followUpCue.dueLabel}
+            value={snapshot.followUpCue.label}
+          />
+          <SummaryChip
+            label="Lease reminder"
+            tone={snapshot.leaseReminder.needsAttention ? "accent" : "default"}
+            value={snapshot.leaseReminder.statusLabel}
           />
           <SummaryChip
             label="Open follow-up"
             value={snapshot.summary.openTaskCount}
           />
           <SummaryChip
-            label="Formal workflow"
+            label="Upcoming appointments"
+            value={snapshot.summary.upcomingAppointmentCount}
+          />
+          <SummaryChip
+            label="Formal files"
             tone="accent"
-            value={snapshot.nextStepRail.decisionLabel}
+            value={snapshot.summary.openHandoffCount}
+          />
+          <SummaryChip
+            label="Negotiation"
+            tone="accent"
+            value={snapshot.negotiation.boundaryLabel}
+          />
+          <SummaryChip
+            label="Contract support"
+            tone="accent"
+            value={snapshot.inspection.boundaryLabel}
+          />
+          <SummaryChip
+            label="Closing"
+            tone="accent"
+            value={snapshot.closing.boundaryLabel}
           />
           {canUseAi ? (
             <SummaryChip
