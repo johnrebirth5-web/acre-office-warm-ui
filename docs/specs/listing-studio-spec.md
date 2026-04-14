@@ -128,6 +128,9 @@
 - hero image
 - gallery
 - price / address / facts
+- quick-jump row for the main working zones
+- curated-page editor as the primary editing surface
+- compact publish / export rail for save, share, PDF, poster, and scan actions
 - source facts
 - amenities
 - transit
@@ -135,9 +138,9 @@
 - additional captured sections
 - floor plans
 - source attribution
-- client-copy edit panel
-- share action
-- PDF export action
+- poster studio with inline preview
+- marketing workspace with disclosure-based secondary sections
+- lower-priority source and marketing detail should stay collapsible by default so future modules can be added without turning the page back into one uninterrupted card stack
 - poster preview / export action
 - delete listing action
 
@@ -236,6 +239,8 @@
 - 视觉语言跟随 Acre BO / FO，而不是另起品牌
 - `Listing Studio` 不再作为第三个独立 workspace 暴露给用户，而是挂在 `Front Office` shell 与侧边导航内
 - 详情页可以比 BO 更图片驱动，但 spacing、radius、标题层级和交互反馈保持 Acre 一致
+- 详情页默认分成 `main working column + compact action rail`，不要再把所有编辑、输出、原始抓取信息都堆成同一级长滚动页
+- 原始抓取细节、营销扩展块、长文案派生块应优先用 disclosure / collapsible 方式收纳，默认先展示高频动作和最关键摘要
 - public share 页和 PDF 可以更偏展示，但不能和后台彻底脱节
 - poster output should keep the agent contact block and scan path readable in preview, print, and downloaded HTML, not only inside the editor shell
 - the saved packet contact block should act as the shared manual source for share, PDF, and poster outputs instead of drifting per export surface
