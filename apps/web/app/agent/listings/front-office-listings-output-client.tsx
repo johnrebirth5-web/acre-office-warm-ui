@@ -3,10 +3,6 @@
 import { useState, useTransition, type ComponentProps } from "react";
 import type { FrontOfficeListingsSnapshot, FrontOfficeTone } from "@acre/db";
 import type { FrontOfficeSendChannel } from "@prisma/client";
-import {
-  buildFrontOfficeListingSharePromiseSnapshot,
-  type FrontOfficeListingSharePromiseSnapshot,
-} from "../../../../../packages/db/src/front-office-listing-share-promise";
 import type { FrontOfficeListingUsagePulse } from "../../../../../packages/db/src/front-office-listing-output";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
@@ -106,25 +102,6 @@ type ShareLanePlan = {
   description: string;
   meta: string[];
   isRecommended: boolean;
-};
-
-type ClientFacingShareContract = {
-  badgeLabel: string;
-  badgeTone: QueueItemBadgeTone;
-  title: string;
-  context: string;
-  description: string;
-  meta: string[];
-};
-
-type ClientFacingSharePromise = FrontOfficeListingSharePromiseSnapshot;
-
-type ListingSendRiskWatch = {
-  badgeLabel: string;
-  badgeTone: QueueItemBadgeTone;
-  context: string;
-  description: string;
-  meta: string[];
 };
 
 async function copyTextToClipboard(value: string) {
@@ -634,169 +611,6 @@ function buildShareFeedback(input: {
   };
 }
 
-function buildClientFacingShareContract(input: {
-  snapshot: FrontOfficeListingsSnapshot;
-  recommendedAction: RecommendedShareAction;
-}): ClientFacingShareContract {
-  const sharePromise = buildClientFacingSharePromise(input);
-
-  if (input.snapshot.targetAppointment) {
-    return {
-      badgeLabel: "Appt share",
-      badgeTone: "accent",
-      title: "Client-facing share",
-      context: sharePromise.shareSurfaceLabel,
-      description: sharePromise.shareContextLabel,
-      meta: [
-        `Suggested first step · ${input.recommendedAction.label}`,
-        `Public page · ${sharePromise.shareSurfaceLabel}.`,
-        `Reply path · ${sharePromise.replyLaneLabel}`,
-        `Next step · ${sharePromise.nextStepLabel}`,
-        `Privacy · ${sharePromise.privacyLabel}`,
-      ],
-    };
-  }
-
-  if (input.snapshot.targetClient) {
-    return {
-      badgeLabel: "Client share",
-      badgeTone: "success",
-      title: "Client-facing share",
-      context: sharePromise.shareSurfaceLabel,
-      description: sharePromise.shareContextLabel,
-      meta: [
-        `Suggested first step · ${input.recommendedAction.label}`,
-        `Public page · ${sharePromise.shareSurfaceLabel}.`,
-        `Reply path · ${sharePromise.replyLaneLabel}`,
-        `Next step · ${sharePromise.nextStepLabel}`,
-        `Privacy · ${sharePromise.privacyLabel}`,
-      ],
-    };
-  }
-
-  return {
-    badgeLabel: "Link-only",
-    badgeTone: "warning",
-    title: "Private share link",
-    context: sharePromise.shareSurfaceLabel,
-    description: sharePromise.shareContextLabel,
-    meta: [
-      `Suggested first step · ${input.recommendedAction.label}`,
-      `Public page · ${sharePromise.shareSurfaceLabel}.`,
-      `Reply path · ${sharePromise.replyLaneLabel}`,
-      `Next step · ${sharePromise.nextStepLabel}`,
-      `Privacy · ${sharePromise.privacyLabel}`,
-    ],
-  };
-}
-
-function buildClientFacingSharePromise(input: {
-  snapshot: FrontOfficeListingsSnapshot;
-  recommendedAction: RecommendedShareAction;
-}): ClientFacingSharePromise {
-  const mode = input.snapshot.targetAppointment
-    ? "client_appointment_context"
-    : input.snapshot.targetClient
-      ? "client_dossier_context"
-      : "generic_tracked_link";
-
-  if (input.snapshot.targetAppointment) {
-    return buildFrontOfficeListingSharePromiseSnapshot({
-      mode,
-      channel: input.recommendedAction.action as FrontOfficeSendChannel,
-      appointmentTitle: input.snapshot.targetAppointment.title,
-    });
-  }
-
-  if (input.snapshot.targetClient) {
-    return buildFrontOfficeListingSharePromiseSnapshot({
-      mode,
-      channel: input.recommendedAction.action as FrontOfficeSendChannel,
-      appointmentTitle: null,
-    });
-  }
-
-  return buildFrontOfficeListingSharePromiseSnapshot({
-    mode,
-    channel: input.recommendedAction.action as FrontOfficeSendChannel,
-    appointmentTitle: null,
-  });
-}
-
-function buildListingSendRiskWatch(
-  listing: FrontOfficeListingsSnapshot["listings"][number],
-): ListingSendRiskWatch {
-  const meta = [
-    `${listing.trackedLinkCount} tracked link(s)`,
-    `${listing.trackedClickCount} tracked click(s)`,
-  ];
-
-  if (listing.trackedLinkCount <= 0) {
-    return {
-      badgeLabel: "No send risk",
-      badgeTone: "neutral",
-      context: "Fresh activity",
-      description:
-        "This listing has not been shared as a tracked send yet, so there is no follow-up pressure to rescue.",
-      meta: meta.concat(
-        "Watchpoint · Start the first tracked send from a client or appointment when this listing becomes live.",
-      ),
-    };
-  }
-
-  if (listing.trackedClickCount <= 0) {
-    return {
-      badgeLabel: "Unopened risk",
-      badgeTone: "danger",
-      context: listing.latestTrackedShare
-        ? `${listing.latestTrackedShare.channelLabel} · ${listing.latestTrackedShare.modeLabel}`
-        : "Tracked send waiting",
-      description:
-        "The latest tracked send is still waiting on its first click pulse, so this share needs a tighter reason-to-care before it fades into quiet follow-up.",
-      meta: meta.concat(
-        `Watchpoint · ${
-          listing.latestTrackedShare?.nextStepLabel ??
-          "Reopen the same share with a stronger framing before starting a new one."
-        }`,
-      ),
-    };
-  }
-
-  if (listing.trackedClickCount < listing.trackedLinkCount) {
-    return {
-      badgeLabel: "Quiet-after-open",
-      badgeTone: "warning",
-      context: listing.latestTrackedShare
-        ? `${listing.latestTrackedShare.channelLabel} · warm but uneven`
-        : "Mixed activity",
-      description:
-        "This listing has already pulled at least one click, but part of the activity is still cooling off, so the next touch should stay inside the same conversation instead of restarting cold.",
-      meta: meta.concat(
-        `Watchpoint · ${
-          listing.latestTrackedShare?.nextStepLabel ??
-          "Use the warm share as the anchor and rescue the quieter branch from the same conversation."
-        }`,
-      ),
-    };
-  }
-
-  return {
-    badgeLabel: "Managed risk",
-    badgeTone: "success",
-    context: listing.latestTrackedShare
-      ? `${listing.latestTrackedShare.channelLabel} · warm activity`
-      : "Warm activity",
-    description:
-      "Every tracked send on this listing has already produced a click pulse, so follow-up risk is already being managed inside active engagement.",
-    meta: meta.concat(
-      `Watchpoint · ${
-        listing.latestTrackedShare?.nextStepLabel ??
-        "Keep the next touch attached to the same warm share."
-      }`,
-    ),
-  };
-}
-
 export function FrontOfficeListingsOutputClient(
   props: FrontOfficeListingsOutputClientProps,
 ) {
@@ -974,35 +788,18 @@ export function FrontOfficeListingsOutputClient(
           <strong>{buildWorkspaceHeading(props)}</strong>
           <p>{props.routeState.focusedRouteLaneDescription}</p>
         </div>
-
         <div className="list-row-meta front-office-record-meta">
           <span>Context · {props.routeState.routeStatusLabel}</span>
           <span>Focus · {props.routeState.focusedRouteLaneLabel}</span>
           <span>Mode · {props.routeState.modeLabel}</span>
-          <span>Support · {props.routeState.preferredSupportLaneLabel}</span>
-          <span>Send · Manual only</span>
+          <span>{props.routeState.draftStatusLabel}</span>
           {props.snapshot.targetClient ? (
-            <span>Stage · {props.snapshot.targetClient.stage}</span>
-          ) : null}
-          {props.snapshot.targetClient ? (
-            <span>{props.snapshot.targetClient.nextTouchLabel}</span>
+            <span>Client · {props.snapshot.targetClient.fullName}</span>
           ) : null}
           {props.snapshot.targetAppointment ? (
-            <span>
-              {props.snapshot.targetAppointment.title} ·{" "}
-              {props.snapshot.targetAppointment.startsAtLabel}
-            </span>
+            <span>Appointment · {props.snapshot.targetAppointment.title}</span>
           ) : null}
-          <span>{props.routeState.draftStatusLabel}</span>
         </div>
-
-        <p className="front-office-record-supporting">
-          {props.routeState.routeStatusDescription}
-        </p>
-        <p className="front-office-record-supporting">
-          {props.routeState.draftStatusDescription}
-        </p>
-
         <div className="front-office-playbook-actions">
           {hasStableWorkspaceLink ? (
             <FrontOfficeLink
@@ -1012,10 +809,7 @@ export function FrontOfficeListingsOutputClient(
               {props.routeState.focusedRouteLaneActionLabel}
             </FrontOfficeLink>
           ) : null}
-          <FrontOfficeLink
-            className="office-inline-link"
-            href={agentPackageHref}
-          >
+          <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
             Open send kit
           </FrontOfficeLink>
           {props.snapshot.targetClient ? (
@@ -1034,14 +828,6 @@ export function FrontOfficeListingsOutputClient(
               Open appointment
             </FrontOfficeLink>
           ) : null}
-          {props.routeState.hasDraftAssist ? (
-            <FrontOfficeLink
-              className="office-inline-link"
-              href={props.routeState.contextHref}
-            >
-              Keep this view, clear draft
-            </FrontOfficeLink>
-          ) : null}
           {shouldShowResetLink ? (
             <FrontOfficeLink
               className="office-inline-link"
@@ -1053,61 +839,6 @@ export function FrontOfficeListingsOutputClient(
         </div>
       </div>
 
-      <div className="front-office-playbook-card">
-        <div className="front-office-playbook-card-head">
-          <strong>{props.routeState.focusedRouteLanePanelLabel}</strong>
-          <span>{props.routeState.focusedRouteLanePanelDescription}</span>
-        </div>
-        <div className="office-queue-list">
-          {props.routeState.focusedRouteLaneSteps.map((step, index) => (
-            <QueueItem
-              badgeLabel={`Step ${index + 1}`}
-              badgeTone={step.tone}
-              description={step.detail}
-              key={step.label}
-              title={step.label}
-            />
-          ))}
-          <QueueItem
-            action={
-              hasStableWorkspaceLink ? (
-                <FrontOfficeLink
-                  className="office-inline-link"
-                  href={props.routeState.stableHref}
-                >
-                  {props.routeState.focusedRouteLaneActionLabel}
-                </FrontOfficeLink>
-              ) : null
-            }
-            badgeLabel={props.routeState.stableReentryLabel}
-            badgeTone="accent"
-            context={props.routeState.routeStatusLabel}
-            description={props.routeState.stableReentryDescription}
-            title="Saved view"
-          />
-        </div>
-      </div>
-
-      {props.routeState.diagnostics.length ? (
-        <div className="front-office-playbook-card">
-          <div className="front-office-playbook-card-head">
-            <strong>Saved link review</strong>
-            <span>{props.routeState.routeStatusDescription}</span>
-          </div>
-          <div className="office-queue-list">
-            {props.routeState.diagnostics.map((diagnostic) => (
-              <QueueItem
-                badgeLabel={diagnostic.badgeLabel}
-                badgeTone={diagnostic.badgeTone}
-                description={diagnostic.description}
-                key={diagnostic.id}
-                title={diagnostic.title}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       {props.draftAssist ? (
         <div
           className="front-office-placeholder-note front-office-playbook-surface"
@@ -1115,10 +846,7 @@ export function FrontOfficeListingsOutputClient(
         >
           <div className="front-office-playbook-header">
             <strong>{props.draftAssist.title}</strong>
-            <p>
-              {props.draftAssist.sourceLabel ||
-                "A saved draft is loaded here. Copying the matching option will use that draft and still append a private tracked listing link."}
-            </p>
+            <p>{props.draftAssist.sourceLabel || "Draft loaded for this view."}</p>
           </div>
           <div className="list-row-meta front-office-record-meta">
             <span>
@@ -1127,170 +855,34 @@ export function FrontOfficeListingsOutputClient(
             {props.draftAssist.subjectLine.trim() ? (
               <span>Subject · {props.draftAssist.subjectLine.trim()}</span>
             ) : null}
-            <span>{props.routeState.modeLabel}</span>
-            <span>Manual send only</span>
           </div>
-          <p className="front-office-record-supporting">
-            {buildDraftLaneNote(props.draftAssist)}
-          </p>
           <pre className="front-office-playbook-template-body">
             {props.draftAssist.body}
           </pre>
-          <div className="front-office-playbook-actions">
-            <FrontOfficeLink
-              className="office-inline-link"
-              href={props.routeState.contextHref}
-            >
-              Keep this view, clear draft
-            </FrontOfficeLink>
-            <FrontOfficeLink
-              className="office-inline-link"
-              href={agentPackageHref}
-            >
-              Open agent materials
-            </FrontOfficeLink>
-          </div>
         </div>
       ) : null}
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
           <strong>Share activity</strong>
-          <span>{props.usagePulse.pulseDescription}</span>
+          <span>{props.usagePulse.nextMoveDescription}</span>
         </div>
         <div className="list-row-meta front-office-record-meta">
           <span>{props.usagePulse.trackedLinkCount} tracked link(s)</span>
           <span>{props.usagePulse.trackedClickCount} tracked click(s)</span>
           <span>{props.usagePulse.engagedListingCount} engaged listing(s)</span>
-          <span>
-            {props.usagePulse.quietTrackedListingCount} quiet share(s)
-          </span>
-          <span>{props.usagePulse.clickThroughRateLabel}</span>
-          <span>{props.usagePulse.sendTrailLabel}</span>
           <span>{props.usagePulse.quietTrailLabel}</span>
-          <span>{props.usagePulse.sendRiskLabel}</span>
-          <span>{props.usagePulse.nextMoveLabel}</span>
         </div>
         <div className="office-queue-list">
           <QueueItem
-            action={
-              <>
-                {props.usagePulse.latestTrackedShare?.clientHref ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.usagePulse.latestTrackedShare.clientHref}
-                  >
-                    Open client page
-                  </FrontOfficeLink>
-                ) : null}
-                {props.usagePulse.latestTrackedShare?.appointmentHref ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.usagePulse.latestTrackedShare.appointmentHref}
-                  >
-                    Open appointment
-                  </FrontOfficeLink>
-                ) : null}
-                {props.usagePulse.strongestTrail?.clientHref ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.usagePulse.strongestTrail.clientHref}
-                  >
-                    Open best client page
-                  </FrontOfficeLink>
-                ) : null}
-                {props.usagePulse.strongestTrail?.appointmentHref ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.usagePulse.strongestTrail.appointmentHref}
-                  >
-                    Open best appointment
-                  </FrontOfficeLink>
-                ) : null}
-              </>
-            }
             badgeLabel={props.usagePulse.nextMoveLabel}
             badgeTone={
-              props.usagePulse.quietTrackedListingCount > 0
-                ? "warning"
-                : "accent"
+              props.usagePulse.quietTrackedListingCount > 0 ? "warning" : "accent"
             }
-            context="Re-engagement"
+            context="Next move"
             description={props.usagePulse.nextMoveDescription}
-            meta={
-              <>
-                <span>{props.usagePulse.sendTrailLabel}</span>
-                <span>{props.usagePulse.quietTrailLabel}</span>
-                <span>
-                  Next step ·{" "}
-                  {props.usagePulse.latestTrackedShare?.followThroughCue ??
-                    props.usagePulse.nextMoveDescription}
-                </span>
-              </>
-            }
-            title="Needs re-engagement"
+            title="Share pulse"
           />
-          <QueueItem
-            badgeLabel={props.usagePulse.sendRiskLabel}
-            badgeTone={
-              props.usagePulse.trackedLinkCount <= 0
-                ? "neutral"
-                : props.usagePulse.trackedClickCount <= 0
-                  ? "danger"
-                  : props.usagePulse.quietTrackedListingCount > 0
-                    ? "warning"
-                    : "success"
-            }
-            context="Follow-up risk"
-            description={props.usagePulse.sendRiskDescription}
-            meta={
-              <>
-                <span>{props.usagePulse.sendTrailDescription}</span>
-                <span>{props.usagePulse.quietTrailDescription}</span>
-              </>
-            }
-            title="Follow-up risk"
-          />
-          {props.usagePulse.strongestTrail ? (
-            <QueueItem
-              action={
-                <>
-                  {props.usagePulse.strongestTrail.clientHref ? (
-                    <FrontOfficeLink
-                      className="office-inline-link"
-                      href={props.usagePulse.strongestTrail.clientHref}
-                    >
-                      Open client page
-                    </FrontOfficeLink>
-                  ) : null}
-                  {props.usagePulse.strongestTrail.appointmentHref ? (
-                    <FrontOfficeLink
-                      className="office-inline-link"
-                      href={props.usagePulse.strongestTrail.appointmentHref}
-                    >
-                      Open appointment
-                    </FrontOfficeLink>
-                  ) : null}
-                </>
-              }
-              badgeLabel={props.usagePulse.strongestTrail.badgeLabel}
-              badgeTone={props.usagePulse.strongestTrail.badgeTone}
-              context={props.usagePulse.strongestTrail.context}
-              description={props.usagePulse.strongestTrail.description}
-              meta={
-                <>
-                  <span>
-                    Next step ·{" "}
-                    {props.usagePulse.strongestTrail.followThroughCue}
-                  </span>
-                  {props.usagePulse.strongestTrail.meta.map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
-                </>
-              }
-              title="Best signal"
-            />
-          ) : null}
           {props.usagePulse.latestTrackedShare ? (
             <QueueItem
               action={
@@ -1318,17 +910,11 @@ export function FrontOfficeListingsOutputClient(
               context={props.usagePulse.latestTrackedShare.context}
               description={props.usagePulse.latestTrackedShare.description}
               meta={
-                <>
-                  <span>
-                    Next step ·{" "}
-                    {props.usagePulse.latestTrackedShare.followThroughCue}
-                  </span>
-                  {props.usagePulse.latestTrackedShare.meta.map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
-                </>
+                <span>
+                  Next step · {props.usagePulse.latestTrackedShare.followThroughCue}
+                </span>
               }
-              title="Most recent share"
+              title="Latest tracked share"
             />
           ) : null}
         </div>
@@ -1366,10 +952,7 @@ export function FrontOfficeListingsOutputClient(
             ];
 
             return (
-              <article
-                className="list-row front-office-record"
-                key={listing.id}
-              >
+              <article className="list-row front-office-record" key={listing.id}>
                 <div className="list-row-top front-office-record-head">
                   <div>
                     <strong>{listing.title}</strong>
@@ -1379,93 +962,27 @@ export function FrontOfficeListingsOutputClient(
                     {listing.statusLabel}
                   </Badge>
                 </div>
-                <p>{listing.summaryLabel}</p>
                 <div className="list-row-meta front-office-record-meta">
                   <span>{listing.priceLabel}</span>
                   <span>{listing.cityLabel}</span>
-                  <span>Mode · {props.routeState.modeLabel}</span>
-                  <span>{listing.trackedClickCount} tracked click(s)</span>
-                  <span>{listing.trackedLinkCount} tracked link(s)</span>
+                  <span>{buildListingTractionCue(listing)}</span>
                 </div>
 
                 <div className="office-queue-list">
                   <QueueItem
                     badgeLabel={props.routeState.modeLabel}
                     badgeTone={
-                      props.routeState.mode === "tracked-link"
-                        ? "warning"
-                        : "accent"
+                      props.routeState.mode === "tracked-link" ? "warning" : "accent"
                     }
-                    description={buildListingExecutionCue(
-                      props.snapshot,
-                      listing,
-                    )}
+                    description={buildListingExecutionCue(props.snapshot, listing)}
                     meta={
-                      <>
-                        <span>
-                          Recommended first step: {recommendedAction.label}.
-                        </span>
-                        <span>{buildListingTractionCue(listing)}</span>
-                      </>
+                      <span>Recommended first step · {recommendedAction.label}</span>
                     }
                     title="Best next use"
                   />
-                  {listing.latestTrackedShare ? (
-                    <QueueItem
-                      action={
-                        <>
-                          {listing.latestTrackedShare.clientHref ? (
-                            <FrontOfficeLink
-                              className="office-inline-link"
-                              href={listing.latestTrackedShare.clientHref}
-                            >
-                              Open client page
-                            </FrontOfficeLink>
-                          ) : null}
-                          {listing.latestTrackedShare.appointmentHref ? (
-                            <FrontOfficeLink
-                              className="office-inline-link"
-                              href={listing.latestTrackedShare.appointmentHref}
-                            >
-                              Open appointment
-                            </FrontOfficeLink>
-                          ) : null}
-                          {hasStableWorkspaceLink ? (
-                            <FrontOfficeLink
-                              className="office-inline-link"
-                              href={props.routeState.stableHref}
-                            >
-                              {props.routeState.focusedRouteLaneActionLabel}
-                            </FrontOfficeLink>
-                          ) : null}
-                        </>
-                      }
-                      badgeLabel={listing.latestTrackedShare.channelLabel}
-                      badgeTone={mapBadgeTone(
-                        listing.latestTrackedShare.statusTone,
-                      )}
-                      context={`${listing.latestTrackedShare.modeLabel} · ${listing.latestTrackedShare.sentAtLabel}`}
-                      description={`${listing.latestTrackedShare.trackingLabel} ${listing.latestTrackedShare.writebackLabel}`}
-                      meta={
-                        <>
-                          <span>
-                            {listing.latestTrackedShare.writebackScopeLabel}
-                          </span>
-                          <span>
-                            Next step ·{" "}
-                            {listing.latestTrackedShare.nextStepLabel}
-                          </span>
-                        </>
-                      }
-                      title="Latest tracked share"
-                    />
-                  ) : null}
                   <QueueItem
                     action={
-                      <FrontOfficeLink
-                        className="office-inline-link"
-                        href={agentPackageHref}
-                      >
+                      <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
                         Open agent materials
                       </FrontOfficeLink>
                     }
@@ -1476,11 +993,6 @@ export function FrontOfficeListingsOutputClient(
                         : "success"
                     }
                     description={buildListingMaterialCue(props.snapshot)}
-                    meta={
-                      <span>
-                        {props.routeState.preferredSupportLaneDescription}
-                      </span>
-                    }
                     title="Material pairing"
                   />
                 </div>
@@ -1491,9 +1003,7 @@ export function FrontOfficeListingsOutputClient(
                       action={
                         <Button
                           disabled={isBusy}
-                          onClick={() =>
-                            void runShareAction(listing, plan.action)
-                          }
+                          onClick={() => void runShareAction(listing, plan.action)}
                           size="sm"
                           type="button"
                           variant={plan.isRecommended ? "secondary" : "ghost"}
@@ -1539,60 +1049,14 @@ export function FrontOfficeListingsOutputClient(
                     Back to dashboard
                   </FrontOfficeLink>
                 )}
-                {props.snapshot.targetAppointment ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.snapshot.targetAppointment.href}
-                  >
-                    Open appointment
-                  </FrontOfficeLink>
-                ) : null}
-                <FrontOfficeLink
-                  className="office-inline-link"
-                  href={agentPackageHref}
-                >
+                <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
                   Open agent materials
                 </FrontOfficeLink>
-                {props.routeState.hasDraftAssist ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.routeState.contextHref}
-                  >
-                    Keep this view, clear draft
-                  </FrontOfficeLink>
-                ) : null}
-                {shouldShowResetLink ? (
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={props.routeState.cleanHref}
-                  >
-                    Reset view
-                  </FrontOfficeLink>
-                ) : null}
               </div>
             }
             {...buildListingEmptyState(props)}
           />
         )}
-      </div>
-
-      <div className="front-office-placeholder-note">
-        <strong>How tracked sharing works</strong>
-        <p>
-          Each copy action creates a private tracked link, refreshes the share
-          counts on this page, and keeps sending fully manual. In client-linked
-          mode, the same action also saves a Front Office share record so
-          follow-up cues and appointment continuity can show up again on the
-          client page and dashboard.
-        </p>
-        <div className="front-office-playbook-actions">
-          <FrontOfficeLink
-            className="office-inline-link"
-            href="/agent/dashboard"
-          >
-            Back to dashboard
-          </FrontOfficeLink>
-        </div>
       </div>
     </div>
   );
