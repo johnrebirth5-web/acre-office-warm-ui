@@ -126,7 +126,7 @@ function buildDraftAssistSourceLabel(
   sourceKey: FrontOfficeListingsDraftAssistSource | null,
 ) {
   if (sourceKey === "ai") {
-    return "An AI draft is loaded into the matching draft view below. Acre only preloads the message and tracked link here; nothing is sent automatically.";
+    return "AI draft loaded into the matching view.";
   }
 
   return null;
@@ -138,15 +138,15 @@ function buildDraftAssistStatusDescription(input: {
 }) {
   if (input.draftAssist) {
     return input.draftAssist.channel === "sms"
-      ? "An SMS draft is active in the current follow-up view. SMS actions use the loaded draft, while email and direct-link actions stay on the standard message templates."
-      : "An email draft is active in the current follow-up view. Email actions use the loaded draft, while SMS and direct-link actions stay on the standard message templates.";
+      ? "SMS draft loaded."
+      : "Email draft loaded.";
   }
 
   if (input.hasDraftAssistParams) {
-    return "The incoming draft details were incomplete or stale, so Acre kept the page on the standard message templates instead of carrying forward a broken draft.";
+    return "Draft details were incomplete, so Acre kept standard copy.";
   }
 
-  return "This page is using the standard message templates right now, with no saved draft attached.";
+  return "Standard copy.";
 }
 
 function buildPreferredSupportLane(input: {
@@ -157,8 +157,7 @@ function buildPreferredSupportLane(input: {
     return {
       lane: "sms" as const,
       label: "SMS support",
-      description:
-        "The active SMS draft should stay paired with the SMS support message so the listing link and follow-up copy stay aligned.",
+      description: "Use the loaded SMS draft and keep the link attached.",
     };
   }
 
@@ -166,8 +165,7 @@ function buildPreferredSupportLane(input: {
     return {
       lane: "email" as const,
       label: "Email support",
-      description:
-        "The active email draft should stay paired with the email support message so the longer framing and tracked link remain aligned.",
+      description: "Use the loaded email draft and keep the link attached.",
     };
   }
 
@@ -175,8 +173,7 @@ function buildPreferredSupportLane(input: {
     return {
       lane: "sms" as const,
       label: "SMS support",
-      description:
-        "Appointment follow-up usually needs a faster first reply, so SMS is the safest default support message for this listing.",
+      description: "Appointment follow-up usually starts faster in SMS.",
     };
   }
 
@@ -184,16 +181,14 @@ function buildPreferredSupportLane(input: {
     return {
       lane: "email" as const,
       label: "Email support",
-      description:
-        "Client follow-up usually needs a little more framing on the first move, so email is the default support message unless the conversation is already moving quickly.",
+      description: "Client follow-up usually needs a little more framing.",
     };
   }
 
   return {
     lane: "mixed" as const,
     label: "Keep both ready",
-    description:
-      "Tracked-link mode is not yet tied to a live client or appointment, so keep both SMS and email support messages ready until the next step is clearer.",
+    description: "Tracked-link mode stays manual until the next step is clear.",
   };
 }
 
@@ -205,30 +200,27 @@ function buildStableRouteReentry(input: {
   if (input.draftAssist) {
     return {
       label: "Saved view",
-      description: `Use the saved link to come back to the ${input.focusedRouteLaneLabel.toLowerCase()} with the same draft, recipient, and appointment context intact. Use reset only if you want to clear the draft and start fresh.`,
+      description: `Return here with the same draft and context intact.`,
     };
   }
 
   if (input.mode === "appointment-linked") {
     return {
       label: "Saved view",
-      description:
-        "Use the saved link to come back to the appointment follow-up view with the same client and appointment context intact. Use reset only if you want to restart without the appointment thread.",
+      description: "Return here with the same appointment context intact.",
     };
   }
 
   if (input.mode === "client-linked") {
     return {
       label: "Saved view",
-      description:
-        "Use the saved link to come back to the client follow-up view with the same client context intact. Use reset only if you want to restart without the client connection.",
+      description: "Return here with the same client context intact.",
     };
   }
 
   return {
     label: "Saved view",
-    description:
-      "Use the saved link to reopen the same tracked-link follow-up view. Use reset only if you want to start a fresh listings page.",
+    description: "Return here with the same tracked-link view intact.",
   };
 }
 
@@ -556,27 +548,24 @@ function buildFocusedRouteLane(input: {
       focusedRouteLane: "draft-lane" as const,
       focusedRouteLaneLabel: draftChannelLabel,
       focusedRouteLaneDescription: input.draftAssist
-        ? "A saved draft is active here. Reopen this view when you want the draft and tracked listing link to stay together."
-        : "A draft view is selected here, but no saved draft is loaded yet. Reopen from a draft link when you want the copied channel and listing link together.",
+        ? "A saved draft is active here."
+        : "A draft view is selected here, but no saved draft is loaded yet.",
       focusedRouteLanePanelLabel: "Draft",
-      focusedRouteLanePanelDescription:
-        "Keep the loaded draft, channel choice, and tracked link together before copying anything.",
+      focusedRouteLanePanelDescription: "Keep the loaded draft and link together.",
       focusedRouteLaneSteps: [
         {
           label: "Review the loaded draft",
-          detail: "Check the loaded SMS or email copy before you use it.",
+          detail: "Check the loaded SMS or email copy first.",
           tone: "warning" as const,
         },
         {
           label: "Match the send channel",
-          detail:
-            "Use the channel that matches the loaded draft so the message and listing link stay aligned.",
+          detail: "Use the channel that matches the loaded draft.",
           tone: "accent" as const,
         },
         {
           label: "Keep the tracked link attached",
-          detail:
-            "Only switch views if you need a different recipient or follow-up history.",
+          detail: "Only switch views if you need different context.",
           tone: "success" as const,
         },
       ],
@@ -591,26 +580,24 @@ function buildFocusedRouteLane(input: {
       return {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Appointment follow-up",
-        focusedRouteLaneDescription: `This view keeps ${input.snapshot.targetClient.fullName} and ${input.snapshot.targetAppointment.title} tied to the same follow-up history, so the next touch does not fall back to a generic listings page.`,
+        focusedRouteLaneDescription: `${input.snapshot.targetClient.fullName} and ${input.snapshot.targetAppointment.title} stay tied together.`,
         focusedRouteLanePanelLabel: "Appointment next steps",
         focusedRouteLanePanelDescription:
-          "Stay inside the appointment thread so the next send, reminder, or saved note continues the same conversation.",
+          "Keep the appointment thread attached.",
         focusedRouteLaneSteps: [
           {
             label: "Keep the appointment thread attached",
-            detail:
-              "Use the active appointment context instead of rebuilding the send from a generic listings page.",
+            detail: "Use the active appointment context.",
             tone: "accent" as const,
           },
           {
             label: "Choose the next reaction channel",
-            detail:
-              "Use SMS for a quick reaction and email when the client needs more framing around the listing.",
+            detail: "Use SMS for quick reaction and email for more framing.",
             tone: "warning" as const,
           },
           {
             label: "Save the next step",
-            detail: "Record the next step before leaving the appointment loop.",
+            detail: "Record the next step before leaving.",
             tone: "success" as const,
           },
         ],
@@ -622,26 +609,24 @@ function buildFocusedRouteLane(input: {
       return {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Client follow-up",
-        focusedRouteLaneDescription: `This view keeps ${input.snapshot.targetClient.fullName} attached to the same follow-up history, so the next touch reopens from the same client instead of a generic tracked link.`,
+        focusedRouteLaneDescription: `${input.snapshot.targetClient.fullName} stays attached to the same follow-up history.`,
         focusedRouteLanePanelLabel: "Client next steps",
         focusedRouteLanePanelDescription:
-          "Stay in the client history so the next send, reply, or re-engagement stays attached to the same record.",
+          "Keep the client history attached.",
         focusedRouteLaneSteps: [
           {
             label: "Keep the client context attached",
-            detail:
-              "Reopen from the client record so the next touch keeps the same contact, stage, and history.",
+            detail: "Reopen from the client record.",
             tone: "accent" as const,
           },
           {
             label: "Pick the channel that fits the thread",
-            detail:
-              "Use email when the client needs framing and SMS when the next move should feel quick.",
+            detail: "Use email for framing and SMS for quick replies.",
             tone: "warning" as const,
           },
           {
             label: "Leave a written next step",
-            detail: "Save the next step before you leave the client history.",
+            detail: "Save the next step before you leave.",
             tone: "success" as const,
           },
         ],
@@ -653,26 +638,24 @@ function buildFocusedRouteLane(input: {
       focusedRouteLane: "follow-through" as const,
       focusedRouteLaneLabel: "Follow-up",
       focusedRouteLaneDescription:
-        "This follow-up view is selected, but no client or appointment is attached yet. Reopen from a client or appointment when you want the next touch to keep that history instead of staying generic.",
+        "No client or appointment is attached yet.",
       focusedRouteLanePanelLabel: "Next steps",
       focusedRouteLanePanelDescription:
-        "Attach this view to a client or appointment before you copy anything so the next step keeps a visible history.",
+        "Attach a client or appointment before you copy anything.",
       focusedRouteLaneSteps: [
         {
           label: "Attach a client or appointment first",
-          detail:
-            "Open the client or appointment that should own the next touch before you send anything.",
+          detail: "Open the record that should own the next touch.",
           tone: "warning" as const,
         },
         {
           label: "Choose the right channel",
-          detail:
-            "Match the message channel to the conversation depth you need to preserve.",
+          detail: "Match the channel to the conversation depth.",
           tone: "accent" as const,
         },
         {
           label: "Capture the next touch",
-          detail: "Save the next step while the context is still fresh.",
+          detail: "Save the next step while context is fresh.",
           tone: "success" as const,
         },
       ],
@@ -684,27 +667,24 @@ function buildFocusedRouteLane(input: {
     focusedRouteLane: "send-rescue" as const,
     focusedRouteLaneLabel: "Re-engagement",
     focusedRouteLaneDescription:
-      "Use this view to reopen quiet tracked sends, follow up after no reply, and keep the next touch tied to the same listing history.",
+      "Use this view to reopen quiet tracked sends.",
     focusedRouteLanePanelLabel: "Re-engagement",
     focusedRouteLanePanelDescription:
-      "Use this view to reopen a quiet send, decide the next reply, and keep the tracked history intact.",
+      "Use this view to reopen a quiet send.",
     focusedRouteLaneSteps: [
       {
         label: "Reopen the quiet share",
-        detail:
-          "Start from the listing that went quiet so you can recover momentum without rebuilding everything.",
+        detail: "Start from the listing that went quiet.",
         tone: "warning" as const,
       },
       {
         label: "Pick the shortest useful reply path",
-        detail:
-          "Use SMS for a quick reaction or email when the lead needs more framing before they answer.",
+        detail: "Use SMS for a quick reaction or email for more framing.",
         tone: "accent" as const,
       },
       {
         label: "Keep proof and identity nearby",
-        detail:
-          "Pair the follow-up with profile and proof so the next message still feels grounded.",
+        detail: "Pair the follow-up with profile and proof.",
         tone: "success" as const,
       },
     ],

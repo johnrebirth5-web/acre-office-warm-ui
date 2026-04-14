@@ -24,17 +24,6 @@ type AgentListingsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function buildMaterialStatusLabel(input: {
-  portraitReady: boolean;
-  featuredCaseCount: number;
-}) {
-  if (input.featuredCaseCount > 0) {
-    return "Share-ready";
-  }
-
-  return input.portraitReady ? "Profile-ready" : "Basic materials";
-}
-
 export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const context = await requireSessionContext();
 
@@ -66,21 +55,17 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     draftAssist,
     hasDraftAssistParams: parsedSearch.hasDraftAssistParams,
   });
-  const materialStatusLabel = buildMaterialStatusLabel({
-    portraitReady: snapshot.agentMaterial.portraitReady,
-    featuredCaseCount: snapshot.agentMaterial.featuredCaseCount,
-  });
   const usagePulse = buildFrontOfficeListingUsagePulse(snapshot.listings);
 
   return (
     <FrontOfficePageTemplate
-      description="Use this page to keep listing follow-up, profile materials, contact details, and proof points together without exposing internal workflow language."
+      description="Use this page to keep the next share, support copy, and agent materials together."
       eyebrow="Listings"
       layoutClassName="front-office-listings-layout"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this page for listing recommendations, appointment follow-up, re-engagement, clear next steps, and agent materials."
+          subtitle="Focus on the next listing send, the active follow-up, and the materials needed to ship it."
           title="Listing follow-up"
         >
           <FrontOfficeListingsOutputClient
@@ -95,31 +80,23 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Quick read on how ready this page is for listing follow-up right now."
-            title="Outbound signals"
+            subtitle="Keep the current pulse and route context visible without repeating the same work twice."
+            title="Listing pulse"
           >
             <ListPageStatsGrid className="front-office-listings-rail-stats">
               <StatCard
                 className="front-office-listings-rail-stat"
-                hint="inventory visible to agents"
+                hint="Inventory visible to agents"
                 label="Listings"
                 value={snapshot.summary.listingCount}
               />
               <StatCard
                 className="front-office-listings-rail-stat"
-                hint="currently marked public-ready"
-                label="Public-ready"
-                value={snapshot.summary.publicReadyCount}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint="sum of tracked links already created by you"
                 label="Tracked links"
                 value={snapshot.summary.trackedLinks}
               />
               <StatCard
                 className="front-office-listings-rail-stat"
-                hint="sum of tracked clicks in your feed"
                 label="Tracked clicks"
                 value={snapshot.summary.trackedClicks}
               />
@@ -130,237 +107,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 tone="accent"
                 value={usagePulse.pulseLabel}
               />
-              <StatCard
-                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint={routeState.routeStatusDescription}
-                label="Context"
-                tone={routeState.diagnostics.length ? "default" : "accent"}
-                value={routeState.routeStatusLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint="current save behavior for this follow-up view"
-                label="Mode"
-                tone="accent"
-                value={routeState.modeLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint={routeState.focusedRouteLaneDescription}
-                label="Focus"
-                tone={
-                  routeState.focusedRouteLane === "send-rescue"
-                    ? "default"
-                    : "accent"
-                }
-                value={routeState.focusedRouteLaneLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint={routeState.draftStatusDescription}
-                label="Draft"
-                value={routeState.draftStatusLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
-                hint={routeState.preferredSupportLaneDescription}
-                label="Support copy"
-                value={routeState.preferredSupportLaneLabel}
-              />
             </ListPageStatsGrid>
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle={usagePulse.pulseDescription}
-            title="Usage pulse"
-          >
-            <ListPageStatsGrid className="front-office-listings-rail-stats">
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint="all tracked links already created in this desk"
-                label="Tracked links"
-                value={usagePulse.trackedLinkCount}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint="tracked click signals already returned"
-                label="Tracked clicks"
-                tone="accent"
-                value={usagePulse.trackedClickCount}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint="listings that already have at least one click signal"
-                label="Engaged listings"
-                tone="accent"
-                value={usagePulse.engagedListingCount}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint={usagePulse.sendTrailDescription}
-                label="Active shares"
-                tone={usagePulse.trackedLinkCount > 0 ? "accent" : "default"}
-                value={usagePulse.sendTrailLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint={usagePulse.quietTrailDescription}
-                label="Needs follow-up"
-                tone={
-                  usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"
-                }
-                value={usagePulse.quietTrailLabel}
-              />
-              <StatCard
-                className="front-office-listings-rail-stat"
-                hint={usagePulse.nextMoveDescription}
-                label="Next move"
-                tone="accent"
-                value={usagePulse.nextMoveLabel}
-              />
-            </ListPageStatsGrid>
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                action={
-                  <>
-                    {usagePulse.latestTrackedShare?.clientHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={usagePulse.latestTrackedShare.clientHref}
-                      >
-                        Open client page
-                      </FrontOfficeLink>
-                    ) : null}
-                    {usagePulse.latestTrackedShare?.appointmentHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={usagePulse.latestTrackedShare.appointmentHref}
-                      >
-                        Open appointment
-                      </FrontOfficeLink>
-                    ) : null}
-                    {usagePulse.strongestTrail?.clientHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={usagePulse.strongestTrail.clientHref}
-                      >
-                        Open best client page
-                      </FrontOfficeLink>
-                    ) : null}
-                    {usagePulse.strongestTrail?.appointmentHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={usagePulse.strongestTrail.appointmentHref}
-                      >
-                        Open best appointment
-                      </FrontOfficeLink>
-                    ) : null}
-                  </>
-                }
-                badgeLabel={usagePulse.nextMoveLabel}
-                badgeTone={
-                  usagePulse.quietTrackedListingCount > 0 ? "warning" : "accent"
-                }
-                description={usagePulse.nextMoveDescription}
-                meta={
-                  <>
-                    <span>{usagePulse.sendTrailLabel}</span>
-                    <span>{usagePulse.quietTrailLabel}</span>
-                    <span>
-                      Next step ·{" "}
-                      {usagePulse.latestTrackedShare?.followThroughCue ??
-                        usagePulse.nextMoveDescription}
-                    </span>
-                  </>
-                }
-                title="Needs re-engagement"
-              />
-              {usagePulse.strongestTrail ? (
-                <FrontOfficeRailItem
-                  action={
-                    <>
-                      {usagePulse.strongestTrail.clientHref ? (
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={usagePulse.strongestTrail.clientHref}
-                        >
-                          Open client page
-                        </FrontOfficeLink>
-                      ) : null}
-                      {usagePulse.strongestTrail.appointmentHref ? (
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={usagePulse.strongestTrail.appointmentHref}
-                        >
-                          Open appointment
-                        </FrontOfficeLink>
-                      ) : null}
-                    </>
-                  }
-                  badgeLabel={usagePulse.strongestTrail.badgeLabel}
-                  badgeTone={usagePulse.strongestTrail.badgeTone}
-                  description={usagePulse.strongestTrail.description}
-                  meta={
-                    <>
-                      <span>
-                        Next step · {usagePulse.strongestTrail.followThroughCue}
-                      </span>
-                      {usagePulse.strongestTrail.meta.map((item) => (
-                        <span key={item}>{item}</span>
-                      ))}
-                    </>
-                  }
-                  title="Best signal"
-                />
-              ) : (
-                <FrontOfficeRailItem
-                  badgeLabel="Fresh desk"
-                  badgeTone="neutral"
-                  description="No tracked listing has moved far enough to create a usage pulse yet."
-                  title="Best signal"
-                />
-              )}
-              {usagePulse.latestTrackedShare ? (
-                <FrontOfficeRailItem
-                  action={
-                    <>
-                      {usagePulse.latestTrackedShare.clientHref ? (
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={usagePulse.latestTrackedShare.clientHref}
-                        >
-                          Open client page
-                        </FrontOfficeLink>
-                      ) : null}
-                      {usagePulse.latestTrackedShare.appointmentHref ? (
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={usagePulse.latestTrackedShare.appointmentHref}
-                        >
-                          Open appointment
-                        </FrontOfficeLink>
-                      ) : null}
-                    </>
-                  }
-                  badgeLabel={usagePulse.latestTrackedShare.badgeLabel}
-                  badgeTone={usagePulse.latestTrackedShare.badgeTone}
-                  description={usagePulse.latestTrackedShare.description}
-                  meta={
-                    <>
-                      <span>
-                        Next step ·{" "}
-                        {usagePulse.latestTrackedShare.followThroughCue}
-                      </span>
-                      {usagePulse.latestTrackedShare.meta.map((item) => (
-                        <span key={item}>{item}</span>
-                      ))}
-                    </>
-                  }
-                  title="Most recent share"
-                />
-              ) : null}
-            </div>
           </SectionCard>
 
           <SectionCard
@@ -541,7 +288,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 description={routeState.preferredSupportLaneDescription}
                 meta={
                   <>
-                    <span>{materialStatusLabel}</span>
+                    <span>Preview only</span>
                     <span>
                       {snapshot.agentMaterial.featuredCaseCount} proof point(s)
                       ready
@@ -605,10 +352,6 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
       pageClassName="front-office-listings-page"
       summary={
         <>
-          <SummaryChip
-            label="Public-ready"
-            value={snapshot.summary.publicReadyCount}
-          />
           <SummaryChip label="Listings" value={snapshot.summary.listingCount} />
           <SummaryChip
             label="Tracked links"

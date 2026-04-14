@@ -1332,232 +1332,6 @@ export function FrontOfficeListingsOutputClient(
             />
           ) : null}
         </div>
-        <div
-          className="front-office-playbook-card-head"
-          style={{ marginTop: "0.4rem" }}
-        >
-          <strong>Recent share history</strong>
-          <span>
-            Newest first. Each card carries the latest share plus the next-step
-            cue that tells you how to continue the conversation.
-          </span>
-        </div>
-        <div className="office-queue-list">
-          {props.usagePulse.recentTrackedShares.length ? (
-            props.usagePulse.recentTrackedShares.map((share) => (
-              <QueueItem
-                action={
-                  <>
-                    {share.clientHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link"
-                        href={share.clientHref}
-                      >
-                        Open client page
-                      </FrontOfficeLink>
-                    ) : null}
-                    {share.appointmentHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link"
-                        href={share.appointmentHref}
-                      >
-                        Open appointment
-                      </FrontOfficeLink>
-                    ) : null}
-                  </>
-                }
-                badgeLabel={share.badgeLabel}
-                badgeTone={share.badgeTone}
-                context={share.context}
-                description={share.description}
-                key={`${share.title}-${share.context}`}
-                meta={
-                  <>
-                    <span>Next step · {share.followThroughCue}</span>
-                    {share.meta.map((item) => (
-                      <span key={item}>{item}</span>
-                    ))}
-                  </>
-                }
-                title={share.title}
-              />
-            ))
-          ) : (
-            <QueueItem
-              badgeLabel="No recent shares"
-              badgeTone="neutral"
-              description="Recent tracked shares will appear here once this page has enough activity to build a small timeline with next-step cues."
-              title="Recent share history"
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="front-office-playbook-grid front-office-listings-overview-grid">
-        <div className="front-office-playbook-card">
-          <div className="front-office-playbook-card-head">
-            <strong>Current share setup</strong>
-            <span>
-              Keep the recipient, saved view, and preferred support copy visible
-              before you copy any option.
-            </span>
-          </div>
-          <div className="office-queue-list">
-            <QueueItem
-              badgeLabel={
-                props.snapshot.targetClient
-                  ? props.snapshot.targetClient.stage
-                  : "Generic"
-              }
-              badgeTone={
-                props.snapshot.targetClient
-                  ? mapBadgeTone(props.snapshot.targetClient.stageTone)
-                  : "warning"
-              }
-              description={
-                props.snapshot.targetClient
-                  ? `${props.snapshot.targetClient.nextTouchLabel}. This tracked share will stay attached to the client page.`
-                  : "Open listing output from a client or appointment to turn a generic tracked link into a client-linked record."
-              }
-              title={
-                props.snapshot.targetClient
-                  ? props.snapshot.targetClient.fullName
-                  : "No client selected yet"
-              }
-            />
-            {props.snapshot.targetAppointment ? (
-              <QueueItem
-                badgeLabel={props.snapshot.targetAppointment.statusLabel}
-                badgeTone={mapBadgeTone(
-                  props.snapshot.targetAppointment.statusTone,
-                )}
-                context={props.snapshot.targetAppointment.typeLabel}
-                description={`${props.snapshot.targetAppointment.startsAtLabel} · ${props.snapshot.targetAppointment.locationLabel}`}
-                title={props.snapshot.targetAppointment.title}
-              />
-            ) : (
-              <QueueItem
-                badgeLabel="No appointment"
-                badgeTone="neutral"
-                description="Without appointment context, this follow-up stays on the client only."
-                title="No appointment attached yet"
-              />
-            )}
-            <QueueItem
-              action={
-                <FrontOfficeLink
-                  className="office-inline-link"
-                  href={agentPackageHref}
-                >
-                  Open agent materials
-                </FrontOfficeLink>
-              }
-              badgeLabel={props.routeState.preferredSupportLaneLabel}
-              badgeTone={
-                props.routeState.preferredSupportLane === "mixed"
-                  ? "warning"
-                  : "accent"
-              }
-              description={props.routeState.preferredSupportLaneDescription}
-              title="Preferred support copy"
-            />
-            <QueueItem
-              badgeLabel={props.routeState.routeStatusLabel}
-              badgeTone={
-                props.routeState.diagnostics.length ? "warning" : "accent"
-              }
-              context={props.routeState.draftStatusLabel}
-              description={props.routeState.routeStatusDescription}
-              title="View cleanup"
-            />
-          </div>
-        </div>
-
-        <div className="front-office-playbook-card">
-          <div className="front-office-playbook-card-head">
-            <strong>Share options</strong>
-            <span>
-              SMS, Email, and Direct are intentionally different choices. The
-              recommended first step depends on context, traction, and any
-              active draft.
-            </span>
-          </div>
-          <div className="office-queue-list">
-            <QueueItem
-              badgeLabel="Fast"
-              badgeTone="accent"
-              context={
-                props.draftAssist?.channel === "sms"
-                  ? "Draft loaded"
-                  : props.routeState.preferredSupportLane === "sms"
-                    ? "Preferred support"
-                    : "Standard copy"
-              }
-              description={buildChannelCue(props.snapshot, "sms")}
-              title="SMS + tracked link"
-            />
-            <QueueItem
-              badgeLabel="Context"
-              badgeTone="success"
-              context={
-                props.draftAssist?.channel === "email"
-                  ? "Draft loaded"
-                  : props.routeState.preferredSupportLane === "email"
-                    ? "Preferred support"
-                    : "Standard copy"
-              }
-              description={buildChannelCue(props.snapshot, "email")}
-              title="Email + tracked link"
-            />
-            <QueueItem
-              badgeLabel="Manual"
-              badgeTone="warning"
-              context="Always link-only"
-              description={buildChannelCue(props.snapshot, "direct")}
-              title="Private link only"
-            />
-          </div>
-        </div>
-
-        <div className="front-office-playbook-card">
-          <div className="front-office-playbook-card-head">
-            <strong>Follow-up cues</strong>
-            <span>
-              Every copied share should have a follow-up consequence instead of
-              disappearing into clipboard history.
-            </span>
-          </div>
-          <div className="office-queue-list">
-            <QueueItem
-              badgeLabel="3-day"
-              badgeTone="danger"
-              description="If a client-linked share stays unopened for 3 days, reopen it from the client page with a tighter reason-to-care."
-              title="Reopen unopened shares"
-            />
-            <QueueItem
-              badgeLabel="7-day"
-              badgeTone="warning"
-              description="If the client opens and then goes quiet for a week, send the next option from the same conversation instead of starting over."
-              title="Watch quiet-after-open risk"
-            />
-            <QueueItem
-              badgeLabel={props.snapshot.targetAppointment ? "Appt" : "Package"}
-              badgeTone={
-                props.snapshot.targetAppointment ? "accent" : "success"
-              }
-              description={
-                props.snapshot.targetAppointment
-                  ? "Use the appointment record for confirmation, reschedule notes, and outcome updates after the listing lands."
-                  : buildListingMaterialCue(props.snapshot)
-              }
-              title={
-                props.snapshot.targetAppointment
-                  ? "Keep appointment follow-up in one loop"
-                  : "Pair the listing with agent materials"
-              }
-            />
-          </div>
-        </div>
       </div>
 
       <div className="list-column front-office-record-list">
@@ -1590,11 +1364,6 @@ export function FrontOfficeListingsOutputClient(
                 recommendedAction,
               }),
             ];
-            const clientFacingContract = buildClientFacingShareContract({
-              snapshot: props.snapshot,
-              recommendedAction,
-            });
-            const sendRiskWatch = buildListingSendRiskWatch(listing);
 
             return (
               <article
@@ -1632,56 +1401,14 @@ export function FrontOfficeListingsOutputClient(
                       listing,
                     )}
                     meta={
-                      <span>
-                        Recommended first step: {recommendedAction.label}.{" "}
-                        {recommendedAction.reason}
-                      </span>
+                      <>
+                        <span>
+                          Recommended first step: {recommendedAction.label}.
+                        </span>
+                        <span>{buildListingTractionCue(listing)}</span>
+                      </>
                     }
                     title="Best next use"
-                  />
-                  <QueueItem
-                    badgeLabel={buildTrackedContextBadgeLabel(listing)}
-                    badgeTone={buildTrackedContextBadgeTone(listing)}
-                    description={buildListingTractionCue(listing)}
-                    meta={
-                      <span>
-                        {listing.trackedLinkCount} tracked link(s) ·{" "}
-                        {listing.trackedClickCount} tracked click(s)
-                      </span>
-                    }
-                    title="Usage pulse"
-                  />
-                  <QueueItem
-                    badgeLabel={sendRiskWatch.badgeLabel}
-                    badgeTone={sendRiskWatch.badgeTone}
-                    context={sendRiskWatch.context}
-                    description={sendRiskWatch.description}
-                    meta={
-                      <>
-                        {sendRiskWatch.meta.map((item, index) => (
-                          <span key={`send-risk-${listing.id}-${index}`}>
-                            {item}
-                          </span>
-                        ))}
-                      </>
-                    }
-                    title="Follow-up risk"
-                  />
-                  <QueueItem
-                    badgeLabel={clientFacingContract.badgeLabel}
-                    badgeTone={clientFacingContract.badgeTone}
-                    context={clientFacingContract.context}
-                    description={clientFacingContract.description}
-                    meta={
-                      <>
-                        {clientFacingContract.meta.map((item, index) => (
-                          <span key={`client-facing-${listing.id}-${index}`}>
-                            {item}
-                          </span>
-                        ))}
-                      </>
-                    }
-                    title={clientFacingContract.title}
                   />
                   {listing.latestTrackedShare ? (
                     <QueueItem
@@ -1728,24 +1455,6 @@ export function FrontOfficeListingsOutputClient(
                             Next step ·{" "}
                             {listing.latestTrackedShare.nextStepLabel}
                           </span>
-                          {listing.latestTrackedShare.clientLabel ? (
-                            <span>
-                              Client · {listing.latestTrackedShare.clientLabel}
-                              {listing.latestTrackedShare
-                                .clientStageDisplayLabel
-                                ? ` · ${listing.latestTrackedShare.clientStageDisplayLabel}`
-                                : ""}
-                            </span>
-                          ) : null}
-                          {listing.latestTrackedShare.appointmentLabel ? (
-                            <span>
-                              Appointment ·{" "}
-                              {listing.latestTrackedShare.appointmentLabel}
-                              {listing.latestTrackedShare.appointmentWindowLabel
-                                ? ` · ${listing.latestTrackedShare.appointmentWindowLabel}`
-                                : ""}
-                            </span>
-                          ) : null}
                         </>
                       }
                       title="Latest tracked share"
