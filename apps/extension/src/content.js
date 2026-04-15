@@ -314,23 +314,148 @@
     return extractFirstMoneyLabel(document.body.innerText || "");
   }
 
+  function extractUrlsFromSrcset(value) {
+    return String(value || "")
+      .split(",")
+      .map((entry) => trimText(entry.trim().split(/\s+/)[0] || ""))
+      .filter(Boolean);
+  }
+
+  function normalizeMediaUrl(value) {
+    const trimmed = trimText(value);
+    if (!trimmed || trimmed.startsWith("data:")) {
+      return null;
+    }
+
+    let normalized = trimmed;
+    try {
+      normalized = new URL(trimmed, location.href).toString();
+    } catch {
+      return null;
+    }
+
+    if (!/^https?:/i.test(normalized)) {
+      return null;
+    }
+
+    const zillowStaticMatch = normalized.match(
+      /^(https?:\/\/photos\.zillowstatic\.com\/fp\/[a-z0-9]+)-(?:full|se_[^./]+|p_e)\.(webp|png|jpe?g|avif)$/i,
+    );
+    if (zillowStaticMatch) {
+      return `${zillowStaticMatch[1]}-full.${zillowStaticMatch[2].toLowerCase()}`;
+    }
+
+    return normalized;
+  }
+
+  function looksLikeImageUrl(value) {
+    const normalized = normalizeMediaUrl(value);
+    if (!normalized) {
+      return false;
+    }
+
+    return (
+      /photos\.zillowstatic\.com\/fp\//i.test(normalized) ||
+      /\.(?:avif|gif|jpe?g|png|webp)(?:[?#].*)?$/i.test(normalized)
+    );
+  }
+
+  function buildElementMediaLabel(element) {
+    return normalizeWhitespace(
+      [
+        element.textContent || "",
+        element.getAttribute("aria-label") || "",
+        element.getAttribute("title") || "",
+        element.getAttribute("alt") || "",
+        element.closest("button, a, [role='button']")?.textContent || "",
+        element.closest("button, a, [role='button']")?.getAttribute("aria-label") || "",
+        element.closest("[data-testid]")?.getAttribute("data-testid") || "",
+      ].join(" "),
+    );
+  }
+
+  function collectElementUrlCandidates(element) {
+    return [
+      element.getAttribute("href"),
+      element.getAttribute("src"),
+      element.getAttribute("data-src"),
+      element.getAttribute("data-url"),
+      element.getAttribute("data-image"),
+      element.getAttribute("data-full"),
+      element.getAttribute("data-lazy-src"),
+      element.getAttribute("data-original"),
+      element.currentSrc,
+      ...extractUrlsFromSrcset(element.getAttribute("srcset")),
+      ...extractUrlsFromSrcset(element.getAttribute("data-srcset")),
+    ].filter(Boolean);
+  }
+
+  function collectStreetEasyMediaFromScripts() {
+    const imageUrlByRef = new Map();
+    const photoKeyByRef = new Map();
+    const mediaRefsByRef = new Map();
+    const leadMediaRefByPath = new Map();
+    const normalizedRaw = [...document.querySelectorAll("script")]
+      .map((script) => script.textContent || "")
+      .filter(
+        (raw) =>
+          raw.includes("self.__next_f.push") ||
+          raw.includes("photos.zillowstatic.com/fp/") ||
+          raw.includes('\\"floorPlan\\":\\"$'),
+      )
+      .join("")
+      .replace(/self\.__next_f\.push\(\[[0-9]+,"/g, "")
+      .replace(/"\]\);?/g, "")
+      .replace(/\\"/g, '"')
+      .replace(/\\\//g, "/")
+      .replace(/\\n/g, "\n");
+
+    for (const match of normalizedRaw.matchAll(/([0-9a-z]+):\{"imageUrl":"(https:\/\/photos\.zillowstatic\.com\/fp\/[^"]+)"/gi)) {
+      imageUrlByRef.set(match[1], match[2]);
+    }
+    for (const match of normalizedRaw.matchAll(/([0-9a-z]+):\{"key":"([a-f0-9]{32})"/gi)) {
+      photoKeyByRef.set(match[1], match[2]);
+    }
+    for (const match of normalizedRaw.matchAll(/([0-9a-z]+):\{"floorPlan":"\$([0-9a-z]+)","photo":"\$([0-9a-z]+)"/gi)) {
+      mediaRefsByRef.set(match[1], {
+        floorPlanRef: match[2],
+        photoRef: match[3],
+      });
+    }
+    for (const match of normalizedRaw.matchAll(/([0-9a-z]+):\{"leadMedia":"\$([0-9a-z]+)"[^}]*"urlPath":"([^"]+)"/gi)) {
+      leadMediaRefByPath.set(match[3], match[2]);
+    }
+
+    const normalizedPath = location.pathname.replace(/\/+$/, "");
+    const selectedMediaRefs = [];
+    const exactLeadMediaRef = leadMediaRefByPath.get(normalizedPath);
+    if (exactLeadMediaRef && mediaRefsByRef.has(exactLeadMediaRef)) {
+      selectedMediaRefs.push(mediaRefsByRef.get(exactLeadMediaRef));
+    } else {
+      selectedMediaRefs.push(...mediaRefsByRef.values());
+    }
+
+    return {
+      floorPlanUrls: collectUniqueUrls(
+        selectedMediaRefs
+          .map((entry) => imageUrlByRef.get(entry.floorPlanRef))
+          .filter(Boolean),
+      ),
+      photoUrls: collectUniqueUrls(
+        selectedMediaRefs
+          .map((entry) => photoKeyByRef.get(entry.photoRef))
+          .filter(Boolean)
+          .map((photoKey) => `https://photos.zillowstatic.com/fp/${photoKey}-full.webp`),
+      ),
+    };
+  }
+
   function collectUniqueUrls(values) {
     const seen = new Set();
     const results = [];
     for (const value of values) {
-      const trimmed = trimText(value);
-      if (!trimmed || trimmed.startsWith("data:")) {
-        continue;
-      }
-
-      let normalized = trimmed;
-      try {
-        normalized = new URL(trimmed, location.href).toString();
-      } catch {
-        continue;
-      }
-
-      if (!/^https?:/i.test(normalized)) {
+      const normalized = normalizeMediaUrl(value);
+      if (!normalized) {
         continue;
       }
       if (seen.has(normalized)) {
@@ -343,6 +468,7 @@
   }
 
   function collectImageUrls() {
+    const scriptMedia = collectStreetEasyMediaFromScripts();
     const ldImages = extractJsonLdNodes()
       .flatMap((node) => {
         const candidates = [];
@@ -359,37 +485,51 @@
         return candidates;
       });
 
-    const domImages = [...document.images]
-      .filter((image) => {
-        const src = image.currentSrc || image.src;
-        if (!src || /logo|avatar|icon|sprite/i.test(src)) {
+    const domImages = [...document.querySelectorAll("img, source, picture source")]
+      .flatMap((element) => {
+        if (element instanceof HTMLImageElement) {
+          const src = element.currentSrc || element.src;
+          if (!src || /logo|avatar|icon|sprite|youtube|ytimg|hqdefault/i.test(src)) {
+            return [];
+          }
+          if ((element.naturalWidth || 0) < 80 || (element.naturalHeight || 0) < 80) {
+            return [];
+          }
+        }
+
+        return collectElementUrlCandidates(element).filter(
+          (candidate) =>
+            looksLikeImageUrl(candidate) &&
+            !/logo|avatar|icon|sprite|youtube|ytimg|hqdefault/i.test(candidate || ""),
+        );
+      })
+      .filter((value) => {
+        const normalized = normalizeMediaUrl(value);
+        if (!normalized) {
           return false;
         }
-        return (image.naturalWidth || 0) >= 80 && (image.naturalHeight || 0) >= 80;
+        return !/floor[_-]?plan/i.test(normalized);
       })
-      .map((image) => image.currentSrc || image.src)
       .filter(Boolean);
 
-    return collectUniqueUrls([...domImages, ...ldImages]).slice(0, 32);
+    return collectUniqueUrls([...scriptMedia.photoUrls, ...domImages, ...ldImages]).slice(0, 32);
   }
 
   function collectFloorPlans() {
+    const scriptMedia = collectStreetEasyMediaFromScripts();
     const seen = new Set();
     const candidates = [];
 
     function pushCandidate(label, url) {
-      const trimmedUrl = trimText(url || "");
-      if (!trimmedUrl) {
+      if (!looksLikeImageUrl(url)) {
         return;
       }
-      let normalizedUrl = trimmedUrl;
-      try {
-        normalizedUrl = new URL(trimmedUrl, location.href).toString();
-      } catch {
+      const normalizedUrl = normalizeMediaUrl(url);
+      if (!normalizedUrl) {
         return;
       }
 
-      if (!/^https?:/i.test(normalizedUrl) || seen.has(normalizedUrl)) {
+      if (seen.has(normalizedUrl)) {
         return;
       }
 
@@ -400,23 +540,9 @@
       });
     }
 
-    for (const element of document.querySelectorAll("a, button, img, source")) {
-      const label = normalizeWhitespace(
-        [
-          element.textContent || "",
-          element.getAttribute("aria-label") || "",
-          element.getAttribute("title") || "",
-          element.getAttribute("alt") || "",
-        ].join(" "),
-      );
-      const urlCandidates = [
-        element.getAttribute("href"),
-        element.getAttribute("src"),
-        element.getAttribute("data-src"),
-        element.getAttribute("data-url"),
-        element.getAttribute("data-image"),
-        element.getAttribute("data-full"),
-      ];
+    for (const element of document.querySelectorAll("a, button, img, source, picture source")) {
+      const label = buildElementMediaLabel(element);
+      const urlCandidates = collectElementUrlCandidates(element);
 
       if (
         /floor\s*plan/i.test(label) ||
@@ -426,20 +552,9 @@
       }
     }
 
-    for (const script of document.querySelectorAll("script")) {
-      const raw = script.textContent || "";
-      if (!/floor[_ -]?plan/i.test(raw)) {
-        continue;
-      }
+    scriptMedia.floorPlanUrls.forEach((candidate) => pushCandidate("Floor plan", candidate));
 
-      const absoluteMatches = raw.match(/https?:\/\/[^"'\\\s)]+/g) || [];
-      const relativeMatches = raw.match(/\/[^"'\\\s)]+(?:floor[_-]?plan|floorplan)[^"'\\\s)]*/gi) || [];
-      [...absoluteMatches, ...relativeMatches].forEach((candidate) =>
-        pushCandidate("Floor plan", candidate),
-      );
-    }
-
-    return candidates;
+    return candidates.slice(0, 8);
   }
 
   function collectSectionTextItems(sectionTitles) {
