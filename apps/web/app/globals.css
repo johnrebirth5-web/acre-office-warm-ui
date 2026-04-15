@@ -18053,6 +18053,12 @@ body,
 .listing-studio-view-page {
   display: grid;
   gap: 22px;
+  min-width: 0;
+}
+
+.listing-studio-view-page > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .listing-studio-view-header {
@@ -18192,6 +18198,9 @@ body,
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 20px 48px rgba(22, 39, 60, 0.07);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .listing-studio-view-stage-card {
@@ -18258,14 +18267,19 @@ body,
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  width: 100%;
+  min-width: 0;
 }
 
 .listing-studio-view-thumbnail-row {
   flex: 1 1 auto;
   display: flex;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   padding-bottom: 2px;
+  overscroll-behavior-x: contain;
 }
 
 .listing-studio-view-thumbnail {
@@ -18297,6 +18311,7 @@ body,
   display: flex;
   gap: 10px;
   flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .listing-studio-view-mode-button {
@@ -18334,6 +18349,8 @@ body,
   font-size: clamp(2rem, 3vw, 3.1rem);
   line-height: 1;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .listing-studio-view-price-block span,
@@ -18349,6 +18366,8 @@ body,
 
 .listing-studio-view-address-block strong {
   font-size: 1.08rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .listing-studio-view-facts-grid {
