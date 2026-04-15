@@ -696,6 +696,33 @@ function formatFinancialHighlightValue(value: string) {
   return trimmed;
 }
 
+function extractTransitDistanceKilometers(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const kilometerMatch = normalized.match(/([0-9.]+)\s*km/i);
+  if (kilometerMatch?.[1]) {
+    const kilometers = Number(kilometerMatch[1]);
+    return Number.isFinite(kilometers) ? kilometers : null;
+  }
+
+  const mileMatch = normalized.match(/([0-9.]+)\s*(?:mi|miles?)\b/i);
+  if (mileMatch?.[1]) {
+    const miles = Number(mileMatch[1]);
+    return Number.isFinite(miles) ? miles * 1.60934 : null;
+  }
+
+  const meterMatch = normalized.match(/([0-9.]+)\s*(?:meters?|m)\b/i);
+  if (meterMatch?.[1]) {
+    const meters = Number(meterMatch[1]);
+    return Number.isFinite(meters) ? meters / 1000 : null;
+  }
+
+  return null;
+}
+
 function parseTransitSummary(
   transit: TransitItem[],
 ): TransitSummary {
@@ -706,23 +733,20 @@ function parseTransitSummary(
   for (const item of transit) {
     const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
     const walkMatch = haystack.match(/(\d+)\s*min(?:ute)?(?:s)?\s*walk/i);
-    const distanceMatch = haystack.match(/([0-9.]+)\s*km/i);
+    const kilometers = extractTransitDistanceKilometers(haystack);
 
     if (walkMatch) {
       const minutes = Number(walkMatch[1]);
       if (Number.isFinite(minutes)) {
         nearestWalkMinutes =
-          nearestWalkMinutes === null ? minutes : Math.min(nearestWalkMinutes, minutes);
+        nearestWalkMinutes === null ? minutes : Math.min(nearestWalkMinutes, minutes);
       }
     }
 
-    if (distanceMatch) {
-      const kilometers = Number(distanceMatch[1]);
-      if (Number.isFinite(kilometers)) {
-        foundDistance = true;
-        if (kilometers <= 0.5) {
-          withinFiveHundredMeters += 1;
-        }
+    if (kilometers !== null) {
+      foundDistance = true;
+      if (kilometers <= 0.5) {
+        withinFiveHundredMeters += 1;
       }
     }
   }
@@ -742,10 +766,10 @@ function parseFallbackTransitItem(value: string): TransitItem | null {
   const compact = trimmed.replace(/\s+/g, " ").trim();
   const parts = compact.split("·").map((part) => part.trim()).filter(Boolean);
   const labelCandidate =
-    parts[0]?.replace(/\s+[0-9.]+\s*(?:km|mi|m)\b.*$/i, "").trim() ?? compact;
+    parts[0]?.replace(/\s+[0-9.]+\s*(?:km|mi|miles?|meters?|m)\b.*$/i, "").trim() ?? compact;
   const label = labelCandidate || compact;
   const minutesMatch = compact.match(/(\d+)\s*min(?:ute)?(?:s)?(?:\s*walk)?/i);
-  const distanceMatch = compact.match(/([0-9.]+\s*(?:km|mi|m))/i);
+  const distanceMatch = compact.match(/([0-9.]+\s*(?:km|mi|miles?|meters?|m))/i);
   const detailParts: string[] = [];
 
   if (distanceMatch?.[1]) {
@@ -1381,13 +1405,12 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     const countWithinOneKilometer = (items: TransitItem[]) =>
       items.reduce((count, item) => {
         const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
-        const distanceMatch = haystack.match(/([0-9.]+)\s*km/i);
-        if (!distanceMatch?.[1]) {
+        const kilometers = extractTransitDistanceKilometers(haystack);
+        if (kilometers === null) {
           return count;
         }
 
-        const kilometers = Number(distanceMatch[1]);
-        return Number.isFinite(kilometers) && kilometers <= 1 ? count + 1 : count;
+        return kilometers <= 1 ? count + 1 : count;
       }, 0);
 
     return Math.max(

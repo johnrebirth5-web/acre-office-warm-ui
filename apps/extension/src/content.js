@@ -374,6 +374,14 @@
     );
   }
 
+  function isFloorPlanLikeLabel(value) {
+    return /\bfloor\s*plan\b/i.test(normalizeWhitespace(value));
+  }
+
+  function isPhotoLikeLabel(value) {
+    return /\bphoto\s*\d+\b/i.test(normalizeWhitespace(value));
+  }
+
   function collectElementUrlCandidates(element) {
     return [
       element.getAttribute("href"),
@@ -388,6 +396,12 @@
       ...extractUrlsFromSrcset(element.getAttribute("srcset")),
       ...extractUrlsFromSrcset(element.getAttribute("data-srcset")),
     ].filter(Boolean);
+  }
+
+  function collectMetaImageUrls() {
+    return [...document.querySelectorAll('meta[property="og:image"], meta[name="image_src"]')]
+      .flatMap((element) => collectElementUrlCandidates(element))
+      .filter((candidate) => looksLikeImageUrl(candidate));
   }
 
   function collectStreetEasyMediaFromScripts() {
@@ -469,6 +483,7 @@
 
   function collectImageUrls() {
     const scriptMedia = collectStreetEasyMediaFromScripts();
+    const metaImages = collectMetaImageUrls();
     const ldImages = extractJsonLdNodes()
       .flatMap((node) => {
         const candidates = [];
@@ -487,6 +502,11 @@
 
     const domImages = [...document.querySelectorAll("img, source, picture source")]
       .flatMap((element) => {
+        const label = buildElementMediaLabel(element);
+        if (isFloorPlanLikeLabel(label) || /\bvideo\s*\d*\b/i.test(label)) {
+          return [];
+        }
+
         if (element instanceof HTMLImageElement) {
           const src = element.currentSrc || element.src;
           if (!src || /logo|avatar|icon|sprite|youtube|ytimg|hqdefault/i.test(src)) {
@@ -500,6 +520,7 @@
         return collectElementUrlCandidates(element).filter(
           (candidate) =>
             looksLikeImageUrl(candidate) &&
+            !/floor[_-]?plan/i.test(candidate || "") &&
             !/logo|avatar|icon|sprite|youtube|ytimg|hqdefault/i.test(candidate || ""),
         );
       })
@@ -512,7 +533,7 @@
       })
       .filter(Boolean);
 
-    return collectUniqueUrls([...scriptMedia.photoUrls, ...domImages, ...ldImages]).slice(0, 32);
+    return collectUniqueUrls([...scriptMedia.photoUrls, ...metaImages, ...domImages, ...ldImages]).slice(0, 32);
   }
 
   function collectFloorPlans() {
@@ -540,12 +561,13 @@
       });
     }
 
-    for (const element of document.querySelectorAll("a, button, img, source, picture source")) {
+    for (const element of document.querySelectorAll("img, source, picture source, [data-testid*='floorplan' i], [data-testid*='floor-plan' i]")) {
       const label = buildElementMediaLabel(element);
       const urlCandidates = collectElementUrlCandidates(element);
 
       if (
-        /floor\s*plan/i.test(label) ||
+        isFloorPlanLikeLabel(label) ||
+        element.closest("[data-testid*='floorplan' i], [data-testid*='floor-plan' i]") ||
         urlCandidates.some((candidate) => /floor[_-]?plan|floorplan/i.test(candidate || ""))
       ) {
         urlCandidates.forEach((candidate) => pushCandidate(label, candidate));
@@ -555,6 +577,27 @@
     scriptMedia.floorPlanUrls.forEach((candidate) => pushCandidate("Floor plan", candidate));
 
     return candidates.slice(0, 8);
+  }
+
+  function extractTransitDistanceLabel(value) {
+    const normalized = normalizeWhitespace(value);
+    if (!normalized) {
+      return null;
+    }
+
+    const minutesMatch = normalized.match(/(\d+)\s*min(?:ute)?(?:s)?(?:\s*walk)?/i);
+    if (minutesMatch?.[1]) {
+      return `${minutesMatch[1]} min`;
+    }
+
+    const distanceMatch = normalized.match(/([0-9.]+)\s*(km|mi|miles?|meters?|m)\b/i);
+    if (!distanceMatch?.[1] || !distanceMatch[2]) {
+      return null;
+    }
+
+    const unit = distanceMatch[2].toLowerCase();
+    const normalizedUnit = unit === "mi" ? "miles" : unit.startsWith("meter") ? "m" : unit;
+    return `${distanceMatch[1]} ${normalizedUnit}`;
   }
 
   function collectSectionTextItems(sectionTitles) {
@@ -610,11 +653,14 @@
     const detail = normalizedLines.find(
       (line) =>
         line !== label &&
-        (/\b(?:walk|station|train|subway)\b/i.test(line) || /\b\d+(?:\.\d+)?\s*(?:km|mi)\b/i.test(line)),
+        (/\b(?:walk|station|train|subway|ferry)\b/i.test(line) ||
+          /\b\d+(?:\.\d+)?\s*(?:km|mi|miles?|meters?|m)\b/i.test(line)),
     );
-    const distanceLabel = normalizedLines.find(
-      (line) => line !== label && /^\d+\s*min(?:s)?$/i.test(line),
-    );
+    const distanceLabel =
+      normalizedLines
+        .map((line) => (line === label ? null : extractTransitDistanceLabel(line)))
+        .find(Boolean) ||
+      extractTransitDistanceLabel(label);
 
     if (!detail && !distanceLabel) {
       return null;
@@ -627,11 +673,57 @@
     };
   }
 
+  function collectTransitTableItems() {
+    const seen = new Set();
+    const results = [];
+
+    for (const row of document.querySelectorAll("tr")) {
+      const stationInfo =
+        row.querySelector("[data-testid='station-info']") ||
+        row.querySelector("[class*='stationInfo']");
+      if (!stationInfo) {
+        continue;
+      }
+
+      const label = normalizeWhitespace(stationInfo.innerText || stationInfo.textContent || "");
+      const distanceLabel = extractTransitDistanceLabel(
+        row.querySelector("[class*='distance']")?.innerText ||
+        row.querySelectorAll("td")[1]?.innerText ||
+        "",
+      );
+
+      if (!label) {
+        continue;
+      }
+
+      const key = `${label}::${distanceLabel || ""}`;
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      results.push({
+        label,
+        detail: null,
+        distanceLabel,
+      });
+    }
+
+    return results.slice(0, 12);
+  }
+
   function collectTransitItems() {
+    const tableItems = collectTransitTableItems();
+    if (tableItems.length) {
+      return tableItems;
+    }
+
     const seen = new Set();
     const results = [];
     const headings = [...document.querySelectorAll("h2, h3, h4, h5, [role='heading']")].filter((heading) =>
-      /nearby transit|transportation|subway|stations?|commute/i.test(heading.textContent || ""),
+      /(?:^|\b)(?:nearby\s+)?transit(?:\b|$)|transportation|subway|stations?|commute/i.test(
+        heading.textContent || "",
+      ),
     );
 
     for (const heading of headings) {
@@ -903,6 +995,7 @@
     const floorPlanUrlSet = new Set(floorPlans.map((plan) => plan.url).filter(Boolean));
     const imageUrls = collectImageUrls().filter((url) => !floorPlanUrlSet.has(url));
     const detailSections = collectSectionBlocks([
+      /^transit$/i,
       /nearby transit/i,
       /transportation/i,
       /subway/i,
@@ -1053,6 +1146,7 @@
     const floorPlanUrlSet = new Set(floorPlans.map((plan) => plan.url).filter(Boolean));
     const imageUrls = collectImageUrls().filter((url) => !floorPlanUrlSet.has(url));
     const detailSections = collectSectionBlocks([
+      /^transit$/i,
       /nearby transit/i,
       /transportation/i,
       /commute/i,
