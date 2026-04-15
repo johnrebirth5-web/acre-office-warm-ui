@@ -1716,6 +1716,174 @@ export async function updateStudioListingPack(input: {
   });
 }
 
+export async function appendStudioListingPackAssets(input: {
+  organizationId: string;
+  packId: string;
+  membershipId: string;
+  files: Array<{
+    fileName: string;
+    mimeType?: string | null;
+    bytes: Uint8Array;
+  }>;
+}) {
+  const existing = await prisma.studioListingPack.findFirst({
+    where: {
+      id: input.packId,
+      organizationId: input.organizationId,
+    },
+    include: {
+      snapshot: {
+        include: {
+          import: true,
+          assets: {
+            orderBy: studioListingAssetsOrderBy,
+          },
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const validFiles = input.files.filter((file) => file.bytes.byteLength > 0);
+  if (!validFiles.length) {
+    return getStudioListingPackDetail({
+      organizationId: input.organizationId,
+      packId: input.packId,
+    });
+  }
+
+  let nextSortOrder =
+    existing.snapshot.assets.reduce((max, asset) => Math.max(max, asset.sortOrder), -1) + 1;
+  const createdAssetIds: string[] = [];
+
+  for (const file of validFiles) {
+    const saved = await getFileHelpers().saveFile({
+      organizationId: input.organizationId,
+      importId: existing.snapshot.importId,
+      bucket: "assets",
+      fileName: file.fileName || `upload-${nextSortOrder + 1}.bin`,
+      bytes: file.bytes,
+    });
+
+    const created = await prisma.studioListingAsset.create({
+      data: {
+        organizationId: input.organizationId,
+        snapshotId: existing.snapshot.id,
+        kind: StudioListingAssetKind.gallery,
+        label: trimString(file.fileName.replace(/\.[^.]+$/, "")),
+        originalUrl: null,
+        storageKey: saved.storageKey,
+        mimeType: file.mimeType?.trim() || null,
+        fileName: saved.fileName,
+        fileSizeBytes: saved.fileSizeBytes,
+        sortOrder: nextSortOrder,
+      },
+    });
+
+    createdAssetIds.push(created.id);
+    nextSortOrder += 1;
+  }
+
+  const existingPhotoAssetIds = existing.snapshot.assets
+    .filter((asset) => asset.kind === StudioListingAssetKind.hero || asset.kind === StudioListingAssetKind.gallery)
+    .map((asset) => asset.id);
+  const nextSelectedAssetIds = [...existingPhotoAssetIds, ...createdAssetIds];
+  const nextCoverAssetId =
+    existing.coverAssetId && nextSelectedAssetIds.includes(existing.coverAssetId)
+      ? existing.coverAssetId
+      : nextSelectedAssetIds[0] ?? null;
+
+  await prisma.studioListingPack.update({
+    where: { id: existing.id },
+    data: {
+      updatedByMembershipId: input.membershipId,
+      status: StudioListingPackStatus.ready,
+      selectedAssetIdsJson: nextSelectedAssetIds,
+      coverAssetId: nextCoverAssetId,
+    },
+  });
+
+  return getStudioListingPackDetail({
+    organizationId: input.organizationId,
+    packId: input.packId,
+  });
+}
+
+export async function deleteStudioListingPackAsset(input: {
+  organizationId: string;
+  packId: string;
+  membershipId: string;
+  assetId: string;
+}) {
+  const existing = await prisma.studioListingPack.findFirst({
+    where: {
+      id: input.packId,
+      organizationId: input.organizationId,
+    },
+    include: {
+      snapshot: {
+        include: {
+          assets: {
+            orderBy: studioListingAssetsOrderBy,
+          },
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const asset = existing.snapshot.assets.find((entry) => entry.id === input.assetId);
+  if (!asset) {
+    return getStudioListingPackDetail({
+      organizationId: input.organizationId,
+      packId: input.packId,
+    });
+  }
+
+  await prisma.studioListingAsset.delete({
+    where: { id: asset.id },
+  });
+
+  if (asset.storageKey) {
+    await getFileHelpers().deleteFile?.(asset.storageKey);
+  }
+
+  const remainingPhotoAssetIds = existing.snapshot.assets
+    .filter(
+      (entry) =>
+        entry.id !== input.assetId &&
+        (entry.kind === StudioListingAssetKind.hero || entry.kind === StudioListingAssetKind.gallery),
+    )
+    .map((entry) => entry.id);
+  const nextCoverAssetId =
+    existing.coverAssetId === input.assetId
+      ? remainingPhotoAssetIds[0] ?? null
+      : existing.coverAssetId && remainingPhotoAssetIds.includes(existing.coverAssetId)
+        ? existing.coverAssetId
+        : remainingPhotoAssetIds[0] ?? null;
+
+  await prisma.studioListingPack.update({
+    where: { id: existing.id },
+    data: {
+      updatedByMembershipId: input.membershipId,
+      status: StudioListingPackStatus.ready,
+      selectedAssetIdsJson: remainingPhotoAssetIds,
+      coverAssetId: nextCoverAssetId,
+    },
+  });
+
+  return getStudioListingPackDetail({
+    organizationId: input.organizationId,
+    packId: input.packId,
+  });
+}
+
 export async function publishStudioListingPack(input: {
   organizationId: string;
   packId: string;

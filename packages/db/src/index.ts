@@ -116,9 +116,11 @@ export {
 export {
   authenticateStudioListingExtensionToken,
   approveStudioListingExtensionChallenge,
+  appendStudioListingPackAssets,
   configureStudioListingFileHelpers,
   createStudioListingExtensionChallenge,
   createStudioListingImport,
+  deleteStudioListingPackAsset,
   deleteStudioListingPack,
   getListingStudioDashboard,
   getStudioListingAssetRecord,

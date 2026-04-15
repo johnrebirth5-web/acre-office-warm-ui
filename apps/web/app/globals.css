@@ -18837,34 +18837,40 @@ body,
 
 .listing-studio-editor-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 16px;
 }
 
 .listing-studio-editor-photo-card {
-  display: grid;
-  gap: 10px;
+  position: relative;
+  cursor: pointer;
 }
 
 .listing-studio-editor-photo-frame {
   position: relative;
   overflow: hidden;
-  border: 2px solid transparent;
-  border-radius: 24px;
+  border: 1px solid rgba(20, 74, 119, 0.14);
+  border-radius: 28px;
   background: rgba(15, 23, 42, 0.05);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
 }
 
-.listing-studio-editor-photo-card.is-selected .listing-studio-editor-photo-frame,
 .listing-studio-editor-photo-card.is-cover .listing-studio-editor-photo-frame {
   border-color: rgba(20, 74, 119, 0.22);
   box-shadow: 0 14px 28px rgba(20, 74, 119, 0.08);
 }
 
-.listing-studio-editor-photo-card.is-muted .listing-studio-editor-photo-frame {
-  opacity: 0.7;
+.listing-studio-editor-photo-card:hover .listing-studio-editor-photo-frame,
+.listing-studio-editor-photo-card:focus-within .listing-studio-editor-photo-frame {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.1);
 }
 
-.listing-studio-editor-photo-frame img {
+.listing-studio-editor-photo-frame img,
+.listing-studio-editor-photo-frame video {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
@@ -18886,31 +18892,76 @@ body,
   font-weight: 800;
 }
 
-.listing-studio-editor-photo-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.listing-studio-editor-photo-remove {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.52);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    background 160ms ease;
+}
+
+.listing-studio-editor-photo-remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+.listing-studio-editor-photo-card:hover .listing-studio-editor-photo-remove,
+.listing-studio-editor-photo-card:focus-within .listing-studio-editor-photo-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.listing-studio-editor-photo-remove:hover {
+  background: rgba(17, 24, 39, 0.72);
 }
 
 .listing-studio-editor-dropzone {
   display: grid;
   place-items: center;
-  gap: 6px;
   min-height: 92px;
   padding: 16px;
   border: 2px dashed rgba(22, 39, 60, 0.12);
-  border-radius: 22px;
+  border-radius: 26px;
   background: rgba(250, 251, 253, 0.82);
   text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
 }
 
-.listing-studio-editor-dropzone span {
-  font-weight: 700;
+.listing-studio-editor-dropzone.is-active {
+  border-color: rgba(31, 78, 216, 0.26);
+  background: rgba(243, 247, 255, 0.96);
 }
 
-.listing-studio-editor-dropzone small {
+.listing-studio-editor-dropzone-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   color: var(--office-text-muted);
-  line-height: 1.5;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.listing-studio-editor-dropzone-copy svg {
+  width: 22px;
+  height: 22px;
 }
 
 .listing-studio-editor-grid {

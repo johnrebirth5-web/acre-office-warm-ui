@@ -376,6 +376,42 @@ function IconExternal() {
   );
 }
 
+function IconUpload() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 16V6m0 0-4 4m4-4 4 4M5 18.5h14"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <rect
+        height="13"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        width="18"
+        x="3"
+        y="7"
+      />
+    </svg>
+  );
+}
+
+function IconClose() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m7 7 10 10M17 7 7 17"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
 }
@@ -419,6 +455,10 @@ function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
   }
 
   return "photo";
+}
+
+function isVideoAssetMime(mimeType: string | null) {
+  return typeof mimeType === "string" && mimeType.toLowerCase().startsWith("video/");
 }
 
 function findSourceFactValue(items: Array<{ label: string; value: string }>, matcher: RegExp) {
@@ -730,12 +770,19 @@ function buildAmenityPayload(sections: EditorAmenitySection[]) {
 }
 
 function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorState {
+  const photoAssetIds = detail.assets
+    .filter((asset) => isPhotoAssetKind(asset.kind))
+    .map((asset) => asset.id);
+
   return {
     listingKind: /sale/i.test(detail.listingType ?? "") ? "sale" : "rental",
-    selectedAssetIds: detail.pack.selectedAssetIds.filter((assetId) =>
-      detail.assets.some((asset) => asset.id === assetId && isPhotoAssetKind(asset.kind)),
-    ),
-    coverAssetId: detail.pack.coverAssetId ?? getInitialPhotoId(detail),
+    selectedAssetIds: photoAssetIds,
+    coverAssetId:
+      (detail.pack.coverAssetId && photoAssetIds.includes(detail.pack.coverAssetId)
+        ? detail.pack.coverAssetId
+        : null) ??
+      photoAssetIds[0] ??
+      null,
     streetAddress: detail.streetAddress ?? "",
     city: detail.city ?? "",
     state: detail.state ?? "",
@@ -848,6 +895,7 @@ function StageActionButton(props: {
 export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
   const router = useRouter();
   const collectionRef = useRef<HTMLDivElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
   const [mediaMode, setMediaMode] = useState<MediaMode>(() => getInitialMediaMode(detail));
   const [activePhotoId, setActivePhotoId] = useState<string | null>(() =>
@@ -857,12 +905,15 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingAssets, setIsUploadingAssets] = useState(false);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorState, setEditorState] = useState(() => buildEditorState(detail));
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [collectionSearch, setCollectionSearch] = useState("");
   const [isCollectionOpen, setIsCollectionOpen] = useState(false);
+  const [isDropzoneActive, setIsDropzoneActive] = useState(false);
 
   const shareUrl = buildShareUrl(detailState.pack.shareCode);
   const photoAssets = useMemo(
@@ -978,6 +1029,23 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     }));
   }
 
+  function syncEditorPhotos(nextDetail: StudioListingDetailSnapshot) {
+    const nextPhotoAssetIds = nextDetail.assets
+      .filter((asset) => isPhotoAssetKind(asset.kind))
+      .map((asset) => asset.id);
+
+    setEditorState((current) => ({
+      ...current,
+      selectedAssetIds: nextPhotoAssetIds,
+      coverAssetId:
+        current.coverAssetId && nextPhotoAssetIds.includes(current.coverAssetId)
+          ? current.coverAssetId
+          : nextDetail.pack.coverAssetId && nextPhotoAssetIds.includes(nextDetail.pack.coverAssetId)
+            ? nextDetail.pack.coverAssetId
+            : nextPhotoAssetIds[0] ?? null,
+    }));
+  }
+
   function toggleAmenityOpen(sectionTitle: string) {
     updateAmenitySection(sectionTitle, (section) => ({
       ...section,
@@ -1042,28 +1110,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     setActivePhotoId(assetId);
   }
 
-  function toggleEditorSelectedPhoto(assetId: string) {
-    setEditorState((current) => {
-      const alreadySelected = current.selectedAssetIds.includes(assetId);
-      const nextSelectedAssetIds = alreadySelected
-        ? current.selectedAssetIds.filter((id) => id !== assetId)
-        : [...current.selectedAssetIds, assetId];
-
-      if (!nextSelectedAssetIds.length) {
-        return current;
-      }
-
-      return {
-        ...current,
-        selectedAssetIds: nextSelectedAssetIds,
-        coverAssetId:
-          current.coverAssetId === assetId && alreadySelected
-            ? nextSelectedAssetIds[0] ?? null
-            : current.coverAssetId,
-      };
-    });
-  }
-
   function setEditorCoverPhoto(assetId: string) {
     setEditorState((current) => ({
       ...current,
@@ -1072,6 +1118,78 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         ? current.selectedAssetIds
         : [...current.selectedAssetIds, assetId],
     }));
+  }
+
+  async function uploadEditorAssets(files: FileList | File[]) {
+    const nextFiles = Array.from(files).filter((file) => file.size > 0);
+    if (!nextFiles.length || isUploadingAssets) {
+      return;
+    }
+
+    setIsUploadingAssets(true);
+    setStatusMessage("");
+
+    try {
+      const formData = new FormData();
+      for (const file of nextFiles) {
+        formData.append("files", file);
+      }
+
+      const response = await fetch(`/api/listing-studio/listings/${detailState.packId}/assets`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || "Unable to upload media.");
+      }
+
+      const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
+      syncDetailState(nextDetail);
+      syncEditorPhotos(nextDetail);
+      setStatusMessage("Media uploaded.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Unable to upload media.");
+    } finally {
+      setIsUploadingAssets(false);
+      setIsDropzoneActive(false);
+      if (uploadInputRef.current) {
+        uploadInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function deleteEditorAsset(assetId: string) {
+    if (deletingAssetId) {
+      return;
+    }
+
+    setDeletingAssetId(assetId);
+    setStatusMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/listing-studio/listings/${detailState.packId}/assets/${assetId}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || "Unable to delete media.");
+      }
+
+      const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
+      syncDetailState(nextDetail);
+      syncEditorPhotos(nextDetail);
+      setStatusMessage("Media removed.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Unable to delete media.");
+    } finally {
+      setDeletingAssetId(null);
+    }
   }
 
   function syncDetailState(nextDetail: StudioListingDetailSnapshot) {
@@ -1688,50 +1806,100 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
 
                 <div className="listing-studio-editor-photo-grid">
                   {photoAssets.map((asset) => {
-                    const isSelected = editorState.selectedAssetIds.includes(asset.id);
                     const isCover = editorState.coverAssetId === asset.id;
+                    const isDeletingAsset = deletingAssetId === asset.id;
+                    const assetUrl = `/api/listing-studio/assets/${asset.id}`;
 
                     return (
                       <div
-                        className={`listing-studio-editor-photo-card${isSelected ? " is-selected" : " is-muted"}${isCover ? " is-cover" : ""}`}
+                        className={`listing-studio-editor-photo-card${isCover ? " is-cover" : ""}`}
                         key={asset.id}
+                        onClick={() => setEditorCoverPhoto(asset.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setEditorCoverPhoto(asset.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <div className="listing-studio-editor-photo-frame">
-                          <img
-                            alt={asset.label ?? detailState.title}
-                            src={`/api/listing-studio/assets/${asset.id}`}
-                          />
+                          {isVideoAssetMime(asset.mimeType) ? (
+                            <video muted playsInline preload="metadata" src={assetUrl} />
+                          ) : (
+                            <img alt={asset.label ?? detailState.title} src={assetUrl} />
+                          )}
                           {isCover ? (
                             <span className="listing-studio-editor-photo-badge">Cover</span>
                           ) : null}
-                        </div>
-                        <div className="listing-studio-editor-photo-actions">
-                          <Button
-                            onClick={() => toggleEditorSelectedPhoto(asset.id)}
-                            size="sm"
+                          <button
+                            aria-label={`Delete ${asset.label ?? "photo"}`}
+                            className="listing-studio-editor-photo-remove"
+                            disabled={isDeletingAsset}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void deleteEditorAsset(asset.id);
+                            }}
                             type="button"
-                            variant={isSelected ? "primary" : "secondary"}
                           >
-                            {isSelected ? "Included" : "Include"}
-                          </Button>
-                          <Button
-                            onClick={() => setEditorCoverPhoto(asset.id)}
-                            size="sm"
-                            type="button"
-                            variant={isCover ? "primary" : "ghost"}
-                          >
-                            {isCover ? "Cover" : "Set Cover"}
-                          </Button>
+                            <IconClose />
+                          </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="listing-studio-editor-dropzone">
-                  <span>Click or drag to add images &amp; videos</span>
-                  <small>Upload wiring comes next. This round keeps imported media editable and cover-aware.</small>
-                </div>
+                <input
+                  accept="image/*,video/*"
+                  hidden
+                  multiple
+                  onChange={(event) => {
+                    if (event.target.files?.length) {
+                      void uploadEditorAssets(event.target.files);
+                    }
+                  }}
+                  ref={uploadInputRef}
+                  type="file"
+                />
+                <button
+                  className={`listing-studio-editor-dropzone${isDropzoneActive ? " is-active" : ""}`}
+                  onClick={() => uploadInputRef.current?.click()}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsDropzoneActive(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    const related = event.relatedTarget;
+                    if (!(related instanceof Node) || !event.currentTarget.contains(related)) {
+                      setIsDropzoneActive(false);
+                    }
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDropzoneActive(true);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsDropzoneActive(false);
+                    if (event.dataTransfer.files?.length) {
+                      void uploadEditorAssets(event.dataTransfer.files);
+                    }
+                  }}
+                  type="button"
+                >
+                  <span className="listing-studio-editor-dropzone-copy">
+                    <IconUpload />
+                    <span>
+                      {isUploadingAssets
+                        ? "Uploading media..."
+                        : "Click or drag to add images & videos (JPEG, PNG, WebP · MP4, WebM)"}
+                    </span>
+                  </span>
+                </button>
               </section>
 
               <section className="listing-studio-editor-section">
