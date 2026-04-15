@@ -5,13 +5,29 @@ type ListingStudioCardProps = {
   item: StudioListingListItem;
 };
 
+function getListingTypeLabel(listingType: string | null) {
+  const normalized = listingType?.trim().toLowerCase();
+  if (normalized === "sale") {
+    return "For sale";
+  }
+  if (normalized === "rent") {
+    return "Rental";
+  }
+  return null;
+}
+
 export function ListingStudioCard({ item }: ListingStudioCardProps) {
+  const listingTypeLabel = getListingTypeLabel(item.listingType);
+
   return (
     <Link
       className="listing-studio-card"
       href={`/listing-studio/listings/${item.packId}`}
     >
       <div className="listing-studio-card-media">
+        {listingTypeLabel ? (
+          <span className="listing-studio-card-media-badge">{listingTypeLabel}</span>
+        ) : null}
         {item.heroAssetId ? (
           <img
             alt={item.displayTitle || item.addressLine}

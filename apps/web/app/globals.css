@@ -17564,6 +17564,26 @@ body,
   background: linear-gradient(180deg, rgba(20, 74, 119, 0.12), rgba(20, 74, 119, 0.04));
 }
 
+.listing-studio-card-media-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(13, 24, 38, 0.78);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(13, 24, 38, 0.24);
+  backdrop-filter: blur(10px);
+}
+
 .listing-studio-card-media img,
 .listing-studio-hero-media img,
 .listing-studio-thumbnail img,
