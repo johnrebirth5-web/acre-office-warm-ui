@@ -994,6 +994,7 @@ npm run docker:dev:up
 - `db`：PostgreSQL 16，容器端口 `5432`，宿主机发布端口 `5433`
 - 持久化 volume：Postgres 数据、`node_modules`、Next cache、documents storage
 - 自动重启策略：`unless-stopped`
+- `next dev` 子进程如果意外退出，当前本地启动器会在容器内自动拉起，避免 `localhost:3105` 长时间空响应
 
 首次启动数据库工作流时，建议依次执行：
 
@@ -1008,8 +1009,21 @@ docker compose run --rm web npm run db:seed
 npm run docker:dev:up
 npm run docker:dev:logs
 npm run docker:dev:ps
+npm run docker:dev:keepalive
 npm run docker:dev:down
 ```
+
+如果你当前本地开发直接连的是 `DigitalOcean` 上的数据库，并且希望本地网站尽量一直在线、同时保持 `next dev` 开发态，可以额外开一个终端长期运行：
+
+```bash
+npm run docker:dev:keepalive
+```
+
+这条命令会循环确保三件事：
+
+- `DO -> localhost:15432` 的 SSH 隧道还活着
+- `docker compose` 的 `web + db` 仍在运行
+- `http://localhost:3105/login` 还能正常响应；如果不行就自动重启 `web`
 
 如果你需要把 `DigitalOcean` 线上最新数据库拉到本地，但又不希望本地操作回写线上，现在可以使用：
 

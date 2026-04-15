@@ -18,6 +18,8 @@ let isRestarting = false;
 let isShuttingDown = false;
 let queuedRestart = false;
 let schemaChangeTimer = null;
+let unexpectedRestartTimer = null;
+let recentUnexpectedExitTimes = [];
 
 function spawnNpm(args) {
   return spawn(npmCommand, args, {
@@ -49,6 +51,11 @@ function runDbGenerate() {
 
 function stopNextChild() {
   return new Promise((resolvePromise) => {
+    if (unexpectedRestartTimer) {
+      clearTimeout(unexpectedRestartTimer);
+      unexpectedRestartTimer = null;
+    }
+
     if (!nextChild) {
       resolvePromise();
       return;
@@ -85,9 +92,42 @@ function stopNextChild() {
   });
 }
 
+function recordUnexpectedExit() {
+  const now = Date.now();
+  recentUnexpectedExitTimes = [...recentUnexpectedExitTimes, now].filter(
+    (timestamp) => now - timestamp <= 60_000,
+  );
+  return recentUnexpectedExitTimes.length;
+}
+
+function scheduleUnexpectedRestart(code, signal) {
+  const recentExitCount = recordUnexpectedExit();
+  const delayMs = Math.min(15_000, Math.max(1_000, recentExitCount * 2_000));
+  const reason = signal ? `signal ${signal}` : `exit code ${code ?? 0}`;
+
+  console.error(
+    `[dev-web] Next dev exited unexpectedly with ${reason}. Restarting in ${Math.round(delayMs / 1000)}s...`,
+  );
+
+  if (unexpectedRestartTimer) {
+    clearTimeout(unexpectedRestartTimer);
+  }
+
+  unexpectedRestartTimer = setTimeout(() => {
+    unexpectedRestartTimer = null;
+
+    if (isShuttingDown || isRestarting || nextChild) {
+      return;
+    }
+
+    startNextChild();
+  }, delayMs);
+}
+
 function startNextChild() {
   const child = spawnNpm(nextArgs);
   nextChild = child;
+  const startedAt = Date.now();
 
   child.on("exit", (code, signal) => {
     if (nextChild === child) {
@@ -98,12 +138,21 @@ function startNextChild() {
       return;
     }
 
-    if (signal) {
-      process.kill(process.pid, signal);
+    if (Date.now() - startedAt > 30_000) {
+      recentUnexpectedExitTimes = [];
+    }
+
+    scheduleUnexpectedRestart(code, signal);
+  });
+
+  child.on("error", (error) => {
+    if (isRestarting || isShuttingDown) {
       return;
     }
 
-    process.exit(code ?? 0);
+    console.error("[dev-web] Failed to spawn Next dev child process.");
+    console.error(error);
+    scheduleUnexpectedRestart(1, null);
   });
 }
 
@@ -162,6 +211,10 @@ async function shutdown(signal) {
   if (schemaChangeTimer) {
     clearTimeout(schemaChangeTimer);
     schemaChangeTimer = null;
+  }
+  if (unexpectedRestartTimer) {
+    clearTimeout(unexpectedRestartTimer);
+    unexpectedRestartTimer = null;
   }
 
   await stopNextChild();

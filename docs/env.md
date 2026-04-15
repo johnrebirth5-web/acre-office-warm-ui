@@ -606,10 +606,23 @@ ACRE_SECURE_COOKIES=false
 - `db` 使用 `postgres:16-alpine`
 - `web` 使用仓库内 `Dockerfile.dev`
 - `web` 和 `db` 都配置为 `restart: unless-stopped`
+- `scripts/dev-web.mjs` 会在容器内自动重启意外退出的 `next dev` 子进程，减少 `localhost:3105` 偶发空响应
 - 文档文件会持久化到 Docker volume，而不是容器临时层
 - 如果你希望宿主机 `npm run dev` 与 Docker `web` 共享同一套本地数据库，宿主机 `.env.local` 的 `DATABASE_URL` 应保持为 `postgresql://postgres:postgres@127.0.0.1:5433/acre`
 - 容器内部仍然固定使用 `postgresql://postgres:postgres@db:5432/acre`
 - 如果宿主机另一个服务占用了 `5433`，需要同步修改 compose 的 host 端口映射和宿主机 `.env.local`
+
+如果你当前 Docker 开发态直接依赖 `DigitalOcean` 远端数据库隧道，希望本地站点尽量持续在线，可以额外开一个终端长期运行：
+
+```bash
+npm run docker:dev:keepalive
+```
+
+这条 watchdog 会循环确保：
+
+- `root@45.55.247.137 -> localhost:15432` 的 SSH 隧道仍然在线
+- `docker compose up -d` 的 `web + db` 服务维持运行
+- `http://localhost:3105/login` 可响应；如果检测失败，会自动 `docker compose restart web`
 
 ### 生产数据到本地的单向同步
 

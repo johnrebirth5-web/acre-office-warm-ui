@@ -12,6 +12,7 @@
     "docker:dev:down": "docker compose down",
     "docker:dev:logs": "docker compose logs -f web",
     "docker:dev:ps": "docker compose ps",
+    "docker:dev:keepalive": "bash ./scripts/docker-dev-keepalive.sh",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
