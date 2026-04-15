@@ -48,11 +48,13 @@ export type StudioListingListItem = {
   packId: string;
   importId: string;
   title: string;
+  displayTitle: string | null;
   sourceSite: StudioListingSourceSite;
   sourceUrl: string;
   listingType: string | null;
   priceLabel: string;
   addressLine: string;
+  locationLine: string | null;
   factsLine: string;
   statusLabel: string | null;
   importedAt: string;
@@ -299,6 +301,148 @@ function parseWholeNumber(value: unknown): number | null {
   }
 
   return Math.round(parsed);
+}
+
+function normalizeComparableLabel(value: string | null | undefined) {
+  return (
+    value
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim() || ""
+  );
+}
+
+function labelsMatch(a: string | null | undefined, b: string | null | undefined) {
+  const normalizedA = normalizeComparableLabel(a);
+  const normalizedB = normalizeComparableLabel(b);
+  return Boolean(normalizedA && normalizedB && normalizedA === normalizedB);
+}
+
+function getSnapshotCanonicalFields(snapshot: { rawParsedJson: Prisma.JsonValue | null }) {
+  if (!snapshot.rawParsedJson || typeof snapshot.rawParsedJson !== "object" || Array.isArray(snapshot.rawParsedJson)) {
+    return null;
+  }
+
+  const root = snapshot.rawParsedJson as Record<string, unknown>;
+  const canonicalFields = root.canonicalFields;
+  if (!canonicalFields || typeof canonicalFields !== "object" || Array.isArray(canonicalFields)) {
+    return null;
+  }
+
+  return canonicalFields as Record<string, unknown>;
+}
+
+function readSnapshotCanonicalField(
+  snapshot: { rawParsedJson: Prisma.JsonValue | null },
+  key: string,
+) {
+  const canonicalFields = getSnapshotCanonicalFields(snapshot);
+  return canonicalFields?.[key];
+}
+
+function formatSlugLabel(value: string) {
+  return value
+    .split(/[-_]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function deriveBuildingNameFromSourceUrl(sourceUrl: string) {
+  try {
+    const url = new URL(sourceUrl);
+    const match = url.pathname.match(/\/building\/([^/?#]+)/i);
+    return match ? trimString(formatSlugLabel(decodeURIComponent(match[1]))) : null;
+  } catch {
+    return null;
+  }
+}
+
+function parsePricePerSquareFootLabel(value: unknown) {
+  const label = trimString(value);
+  if (!label) {
+    return null;
+  }
+
+  const match = label.match(/\$([0-9][0-9,]*(?:\.[0-9]+)?)/);
+  return parseNumberish(match?.[1] ?? null);
+}
+
+function deriveSnapshotSqft(snapshot: {
+  sqft: number | null;
+  price: Prisma.Decimal | null;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  if (snapshot.sqft !== null) {
+    return snapshot.sqft;
+  }
+
+  const price =
+    (snapshot.price ? Number(snapshot.price) : null) ??
+    parseNumberish(readSnapshotCanonicalField(snapshot, "price"));
+  const pricePerSquareFoot = parsePricePerSquareFootLabel(
+    readSnapshotCanonicalField(snapshot, "pricePerSquareFootLabel"),
+  );
+
+  if (!price || !pricePerSquareFoot || pricePerSquareFoot <= 0) {
+    return null;
+  }
+
+  return Math.round(price / pricePerSquareFoot);
+}
+
+function resolveSnapshotBuildingName(snapshot: {
+  buildingName: string | null;
+  sourceUrl: string;
+}) {
+  const stored = trimString(snapshot.buildingName);
+  const derived = deriveBuildingNameFromSourceUrl(snapshot.sourceUrl);
+
+  if (stored && derived && labelsMatch(stored, derived)) {
+    return stored;
+  }
+
+  return derived ?? stored;
+}
+
+function resolveSnapshotCity(snapshot: {
+  city: string | null;
+  buildingName: string | null;
+  sourceUrl: string;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  const storedCity =
+    trimString(snapshot.city) ?? trimString(readSnapshotCanonicalField(snapshot, "city"));
+  if (storedCity) {
+    return storedCity;
+  }
+
+  const storedBuilding = trimString(snapshot.buildingName);
+  const derivedBuilding = deriveBuildingNameFromSourceUrl(snapshot.sourceUrl);
+  if (storedBuilding && derivedBuilding && !labelsMatch(storedBuilding, derivedBuilding)) {
+    return storedBuilding;
+  }
+
+  return null;
+}
+
+function resolveSnapshotState(snapshot: {
+  state: string | null;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  return trimString(snapshot.state) ?? trimString(readSnapshotCanonicalField(snapshot, "state"));
+}
+
+function resolveSnapshotPostalCode(snapshot: {
+  postalCode: string | null;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  return (
+    trimString(snapshot.postalCode) ??
+    trimString(readSnapshotCanonicalField(snapshot, "postalCode")) ??
+    trimString(readSnapshotCanonicalField(snapshot, "zipCode"))
+  );
 }
 
 function normalizeDecimalInput(value: unknown): string | null {
@@ -737,11 +881,53 @@ function formatAddressLine(snapshot: {
   city: string | null;
   state: string | null;
   postalCode: string | null;
+  neighborhood?: string | null;
+  borough?: string | null;
+  buildingName?: string | null;
+  sourceUrl?: string;
+  rawParsedJson: Prisma.JsonValue | null;
 }) {
-  const lineOne = [snapshot.streetAddress, snapshot.unit].filter(Boolean).join(" ");
-  const lineTwo = [snapshot.city, snapshot.state, snapshot.postalCode].filter(Boolean).join(", ").replace(", ,", ",");
+  const streetAddress = trimString(snapshot.streetAddress);
+  const unit = trimString(snapshot.unit);
+  const normalizedStreetAddress = normalizeComparableLabel(streetAddress);
+  const normalizedUnit = normalizeComparableLabel(unit);
+  const lineOne =
+    streetAddress && unit && normalizedUnit && normalizedStreetAddress.endsWith(normalizedUnit)
+      ? streetAddress
+      : [streetAddress, unit].filter(Boolean).join(" ");
+  const lineTwo = formatLocalityLine(snapshot);
 
   return lineOne || lineTwo || "Address not captured";
+}
+
+function formatLocalityLine(snapshot: {
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  neighborhood?: string | null;
+  borough?: string | null;
+  buildingName?: string | null;
+  sourceUrl?: string;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  const city = resolveSnapshotCity({
+    city: snapshot.city,
+    buildingName: snapshot.buildingName ?? null,
+    sourceUrl: snapshot.sourceUrl ?? "",
+    rawParsedJson: snapshot.rawParsedJson,
+  });
+  const state = resolveSnapshotState(snapshot);
+  const postalCode = resolveSnapshotPostalCode(snapshot);
+  const primaryLocation = [city, [state, postalCode].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+
+  if (primaryLocation) {
+    return primaryLocation;
+  }
+
+  const fallbackParts = [trimString(snapshot.neighborhood), trimString(snapshot.borough)].filter(Boolean);
+  return fallbackParts.length ? fallbackParts.join(" · ") : null;
 }
 
 function formatLocationLine(snapshot: {
@@ -750,8 +936,14 @@ function formatLocationLine(snapshot: {
   borough: string | null;
   city: string | null;
   state: string | null;
+  postalCode: string | null;
+  sourceUrl: string;
+  rawParsedJson: Prisma.JsonValue | null;
 }) {
-  const parts = [snapshot.buildingName, snapshot.neighborhood, snapshot.borough, snapshot.city, snapshot.state].filter(Boolean);
+  const parts = [
+    resolveSnapshotBuildingName(snapshot),
+    formatLocalityLine(snapshot),
+  ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -759,14 +951,41 @@ function buildFactsLine(snapshot: {
   bedrooms: Prisma.Decimal | null;
   bathrooms: Prisma.Decimal | null;
   sqft: number | null;
+  price: Prisma.Decimal | null;
+  rawParsedJson: Prisma.JsonValue | null;
 }) {
+  const sqft = deriveSnapshotSqft(snapshot);
   const parts = [
     snapshot.bedrooms ? `${snapshot.bedrooms.toString()} bd` : null,
     snapshot.bathrooms ? `${snapshot.bathrooms.toString()} ba` : null,
-    snapshot.sqft ? `${new Intl.NumberFormat("en-US").format(snapshot.sqft)} sf` : null,
+    sqft ? `${new Intl.NumberFormat("en-US").format(sqft)} sf` : null,
   ].filter(Boolean);
 
   return parts.length ? parts.join(" · ") : "Facts not captured";
+}
+
+function resolveListItemDisplayTitle(
+  record: StudioListingPackRecord,
+  addressLine: string,
+  locationLine: string | null,
+) {
+  const candidates = [
+    trimString(record.headline),
+    resolveSnapshotBuildingName(record.snapshot),
+    trimString(record.snapshot.title),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    if (labelsMatch(candidate, addressLine) || labelsMatch(candidate, locationLine)) {
+      continue;
+    }
+    return candidate;
+  }
+
+  return null;
 }
 
 function normalizeBulletPoints(value: unknown) {
@@ -1189,11 +1408,14 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
     record.snapshot.assets.find((asset) => asset.kind === StudioListingAssetKind.hero)?.id ??
     record.snapshot.assets[0]?.id ??
     null;
+  const addressLine = formatAddressLine(record.snapshot);
+  const locationLine = formatLocalityLine(record.snapshot);
 
   return {
     packId: record.id,
     importId: record.snapshot.import.id,
     title: record.headline?.trim() || record.snapshot.title,
+    displayTitle: resolveListItemDisplayTitle(record, addressLine, locationLine),
     sourceSite: record.snapshot.sourceSite,
     sourceUrl: record.snapshot.sourceUrl,
     listingType: record.snapshot.listingType,
@@ -1202,7 +1424,8 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
       priceLabel: record.snapshot.priceLabel,
       currency: record.snapshot.currency,
     }),
-    addressLine: formatAddressLine(record.snapshot),
+    addressLine,
+    locationLine,
     factsLine: buildFactsLine(record.snapshot),
     statusLabel: record.snapshot.statusLabel,
     importedAt: record.snapshot.import.createdAt.toISOString(),
@@ -1306,6 +1529,9 @@ export async function listStudioListingPacks(input: {
 
 function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetailSnapshot {
   const snapshot = record.snapshot;
+  const resolvedBuildingName = resolveSnapshotBuildingName(snapshot);
+  const resolvedLocationLine = formatLocalityLine(snapshot);
+  const resolvedSqft = deriveSnapshotSqft(snapshot);
   const bulletPoints = normalizeBulletPoints(record.bulletPointsJson);
   const selectedAssetIds = normalizeBulletPoints(record.selectedAssetIdsJson);
   const sourceFacts = normalizeLabeledValues(
@@ -1330,6 +1556,29 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     fileName: asset.fileName,
     sortOrder: asset.sortOrder,
   }));
+  const facts = (
+    Array.isArray(snapshot.heroFactsJson)
+      ? (snapshot.heroFactsJson as Array<Record<string, unknown>>)
+          .map((entry) => {
+            const label = trimString(entry.label);
+            const value = trimString(entry.value);
+            return label && value ? { label, value } : null;
+          })
+          .filter((entry): entry is { label: string; value: string } => Boolean(entry))
+      : buildHeroFacts({
+          bedrooms: snapshot.bedrooms?.toString() ?? null,
+          bathrooms: snapshot.bathrooms?.toString() ?? null,
+          sqft: resolvedSqft,
+          availabilityLabel: snapshot.availabilityLabel,
+        })
+  ).slice();
+
+  if (resolvedSqft !== null && !facts.some((entry) => entry.label.toLowerCase() === "sqft")) {
+    facts.splice(Math.min(2, facts.length), 0, {
+      label: "Sqft",
+      value: new Intl.NumberFormat("en-US").format(resolvedSqft),
+    });
+  }
 
   return {
     packId: record.id,
@@ -1348,43 +1597,23 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     }),
     streetAddress: snapshot.streetAddress,
     unit: snapshot.unit,
-    city: snapshot.city,
-    state: snapshot.state,
-    postalCode: snapshot.postalCode,
+    city: resolveSnapshotCity(snapshot),
+    state: resolveSnapshotState(snapshot),
+    postalCode: resolveSnapshotPostalCode(snapshot),
     borough: snapshot.borough,
     neighborhood: snapshot.neighborhood,
-    buildingName: snapshot.buildingName,
+    buildingName: resolvedBuildingName,
     addressLine: formatAddressLine(snapshot),
-    locationLine: formatLocationLine({
-      buildingName: snapshot.buildingName,
-      neighborhood: snapshot.neighborhood,
-      borough: snapshot.borough,
-      city: snapshot.city,
-      state: snapshot.state,
-    }),
+    locationLine: resolvedLocationLine,
     latitude: snapshot.latitude ? Number(snapshot.latitude) : null,
     longitude: snapshot.longitude ? Number(snapshot.longitude) : null,
     bedrooms: snapshot.bedrooms ? Number(snapshot.bedrooms) : null,
     bathrooms: snapshot.bathrooms ? Number(snapshot.bathrooms) : null,
     rooms: snapshot.rooms ? Number(snapshot.rooms) : null,
-    sqft: snapshot.sqft,
+    sqft: resolvedSqft,
     availabilityLabel: snapshot.availabilityLabel,
     descriptionText: snapshot.descriptionText,
-    facts:
-      Array.isArray(snapshot.heroFactsJson)
-        ? (snapshot.heroFactsJson as Array<Record<string, unknown>>)
-            .map((entry) => {
-              const label = trimString(entry.label);
-              const value = trimString(entry.value);
-              return label && value ? { label, value } : null;
-            })
-            .filter((entry): entry is { label: string; value: string } => Boolean(entry))
-        : buildHeroFacts({
-            bedrooms: snapshot.bedrooms?.toString() ?? null,
-            bathrooms: snapshot.bathrooms?.toString() ?? null,
-            sqft: snapshot.sqft,
-            availabilityLabel: snapshot.availabilityLabel,
-          }),
+    facts,
     sourceFacts,
     amenities: Array.isArray(snapshot.amenitiesJson)
       ? (snapshot.amenitiesJson as Array<{ title: string; items: string[] }>)
@@ -1641,6 +1870,9 @@ export async function updateStudioListingPack(input: {
         city: nextCity,
         state: nextState,
         postalCode: nextPostalCode,
+        buildingName: null,
+        sourceUrl: "",
+        rawParsedJson: null,
       }),
     ) ??
     existing.snapshot.title;

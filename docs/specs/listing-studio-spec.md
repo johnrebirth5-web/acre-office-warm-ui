@@ -4,6 +4,12 @@
 
 `Listing Studio` 是 Acre `Front Office` 下的 listings-output 模块，面向 agent 处理“外部房源采集 -> 客户材料整理 -> 分享 / PDF / 海报模板导出”的链路。
 
+当前列表卡片的展示原则：
+
+- 避免把同一条地址在标题和地址位重复渲染
+- 优先分层展示 `building / address / city-state-zip`
+- 当源页面没有直接给出面积、但已有 `price / ft` 时，允许回推出 `sqft` 作为展示回退
+
 它不是现有 FO curated listing，也不是 BO internal listing admin。它的真源来自 `StreetEasy / Zillow` 等外部房源详情页，以及 Chrome Extension 在页面内发起的一键保存动作。
 
 ## Scope

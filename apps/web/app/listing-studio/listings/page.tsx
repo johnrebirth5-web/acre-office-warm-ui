@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listStudioListingPacks } from "@acre/db";
 import { SectionCard, TextInput } from "@acre/ui";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { ListingStudioCard } from "../listing-studio-card";
 
 type StudioListingSourceSite = "streeteasy" | "zillow";
 
@@ -97,43 +98,7 @@ export default async function ListingStudioListingsPage(
           <div className="listing-studio-card-grid">
             {items.length ? (
               items.map((item) => (
-                <Link
-                  className="listing-studio-card"
-                  href={`/listing-studio/listings/${item.packId}`}
-                  key={item.packId}
-                >
-                  <div className="listing-studio-card-media">
-                    {item.heroAssetId ? (
-                      <img
-                        alt={item.title}
-                        src={`/api/listing-studio/assets/${item.heroAssetId}`}
-                      />
-                    ) : (
-                      <div className="listing-studio-card-media-fallback">
-                        {item.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow"}
-                      </div>
-                    )}
-                  </div>
-                  <div className="listing-studio-card-body">
-                    <div className="listing-studio-card-meta">
-                      <span className="office-status-badge office-status-badge-neutral">
-                        {item.sourceSite}
-                      </span>
-                      {item.shareEnabled ? (
-                        <span className="office-status-badge office-status-badge-success">
-                          Shared
-                        </span>
-                      ) : null}
-                    </div>
-                    <strong>{item.priceLabel}</strong>
-                    <span className="listing-studio-card-title">{item.title}</span>
-                    <span className="listing-studio-card-address">{item.addressLine}</span>
-                    <span className="listing-studio-card-facts">{item.factsLine}</span>
-                    {item.statusLabel ? (
-                      <span className="listing-studio-card-status">{item.statusLabel}</span>
-                    ) : null}
-                  </div>
-                </Link>
+                <ListingStudioCard item={item} key={item.packId} />
               ))
             ) : (
               <div className="listing-studio-empty-state">

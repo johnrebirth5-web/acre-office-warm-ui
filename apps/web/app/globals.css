@@ -17589,8 +17589,8 @@ body,
 
 .listing-studio-card-body {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 18px 16px 16px;
 }
 
 .listing-studio-card-meta {
@@ -17599,16 +17599,40 @@ body,
   gap: 8px;
 }
 
-.listing-studio-card-title {
-  font-size: 1rem;
-  font-weight: 700;
+.listing-studio-card-body > strong {
+  color: var(--text);
+  font-size: 1.15rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 
-.listing-studio-card-address,
+.listing-studio-card-title {
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.listing-studio-card-address {
+  color: var(--text);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.listing-studio-card-location {
+  color: var(--muted);
+  font-size: 0.97rem;
+  line-height: 1.3;
+}
+
 .listing-studio-card-facts,
 .listing-studio-card-status,
 .listing-studio-muted {
   color: var(--muted);
+}
+
+.listing-studio-card-facts {
+  margin-top: 4px;
 }
 
 .listing-studio-empty-state {

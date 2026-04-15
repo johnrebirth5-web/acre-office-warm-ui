@@ -97,6 +97,93 @@
     };
   }
 
+  function escapeRegExp(value) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function formatSlugLabel(value) {
+    return normalizeWhitespace(value)
+      .split(/[-_]+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  function extractStreetEasyBuildingNameFromUrl() {
+    const match = window.location.pathname.match(/\/building\/([^/?#]+)/i);
+    return match ? trimText(formatSlugLabel(decodeURIComponent(match[1]))) : null;
+  }
+
+  function splitStreetAddressAndUnit(value) {
+    const normalized = normalizeWhitespace(value);
+    if (!normalized) {
+      return {
+        streetAddress: null,
+        unit: null,
+      };
+    }
+
+    const match = normalized.match(
+      /^(.*?)(?:\s+(#\S+|(?:apt|unit|suite|ste|ph)\s*[A-Za-z0-9-]+))$/i,
+    );
+    if (!match) {
+      return {
+        streetAddress: normalized,
+        unit: null,
+      };
+    }
+
+    return {
+      streetAddress: trimText(match[1]),
+      unit: trimText(match[2]),
+    };
+  }
+
+  function extractCityStatePostalNearAddress(streetAddress, sourceText) {
+    const normalizedStreetAddress = normalizeWhitespace(streetAddress);
+    const normalizedSourceText = normalizeWhitespace(sourceText);
+    if (!normalizedStreetAddress || !normalizedSourceText) {
+      return {
+        city: null,
+        state: null,
+        postalCode: null,
+      };
+    }
+
+    const pattern = new RegExp(
+      `${escapeRegExp(normalizedStreetAddress)}(?:\\s+(?:#\\S+|(?:apt|unit|suite|ste|ph)\\s*[A-Za-z0-9-]+))?\\s*,?\\s*([A-Za-z .'-]+?),\\s*([A-Z]{2})\\s+(\\d{5})(?:-\\d{4})?\\b`,
+      "i",
+    );
+    const match = normalizedSourceText.match(pattern);
+    if (!match) {
+      return {
+        city: null,
+        state: null,
+        postalCode: null,
+      };
+    }
+
+    return {
+      city: trimText(match[1]),
+      state: trimText(match[2]),
+      postalCode: trimText(match[3]),
+    };
+  }
+
+  function deriveSqftFromPricePerSquareFoot(price, pricePerSquareFootLabel) {
+    if (!price || !pricePerSquareFootLabel) {
+      return null;
+    }
+
+    const pricePerSquareFoot = parseMoneyValue(pricePerSquareFootLabel);
+    if (!pricePerSquareFoot) {
+      return null;
+    }
+
+    return Math.round(price / pricePerSquareFoot);
+  }
+
   function extractCoordinates(...candidates) {
     for (const candidate of candidates) {
       const latitude = parseMoneyValue(candidate?.latitude);
@@ -658,7 +745,11 @@
       parseMoneyValue(factsText.match(/([0-9.]+)\s*bath/i)?.[1]);
     const sqft =
       parseMoneyValue(ldNode?.floorSize?.value) ||
-      parseMoneyValue(factsText.match(/([0-9,]+)\s*(?:square\s*feet|sq(?:uare)?\.?\s*ft|sqft|sf)\b/i)?.[1]);
+      parseMoneyValue(
+        factsText.match(
+          /([0-9,]+)\s*(?:square\s*feet|sq(?:uare)?\.?\s*ft|sqft|sf|ft(?:\u00B2|2))\b/i,
+        )?.[1],
+      );
 
     return {
       bedrooms: bedrooms ? String(bedrooms) : null,
@@ -680,6 +771,7 @@
     const address =
       trimText(ldResidence?.address?.streetAddress) ||
       title;
+    const splitAddress = splitStreetAddressAndUnit(address);
     const priceText = findPriceText();
     const price =
       parseMoneyValue(ldOffer?.offers?.price) ||
@@ -709,6 +801,22 @@
       queryText(["[class*='city-state-zip']", "[class*='location']"]) ||
       "",
     );
+    const addressContext = extractCityStatePostalNearAddress(
+      splitAddress.streetAddress || address,
+      factsText,
+    );
+    const buildingNameFromUrl = extractStreetEasyBuildingNameFromUrl();
+    const buildingNameFromPage =
+      queryText(["[data-testid='building-name']", "[class*='building-name']", "[class*='building'] a", "[class*='building']"]) ||
+      trimText(ldResidence?.containedInPlace?.name);
+    const buildingName = buildingNameFromUrl || buildingNameFromPage;
+    const cityFallbackFromBuilding =
+      buildingNameFromUrl &&
+      buildingNameFromPage &&
+      normalizeWhitespace(buildingNameFromPage).toLowerCase() !==
+        normalizeWhitespace(buildingNameFromUrl).toLowerCase()
+        ? buildingNameFromPage
+        : null;
     const coordinates = extractCoordinates(
       ldResidence?.geo,
       ldResidence?.address?.geo,
@@ -716,18 +824,30 @@
     );
     const transit = collectTransitItems();
     const descriptionText = extractDescription(detailSections);
+    const sqft =
+      facts.sqft || deriveSqftFromPricePerSquareFoot(price, labeledFacts.pricePerSquareFootLabel);
 
     return {
       sourceSite: "streeteasy",
       sourceUrl: location.href,
       title,
       address,
-      city: trimText(ldResidence?.address?.addressLocality) || locationBits.city,
-      state: trimText(ldResidence?.address?.addressRegion) || locationBits.state,
-      postalCode: trimText(ldResidence?.address?.postalCode) || locationBits.postalCode,
-      buildingName:
-        queryText(["[class*='building'] a", "[class*='building']"]) ||
-        trimText(ldResidence?.containedInPlace?.name),
+      streetAddress: splitAddress.streetAddress || address,
+      unit: splitAddress.unit,
+      city:
+        trimText(ldResidence?.address?.addressLocality) ||
+        locationBits.city ||
+        addressContext.city ||
+        cityFallbackFromBuilding,
+      state:
+        trimText(ldResidence?.address?.addressRegion) ||
+        locationBits.state ||
+        addressContext.state,
+      postalCode:
+        trimText(ldResidence?.address?.postalCode) ||
+        locationBits.postalCode ||
+        addressContext.postalCode,
+      buildingName,
       listingType: /for rent|\/mo/i.test(`${priceText || ""} ${factsText}`) ? "rent" : "sale",
       statusLabel:
         queryText(["[class*='status']", "[data-testid='listing-status']"]) ||
@@ -737,7 +857,7 @@
       bedrooms: facts.bedrooms,
       bathrooms: facts.bathrooms,
       rooms: labeledFacts.rooms,
-      sqft: facts.sqft,
+      sqft,
       commonChargesLabel: labeledFacts.commonChargesLabel,
       taxesLabel: labeledFacts.taxesLabel,
       pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
@@ -752,6 +872,7 @@
       longitude: coordinates.longitude,
       heroFacts: buildHeroFactsFromPayload({
         ...facts,
+        sqft,
         rooms: labeledFacts.rooms,
         availabilityLabel: labeledFacts.availabilityLabel,
         commonChargesLabel: labeledFacts.commonChargesLabel,
@@ -760,9 +881,7 @@
         leaseTermLabel: labeledFacts.leaseTermLabel,
       }),
       sourceFacts: buildSourceFacts({
-        buildingName:
-          queryText(["[class*='building'] a", "[class*='building']"]) ||
-          trimText(ldResidence?.containedInPlace?.name),
+        buildingName,
         propertyType: labeledFacts.propertyType,
         listedBy: labeledFacts.listedBy,
         brokerLabel: labeledFacts.brokerLabel,
@@ -790,6 +909,7 @@
     const address =
       trimText(ldResidence?.address?.streetAddress) ||
       title;
+    const splitAddress = splitStreetAddressAndUnit(address);
     const rawLocationText =
       queryText(['[data-testid="city-state-zip"]']) ||
       queryText(["[class*='city-state-zip']", "[class*='location']"]) ||
@@ -834,6 +954,8 @@
       sourceUrl: location.href,
       title,
       address,
+      streetAddress: splitAddress.streetAddress || address,
+      unit: splitAddress.unit,
       city,
       state: trimText(ldResidence?.address?.addressRegion) || locationBits.state,
       postalCode: trimText(ldResidence?.address?.postalCode) || locationBits.postalCode,
@@ -943,7 +1065,8 @@
         rawHtml: document.documentElement.outerHTML,
         canonicalFields: {
           title,
-          streetAddress: addressLine,
+          streetAddress: sitePayload.streetAddress || addressLine,
+          unit: sitePayload.unit,
           city: sitePayload.city,
           state: sitePayload.state,
           postalCode: sitePayload.postalCode,

@@ -62,6 +62,7 @@
   - 当前公开隐私页：
     - `/legal/listing-studio-extension-privacy`
   - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存
+  - saved listing 卡片会优先显示单行地址、独立的 building / location 层级，并在可推导时补出 `sqft`
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航
   - `Dashboard`
