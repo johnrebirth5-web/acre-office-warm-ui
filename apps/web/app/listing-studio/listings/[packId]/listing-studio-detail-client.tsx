@@ -694,21 +694,26 @@ function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
   const seen = new Set<string>();
 
   for (const item of candidates) {
-    if (
-      !/common charges|hoa|maintenance|tax|price \/ ft|lease term|net effective/i.test(
-        item.label,
-      )
-    ) {
+    const normalizedLabel = item.label.toLowerCase();
+
+    let nextLabel: string | null = null;
+    if (/common charges|hoa|maintenance/.test(normalizedLabel)) {
+      nextLabel = /hoa/.test(normalizedLabel) ? "HOA" : "Common charges";
+    } else if (/tax/.test(normalizedLabel)) {
+      nextLabel = "Taxes";
+    }
+
+    if (!nextLabel) {
       continue;
     }
 
-    const key = item.label.toLowerCase();
+    const key = nextLabel.toLowerCase();
     if (seen.has(key)) {
       continue;
     }
 
     seen.add(key);
-    highlights.push(item);
+    highlights.push({ label: nextLabel, value: item.value });
   }
 
   return highlights;
@@ -1313,16 +1318,6 @@ function buildEditedSourceFacts(
   return [...preservedFacts, ...editedFacts];
 }
 
-function buildOverviewParagraphs(detail: StudioListingDetailSnapshot) {
-  return Array.from(
-    new Set(
-      [detail.pack.summary, detail.descriptionText]
-        .map((value) => value?.trim() || "")
-        .filter(Boolean),
-    ),
-  );
-}
-
 function openExternalWindow(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -1403,20 +1398,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const transitSummary = useMemo(
     () => parseTransitSummary(displayTransit),
     [displayTransit],
-  );
-  const sourceDetailFacts = useMemo(
-    () =>
-      detailState.sourceFacts.filter(
-        (item) =>
-          !/common charges|hoa|maintenance|tax|price \/ ft|lease term|net effective/i.test(
-            item.label,
-          ),
-      ),
-    [detailState.sourceFacts],
-  );
-  const overviewParagraphs = useMemo(
-    () => buildOverviewParagraphs(detailState),
-    [detailState],
   );
   const editorUserName = detailState.pack.contactName || "Acre Admin";
   const editorUserEmail = detailState.pack.contactEmail || "listingstudio@acreny.us";
@@ -2258,35 +2239,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                     {item.detail ? <span>{item.detail}</span> : null}
                   </div>
                   {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {overviewParagraphs.length ? (
-          <section className="listing-studio-view-info-card">
-            <div className="listing-studio-view-section-head">
-              <h2>Overview</h2>
-            </div>
-            <div className="listing-studio-view-copy-stack">
-              {overviewParagraphs.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {sourceDetailFacts.length ? (
-          <section className="listing-studio-view-info-card">
-            <div className="listing-studio-view-section-head">
-              <h2>Source facts</h2>
-            </div>
-            <div className="listing-studio-view-source-grid">
-              {sourceDetailFacts.slice(0, 6).map((item) => (
-                <div className="listing-studio-view-source-card" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
                 </div>
               ))}
             </div>
