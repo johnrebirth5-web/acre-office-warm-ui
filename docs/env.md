@@ -420,6 +420,82 @@ ACRE_DOCUMENTS_STORAGE_DIR="/absolute/path/to/acre-documents"
 - 生产环境如果继续保留这个实现，需要保证文件系统持久化、目录权限正确、并把该目录纳入备份
 - 更合理的长期方向仍是后续替换到对象存储
 
+### `ACRE_REMOTE_DOCUMENTS_SSH_TARGET`
+
+用途：
+
+- 仅供本地开发使用
+- 当本地文档目录缺少某个文件时，允许本地 app 通过 `ssh` 从远端文档根目录按 `storageKey` 回源读取
+- 当前主要用于“本地直连 DO 数据库，但图片 / 文档文件仍保存在远端磁盘”的开发场景
+
+是否必填：
+
+- 不是必填
+- 只有在你希望本地自动回源远端文档时才需要配置
+
+示例格式：
+
+```env
+ACRE_REMOTE_DOCUMENTS_SSH_TARGET="root@45.55.247.137"
+```
+
+### `ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT`
+
+用途：
+
+- 仅供本地开发使用
+- 指定远端机器上的文档根目录
+- 本地回源时会把 `storageKey` 拼接到这个目录下读取真实文件
+
+是否必填：
+
+- 不是必填
+- 只有在你希望本地自动回源远端文档时才需要配置
+
+示例格式：
+
+```env
+ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT="/var/lib/acre/documents"
+```
+
+### `ACRE_REMOTE_DOCUMENTS_SSH_KEY`
+
+用途：
+
+- 仅供本地开发使用
+- 指向本地 app 进程可读取的 SSH 私钥路径
+- Docker 本地开发通常会把宿主机私钥只读挂进容器，再把容器内路径配置到这个变量
+
+是否必填：
+
+- 在启用远端文档回源时建议配置
+- 如果目标主机允许别的无交互认证方式，也可以不配
+
+示例格式：
+
+```env
+ACRE_REMOTE_DOCUMENTS_SSH_KEY="/run/acre/remote-documents-ssh-key"
+```
+
+### `ACRE_REMOTE_DOCUMENTS_SSH_KNOWN_HOSTS`
+
+用途：
+
+- 仅供本地开发使用
+- 指向本地 app 进程可读取的 `known_hosts` 文件路径
+- 用来保持 `StrictHostKeyChecking=yes`，避免本地回源时静默信任未知主机
+
+是否必填：
+
+- 不是强制必填
+- 但建议和 `ACRE_REMOTE_DOCUMENTS_SSH_KEY` 一起配置
+
+示例格式：
+
+```env
+ACRE_REMOTE_DOCUMENTS_SSH_KNOWN_HOSTS="/run/acre/remote-documents-known_hosts"
+```
+
 ### `ACRE_SECURE_COOKIES`
 
 用途：

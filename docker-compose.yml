@@ -30,6 +30,10 @@ services:
       DATABASE_URL: ${ACRE_DOCKER_DATABASE_URL:-postgresql://postgres:postgres@db:5432/acre}
       ACRE_SESSION_SECRET: ${ACRE_SESSION_SECRET:-docker-local-session-secret}
       ACRE_SECURE_COOKIES: ${ACRE_SECURE_COOKIES:-false}
+      ACRE_REMOTE_DOCUMENTS_SSH_TARGET: ${ACRE_REMOTE_DOCUMENTS_SSH_TARGET:-}
+      ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT: ${ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT:-}
+      ACRE_REMOTE_DOCUMENTS_SSH_KEY: ${ACRE_REMOTE_DOCUMENTS_SSH_KEY:-/run/acre/remote-documents-ssh-key}
+      ACRE_REMOTE_DOCUMENTS_SSH_KNOWN_HOSTS: ${ACRE_REMOTE_DOCUMENTS_SSH_KNOWN_HOSTS:-/run/acre/remote-documents-known_hosts}
       ACRE_DOCUMENTS_STORAGE_DIR: /app/.local-storage/documents
       WATCHPACK_POLLING: "true"
     ports:
@@ -39,6 +43,8 @@ services:
       - acre-node-modules:/app/node_modules
       - acre-next-cache:/app/apps/web/.next
       - acre-documents:/app/.local-storage/documents
+      - ${ACRE_REMOTE_DOCUMENTS_SSH_KEY_MOUNT:-./docker/dev-empty-secret}:/run/acre/remote-documents-ssh-key:ro
+      - ${ACRE_REMOTE_DOCUMENTS_SSH_KNOWN_HOSTS_MOUNT:-./docker/dev-empty-secret}:/run/acre/remote-documents-known_hosts:ro
     command: ["npm", "run", "dev"]
 
 volumes:

@@ -369,18 +369,86 @@ function parsePricePerSquareFootLabel(value: unknown) {
   return parseNumberish(match?.[1] ?? null);
 }
 
+function extractFirstMoneyLabel(value: string | null | undefined) {
+  const normalized = trimString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/\$[0-9][0-9,]*(?:\.[0-9]+)?(?:\/(?:mo|month|yr|year))?/i);
+  return trimString(match?.[0] ?? null);
+}
+
+function parsePriceFromLabel(value: string | null | undefined) {
+  return parseNumberish(extractFirstMoneyLabel(value));
+}
+
+function normalizeListingTypeValue(value: string | null | undefined) {
+  const normalized = trimString(value)?.toLowerCase() ?? null;
+  if (!normalized) {
+    return null;
+  }
+  if (/rent|rental|lease/.test(normalized)) {
+    return "rent";
+  }
+  if (/sale|sell|buy/.test(normalized)) {
+    return "sale";
+  }
+  return trimString(value);
+}
+
+function inferListingTypeFromPriceLabel(value: string | null | undefined) {
+  const normalized = trimString(value)?.toLowerCase() ?? "";
+  if (!normalized) {
+    return null;
+  }
+  if (/base rent|for rent|\/mo|month lease|months free|available:/.test(normalized)) {
+    return "rent";
+  }
+  if (/for sale|open house/.test(normalized)) {
+    return "sale";
+  }
+  return null;
+}
+
+function resolveNormalizedListingType(input: {
+  listingType: string | null | undefined;
+  priceLabel: string | null | undefined;
+}) {
+  const normalizedListingType = normalizeListingTypeValue(input.listingType);
+  const inferredFromPriceLabel = inferListingTypeFromPriceLabel(input.priceLabel);
+
+  if (normalizedListingType === "sale" && inferredFromPriceLabel === "rent") {
+    return "rent";
+  }
+
+  return normalizedListingType ?? inferredFromPriceLabel;
+}
+
+function resolveSnapshotPrice(snapshot: {
+  price: Prisma.Decimal | null;
+  priceLabel: string | null;
+  rawParsedJson: Prisma.JsonValue | null;
+}) {
+  return (
+    (snapshot.price ? Number(snapshot.price) : null) ??
+    parseNumberish(readSnapshotCanonicalField(snapshot, "price")) ??
+    parsePriceFromLabel(snapshot.priceLabel) ??
+    parsePriceFromLabel(trimString(readSnapshotCanonicalField(snapshot, "priceLabel")))
+  );
+}
+
 function deriveSnapshotSqft(snapshot: {
   sqft: number | null;
   price: Prisma.Decimal | null;
+  priceLabel: string | null;
   rawParsedJson: Prisma.JsonValue | null;
 }) {
   if (snapshot.sqft !== null) {
     return snapshot.sqft;
   }
 
-  const price =
-    (snapshot.price ? Number(snapshot.price) : null) ??
-    parseNumberish(readSnapshotCanonicalField(snapshot, "price"));
+  const price = resolveSnapshotPrice(snapshot);
   const pricePerSquareFoot = parsePricePerSquareFootLabel(
     readSnapshotCanonicalField(snapshot, "pricePerSquareFootLabel"),
   );
@@ -469,14 +537,19 @@ function resolveListingPriceLabel(input: {
 }) {
   const formatted = formatCurrency(input.price, input.currency);
   const raw = input.priceLabel?.trim() || null;
+  const firstMoneyLabel = extractFirstMoneyLabel(raw);
 
   if (!raw) {
     return formatted;
   }
 
+  if (firstMoneyLabel) {
+    return firstMoneyLabel;
+  }
+
   if (
     input.price !== null &&
-    /(price increase|for rent|for sale|open house|reduced|save|monthly|weekly)/i.test(raw)
+    /(price increase|for rent|for sale|open house|reduced|save|monthly|weekly|base rent|fees?)/i.test(raw)
   ) {
     return formatted;
   }
@@ -746,14 +819,17 @@ function normalizeStudioListingData(input: CreateStudioListingImportInput): Norm
           })
           .filter((entry): entry is { label: string; value: string } => Boolean(entry))
       : buildHeroFacts({ bedrooms, bathrooms, sqft, availabilityLabel });
-  const priceNumber = parseNumberish(fields.price);
+  const priceNumber = parseNumberish(fields.price) ?? parsePriceFromLabel(trimString(fields.priceLabel));
 
   return {
     title,
-    listingType:
-      trimString(fields.listingType) ??
-      trimString(fields.transactionType) ??
-      trimString(fields.marketType),
+    listingType: resolveNormalizedListingType({
+      listingType:
+        trimString(fields.listingType) ??
+        trimString(fields.transactionType) ??
+        trimString(fields.marketType),
+      priceLabel: trimString(fields.priceLabel),
+    }),
     statusLabel: trimString(fields.statusLabel) ?? trimString(fields.status),
     price: priceNumber,
     priceLabel: trimString(fields.priceLabel) ?? formatCurrency(priceNumber),
@@ -952,6 +1028,7 @@ function buildFactsLine(snapshot: {
   bathrooms: Prisma.Decimal | null;
   sqft: number | null;
   price: Prisma.Decimal | null;
+  priceLabel: string | null;
   rawParsedJson: Prisma.JsonValue | null;
 }) {
   const sqft = deriveSnapshotSqft(snapshot);
@@ -1410,6 +1487,13 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
     null;
   const addressLine = formatAddressLine(record.snapshot);
   const locationLine = formatLocalityLine(record.snapshot);
+  const resolvedPrice = resolveSnapshotPrice(record.snapshot);
+  const resolvedListingType = resolveNormalizedListingType({
+    listingType:
+      record.snapshot.listingType ?? trimString(readSnapshotCanonicalField(record.snapshot, "listingType")),
+    priceLabel:
+      record.snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(record.snapshot, "priceLabel")),
+  });
 
   return {
     packId: record.id,
@@ -1418,9 +1502,9 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
     displayTitle: resolveListItemDisplayTitle(record, addressLine, locationLine),
     sourceSite: record.snapshot.sourceSite,
     sourceUrl: record.snapshot.sourceUrl,
-    listingType: record.snapshot.listingType,
+    listingType: resolvedListingType,
     priceLabel: resolveListingPriceLabel({
-      price: record.snapshot.price ? Number(record.snapshot.price) : null,
+      price: resolvedPrice,
       priceLabel: record.snapshot.priceLabel,
       currency: record.snapshot.currency,
     }),
@@ -1532,6 +1616,10 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
   const resolvedBuildingName = resolveSnapshotBuildingName(snapshot);
   const resolvedLocationLine = formatLocalityLine(snapshot);
   const resolvedSqft = deriveSnapshotSqft(snapshot);
+  const resolvedListingType = resolveNormalizedListingType({
+    listingType: snapshot.listingType ?? trimString(readSnapshotCanonicalField(snapshot, "listingType")),
+    priceLabel: snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(snapshot, "priceLabel")),
+  });
   const bulletPoints = normalizeBulletPoints(record.bulletPointsJson);
   const selectedAssetIds = normalizeBulletPoints(record.selectedAssetIdsJson);
   const sourceFacts = normalizeLabeledValues(
@@ -1580,6 +1668,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     });
   }
 
+  const resolvedPrice = resolveSnapshotPrice(snapshot);
+
   return {
     packId: record.id,
     importId: snapshot.import.id,
@@ -1587,11 +1677,11 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     sourceUrl: snapshot.sourceUrl,
     importStatus: snapshot.import.status,
     title: snapshot.title,
-    listingType: snapshot.listingType,
+    listingType: resolvedListingType,
     statusLabel: snapshot.statusLabel,
-    price: snapshot.price ? Number(snapshot.price) : null,
+    price: resolvedPrice,
     priceLabel: resolveListingPriceLabel({
-      price: snapshot.price ? Number(snapshot.price) : null,
+      price: resolvedPrice,
       priceLabel: snapshot.priceLabel,
       currency: snapshot.currency,
     }),

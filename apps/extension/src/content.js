@@ -47,6 +47,10 @@
     return trimText(matches?.[0] || "");
   }
 
+  function sanitizePriceLabel(value) {
+    return extractFirstMoneyLabel(value);
+  }
+
   function textLooksLikeDescription(value) {
     const normalized = normalizeWhitespace(value);
     if (!normalized || normalized.length < 16) {
@@ -772,7 +776,7 @@
       trimText(ldResidence?.address?.streetAddress) ||
       title;
     const splitAddress = splitStreetAddressAndUnit(address);
-    const priceText = findPriceText();
+    const priceText = sanitizePriceLabel(findPriceText());
     const price =
       parseMoneyValue(ldOffer?.offers?.price) ||
       parseMoneyValue(ldOffer?.price) ||
@@ -807,7 +811,7 @@
     );
     const buildingNameFromUrl = extractStreetEasyBuildingNameFromUrl();
     const buildingNameFromPage =
-      queryText(["[data-testid='building-name']", "[class*='building-name']", "[class*='building'] a", "[class*='building']"]) ||
+      queryText(["[data-testid='building-name']", "[class*='building-name']", "a[href*='/building/']"]) ||
       trimText(ldResidence?.containedInPlace?.name);
     const buildingName = buildingNameFromUrl || buildingNameFromPage;
     const cityFallbackFromBuilding =
@@ -848,7 +852,11 @@
         locationBits.postalCode ||
         addressContext.postalCode,
       buildingName,
-      listingType: /for rent|\/mo/i.test(`${priceText || ""} ${factsText}`) ? "rent" : "sale",
+      listingType: /for rent|\/mo|base rent|month lease|months free|available:/i.test(
+        `${priceText || ""} ${factsText}`,
+      )
+        ? "rent"
+        : "sale",
       statusLabel:
         queryText(["[class*='status']", "[data-testid='listing-status']"]) ||
         null,
@@ -918,7 +926,7 @@
     const city =
       trimText(ldResidence?.address?.addressLocality) ||
       locationBits.city;
-    const priceText = findPriceText();
+    const priceText = sanitizePriceLabel(findPriceText());
     const price =
       parseMoneyValue(ldResidence?.offers?.price) ||
       parseMoneyValue(priceText);
