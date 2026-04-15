@@ -11,6 +11,7 @@
     message: "",
     detailUrl: null,
   };
+  let deepCapturePreparedForUrl = null;
 
   function trimText(value) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -31,6 +32,115 @@
     return typeof value === "string"
       ? value.replace(/\s+/g, " ").trim()
       : "";
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  function extractFirstMoneyLabel(value) {
+    const matches = normalizeWhitespace(value).match(
+      /\$[0-9][0-9,]*(?:\.[0-9]+)?(?:\/(?:mo|month|yr|year))?/gi,
+    );
+    return trimText(matches?.[0] || "");
+  }
+
+  function textLooksLikeDescription(value) {
+    const normalized = normalizeWhitespace(value);
+    if (!normalized || normalized.length < 16) {
+      return false;
+    }
+    if (/^(show full description|read more|show more)$/i.test(normalized)) {
+      return false;
+    }
+    if (/^\d+\s+units?$/i.test(normalized)) {
+      return false;
+    }
+    return true;
+  }
+
+  function parseCityStatePostal(value) {
+    const normalized = normalizeWhitespace(value);
+    const match = normalized.match(/([A-Za-z .'-]+),\s*([A-Z]{2})\s+(\d{5})(?:-\d{4})?\b/);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      city: trimText(match[1]),
+      state: trimText(match[2]),
+      postalCode: trimText(match[3]),
+    };
+  }
+
+  function extractCityStatePostal(fallbackText = "") {
+    const candidates = [
+      queryText(['[data-testid="city-state-zip"]']),
+      queryText(["[class*='city-state-zip']", "[class*='location']"]),
+      fallbackText,
+      document.body.innerText || "",
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      const parsed = parseCityStatePostal(candidate);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    return {
+      city: null,
+      state: null,
+      postalCode: null,
+    };
+  }
+
+  function extractCoordinates(...candidates) {
+    for (const candidate of candidates) {
+      const latitude = parseMoneyValue(candidate?.latitude);
+      const longitude = parseMoneyValue(candidate?.longitude);
+      if (latitude !== null && longitude !== null) {
+        return { latitude, longitude };
+      }
+    }
+
+    const html = document.documentElement.innerHTML || "";
+    const htmlMatch = html.match(
+      /"latitude"\s*:\s*([0-9.+-]+)[^]*?"longitude"\s*:\s*([0-9.+-]+)/i,
+    );
+    if (htmlMatch) {
+      const latitude = parseMoneyValue(htmlMatch[1]);
+      const longitude = parseMoneyValue(htmlMatch[2]);
+      if (latitude !== null && longitude !== null) {
+        return { latitude, longitude };
+      }
+    }
+
+    const mapSource = [...document.querySelectorAll("iframe, img, a")]
+      .map((node) =>
+        node.getAttribute("src") ||
+        node.getAttribute("href") ||
+        node.getAttribute("data-src") ||
+        "",
+      )
+      .find((value) => /google\.com\/maps|maps\/place|staticmap/i.test(value || ""));
+    if (mapSource) {
+      const latLngMatch = mapSource.match(/([0-9.+-]+),([0-9.+-]+)/);
+      if (latLngMatch) {
+        const latitude = parseMoneyValue(latLngMatch[1]);
+        const longitude = parseMoneyValue(latLngMatch[2]);
+        if (latitude !== null && longitude !== null) {
+          return { latitude, longitude };
+        }
+      }
+    }
+
+    return {
+      latitude: null,
+      longitude: null,
+    };
   }
 
   function findRegexValue(patterns, sourceText) {
@@ -95,19 +205,22 @@
   function findPriceText() {
     const selectors = [
       '[data-testid="price"]',
+      '[data-testid="price-label"]',
+      '[aria-label*="price" i]',
       '[class*="price"] strong',
       '[class*="price"]',
       'span[class*="price"]',
       'div[class*="price"]',
     ];
-    const priced = queryText(selectors);
-    if (priced && priced.includes("$")) {
-      return priced;
+    for (const selector of selectors) {
+      const node = document.querySelector(selector);
+      const priced = extractFirstMoneyLabel(node?.textContent || "");
+      if (priced) {
+        return priced;
+      }
     }
 
-    const bodyText = document.body.innerText || "";
-    const match = bodyText.match(/\$[0-9][0-9,]*(?:\.[0-9]+)?(?:\/mo)?/);
-    return match ? match[0] : null;
+    return extractFirstMoneyLabel(document.body.innerText || "");
   }
 
   function collectUniqueUrls(values) {
@@ -170,25 +283,77 @@
   }
 
   function collectFloorPlans() {
+    const seen = new Set();
     const candidates = [];
-    for (const element of document.querySelectorAll("a, button")) {
-      const label = trimText(element.textContent || "");
-      if (!label || !/floor plan/i.test(label)) {
-        continue;
+
+    function pushCandidate(label, url) {
+      const trimmedUrl = trimText(url || "");
+      if (!trimmedUrl) {
+        return;
       }
-      const href = element.getAttribute("href");
-      const src = element.getAttribute("data-src");
-      const url = trimText(href) || trimText(src);
-      if (url) {
-        candidates.push({ label, url: new URL(url, location.href).toString() });
+      let normalizedUrl = trimmedUrl;
+      try {
+        normalizedUrl = new URL(trimmedUrl, location.href).toString();
+      } catch {
+        return;
+      }
+
+      if (!/^https?:/i.test(normalizedUrl) || seen.has(normalizedUrl)) {
+        return;
+      }
+
+      seen.add(normalizedUrl);
+      candidates.push({
+        label: trimText(label) || "Floor plan",
+        url: normalizedUrl,
+      });
+    }
+
+    for (const element of document.querySelectorAll("a, button, img, source")) {
+      const label = normalizeWhitespace(
+        [
+          element.textContent || "",
+          element.getAttribute("aria-label") || "",
+          element.getAttribute("title") || "",
+          element.getAttribute("alt") || "",
+        ].join(" "),
+      );
+      const urlCandidates = [
+        element.getAttribute("href"),
+        element.getAttribute("src"),
+        element.getAttribute("data-src"),
+        element.getAttribute("data-url"),
+        element.getAttribute("data-image"),
+        element.getAttribute("data-full"),
+      ];
+
+      if (
+        /floor\s*plan/i.test(label) ||
+        urlCandidates.some((candidate) => /floor[_-]?plan|floorplan/i.test(candidate || ""))
+      ) {
+        urlCandidates.forEach((candidate) => pushCandidate(label, candidate));
       }
     }
+
+    for (const script of document.querySelectorAll("script")) {
+      const raw = script.textContent || "";
+      if (!/floor[_ -]?plan/i.test(raw)) {
+        continue;
+      }
+
+      const absoluteMatches = raw.match(/https?:\/\/[^"'\\\s)]+/g) || [];
+      const relativeMatches = raw.match(/\/[^"'\\\s)]+(?:floor[_-]?plan|floorplan)[^"'\\\s)]*/gi) || [];
+      [...absoluteMatches, ...relativeMatches].forEach((candidate) =>
+        pushCandidate("Floor plan", candidate),
+      );
+    }
+
     return candidates;
   }
 
   function collectSectionTextItems(sectionTitles) {
     const items = [];
-    for (const heading of document.querySelectorAll("h2, h3, h4")) {
+    for (const heading of document.querySelectorAll("h2, h3, h4, h5, [role='heading']")) {
       const title = trimText(heading.textContent || "");
       if (!title || !sectionTitles.some((candidate) => candidate.test(title))) {
         continue;
@@ -196,15 +361,15 @@
 
       let sibling = heading.nextElementSibling;
       let depth = 0;
-      while (sibling && depth < 6) {
+      while (sibling && depth < 10) {
         if (/^H[1-4]$/.test(sibling.tagName)) {
           break;
         }
 
         sibling
-          .querySelectorAll("li, p, span, div")
+          .querySelectorAll("li, p, span, div, a, button, article, [role='listitem']")
           .forEach((node) => {
-            const value = trimText(node.textContent || "");
+            const value = normalizeWhitespace(node.textContent || "");
             if (value && value.length <= 120) {
               items.push(value);
             }
@@ -215,6 +380,85 @@
     }
 
     return [...new Set(items)].slice(0, 18);
+  }
+
+  function parseTransitLines(lines) {
+    const normalizedLines = lines
+      .map((line) => normalizeWhitespace(line))
+      .filter(Boolean);
+    if (!normalizedLines.length) {
+      return null;
+    }
+
+    const label = normalizedLines.find(
+      (line) =>
+        line.length <= 48 &&
+        !/nearby transit|nearest station|within 500m|\+\s*\d+\s+more/i.test(line) &&
+        !/^\d+\s*min(?:s)?\s*walk$/i.test(line) &&
+        !/\b\d+\s+stations?\b/i.test(line),
+    );
+    if (!label) {
+      return null;
+    }
+
+    const detail = normalizedLines.find(
+      (line) =>
+        line !== label &&
+        (/\b(?:walk|station|train|subway)\b/i.test(line) || /\b\d+(?:\.\d+)?\s*(?:km|mi)\b/i.test(line)),
+    );
+    const distanceLabel = normalizedLines.find(
+      (line) => line !== label && /^\d+\s*min(?:s)?$/i.test(line),
+    );
+
+    if (!detail && !distanceLabel) {
+      return null;
+    }
+
+    return {
+      label,
+      detail: detail || null,
+      distanceLabel: distanceLabel || null,
+    };
+  }
+
+  function collectTransitItems() {
+    const seen = new Set();
+    const results = [];
+    const headings = [...document.querySelectorAll("h2, h3, h4, h5, [role='heading']")].filter((heading) =>
+      /nearby transit|transportation|subway|stations?|commute/i.test(heading.textContent || ""),
+    );
+
+    for (const heading of headings) {
+      let sibling = heading.nextElementSibling;
+      let depth = 0;
+
+      while (sibling && depth < 10) {
+        if (/^H[1-4]$/.test(sibling.tagName)) {
+          break;
+        }
+
+        const candidates = [sibling, ...sibling.querySelectorAll("li, a, button, article, div, [role='listitem']")];
+        for (const candidate of candidates) {
+          const parsed = parseTransitLines((candidate.innerText || candidate.textContent || "").split(/\n+/));
+          if (!parsed) {
+            continue;
+          }
+
+          const key = `${parsed.label}::${parsed.distanceLabel || parsed.detail || ""}`;
+          if (seen.has(key)) {
+            continue;
+          }
+
+          seen.add(key);
+          results.push(parsed);
+        }
+
+        sibling = sibling.nextElementSibling;
+        depth += 1;
+      }
+    }
+
+    return results.slice(0, 12);
   }
 
   function collectSectionBlocks(sectionTitles) {
@@ -275,11 +519,15 @@
         /common charges\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /maintenance\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /hoa(?: fees?)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /hoa\s*(\$\s*[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
       ],
       normalizedText,
     );
     const taxesLabel = findRegexValue(
-      [/tax(?:es)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i],
+      [
+        /tax(?:es)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /taxes?\s*(\$\s*[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+      ],
       normalizedText,
     );
     const pricePerSquareFootLabel = findRegexValue(
@@ -293,6 +541,7 @@
       [
         /(Available(?:\s+(?:Now|now|Immediately|immediately|[A-Z][a-z]{2,8}\s+\d{1,2}))?)/i,
         /availability\s+([A-Za-z]{3,12}\s+\d{1,2}|Available now|Now)/i,
+        /(Available\s+[A-Z][a-z]{2,8}\s+\d{1,2})/i,
       ],
       normalizedText,
     );
@@ -360,7 +609,20 @@
     ].filter(Boolean);
   }
 
-  function extractDescription() {
+  function extractDescription(detailSections = []) {
+    const aboutSection = detailSections.find((section) => /about|overview|description/i.test(section.title));
+    const aboutCandidate = aboutSection?.items.find((item) => textLooksLikeDescription(item));
+    if (aboutCandidate) {
+      return aboutCandidate;
+    }
+
+    const metaDescription = trimText(
+      document.querySelector('meta[name="description"]')?.getAttribute("content") || "",
+    );
+    if (textLooksLikeDescription(metaDescription) && !/px-captcha/i.test(metaDescription || "")) {
+      return metaDescription;
+    }
+
     const selectors = [
       '[data-testid="description"]',
       '[data-testid="home-description-text"]',
@@ -368,7 +630,7 @@
       '[id*="description"] p',
     ];
     const direct = queryText(selectors);
-    if (direct) {
+    if (textLooksLikeDescription(direct)) {
       return direct;
     }
 
@@ -377,7 +639,10 @@
     );
     if (aboutHeading) {
       const paragraph = aboutHeading.nextElementSibling?.querySelector("p") || aboutHeading.nextElementSibling;
-      return trimText(paragraph?.textContent || "");
+      const value = trimText(paragraph?.textContent || "");
+      if (textLooksLikeDescription(value)) {
+        return value;
+      }
     }
 
     return null;
@@ -393,7 +658,7 @@
       parseMoneyValue(factsText.match(/([0-9.]+)\s*bath/i)?.[1]);
     const sqft =
       parseMoneyValue(ldNode?.floorSize?.value) ||
-      parseMoneyValue(factsText.match(/([0-9,]+)\s*(sq\.?\s*ft|sf)/i)?.[1]);
+      parseMoneyValue(factsText.match(/([0-9,]+)\s*(?:square\s*feet|sq(?:uare)?\.?\s*ft|sqft|sf)\b/i)?.[1]);
 
     return {
       bedrooms: bedrooms ? String(bedrooms) : null,
@@ -415,9 +680,6 @@
     const address =
       trimText(ldResidence?.address?.streetAddress) ||
       title;
-    const city = trimText(ldResidence?.address?.addressLocality) || queryText(['[data-testid="city-state-zip"]']);
-    const state = trimText(ldResidence?.address?.addressRegion);
-    const postalCode = trimText(ldResidence?.address?.postalCode);
     const priceText = findPriceText();
     const price =
       parseMoneyValue(ldOffer?.offers?.price) ||
@@ -426,12 +688,13 @@
     const facts = buildFacts(ldResidence, factsText);
     const labeledFacts = extractLabeledFacts(factsText);
     const amenities = collectSectionTextItems([/amenities/i, /home features/i, /building amenities/i]);
-    const transit = collectSectionTextItems([/nearby transit/i, /transportation/i]).map((item) => ({
-      label: item,
-    }));
     const floorPlans = collectFloorPlans();
-    const imageUrls = collectImageUrls();
+    const floorPlanUrlSet = new Set(floorPlans.map((plan) => plan.url).filter(Boolean));
+    const imageUrls = collectImageUrls().filter((url) => !floorPlanUrlSet.has(url));
     const detailSections = collectSectionBlocks([
+      /nearby transit/i,
+      /transportation/i,
+      /subway/i,
       /policies/i,
       /home features/i,
       /building amenities/i,
@@ -441,19 +704,31 @@
       /listing history/i,
       /^about$/i,
     ]);
+    const locationBits = extractCityStatePostal(
+      queryText(['[data-testid="city-state-zip"]']) ||
+      queryText(["[class*='city-state-zip']", "[class*='location']"]) ||
+      "",
+    );
+    const coordinates = extractCoordinates(
+      ldResidence?.geo,
+      ldResidence?.address?.geo,
+      ldOffer?.geo,
+    );
+    const transit = collectTransitItems();
+    const descriptionText = extractDescription(detailSections);
 
     return {
       sourceSite: "streeteasy",
       sourceUrl: location.href,
       title,
       address,
-      city,
-      state,
-      postalCode,
+      city: trimText(ldResidence?.address?.addressLocality) || locationBits.city,
+      state: trimText(ldResidence?.address?.addressRegion) || locationBits.state,
+      postalCode: trimText(ldResidence?.address?.postalCode) || locationBits.postalCode,
       buildingName:
         queryText(["[class*='building'] a", "[class*='building']"]) ||
         trimText(ldResidence?.containedInPlace?.name),
-      listingType: /for rent|\/mo/i.test(priceText || "") ? "rent" : "sale",
+      listingType: /for rent|\/mo/i.test(`${priceText || ""} ${factsText}`) ? "rent" : "sale",
       statusLabel:
         queryText(["[class*='status']", "[data-testid='listing-status']"]) ||
         null,
@@ -472,7 +747,9 @@
       propertyType: labeledFacts.propertyType,
       listedBy: labeledFacts.listedBy,
       brokerLabel: labeledFacts.brokerLabel,
-      descriptionText: extractDescription(),
+      descriptionText,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       heroFacts: buildHeroFactsFromPayload({
         ...facts,
         rooms: labeledFacts.rooms,
@@ -513,11 +790,14 @@
     const address =
       trimText(ldResidence?.address?.streetAddress) ||
       title;
+    const rawLocationText =
+      queryText(['[data-testid="city-state-zip"]']) ||
+      queryText(["[class*='city-state-zip']", "[class*='location']"]) ||
+      "";
+    const locationBits = extractCityStatePostal(rawLocationText);
     const city =
       trimText(ldResidence?.address?.addressLocality) ||
-      queryText(['[data-testid="city-state-zip"]']);
-    const state = trimText(ldResidence?.address?.addressRegion);
-    const postalCode = trimText(ldResidence?.address?.postalCode);
+      locationBits.city;
     const priceText = findPriceText();
     const price =
       parseMoneyValue(ldResidence?.offers?.price) ||
@@ -526,12 +806,14 @@
     const facts = buildFacts(ldResidence, factsText);
     const labeledFacts = extractLabeledFacts(factsText);
     const amenities = collectSectionTextItems([/amenities/i, /features/i]);
-    const transit = collectSectionTextItems([/nearby schools/i, /commute/i, /transit/i]).map((item) => ({
-      label: item,
-    }));
     const floorPlans = collectFloorPlans();
-    const imageUrls = collectImageUrls();
+    const floorPlanUrlSet = new Set(floorPlans.map((plan) => plan.url).filter(Boolean));
+    const imageUrls = collectImageUrls().filter((url) => !floorPlanUrlSet.has(url));
     const detailSections = collectSectionBlocks([
+      /nearby transit/i,
+      /transportation/i,
+      /commute/i,
+      /transit/i,
       /price history/i,
       /property details/i,
       /home facts/i,
@@ -539,6 +821,13 @@
       /features/i,
       /^about$/i,
     ]);
+    const coordinates = extractCoordinates(
+      ldResidence?.geo,
+      ldResidence?.address?.geo,
+      ldResidence?.offers?.geo,
+    );
+    const transit = collectTransitItems();
+    const descriptionText = extractDescription(detailSections);
 
     return {
       sourceSite: "zillow",
@@ -546,10 +835,10 @@
       title,
       address,
       city,
-      state,
-      postalCode,
+      state: trimText(ldResidence?.address?.addressRegion) || locationBits.state,
+      postalCode: trimText(ldResidence?.address?.postalCode) || locationBits.postalCode,
       buildingName: queryText(["[class*='building']", "[class*='community']"]),
-      listingType: /rent/i.test(document.body.innerText || "") ? "rent" : "sale",
+      listingType: /rent/i.test(`${document.body.innerText || ""} ${priceText || ""}`) ? "rent" : "sale",
       statusLabel:
         queryText(["[data-testid='home-status']", "[class*='status']"]) ||
         null,
@@ -568,7 +857,9 @@
       propertyType: labeledFacts.propertyType,
       listedBy: labeledFacts.listedBy,
       brokerLabel: labeledFacts.brokerLabel,
-      descriptionText: extractDescription(),
+      descriptionText,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       heroFacts: buildHeroFactsFromPayload({
         ...facts,
         rooms: labeledFacts.rooms,
@@ -656,6 +947,8 @@
           city: sitePayload.city,
           state: sitePayload.state,
           postalCode: sitePayload.postalCode,
+          latitude: sitePayload.latitude,
+          longitude: sitePayload.longitude,
           buildingName: sitePayload.buildingName,
           listingType: sitePayload.listingType,
           statusLabel: sitePayload.statusLabel,
@@ -686,6 +979,41 @@
         assets,
       },
     };
+  }
+
+  async function preparePageForDeepCapture() {
+    if (deepCapturePreparedForUrl === location.href) {
+      return;
+    }
+
+    const scroller = document.scrollingElement || document.documentElement;
+    if (!scroller) {
+      deepCapturePreparedForUrl = location.href;
+      return;
+    }
+
+    const originalScrollTop = scroller.scrollTop;
+    const viewportHeight = window.innerHeight || 900;
+    const maxScrollTop = Math.max(scroller.scrollHeight - viewportHeight, 0);
+    const step = Math.max(Math.round(viewportHeight * 0.9), 560);
+
+    if (maxScrollTop > viewportHeight) {
+      for (let nextTop = step; nextTop < maxScrollTop; nextTop += step) {
+        window.scrollTo({ top: nextTop, behavior: "auto" });
+        await sleep(120);
+      }
+      window.scrollTo({ top: maxScrollTop, behavior: "auto" });
+      await sleep(240);
+      window.scrollTo({ top: originalScrollTop, behavior: "auto" });
+      await sleep(120);
+    }
+
+    deepCapturePreparedForUrl = location.href;
+  }
+
+  async function buildPayloadForSave() {
+    await preparePageForDeepCapture();
+    return buildPayload();
   }
 
   async function sendMessage(message) {
@@ -985,9 +1313,18 @@
       panelState.message = "";
       renderPanel();
 
+      const payloadForSave = await buildPayloadForSave();
+      if (!payloadForSave) {
+        panelState.mode = "error";
+        panelState.message = "Unable to capture the latest listing data from this page.";
+        renderPanel();
+        return;
+      }
+      currentPayload = payloadForSave;
+
       const result = await sendMessage({
         type: "SAVE_LISTING",
-        payload: currentPayload.payload,
+        payload: payloadForSave.payload,
       });
 
       if (result?.ok) {
@@ -1025,6 +1362,7 @@
     setInterval(() => {
       if (location.href !== currentUrl) {
         currentUrl = location.href;
+        deepCapturePreparedForUrl = null;
         panelState = {
           minimized: false,
           mode: "idle",
