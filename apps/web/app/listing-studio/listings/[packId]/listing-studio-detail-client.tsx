@@ -412,6 +412,54 @@ function IconClose() {
   );
 }
 
+function IconSidebarDashboard() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <rect height="6" rx="1.5" stroke="currentColor" strokeWidth="1.8" width="6" x="4" y="4" />
+      <rect height="6" rx="1.5" stroke="currentColor" strokeWidth="1.8" width="6" x="14" y="4" />
+      <rect height="6" rx="1.5" stroke="currentColor" strokeWidth="1.8" width="6" x="4" y="14" />
+      <rect height="6" rx="1.5" stroke="currentColor" strokeWidth="1.8" width="6" x="14" y="14" />
+    </svg>
+  );
+}
+
+function IconSidebarListings() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M7 5h10M7 12h10M7 19h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
+      <circle cx="4.5" cy="5" fill="currentColor" r="1.2" />
+      <circle cx="4.5" cy="12" fill="currentColor" r="1.2" />
+      <circle cx="4.5" cy="19" fill="currentColor" r="1.2" />
+    </svg>
+  );
+}
+
+function IconSidebarCollections() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M4 8.5A2.5 2.5 0 0 1 6.5 6H10l1.4 1.6h6.1A2.5 2.5 0 0 1 20 10.1v7.4A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-9Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconSidebarShares() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M15.5 7.5a3 3 0 1 0-2.86-4h-.28a3 3 0 0 0 .14.9l-5.63 3.1a3 3 0 1 0 0 8.98l5.63 3.1a3 3 0 1 0 .63-1.87l-5.63-3.1a3.12 3.12 0 0 0 0-1.38l5.63-3.1a3 3 0 0 0 2.37 1.17Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
 function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
 }
@@ -959,6 +1007,9 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     () => buildOverviewParagraphs(detailState),
     [detailState],
   );
+  const editorUserName = detailState.pack.contactName || "Acre Admin";
+  const editorUserEmail = detailState.pack.contactEmail || "listingstudio@acreny.us";
+  const editorUserInitial = (editorUserName.trim().charAt(0) || "A").toUpperCase();
   const filteredCollections = useMemo(() => {
     const query = collectionSearch.trim().toLowerCase();
     if (!query) {
@@ -1755,28 +1806,66 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
 
       {isEditorOpen ? (
         <div className="listing-studio-editor-shell">
-          <section
-            aria-label="Edit listing"
-            aria-modal="true"
-            className="listing-studio-editor-surface"
-            role="dialog"
-          >
-            <header className="listing-studio-editor-header">
-              <button className="listing-studio-editor-back" onClick={closeEditor} type="button">
-                <IconArrowLeft />
-              </button>
-              <div className="listing-studio-editor-header-copy">
-                <strong>Edit Listing</strong>
-                <span>{buildEditedAddressTitle(editorState)}</span>
+          <div className="listing-studio-editor-frame">
+            <aside className="listing-studio-editor-sidebar">
+              <div className="listing-studio-editor-sidebar-brand">
+                <span className="listing-studio-editor-sidebar-brand-mark">L</span>
+                <strong>Listed</strong>
               </div>
-            </header>
 
-            {statusMessage ? (
-              <p className="listing-studio-editor-status">{statusMessage}</p>
-            ) : null}
+              <nav className="listing-studio-editor-sidebar-nav" aria-label="Editor navigation">
+                <button className="listing-studio-editor-sidebar-link" type="button">
+                  <IconSidebarDashboard />
+                  <span>Dashboard</span>
+                </button>
+                <button
+                  className="listing-studio-editor-sidebar-link is-active"
+                  type="button"
+                >
+                  <IconSidebarListings />
+                  <span>Listings</span>
+                </button>
+                <button className="listing-studio-editor-sidebar-link" type="button">
+                  <IconSidebarCollections />
+                  <span>Collections</span>
+                </button>
+                <button className="listing-studio-editor-sidebar-link" type="button">
+                  <IconSidebarShares />
+                  <span>Shares</span>
+                </button>
+              </nav>
 
-            <div className="listing-studio-editor-scroll">
-              <section className="listing-studio-editor-section">
+              <div className="listing-studio-editor-sidebar-user">
+                <div className="listing-studio-editor-sidebar-avatar">{editorUserInitial}</div>
+                <div className="listing-studio-editor-sidebar-user-copy">
+                  <strong>{editorUserName}</strong>
+                  <span>{editorUserEmail}</span>
+                </div>
+                <span className="listing-studio-editor-sidebar-badge">PRO</span>
+              </div>
+            </aside>
+
+            <section
+              aria-label="Edit listing"
+              aria-modal="true"
+              className="listing-studio-editor-surface"
+              role="dialog"
+            >
+              <header className="listing-studio-editor-header">
+                <button className="listing-studio-editor-back" onClick={closeEditor} type="button">
+                  <IconArrowLeft />
+                </button>
+                <div className="listing-studio-editor-header-copy">
+                  <strong>Edit Listing</strong>
+                </div>
+              </header>
+
+              {statusMessage ? (
+                <p className="listing-studio-editor-status">{statusMessage}</p>
+              ) : null}
+
+              <div className="listing-studio-editor-scroll">
+                <section className="listing-studio-editor-section">
                 <div className="listing-studio-editor-section-head">
                   <strong>Listing Type</strong>
                 </div>
@@ -2211,31 +2300,32 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                     />
                   </label>
                 </div>
-              </section>
-            </div>
+                </section>
+              </div>
 
-            <footer className="listing-studio-editor-footer">
-              <button
-                className="listing-studio-editor-delete"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                type="button"
-              >
-                Delete listing
-              </button>
-              <div className="listing-studio-editor-footer-actions">
-                <Button onClick={closeEditor} type="button" variant="secondary">
-                  Cancel
-                </Button>
-                <Button
-                  disabled={isSaving}
-                  onClick={() => void savePack({ closeEditor: true })}
+              <footer className="listing-studio-editor-footer">
+                <button
+                  className="listing-studio-editor-delete"
+                  onClick={() => setIsDeleteDialogOpen(true)}
                   type="button"
                 >
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </footer>
-          </section>
+                  Delete listing
+                </button>
+                <div className="listing-studio-editor-footer-actions">
+                  <Button onClick={closeEditor} type="button" variant="secondary">
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={isSaving}
+                    onClick={() => void savePack({ closeEditor: true })}
+                    type="button"
+                  >
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </footer>
+            </section>
+          </div>
         </div>
       ) : null}
 
