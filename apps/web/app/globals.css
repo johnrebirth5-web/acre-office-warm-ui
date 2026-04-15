@@ -17658,8 +17658,8 @@ body,
 
 .listing-studio-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 22px;
   align-items: start;
 }
 
@@ -17773,6 +17773,10 @@ body,
   color: var(--muted);
   line-height: 1.6;
   max-width: 74ch;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .listing-studio-keyvalue-grid {
@@ -18024,6 +18028,11 @@ body,
 
 .listing-studio-inline-space-between {
   justify-content: space-between;
+}
+
+.listing-studio-rail-status-list {
+  display: grid;
+  gap: 10px;
 }
 
 .listing-studio-rail-priority-card {
