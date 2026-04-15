@@ -929,3 +929,6 @@ When a major feature, baseline, or deployment truth changes:
 1. update this file in the same task
 2. update `docs/deployment.md` if runtime or environment truth changed
 3. keep this log concise, operational, and current
+
+- Listing Studio detail page now moves listed-style actions into the media stage and opens a full-screen edit workspace instead of the old packet modal:
+  - [apps/web/app/listing-studio/listings/[packId]/listing-studio-detail-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/listing-studio/listings/[packId]/listing-studio-detail-client.tsx), [apps/web/app/api/listing-studio/listings/[packId]/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/listing-studio/listings/[packId]/route.ts), [packages/db/src/studio-listings.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/studio-listings.ts), and [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now render four in-image action buttons (`collection / share / source / edit`), add a listed-style full-screen edit surface for address, details, media, and amenity editing, and expand the listing PATCH flow so those edits persist back into the saved listing snapshot instead of only updating Acre packet copy

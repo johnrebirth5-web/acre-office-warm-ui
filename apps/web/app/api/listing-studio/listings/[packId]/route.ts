@@ -78,6 +78,26 @@ export async function PATCH(
         contactTitle?: string;
         contactPhone?: string;
         contactEmail?: string;
+        title?: string | null;
+        sourceUrl?: string | null;
+        listingType?: string | null;
+        statusLabel?: string | null;
+        price?: number | null;
+        streetAddress?: string | null;
+        unit?: string | null;
+        city?: string | null;
+        state?: string | null;
+        postalCode?: string | null;
+        neighborhood?: string | null;
+        buildingName?: string | null;
+        bedrooms?: number | null;
+        bathrooms?: number | null;
+        rooms?: number | null;
+        sqft?: number | null;
+        availabilityLabel?: string | null;
+        descriptionText?: string | null;
+        amenities?: Array<{ title: string; items: string[] }>;
+        sourceFacts?: Array<{ label: string; value: string }>;
       }
     | null;
   const { packId } = await props.params;
@@ -100,6 +120,33 @@ export async function PATCH(
     contactTitle: body?.contactTitle,
     contactPhone: body?.contactPhone,
     contactEmail: body?.contactEmail,
+    title: body?.title,
+    sourceUrl: body?.sourceUrl,
+    listingType: body?.listingType,
+    statusLabel: body?.statusLabel,
+    price: typeof body?.price === "number" || body?.price === null ? body.price : undefined,
+    streetAddress: body?.streetAddress,
+    unit: body?.unit,
+    city: body?.city,
+    state: body?.state,
+    postalCode: body?.postalCode,
+    neighborhood: body?.neighborhood,
+    buildingName: body?.buildingName,
+    bedrooms:
+      typeof body?.bedrooms === "number" || body?.bedrooms === null
+        ? body.bedrooms
+        : undefined,
+    bathrooms:
+      typeof body?.bathrooms === "number" || body?.bathrooms === null
+        ? body.bathrooms
+        : undefined,
+    rooms:
+      typeof body?.rooms === "number" || body?.rooms === null ? body.rooms : undefined,
+    sqft: typeof body?.sqft === "number" || body?.sqft === null ? body.sqft : undefined,
+    availabilityLabel: body?.availabilityLabel,
+    descriptionText: body?.descriptionText,
+    amenities: Array.isArray(body?.amenities) ? body.amenities : undefined,
+    sourceFacts: Array.isArray(body?.sourceFacts) ? body.sourceFacts : undefined,
   });
 
   if (!detail) {

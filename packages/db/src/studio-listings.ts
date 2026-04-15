@@ -69,11 +69,25 @@ export type StudioListingDetailSnapshot = {
   title: string;
   listingType: string | null;
   statusLabel: string | null;
+  price: number | null;
   priceLabel: string;
+  streetAddress: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  borough: string | null;
+  neighborhood: string | null;
+  buildingName: string | null;
   addressLine: string;
   locationLine: string | null;
   latitude: number | null;
   longitude: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  rooms: number | null;
+  sqft: number | null;
+  availabilityLabel: string | null;
   descriptionText: string | null;
   facts: Array<{ label: string; value: string }>;
   sourceFacts: Array<{ label: string; value: string }>;
@@ -304,6 +318,28 @@ function formatCurrency(amount: number | null, currency = "USD") {
   }).format(amount);
 }
 
+function resolveListingPriceLabel(input: {
+  price: number | null;
+  priceLabel: string | null;
+  currency: string;
+}) {
+  const formatted = formatCurrency(input.price, input.currency);
+  const raw = input.priceLabel?.trim() || null;
+
+  if (!raw) {
+    return formatted;
+  }
+
+  if (
+    input.price !== null &&
+    /(price increase|for rent|for sale|open house|reduced|save|monthly|weekly)/i.test(raw)
+  ) {
+    return formatted;
+  }
+
+  return raw;
+}
+
 function normalizeAmenitySections(value: unknown): StudioAmenitySection[] {
   if (Array.isArray(value)) {
     const items = value
@@ -465,6 +501,14 @@ function readCanonicalFieldFromRawParsed(
 
 function toInputJsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
+}
+
+function cloneRawParsedJson(rawParsedJson: Prisma.JsonValue | null) {
+  if (!rawParsedJson || typeof rawParsedJson !== "object" || Array.isArray(rawParsedJson)) {
+    return {} as Record<string, unknown>;
+  }
+
+  return JSON.parse(JSON.stringify(rawParsedJson)) as Record<string, unknown>;
 }
 
 function buildHeroFacts(data: {
@@ -1121,7 +1165,11 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
     sourceSite: record.snapshot.sourceSite,
     sourceUrl: record.snapshot.sourceUrl,
     listingType: record.snapshot.listingType,
-    priceLabel: record.snapshot.priceLabel || formatCurrency(record.snapshot.price ? Number(record.snapshot.price) : null, record.snapshot.currency),
+    priceLabel: resolveListingPriceLabel({
+      price: record.snapshot.price ? Number(record.snapshot.price) : null,
+      priceLabel: record.snapshot.priceLabel,
+      currency: record.snapshot.currency,
+    }),
     addressLine: formatAddressLine(record.snapshot),
     factsLine: buildFactsLine(record.snapshot),
     statusLabel: record.snapshot.statusLabel,
@@ -1255,9 +1303,20 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     title: snapshot.title,
     listingType: snapshot.listingType,
     statusLabel: snapshot.statusLabel,
-    priceLabel:
-      snapshot.priceLabel ||
-      formatCurrency(snapshot.price ? Number(snapshot.price) : null, snapshot.currency),
+    price: snapshot.price ? Number(snapshot.price) : null,
+    priceLabel: resolveListingPriceLabel({
+      price: snapshot.price ? Number(snapshot.price) : null,
+      priceLabel: snapshot.priceLabel,
+      currency: snapshot.currency,
+    }),
+    streetAddress: snapshot.streetAddress,
+    unit: snapshot.unit,
+    city: snapshot.city,
+    state: snapshot.state,
+    postalCode: snapshot.postalCode,
+    borough: snapshot.borough,
+    neighborhood: snapshot.neighborhood,
+    buildingName: snapshot.buildingName,
     addressLine: formatAddressLine(snapshot),
     locationLine: formatLocationLine({
       buildingName: snapshot.buildingName,
@@ -1268,6 +1327,11 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     }),
     latitude: snapshot.latitude ? Number(snapshot.latitude) : null,
     longitude: snapshot.longitude ? Number(snapshot.longitude) : null,
+    bedrooms: snapshot.bedrooms ? Number(snapshot.bedrooms) : null,
+    bathrooms: snapshot.bathrooms ? Number(snapshot.bathrooms) : null,
+    rooms: snapshot.rooms ? Number(snapshot.rooms) : null,
+    sqft: snapshot.sqft,
+    availabilityLabel: snapshot.availabilityLabel,
     descriptionText: snapshot.descriptionText,
     facts:
       Array.isArray(snapshot.heroFactsJson)
@@ -1379,6 +1443,26 @@ export async function updateStudioListingPack(input: {
   contactTitle?: string;
   contactPhone?: string;
   contactEmail?: string;
+  title?: string | null;
+  sourceUrl?: string | null;
+  listingType?: string | null;
+  statusLabel?: string | null;
+  price?: number | null;
+  streetAddress?: string | null;
+  unit?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  neighborhood?: string | null;
+  buildingName?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  rooms?: number | null;
+  sqft?: number | null;
+  availabilityLabel?: string | null;
+  descriptionText?: string | null;
+  amenities?: StudioAmenitySection[];
+  sourceFacts?: StudioLabeledValue[];
 }) {
   const existing = await prisma.studioListingPack.findFirst({
     where: {
@@ -1406,6 +1490,17 @@ export async function updateStudioListingPack(input: {
     return value.trim();
   }
 
+  function resolveOptionalTextField(
+    value: string | null | undefined,
+    fallback: string | null | undefined,
+  ) {
+    if (value === undefined) {
+      return fallback?.trim() || null;
+    }
+
+    return value?.trim() || null;
+  }
+
   const allowedAssetIds = new Set(existing.snapshot.assets.map((asset) => asset.id));
   const selectedAssetIds = (input.selectedAssetIds ?? normalizeBulletPoints(existing.selectedAssetIdsJson)).filter((assetId) =>
     allowedAssetIds.has(assetId),
@@ -1416,18 +1511,198 @@ export async function updateStudioListingPack(input: {
       : existing.coverAssetId && allowedAssetIds.has(existing.coverAssetId)
         ? existing.coverAssetId
         : selectedAssetIds[0] ?? existing.snapshot.assets[0]?.id ?? null;
+  const nextStreetAddress = resolveOptionalTextField(
+    input.streetAddress,
+    existing.snapshot.streetAddress,
+  );
+  const nextUnit = resolveOptionalTextField(input.unit, existing.snapshot.unit);
+  const nextCity = resolveOptionalTextField(input.city, existing.snapshot.city);
+  const nextState = resolveOptionalTextField(input.state, existing.snapshot.state);
+  const nextPostalCode = resolveOptionalTextField(
+    input.postalCode,
+    existing.snapshot.postalCode,
+  );
+  const nextNeighborhood = resolveOptionalTextField(
+    input.neighborhood,
+    existing.snapshot.neighborhood,
+  );
+  const nextBuildingName = resolveOptionalTextField(
+    input.buildingName,
+    existing.snapshot.buildingName,
+  );
+  const nextListingType = resolveOptionalTextField(
+    input.listingType,
+    existing.snapshot.listingType,
+  );
+  const nextStatusLabel = resolveOptionalTextField(
+    input.statusLabel,
+    existing.snapshot.statusLabel,
+  );
+  const nextSourceUrl = resolveOptionalTextField(input.sourceUrl, existing.snapshot.sourceUrl);
+  const nextPrice =
+    input.price === undefined
+      ? existing.snapshot.price
+        ? Number(existing.snapshot.price)
+        : null
+      : input.price;
+  const nextBedrooms =
+    input.bedrooms === undefined
+      ? existing.snapshot.bedrooms
+        ? Number(existing.snapshot.bedrooms)
+        : null
+      : input.bedrooms;
+  const nextBathrooms =
+    input.bathrooms === undefined
+      ? existing.snapshot.bathrooms
+        ? Number(existing.snapshot.bathrooms)
+        : null
+      : input.bathrooms;
+  const nextRooms =
+    input.rooms === undefined
+      ? existing.snapshot.rooms
+        ? Number(existing.snapshot.rooms)
+        : null
+      : input.rooms;
+  const nextSqft = input.sqft === undefined ? existing.snapshot.sqft : input.sqft;
+  const nextAvailabilityLabel = resolveOptionalTextField(
+    input.availabilityLabel,
+    existing.snapshot.availabilityLabel,
+  );
+  const nextDescriptionText = resolveOptionalTextField(
+    input.descriptionText,
+    existing.snapshot.descriptionText,
+  );
+  const nextAmenities =
+    input.amenities === undefined
+      ? normalizeAmenitySections(existing.snapshot.amenitiesJson)
+      : input.amenities
+          .map((section) => ({
+            title: section.title.trim() || "Amenities & building",
+            items: normalizeTextArray(section.items),
+          }))
+          .filter((section) => section.items.length > 0);
+  const nextSourceFacts =
+    input.sourceFacts === undefined
+      ? normalizeLabeledValues(
+          readCanonicalFieldFromRawParsed(
+            existing.snapshot.rawParsedJson as Prisma.JsonValue | null,
+            "sourceFacts",
+          ),
+        )
+      : input.sourceFacts
+          .map((item) => ({
+            label: item.label.trim(),
+            value: item.value.trim(),
+          }))
+          .filter((item) => item.label && item.value);
+  const nextTitle =
+    resolveOptionalTextField(
+      input.title,
+      formatAddressLine({
+        streetAddress: nextStreetAddress,
+        unit: nextUnit,
+        city: nextCity,
+        state: nextState,
+        postalCode: nextPostalCode,
+      }),
+    ) ??
+    existing.snapshot.title;
+  const nextHeadline =
+    input.headline === undefined
+      ? existing.headline?.trim() || nextTitle
+      : input.headline.trim() || nextTitle;
+  const nextSummary =
+    input.summary === undefined ? existing.summary?.trim() || "" : input.summary.trim();
+  const nextAgentNote =
+    input.agentNote === undefined ? existing.agentNote?.trim() || "" : input.agentNote.trim();
+  const nextBulletPoints =
+    input.bulletPoints === undefined
+      ? normalizeBulletPoints(existing.bulletPointsJson)
+      : input.bulletPoints.filter(Boolean);
+  const nextPriceLabel = resolveListingPriceLabel({
+    price: nextPrice,
+    priceLabel: null,
+    currency: existing.snapshot.currency,
+  });
+  const nextHeroFacts = buildHeroFacts({
+    bedrooms: nextBedrooms,
+    bathrooms: nextBathrooms,
+    sqft: nextSqft,
+    availabilityLabel: nextAvailabilityLabel,
+  });
+  const nextRawParsedJson = cloneRawParsedJson(
+    existing.snapshot.rawParsedJson as Prisma.JsonValue | null,
+  );
+  const nextCanonicalFields =
+    nextRawParsedJson.canonicalFields &&
+    typeof nextRawParsedJson.canonicalFields === "object" &&
+    !Array.isArray(nextRawParsedJson.canonicalFields)
+      ? {
+          ...(nextRawParsedJson.canonicalFields as Record<string, unknown>),
+        }
+      : {};
+
+  nextCanonicalFields.title = nextTitle;
+  nextCanonicalFields.listingType = nextListingType;
+  nextCanonicalFields.statusLabel = nextStatusLabel;
+  nextCanonicalFields.price = nextPrice;
+  nextCanonicalFields.priceLabel = nextPriceLabel;
+  nextCanonicalFields.streetAddress = nextStreetAddress;
+  nextCanonicalFields.unit = nextUnit;
+  nextCanonicalFields.city = nextCity;
+  nextCanonicalFields.state = nextState;
+  nextCanonicalFields.postalCode = nextPostalCode;
+  nextCanonicalFields.neighborhood = nextNeighborhood;
+  nextCanonicalFields.buildingName = nextBuildingName;
+  nextCanonicalFields.bedrooms = nextBedrooms;
+  nextCanonicalFields.bathrooms = nextBathrooms;
+  nextCanonicalFields.rooms = nextRooms;
+  nextCanonicalFields.sqft = nextSqft;
+  nextCanonicalFields.availabilityLabel = nextAvailabilityLabel;
+  nextCanonicalFields.descriptionText = nextDescriptionText;
+  nextCanonicalFields.amenities = nextAmenities;
+  nextCanonicalFields.sourceFacts = nextSourceFacts;
+  nextRawParsedJson.canonicalFields = nextCanonicalFields;
+
+  await prisma.studioListingSnapshot.update({
+    where: { id: existing.snapshot.id },
+    data: {
+      sourceUrl: nextSourceUrl ?? existing.snapshot.sourceUrl,
+      title: nextTitle,
+      listingType: nextListingType,
+      statusLabel: nextStatusLabel,
+      price: nextPrice,
+      priceLabel: nextPriceLabel,
+      streetAddress: nextStreetAddress,
+      unit: nextUnit,
+      city: nextCity,
+      state: nextState,
+      postalCode: nextPostalCode,
+      neighborhood: nextNeighborhood,
+      buildingName: nextBuildingName,
+      bedrooms: nextBedrooms,
+      bathrooms: nextBathrooms,
+      rooms: nextRooms,
+      sqft: nextSqft,
+      availabilityLabel: nextAvailabilityLabel,
+      descriptionText: nextDescriptionText,
+      heroFactsJson: toInputJsonValue(nextHeroFacts),
+      amenitiesJson: toInputJsonValue(nextAmenities),
+      rawParsedJson: toInputJsonValue(nextRawParsedJson),
+    },
+  });
 
   await prisma.studioListingPack.update({
     where: { id: existing.id },
     data: {
       updatedByMembershipId: input.membershipId,
       status: StudioListingPackStatus.ready,
-      headline: input.headline?.trim() || existing.snapshot.title,
-      summary: input.summary?.trim() || "",
-      bulletPointsJson: (input.bulletPoints ?? normalizeBulletPoints(existing.bulletPointsJson)).filter(Boolean),
+      headline: nextHeadline,
+      summary: nextSummary,
+      bulletPointsJson: nextBulletPoints,
       selectedAssetIdsJson: selectedAssetIds,
       coverAssetId: nextCoverAssetId,
-      agentNote: input.agentNote?.trim() || "",
+      agentNote: nextAgentNote,
       contactName: resolveContactField(input.contactName, existing.contactName),
       contactTitle: resolveContactField(input.contactTitle, existing.contactTitle),
       contactPhone: resolveContactField(input.contactPhone, existing.contactPhone),

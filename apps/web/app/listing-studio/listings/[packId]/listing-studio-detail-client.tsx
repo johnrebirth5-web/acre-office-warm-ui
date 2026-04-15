@@ -1,9 +1,16 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
-import { Button, ConfirmActionDialog, TextareaInput, TextInput } from "@acre/ui";
+import {
+  Button,
+  CheckboxField,
+  ConfirmActionDialog,
+  SelectInput,
+  TextareaInput,
+  TextInput,
+} from "@acre/ui";
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
@@ -16,15 +23,361 @@ type TransitSummary = {
   withinFiveHundredMeters: number | null;
 };
 
-function buildShareUrl(shareCode: string | null) {
-  return shareCode ? `/share/packs/${shareCode}` : null;
+type CollectionRecord = {
+  id: string;
+  name: string;
+  packIds: string[];
+};
+
+type AmenityCatalogSection = {
+  title: string;
+  options: string[];
+};
+
+type EditorAmenitySection = {
+  title: string;
+  options: string[];
+  selected: string[];
+  customItems: string[];
+  draftCustom: string;
+  isAddingCustom: boolean;
+  open: boolean;
+};
+
+type ListingEditorState = {
+  listingKind: "sale" | "rental";
+  selectedAssetIds: string[];
+  coverAssetId: string | null;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  unit: string;
+  neighborhood: string;
+  buildingName: string;
+  listingUrl: string;
+  price: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  propertyType: string;
+  status: string;
+  availability: string;
+  yearBuilt: string;
+  listDate: string;
+  commonCharges: string;
+  taxes: string;
+  description: string;
+  amenitySections: EditorAmenitySection[];
+};
+
+const COLLECTION_STORAGE_KEY = "acre-listing-studio-collections";
+
+const PROPERTY_TYPE_OPTIONS = [
+  "Rental unit",
+  "Condo",
+  "Co-op",
+  "Apartment",
+  "Townhouse",
+  "Multi-family",
+  "Loft",
+  "House",
+];
+
+const STATUS_OPTIONS = ["Active", "Off market", "Pending", "Rented", "Sold"];
+
+const AMENITY_CATALOG: AmenityCatalogSection[] = [
+  {
+    title: "Services & Facilities",
+    options: [
+      "Bike Room",
+      "Bike Storage",
+      "Bicycle Storage",
+      "Concierge",
+      "Doorman",
+      "Virtual Doorman",
+      "Video Doorman",
+      "Elevator",
+      "Package Room",
+      "Smart Package Room",
+      "Laundry in Building",
+      "Laundry Room",
+      "Storage",
+      "Storage Available",
+      "Tenant Storage",
+      "Cold Storage",
+      "Locker / Cage Storage",
+      "Live-in Super",
+      "Super Lives in Building",
+      "Garage Parking",
+      "Garage",
+      "Parking",
+      "Parking Available",
+      "Assigned Parking",
+      "Valet Parking",
+      "Covered Parking",
+      "Attended Parking",
+      "Wheelchair Access",
+      "Accessible Entrance",
+      "Smoke Free",
+      "Smoke-free",
+      "Security Guard",
+      "Security Cameras",
+      "Gated Access",
+      "Intercom",
+      "Video Intercom",
+      "Keyless Entry",
+    ],
+  },
+  {
+    title: "Wellness & Recreation",
+    options: [
+      "Gym",
+      "Fitness Center",
+      "Gymnasium",
+      "Yoga Room",
+      "Yoga Studio",
+      "Yoga / Dance Studio",
+      "Pilates Studio",
+      "Cross Fit Room",
+      "Swimming Pool",
+      "Indoor Pool",
+      "Outdoor Pool",
+      "Sauna",
+      "Steam Room",
+      "Spa",
+      "Hot Tub",
+      "Cold Plunge",
+      "Media Room",
+      "Screening Room",
+      "Theater Room",
+      "Game Room",
+      "Billiards Room",
+      "Resident Lounge",
+      "Lounge",
+      "Library",
+      "Co-working Space",
+      "Co-working Lounge",
+      "Business Center",
+      "Conference Room",
+      "Golf Simulator",
+      "Golf Room",
+      "Music Room",
+      "Study Room",
+      "Sky Lounge",
+    ],
+  },
+  {
+    title: "Shared Outdoor Space",
+    options: [
+      "Roof Deck",
+      "Rooftop",
+      "Deck",
+      "Terrace",
+      "Patio",
+      "Courtyard",
+      "Garden",
+      "Zen Garden",
+      "Wellness Garden",
+      "Shared Backyard",
+      "Outdoor Lounge",
+      "BBQ Area",
+      "BBQ Grills",
+      "Outdoor Kitchen",
+      "Sundeck",
+      "Outdoor Yoga Lawn",
+    ],
+  },
+  {
+    title: "Family & Pets",
+    options: [
+      "Children's Playroom",
+      "Kids Room",
+      "Playground",
+      "Dog Run",
+      "Dog Park",
+      "Pet Spa",
+      "Dog Spa",
+      "Dog Washing Station",
+      "Pet Friendly",
+      "Pets Allowed",
+    ],
+  },
+  {
+    title: "Unit / Apartment Amenities",
+    options: [
+      "Washer / Dryer",
+      "Washer/Dryer",
+      "Washer/Dryer In Unit",
+      "In-unit Washer/Dryer",
+      "Washer and Dryer",
+      "Washer and Dryer In Unit",
+      "Shared Laundry",
+      "Laundry In Unit",
+      "Dishwasher",
+      "Microwave",
+      "Refrigerator",
+      "Stainless Steel Appliances",
+      "Gas Range",
+      "Electric Range",
+      "Garbage Disposal",
+      "Chef's Kitchen",
+      "Kitchen Island",
+      "Central Air",
+      "Central Air Conditioning",
+      "Split Unit Heating",
+      "Split Unit Cooling",
+      "Split-unit Heat/AC",
+      "Individual A/C Units",
+      "Heating",
+      "Air Conditioning",
+      "Hardwood Floors",
+      "High Ceilings",
+      "Floor to Ceiling Windows",
+      "Large Windows",
+      "Walk-in Closet",
+      "Abundant Closets",
+      "Private Outdoor Space",
+      "Balcony",
+      "Terrace (Private)",
+      "Patio (Private)",
+      "Verizon Fios",
+      "High Speed Internet",
+      "Cable Ready",
+      "Smart Controls",
+    ],
+  },
+  {
+    title: "Views / Exposure",
+    options: ["City View", "Skyline View", "Water View", "Park View", "Garden View"],
+  },
+  {
+    title: "Highlight Tags",
+    options: ["Doorman", "Elevator", "Pets Allowed", "Private Outdoor Space", "Washer/Dryer", "Gym"],
+  },
+];
+
+function IconPlus() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
 }
 
-function normalizeBulletPointsInput(value: string) {
-  return value
-    .split("\n")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+function IconShare() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M15.5 7.5a3 3 0 1 0-2.86-4h-.28a3 3 0 0 0 .14.9l-5.63 3.1a3 3 0 1 0 0 8.98l5.63 3.1a3 3 0 1 0 .63-1.87l-5.63-3.1a3.12 3.12 0 0 0 0-1.38l5.63-3.1a3 3 0 0 0 2.37 1.17Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconLink() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M10 14 8 16a4 4 0 1 1-5.66-5.66l3-3A4 4 0 0 1 11 8m3-2 2-2a4 4 0 1 1 5.66 5.66l-3 3A4 4 0 0 1 13 16m-2-4h2"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+
+function IconEdit() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m4 20 4.5-1 9.24-9.24a2.12 2.12 0 0 0-3-3L5.5 16 4 20Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path d="m13.5 7.5 3 3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconArrowLeft() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m15 18-6-6 6-6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function IconSearch() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m16 16 4 4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m5 12 4 4L19 6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.2"
+      />
+    </svg>
+  );
+}
+
+function IconChevronDown(props: { isOpen?: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={props.isOpen ? "is-open" : undefined}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="m6 9 6 6 6-6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function IconExternal() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M14 5h5v5M10 14 19 5M19 14v5h-5M5 10V5h5M5 19h5v-5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function buildShareUrl(shareCode: string | null) {
+  return shareCode ? `/share/packs/${shareCode}` : null;
 }
 
 function isPhotoAssetKind(kind: StudioListingDetailSnapshot["assets"][number]["kind"]) {
@@ -57,10 +410,7 @@ function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
     return "photo";
   }
 
-  if (
-    detail.assets.some((asset) => asset.kind === "floor_plan") ||
-    detail.floorPlans.length
-  ) {
+  if (detail.assets.some((asset) => asset.kind === "floor_plan") || detail.floorPlans.length) {
     return "floorplan";
   }
 
@@ -71,15 +421,14 @@ function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
   return "photo";
 }
 
-function findSourceFactValue(
-  items: Array<{ label: string; value: string }>,
-  matcher: RegExp,
-) {
+function findSourceFactValue(items: Array<{ label: string; value: string }>, matcher: RegExp) {
   return items.find((item) => matcher.test(item.label))?.value ?? null;
 }
 
 function getHeaderEyebrow(detail: StudioListingDetailSnapshot) {
   return (
+    detail.buildingName ??
+    detail.neighborhood ??
     findSourceFactValue(detail.sourceFacts, /building/i) ??
     detail.locationLine
       ?.split("·")
@@ -197,93 +546,495 @@ function ListingStudioDisclosure(props: {
   );
 }
 
-export function ListingStudioDetailClient({
-  detail,
-}: ListingStudioDetailClientProps) {
-  const router = useRouter();
-  const menuRef = useRef<HTMLDetailsElement | null>(null);
+function normalizeAmenityKey(value: string) {
+  return formatAmenityLabel(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
 
-  const [headline, setHeadline] = useState(detail.pack.headline);
-  const [summary, setSummary] = useState(detail.pack.summary);
-  const [agentNote, setAgentNote] = useState(detail.pack.agentNote);
-  const [bulletText, setBulletText] = useState(detail.pack.bulletPoints.join("\n"));
-  const [contactName, setContactName] = useState(detail.pack.contactName);
-  const [contactTitle, setContactTitle] = useState(detail.pack.contactTitle);
-  const [contactPhone, setContactPhone] = useState(detail.pack.contactPhone);
-  const [contactEmail, setContactEmail] = useState(detail.pack.contactEmail);
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
-    detail.pack.selectedAssetIds,
+function formatAmenityLabel(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const fixups: Record<string, string> = {
+    centralair: "Central Air",
+    dishwasher: "Dishwasher",
+    washerdryer: "Washer / dryer",
+    bikeroom: "Bike Room",
+    packageroom: "Package Room",
+    laundryinbuilding: "Laundry in Building",
+    parkinggarage: "Parking Garage",
+    storagespace: "Storage space",
+    viewgarden: "View / Garden",
+    servicesandfacilities: "Services & Facilities",
+    wheelchairaccess: "Wheelchair Access",
+    smokefree: "Smoke-free",
+    keylessentry: "Keyless Entry",
+    liveinsuper: "Live-in Super",
+  };
+
+  if (fixups[normalized]) {
+    return fixups[normalized];
+  }
+
+  return trimmed
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+    .replace(/\bHoa\b/g, "HOA")
+    .replace(/\bNy\b/g, "NY")
+    .replace(/\bAnd\b/g, "&");
+}
+
+function normalizeDateInput(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const match = value.trim().match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (!match) {
+    return "";
+  }
+
+  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+}
+
+function formatSourceFactDate(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.replace(/-/g, "/");
+}
+
+function formatNumericInput(value: number | null) {
+  return value === null ? "" : String(value);
+}
+
+function parseNumberishInput(value: string) {
+  const normalized = value.replace(/[^0-9.-]+/g, "");
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseWholeNumberInput(value: string) {
+  const parsed = parseNumberishInput(value);
+  return parsed === null ? null : Math.round(parsed);
+}
+
+function loadCollectionsFromStorage(): CollectionRecord[] {
+  try {
+    const raw = window.localStorage.getItem(COLLECTION_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as CollectionRecord[];
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (entry) =>
+            typeof entry?.id === "string" &&
+            typeof entry?.name === "string" &&
+            Array.isArray(entry?.packIds),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCollectionsToStorage(collections: CollectionRecord[]) {
+  window.localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(collections));
+}
+
+function buildAmenityEditorSections(
+  amenities: StudioListingDetailSnapshot["amenities"],
+): EditorAmenitySection[] {
+  const sections = AMENITY_CATALOG.map((section) => ({
+    title: section.title,
+    options: section.options,
+    selected: [] as string[],
+    customItems: [] as string[],
+    draftCustom: "",
+    isAddingCustom: false,
+    open: false,
+  }));
+  const sectionMap = new Map(sections.map((section) => [section.title, section]));
+  const sectionByKey = new Map(
+    sections.map((section) => [normalizeAmenityKey(section.title), section.title]),
   );
-  const [coverAssetId, setCoverAssetId] = useState<string | null>(
-    detail.pack.coverAssetId ?? getInitialPhotoId(detail),
+  const optionSectionMap = new Map<string, string>();
+  const optionValueMap = new Map<string, string>();
+
+  for (const section of sections) {
+    for (const option of section.options) {
+      const key = normalizeAmenityKey(option);
+      optionSectionMap.set(key, section.title);
+      optionValueMap.set(key, option);
+    }
+  }
+
+  for (const amenitySection of amenities) {
+    const preferredSectionTitle =
+      sectionByKey.get(normalizeAmenityKey(amenitySection.title)) ?? sections[0]?.title ?? "";
+
+    for (const item of amenitySection.items) {
+      const formatted = formatAmenityLabel(item);
+      if (!formatted) {
+        continue;
+      }
+
+      const optionKey = normalizeAmenityKey(formatted);
+      const matchedSectionTitle = optionSectionMap.get(optionKey);
+      if (matchedSectionTitle) {
+        const target = sectionMap.get(matchedSectionTitle);
+        const optionValue = optionValueMap.get(optionKey) ?? formatted;
+        if (target && !target.selected.includes(optionValue)) {
+          target.selected.push(optionValue);
+        }
+        continue;
+      }
+
+      const target = sectionMap.get(preferredSectionTitle) ?? sections[0];
+      if (target && !target.customItems.includes(formatted)) {
+        target.customItems.push(formatted);
+      }
+    }
+  }
+
+  return sections;
+}
+
+function buildAmenityPayload(sections: EditorAmenitySection[]) {
+  return sections
+    .map((section) => ({
+      title: section.title,
+      items: Array.from(
+        new Set(
+          [...section.selected, ...section.customItems]
+            .map((item) => formatAmenityLabel(item))
+            .filter(Boolean),
+        ),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
+function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorState {
+  return {
+    listingKind: /sale/i.test(detail.listingType ?? "") ? "sale" : "rental",
+    selectedAssetIds: detail.pack.selectedAssetIds.filter((assetId) =>
+      detail.assets.some((asset) => asset.id === assetId && isPhotoAssetKind(asset.kind)),
+    ),
+    coverAssetId: detail.pack.coverAssetId ?? getInitialPhotoId(detail),
+    streetAddress: detail.streetAddress ?? "",
+    city: detail.city ?? "",
+    state: detail.state ?? "",
+    postalCode: detail.postalCode ?? "",
+    unit: detail.unit ?? "",
+    neighborhood: detail.neighborhood ?? "",
+    buildingName: detail.buildingName ?? "",
+    listingUrl: detail.sourceUrl ?? "",
+    price: formatNumericInput(detail.price),
+    beds: formatNumericInput(detail.bedrooms),
+    baths: formatNumericInput(detail.bathrooms),
+    sqft: formatNumericInput(detail.sqft),
+    propertyType: findSourceFactValue(detail.sourceFacts, /property type/i) ?? "",
+    status: detail.statusLabel ?? "Active",
+    availability: detail.availabilityLabel ?? "",
+    yearBuilt: findSourceFactValue(detail.sourceFacts, /year built/i) ?? "",
+    listDate: normalizeDateInput(
+      findSourceFactValue(detail.sourceFacts, /(list|listed) date/i),
+    ),
+    commonCharges:
+      findSourceFactValue(detail.sourceFacts, /common charges|hoa|maintenance/i) ?? "",
+    taxes: findSourceFactValue(detail.sourceFacts, /tax/i) ?? "",
+    description: detail.descriptionText ?? detail.pack.summary,
+    amenitySections: buildAmenityEditorSections(detail.amenities),
+  };
+}
+
+function buildEditedAddressTitle(editorState: ListingEditorState) {
+  const lineOne = [editorState.streetAddress.trim(), editorState.unit.trim()]
+    .filter(Boolean)
+    .join(" ");
+  const lineTwo = [editorState.city.trim(), editorState.state.trim(), editorState.postalCode.trim()]
+    .filter(Boolean)
+    .join(", ");
+
+  return lineOne || lineTwo || "Imported listing";
+}
+
+function buildEditedSourceFacts(
+  editorState: ListingEditorState,
+  existingFacts: StudioListingDetailSnapshot["sourceFacts"],
+) {
+  const editablePatterns = [
+    /property type/i,
+    /year built/i,
+    /(list|listed) date/i,
+    /common charges|hoa|maintenance/i,
+    /tax/i,
+  ];
+  const preservedFacts = existingFacts.filter(
+    (fact) => !editablePatterns.some((matcher) => matcher.test(fact.label)),
   );
+  const editedFacts = [
+    editorState.propertyType
+      ? { label: "Property type", value: editorState.propertyType.trim() }
+      : null,
+    editorState.yearBuilt ? { label: "Year built", value: editorState.yearBuilt.trim() } : null,
+    editorState.listDate
+      ? { label: "List date", value: formatSourceFactDate(editorState.listDate) }
+      : null,
+    editorState.commonCharges
+      ? {
+          label:
+            editorState.listingKind === "sale"
+              ? "Common charges (HOA, /mo)"
+              : "Common charges",
+          value: editorState.commonCharges.trim(),
+        }
+      : null,
+    editorState.taxes ? { label: "Taxes (/mo)", value: editorState.taxes.trim() } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+
+  return [...preservedFacts, ...editedFacts];
+}
+
+function buildOverviewParagraphs(detail: StudioListingDetailSnapshot) {
+  return Array.from(
+    new Set(
+      [detail.pack.summary, detail.descriptionText]
+        .map((value) => value?.trim() || "")
+        .filter(Boolean),
+    ),
+  );
+}
+
+function openExternalWindow(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function StageActionButton(props: {
+  ariaLabel: string;
+  children: ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      aria-label={props.ariaLabel}
+      className="listing-studio-view-stage-action"
+      disabled={props.disabled}
+      onClick={props.onClick}
+      type={props.type ?? "button"}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
+  const router = useRouter();
+  const collectionRef = useRef<HTMLDivElement | null>(null);
+  const [detailState, setDetailState] = useState(detail);
+  const [mediaMode, setMediaMode] = useState<MediaMode>(() => getInitialMediaMode(detail));
   const [activePhotoId, setActivePhotoId] = useState<string | null>(() =>
     getInitialPhotoId(detail),
   );
-  const [mediaMode, setMediaMode] = useState<MediaMode>(() =>
-    getInitialMediaMode(detail),
-  );
-  const [shareCode, setShareCode] = useState(detail.pack.shareCode);
-  const [shareEnabled, setShareEnabled] = useState(detail.pack.shareEnabled);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorState, setEditorState] = useState(() => buildEditorState(detail));
+  const [collections, setCollections] = useState<CollectionRecord[]>([]);
+  const [collectionSearch, setCollectionSearch] = useState("");
+  const [isCollectionOpen, setIsCollectionOpen] = useState(false);
 
-  const normalizedBulletPoints = useMemo(
-    () => normalizeBulletPointsInput(bulletText),
-    [bulletText],
-  );
-  const shareUrl = buildShareUrl(shareCode);
+  const shareUrl = buildShareUrl(detailState.pack.shareCode);
   const photoAssets = useMemo(
-    () => detail.assets.filter((asset) => isPhotoAssetKind(asset.kind)),
-    [detail.assets],
-  );
-  const photoAssetIds = useMemo(
-    () => new Set(photoAssets.map((asset) => asset.id)),
-    [photoAssets],
+    () => detailState.assets.filter((asset) => isPhotoAssetKind(asset.kind)),
+    [detailState.assets],
   );
   const activePhoto =
     photoAssets.find((asset) => asset.id === activePhotoId) ?? photoAssets[0] ?? null;
-  const floorPlanAsset = detail.assets.find((asset) => asset.kind === "floor_plan") ?? null;
+  const floorPlanAsset =
+    detailState.assets.find((asset) => asset.kind === "floor_plan") ?? null;
   const floorPlanSrc =
     (floorPlanAsset ? `/api/listing-studio/assets/${floorPlanAsset.id}` : null) ??
-    (detail.floorPlans[0]?.assetId
-      ? `/api/listing-studio/assets/${detail.floorPlans[0].assetId}`
+    (detailState.floorPlans[0]?.assetId
+      ? `/api/listing-studio/assets/${detailState.floorPlans[0].assetId}`
       : null) ??
-    detail.floorPlans[0]?.url ??
+    detailState.floorPlans[0]?.url ??
     null;
   const floorPlanIsPdf = isLikelyPdf(floorPlanSrc, floorPlanAsset?.mimeType ?? null);
   const floorPlanLabel =
-    floorPlanAsset?.label ?? detail.floorPlans[0]?.label ?? "Floor plan";
-  const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(detail), [detail]);
-  const statusPill = getListingStateLabel(detail);
-  const headerEyebrow = getHeaderEyebrow(detail);
+    floorPlanAsset?.label ?? detailState.floorPlans[0]?.label ?? "Floor plan";
+  const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(detailState), [detailState]);
+  const statusPill = getListingStateLabel(detailState);
+  const headerEyebrow = getHeaderEyebrow(detailState);
   const financialHighlights = useMemo(
-    () => collectFinancialHighlights(detail),
-    [detail],
+    () => collectFinancialHighlights(detailState),
+    [detailState],
   );
   const transitSummary = useMemo(
-    () => parseTransitSummary(detail.transit),
-    [detail.transit],
+    () => parseTransitSummary(detailState.transit),
+    [detailState.transit],
   );
   const sourceDetailFacts = useMemo(
     () =>
-      detail.sourceFacts.filter(
+      detailState.sourceFacts.filter(
         (item) =>
           !/common charges|hoa|maintenance|tax|price \/ ft|lease term|net effective/i.test(
             item.label,
           ),
       ),
-    [detail.sourceFacts],
+    [detailState.sourceFacts],
   );
-
-  function closeMenu() {
-    if (menuRef.current) {
-      menuRef.current.open = false;
+  const overviewParagraphs = useMemo(
+    () => buildOverviewParagraphs(detailState),
+    [detailState],
+  );
+  const filteredCollections = useMemo(() => {
+    const query = collectionSearch.trim().toLowerCase();
+    if (!query) {
+      return collections;
     }
+
+    return collections.filter((collection) =>
+      collection.name.toLowerCase().includes(query),
+    );
+  }, [collectionSearch, collections]);
+
+  useEffect(() => {
+    setCollections(loadCollectionsFromStorage());
+  }, []);
+
+  useEffect(() => {
+    if (!isCollectionOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target;
+      if (target instanceof Node && collectionRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsCollectionOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isCollectionOpen]);
+
+  function openEditor() {
+    setEditorState(buildEditorState(detailState));
+    setIsEditorOpen(true);
+    setIsCollectionOpen(false);
+  }
+
+  function closeEditor() {
+    if (isSaving) {
+      return;
+    }
+
+    setEditorState(buildEditorState(detailState));
+    setIsEditorOpen(false);
+  }
+
+  function updateEditorField<Key extends keyof ListingEditorState>(
+    key: Key,
+    value: ListingEditorState[Key],
+  ) {
+    setEditorState((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function updateAmenitySection(
+    sectionTitle: string,
+    updater: (section: EditorAmenitySection) => EditorAmenitySection,
+  ) {
+    setEditorState((current) => ({
+      ...current,
+      amenitySections: current.amenitySections.map((section) =>
+        section.title === sectionTitle ? updater(section) : section,
+      ),
+    }));
+  }
+
+  function toggleAmenityOpen(sectionTitle: string) {
+    updateAmenitySection(sectionTitle, (section) => ({
+      ...section,
+      open: !section.open,
+    }));
+  }
+
+  function toggleAmenityOption(sectionTitle: string, option: string) {
+    updateAmenitySection(sectionTitle, (section) => ({
+      ...section,
+      selected: section.selected.includes(option)
+        ? section.selected.filter((item) => item !== option)
+        : [...section.selected, option],
+    }));
+  }
+
+  function updateAmenityDraft(sectionTitle: string, value: string) {
+    updateAmenitySection(sectionTitle, (section) => ({
+      ...section,
+      draftCustom: value,
+    }));
+  }
+
+  function toggleAddCustom(sectionTitle: string, nextValue?: boolean) {
+    updateAmenitySection(sectionTitle, (section) => ({
+      ...section,
+      isAddingCustom: typeof nextValue === "boolean" ? nextValue : !section.isAddingCustom,
+      draftCustom:
+        typeof nextValue === "boolean" && nextValue === false ? "" : section.draftCustom,
+    }));
+  }
+
+  function addCustomAmenity(sectionTitle: string) {
+    updateAmenitySection(sectionTitle, (section) => {
+      const nextValue = formatAmenityLabel(section.draftCustom);
+      if (!nextValue || section.customItems.includes(nextValue)) {
+        return {
+          ...section,
+          draftCustom: "",
+          isAddingCustom: false,
+        };
+      }
+
+      return {
+        ...section,
+        customItems: [...section.customItems, nextValue],
+        draftCustom: "",
+        isAddingCustom: false,
+      };
+    });
+  }
+
+  function removeCustomAmenity(sectionTitle: string, amenity: string) {
+    updateAmenitySection(sectionTitle, (section) => ({
+      ...section,
+      customItems: section.customItems.filter((item) => item !== amenity),
+    }));
   }
 
   function handleSelectPhoto(assetId: string) {
@@ -291,35 +1042,56 @@ export function ListingStudioDetailClient({
     setActivePhotoId(assetId);
   }
 
-  function toggleSelectedPhoto(assetId: string) {
-    setSelectedAssetIds((current) => {
-      const currentPhotoIds = current.filter((id) => photoAssetIds.has(id));
-      const nonPhotoIds = current.filter((id) => !photoAssetIds.has(id));
+  function toggleEditorSelectedPhoto(assetId: string) {
+    setEditorState((current) => {
+      const alreadySelected = current.selectedAssetIds.includes(assetId);
+      const nextSelectedAssetIds = alreadySelected
+        ? current.selectedAssetIds.filter((id) => id !== assetId)
+        : [...current.selectedAssetIds, assetId];
 
-      if (currentPhotoIds.includes(assetId)) {
-        const nextPhotoIds = currentPhotoIds.filter((id) => id !== assetId);
-        if (!nextPhotoIds.length) {
-          return current;
-        }
-
-        if (coverAssetId === assetId) {
-          setCoverAssetId(nextPhotoIds[0] ?? photoAssets[0]?.id ?? null);
-        }
-
-        return [...nonPhotoIds, ...nextPhotoIds];
+      if (!nextSelectedAssetIds.length) {
+        return current;
       }
 
-      return [...nonPhotoIds, ...currentPhotoIds, assetId];
+      return {
+        ...current,
+        selectedAssetIds: nextSelectedAssetIds,
+        coverAssetId:
+          current.coverAssetId === assetId && alreadySelected
+            ? nextSelectedAssetIds[0] ?? null
+            : current.coverAssetId,
+      };
     });
   }
 
-  function setLeadPhoto(assetId: string) {
-    setCoverAssetId(assetId);
-    setActivePhotoId(assetId);
-    setMediaMode("photo");
-    setSelectedAssetIds((current) =>
-      current.includes(assetId) ? current : [...current, assetId],
-    );
+  function setEditorCoverPhoto(assetId: string) {
+    setEditorState((current) => ({
+      ...current,
+      coverAssetId: assetId,
+      selectedAssetIds: current.selectedAssetIds.includes(assetId)
+        ? current.selectedAssetIds
+        : [...current.selectedAssetIds, assetId],
+    }));
+  }
+
+  function syncDetailState(nextDetail: StudioListingDetailSnapshot) {
+    setDetailState(nextDetail);
+    setActivePhotoId((current) => {
+      if (current && nextDetail.assets.some((asset) => asset.id === current)) {
+        return current;
+      }
+
+      return getInitialPhotoId(nextDetail);
+    });
+    setMediaMode((current) => {
+      if (current === "floorplan" && !nextDetail.floorPlans.length) {
+        return getInitialMediaMode(nextDetail);
+      }
+      if (current === "map" && nextDetail.latitude === null && nextDetail.longitude === null && !nextDetail.addressLine) {
+        return getInitialMediaMode(nextDetail);
+      }
+      return current;
+    });
   }
 
   async function savePack(options?: { closeEditor?: boolean }) {
@@ -327,33 +1099,55 @@ export function ListingStudioDetailClient({
     setStatusMessage("");
 
     try {
-      const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
+      const nextTitle = buildEditedAddressTitle(editorState);
+      const nextSelectedAssetIds =
+        editorState.selectedAssetIds.length > 0
+          ? editorState.selectedAssetIds
+          : photoAssets[0]
+            ? [photoAssets[0].id]
+            : [];
+      const response = await fetch(`/api/listing-studio/listings/${detailState.packId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          headline,
-          summary,
-          bulletPoints: normalizedBulletPoints,
-          selectedAssetIds,
-          coverAssetId,
-          agentNote,
-          contactName,
-          contactTitle,
-          contactPhone,
-          contactEmail,
+          title: nextTitle,
+          headline: nextTitle,
+          summary: editorState.description.trim(),
+          selectedAssetIds: nextSelectedAssetIds,
+          coverAssetId: editorState.coverAssetId ?? nextSelectedAssetIds[0] ?? null,
+          sourceUrl: editorState.listingUrl.trim() || detailState.sourceUrl,
+          listingType: editorState.listingKind === "sale" ? "Sale" : "Rental",
+          statusLabel: editorState.status.trim() || null,
+          price: parseNumberishInput(editorState.price),
+          streetAddress: editorState.streetAddress.trim() || null,
+          unit: editorState.unit.trim() || null,
+          city: editorState.city.trim() || null,
+          state: editorState.state.trim() || null,
+          postalCode: editorState.postalCode.trim() || null,
+          neighborhood: editorState.neighborhood.trim() || null,
+          buildingName: editorState.buildingName.trim() || null,
+          bedrooms: parseNumberishInput(editorState.beds),
+          bathrooms: parseNumberishInput(editorState.baths),
+          sqft: parseWholeNumberInput(editorState.sqft),
+          availabilityLabel: editorState.availability.trim() || null,
+          descriptionText: editorState.description.trim() || null,
+          amenities: buildAmenityPayload(editorState.amenitySections),
+          sourceFacts: buildEditedSourceFacts(editorState, detailState.sourceFacts),
         }),
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error || "Unable to save the listing.");
       }
 
+      const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
+      syncDetailState(nextDetail);
+      setEditorState(buildEditorState(nextDetail));
       setStatusMessage("Listing changes saved.");
+
       if (options?.closeEditor) {
         setIsEditorOpen(false);
       }
@@ -366,44 +1160,54 @@ export function ListingStudioDetailClient({
     }
   }
 
-  async function publishShare() {
+  async function openSharePage() {
     setIsSharing(true);
     setStatusMessage("");
 
     try {
-      const response = await fetch(`/api/listing-studio/listings/${detail.packId}/share`, {
-        method: "POST",
-      });
+      let nextShareUrl = shareUrl;
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(body?.error || "Unable to publish the share link.");
+      if (!nextShareUrl) {
+        const response = await fetch(
+          `/api/listing-studio/listings/${detailState.packId}/share`,
+          {
+            method: "POST",
+          },
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error || "Unable to publish the share link.");
+        }
+
+        const body = (await response.json()) as { shareCode: string };
+        nextShareUrl = buildShareUrl(body.shareCode);
+        setDetailState((current) => ({
+          ...current,
+          pack: {
+            ...current.pack,
+            shareEnabled: true,
+            shareCode: body.shareCode,
+          },
+        }));
       }
 
-      const body = (await response.json()) as { shareCode: string };
-      setShareCode(body.shareCode);
-      setShareEnabled(true);
-      setStatusMessage("Public share link is ready.");
+      if (nextShareUrl) {
+        openExternalWindow(
+          nextShareUrl.startsWith("http")
+            ? nextShareUrl
+            : `${window.location.origin}${nextShareUrl}`,
+        );
+      }
+
+      setStatusMessage("Share page is ready.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to publish the share link.",
+        error instanceof Error ? error.message : "Unable to open the share page.",
       );
     } finally {
       setIsSharing(false);
     }
-  }
-
-  async function copyShareUrl() {
-    if (!shareUrl) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(`${window.location.origin}${shareUrl}`);
-    setStatusMessage("Share URL copied.");
   }
 
   function deleteListing() {
@@ -416,14 +1220,12 @@ export function ListingStudioDetailClient({
 
     void (async () => {
       try {
-        const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
+        const response = await fetch(`/api/listing-studio/listings/${detailState.packId}`, {
           method: "DELETE",
         });
 
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as
-            | { error?: string }
-            | null;
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error || "Unable to delete the listing.");
         }
 
@@ -439,119 +1241,158 @@ export function ListingStudioDetailClient({
     })();
   }
 
+  function saveCollections(nextCollections: CollectionRecord[]) {
+    setCollections(nextCollections);
+    persistCollectionsToStorage(nextCollections);
+  }
+
+  function toggleCollectionMembership(collectionId: string) {
+    const nextCollections = collections.map((collection) => {
+      if (collection.id !== collectionId) {
+        return collection;
+      }
+
+      const hasPack = collection.packIds.includes(detailState.packId);
+      return {
+        ...collection,
+        packIds: hasPack
+          ? collection.packIds.filter((packId) => packId !== detailState.packId)
+          : [...collection.packIds, detailState.packId],
+      };
+    });
+
+    saveCollections(nextCollections);
+    setStatusMessage("Collection updated.");
+  }
+
+  function createCollectionFromSearch() {
+    const nextName = collectionSearch.trim();
+    if (!nextName) {
+      return;
+    }
+
+    const existingCollection = collections.find(
+      (collection) => collection.name.toLowerCase() === nextName.toLowerCase(),
+    );
+
+    if (existingCollection) {
+      toggleCollectionMembership(existingCollection.id);
+      setCollectionSearch("");
+      return;
+    }
+
+    const nextCollections = [
+      {
+        id: `collection_${Date.now().toString(36)}`,
+        name: nextName,
+        packIds: [detailState.packId],
+      },
+      ...collections,
+    ];
+
+    saveCollections(nextCollections);
+    setCollectionSearch("");
+    setStatusMessage(`Added to ${nextName}.`);
+  }
+
   return (
     <>
       <div className="listing-studio-view-page">
         <header className="listing-studio-view-header">
           <div className="listing-studio-view-header-copy">
             <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
-            <h1>{detail.addressLine}</h1>
-            {detail.locationLine ? <p>{detail.locationLine}</p> : null}
+            <h1>{detailState.addressLine}</h1>
+            {detailState.locationLine ? <p>{detailState.locationLine}</p> : null}
           </div>
-
-          <details className="listing-studio-view-menu" ref={menuRef}>
-            <summary className="listing-studio-view-menu-trigger" aria-label="Listing actions">
-              <span />
-              <span />
-              <span />
-            </summary>
-            <div className="listing-studio-view-menu-popover">
-              <span className="listing-studio-view-menu-label">Acre actions</span>
-              <button
-                className="listing-studio-view-menu-item"
-                onClick={() => {
-                  closeMenu();
-                  setIsEditorOpen(true);
-                }}
-                type="button"
-              >
-                Edit packet
-              </button>
-              <button
-                className="listing-studio-view-menu-item"
-                disabled={isSaving}
-                onClick={() => {
-                  closeMenu();
-                  void savePack();
-                }}
-                type="button"
-              >
-                {isSaving ? "Saving..." : "Save listing"}
-              </button>
-              <button
-                className="listing-studio-view-menu-item"
-                disabled={isSharing}
-                onClick={() => {
-                  closeMenu();
-                  void publishShare();
-                }}
-                type="button"
-              >
-                {isSharing ? "Publishing..." : shareEnabled ? "Refresh share link" : "Publish share"}
-              </button>
-              <a
-                className="listing-studio-view-menu-item"
-                href={`/api/listing-studio/listings/${detail.packId}/pdf`}
-                onClick={closeMenu}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Export PDF
-              </a>
-              {shareUrl ? (
-                <>
-                  <a
-                    className="listing-studio-view-menu-item"
-                    href={shareUrl}
-                    onClick={closeMenu}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    Open share page
-                  </a>
-                  <button
-                    className="listing-studio-view-menu-item"
-                    onClick={() => {
-                      closeMenu();
-                      void copyShareUrl();
-                    }}
-                    type="button"
-                  >
-                    Copy share link
-                  </button>
-                </>
-              ) : null}
-              <div className="listing-studio-view-menu-divider" />
-              <a
-                className="listing-studio-view-menu-item"
-                href={detail.sourceUrl}
-                onClick={closeMenu}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Open original listing
-              </a>
-              <button
-                className="listing-studio-view-menu-item is-danger"
-                onClick={() => {
-                  closeMenu();
-                  setIsDeleteDialogOpen(true);
-                }}
-                type="button"
-              >
-                Delete listing
-              </button>
-            </div>
-          </details>
         </header>
 
-        {statusMessage ? (
-          <p className="listing-studio-view-feedback">{statusMessage}</p>
-        ) : null}
+        {statusMessage ? <p className="listing-studio-view-feedback">{statusMessage}</p> : null}
 
         <section className="listing-studio-view-stage-card">
           <div className="listing-studio-view-stage">
             <span className="listing-studio-view-status-pill">{statusPill}</span>
+
+            <div className="listing-studio-view-stage-actions">
+              <div className="listing-studio-view-stage-collections" ref={collectionRef}>
+                <StageActionButton
+                  ariaLabel="Add to collection"
+                  onClick={() => setIsCollectionOpen((current) => !current)}
+                >
+                  <IconPlus />
+                </StageActionButton>
+
+                {isCollectionOpen ? (
+                  <div className="listing-studio-view-collection-popover">
+                    <div className="listing-studio-view-collection-head">
+                      <strong>Add to collection</strong>
+                    </div>
+                    <label className="listing-studio-view-collection-search">
+                      <IconSearch />
+                      <input
+                        onChange={(event) => setCollectionSearch(event.target.value)}
+                        placeholder="Search..."
+                        value={collectionSearch}
+                      />
+                    </label>
+
+                    <div className="listing-studio-view-collection-list">
+                      {filteredCollections.length ? (
+                        filteredCollections.map((collection) => {
+                          const isIncluded = collection.packIds.includes(detailState.packId);
+
+                          return (
+                            <button
+                              className="listing-studio-view-collection-item"
+                              key={collection.id}
+                              onClick={() => toggleCollectionMembership(collection.id)}
+                              type="button"
+                            >
+                              <span className="listing-studio-view-collection-check">
+                                {isIncluded ? <IconCheck /> : null}
+                              </span>
+                              <strong>{collection.name}</strong>
+                              <span className="listing-studio-view-collection-count">
+                                ({collection.packIds.length})
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="listing-studio-view-collection-empty">
+                          No collections yet. Create one below.
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      className="listing-studio-view-collection-create"
+                      onClick={createCollectionFromSearch}
+                      type="button"
+                    >
+                      <IconPlus />
+                      <span>Create New</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <StageActionButton
+                ariaLabel="Open share page"
+                disabled={isSharing}
+                onClick={() => void openSharePage()}
+              >
+                <IconShare />
+              </StageActionButton>
+              <StageActionButton
+                ariaLabel="Open original listing"
+                onClick={() => openExternalWindow(detailState.sourceUrl)}
+              >
+                <IconLink />
+              </StageActionButton>
+              <StageActionButton ariaLabel="Edit listing" onClick={openEditor}>
+                <IconEdit />
+              </StageActionButton>
+            </div>
 
             {mediaMode === "map" && mapEmbedUrl ? (
               <iframe
@@ -559,7 +1400,7 @@ export function ListingStudioDetailClient({
                 className="listing-studio-view-stage-frame"
                 loading="lazy"
                 src={mapEmbedUrl}
-                title={`${detail.addressLine} map`}
+                title={`${detailState.addressLine} map`}
               />
             ) : mediaMode === "floorplan" && floorPlanSrc ? (
               floorPlanIsPdf ? (
@@ -579,7 +1420,7 @@ export function ListingStudioDetailClient({
               )
             ) : activePhoto ? (
               <img
-                alt={activePhoto.label ?? detail.title}
+                alt={activePhoto.label ?? detailState.title}
                 className="listing-studio-view-stage-image"
                 src={`/api/listing-studio/assets/${activePhoto.id}`}
               />
@@ -600,7 +1441,7 @@ export function ListingStudioDetailClient({
                   type="button"
                 >
                   <img
-                    alt={asset.label ?? detail.title}
+                    alt={asset.label ?? detailState.title}
                     src={`/api/listing-studio/assets/${asset.id}`}
                   />
                 </button>
@@ -614,7 +1455,7 @@ export function ListingStudioDetailClient({
                   onClick={() => setMediaMode("floorplan")}
                   type="button"
                 >
-                  Floor plan
+                  Floor Plan
                 </button>
               ) : null}
               {mapEmbedUrl ? (
@@ -632,18 +1473,18 @@ export function ListingStudioDetailClient({
 
         <section className="listing-studio-view-summary-card">
           <div className="listing-studio-view-price-block">
-            <strong>{detail.priceLabel}</strong>
+            <strong>{detailState.priceLabel}</strong>
             <span>{headerEyebrow}</span>
           </div>
 
           <div className="listing-studio-view-address-block">
-            <strong>{detail.addressLine}</strong>
-            {detail.locationLine ? <span>{detail.locationLine}</span> : null}
+            <strong>{detailState.addressLine}</strong>
+            {detailState.locationLine ? <span>{detailState.locationLine}</span> : null}
           </div>
 
-          {detail.facts.length ? (
+          {detailState.facts.length ? (
             <div className="listing-studio-view-facts-grid">
-              {detail.facts.map((fact) => (
+              {detailState.facts.map((fact) => (
                 <div className="listing-studio-view-fact-card" key={fact.label}>
                   <span>{fact.label}</span>
                   <strong>{fact.value}</strong>
@@ -663,18 +1504,18 @@ export function ListingStudioDetailClient({
           ) : null}
         </section>
 
-        {detail.amenities.length ? (
+        {detailState.amenities.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
               <h2>Building amenities</h2>
             </div>
             <div className="listing-studio-view-amenities-sections">
-              {detail.amenities.map((section) => (
+              {detailState.amenities.map((section) => (
                 <div className="listing-studio-view-amenity-group" key={section.title}>
                   <strong>{section.title}</strong>
                   <ul className="listing-studio-view-amenity-list">
                     {section.items.map((item) => (
-                      <li key={`${section.title}-${item}`}>{item}</li>
+                      <li key={`${section.title}-${item}`}>{formatAmenityLabel(item)}</li>
                     ))}
                   </ul>
                 </div>
@@ -683,7 +1524,7 @@ export function ListingStudioDetailClient({
           </section>
         ) : null}
 
-        {detail.transit.length ? (
+        {detailState.transit.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
               <h2>Nearby transit</h2>
@@ -708,7 +1549,7 @@ export function ListingStudioDetailClient({
             ) : null}
 
             <div className="listing-studio-view-transit-list">
-              {detail.transit.map((item) => (
+              {detailState.transit.map((item) => (
                 <div
                   className="listing-studio-view-transit-item"
                   key={`${item.label}-${item.distanceLabel ?? ""}`}
@@ -724,14 +1565,15 @@ export function ListingStudioDetailClient({
           </section>
         ) : null}
 
-        {detail.pack.summary || detail.descriptionText ? (
+        {overviewParagraphs.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
               <h2>Overview</h2>
             </div>
             <div className="listing-studio-view-copy-stack">
-              {detail.pack.summary ? <p>{detail.pack.summary}</p> : null}
-              {detail.descriptionText ? <p>{detail.descriptionText}</p> : null}
+              {overviewParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
             </div>
           </section>
         ) : null}
@@ -752,13 +1594,13 @@ export function ListingStudioDetailClient({
           </section>
         ) : null}
 
-        {detail.propertyHistory.length ? (
+        {detailState.propertyHistory.length ? (
           <ListingStudioDisclosure
             description="Raw price and listing history stay nearby without taking over the primary reading flow."
             title="Property history"
           >
             <div className="listing-studio-detail-section-list">
-              {detail.propertyHistory.map((section) => (
+              {detailState.propertyHistory.map((section) => (
                 <div className="listing-studio-detail-section-block" key={section.title}>
                   <strong>{section.title}</strong>
                   <div className="listing-studio-detail-section-items">
@@ -772,13 +1614,13 @@ export function ListingStudioDetailClient({
           </ListingStudioDisclosure>
         ) : null}
 
-        {detail.capturedSections.length ? (
+        {detailState.capturedSections.length ? (
           <ListingStudioDisclosure
             description="Additional scraped sections stay collapsed until you need the raw source payload."
             title="Additional details"
           >
             <div className="listing-studio-detail-section-list">
-              {detail.capturedSections.map((section) => (
+              {detailState.capturedSections.map((section) => (
                 <div className="listing-studio-detail-section-block" key={section.title}>
                   <strong>{section.title}</strong>
                   <div className="listing-studio-detail-section-items">
@@ -794,192 +1636,434 @@ export function ListingStudioDetailClient({
       </div>
 
       {isEditorOpen ? (
-        <div
-          className="office-modal-overlay"
-          onClick={() => {
-            if (!isSaving) {
-              setIsEditorOpen(false);
-            }
-          }}
-        >
+        <div className="listing-studio-editor-shell">
           <section
-            aria-label="Edit listing packet"
+            aria-label="Edit listing"
             aria-modal="true"
-            className="office-modal listing-studio-view-edit-modal"
-            onClick={(event) => event.stopPropagation()}
+            className="listing-studio-editor-surface"
             role="dialog"
           >
-            <header className="office-modal-header office-modal-header-configurable">
-              <div className="office-modal-title-block">
-                <span className="listing-studio-view-edit-kicker">Edit packet</span>
-                <h3>{detail.addressLine}</h3>
-                <p>
-                  Packet edits stay internal to Acre. The detail page itself now stays aligned
-                  to the imported listing view.
-                </p>
-              </div>
-              <div className="office-modal-header-actions">
-                <Button
-                  onClick={() => setIsEditorOpen(false)}
-                  type="button"
-                  variant="secondary"
-                >
-                  Close
-                </Button>
-                <Button
-                  disabled={isSaving}
-                  onClick={() => void savePack({ closeEditor: true })}
-                  type="button"
-                >
-                  {isSaving ? "Saving..." : "Save changes"}
-                </Button>
+            <header className="listing-studio-editor-header">
+              <button className="listing-studio-editor-back" onClick={closeEditor} type="button">
+                <IconArrowLeft />
+              </button>
+              <div className="listing-studio-editor-header-copy">
+                <strong>Edit Listing</strong>
+                <span>{buildEditedAddressTitle(editorState)}</span>
               </div>
             </header>
 
-            <div className="office-modal-body">
-              <div className="listing-studio-view-edit-body">
-                <section className="listing-studio-view-edit-section">
-                  <div className="listing-studio-view-edit-section-head">
-                    <strong>Editorial copy</strong>
-                    <span>These fields still control the internal packet, share page, and exports.</span>
-                  </div>
-                  <div className="listing-studio-form-grid">
-                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                      <span>Headline</span>
-                      <TextInput
-                        value={headline}
-                        onChange={(event) => setHeadline(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                      <span>Summary</span>
-                      <TextareaInput
-                        rows={4}
-                        value={summary}
-                        onChange={(event) => setSummary(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                      <span>Bullet points</span>
-                      <TextareaInput
-                        rows={5}
-                        value={bulletText}
-                        onChange={(event) => setBulletText(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                      <span>Agent note</span>
-                      <TextareaInput
-                        rows={4}
-                        value={agentNote}
-                        onChange={(event) => setAgentNote(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                </section>
+            {statusMessage ? (
+              <p className="listing-studio-editor-status">{statusMessage}</p>
+            ) : null}
 
-                <section className="listing-studio-view-edit-section">
-                  <div className="listing-studio-view-edit-section-head">
-                    <strong>Contact block</strong>
-                    <span>The share page and packet exports still use this Acre contact panel.</span>
-                  </div>
-                  <div className="listing-studio-form-grid">
-                    <label className="listing-studio-filter-field">
-                      <span>Contact name</span>
-                      <TextInput
-                        value={contactName}
-                        onChange={(event) => setContactName(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field">
-                      <span>Contact title</span>
-                      <TextInput
-                        value={contactTitle}
-                        onChange={(event) => setContactTitle(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field">
-                      <span>Contact phone</span>
-                      <TextInput
-                        value={contactPhone}
-                        onChange={(event) => setContactPhone(event.target.value)}
-                      />
-                    </label>
-                    <label className="listing-studio-filter-field">
-                      <span>Contact email</span>
-                      <TextInput
-                        value={contactEmail}
-                        onChange={(event) => setContactEmail(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                </section>
+            <div className="listing-studio-editor-scroll">
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>Listing Type</strong>
+                </div>
+                <div className="listing-studio-editor-type-toggle">
+                  <button
+                    className={`listing-studio-editor-type-button${editorState.listingKind === "rental" ? " is-active" : ""}`}
+                    onClick={() => updateEditorField("listingKind", "rental")}
+                    type="button"
+                  >
+                    Rental
+                  </button>
+                  <button
+                    className={`listing-studio-editor-type-button${editorState.listingKind === "sale" ? " is-active" : ""}`}
+                    onClick={() => updateEditorField("listingKind", "sale")}
+                    type="button"
+                  >
+                    Sale
+                  </button>
+                </div>
+              </section>
 
-                <section className="listing-studio-view-edit-section">
-                  <div className="listing-studio-view-edit-section-head">
-                    <strong>Share / PDF media selection</strong>
-                    <span>
-                      The detail page always shows all imported photos. These choices only affect
-                      what Acre uses for share and PDF outputs.
-                    </span>
-                  </div>
-                  <div className="listing-studio-view-edit-media-grid">
-                    {photoAssets.map((asset) => {
-                      const isSelected = selectedAssetIds.includes(asset.id);
-                      const isLead = coverAssetId === asset.id;
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>Photos &amp; Videos</strong>
+                  <span>{photoAssets.length} photos</span>
+                </div>
 
-                      return (
-                        <div className="listing-studio-view-edit-media-card" key={asset.id}>
+                <div className="listing-studio-editor-photo-grid">
+                  {photoAssets.map((asset) => {
+                    const isSelected = editorState.selectedAssetIds.includes(asset.id);
+                    const isCover = editorState.coverAssetId === asset.id;
+
+                    return (
+                      <div
+                        className={`listing-studio-editor-photo-card${isSelected ? " is-selected" : " is-muted"}${isCover ? " is-cover" : ""}`}
+                        key={asset.id}
+                      >
+                        <div className="listing-studio-editor-photo-frame">
                           <img
-                            alt={asset.label ?? detail.title}
+                            alt={asset.label ?? detailState.title}
                             src={`/api/listing-studio/assets/${asset.id}`}
                           />
-                          <div className="listing-studio-view-edit-media-body">
-                            <div className="listing-studio-view-edit-media-copy">
-                              <strong>{asset.label ?? "Imported photo"}</strong>
-                              <span>{isLead ? "Lead asset" : "Gallery asset"}</span>
-                            </div>
-                            <div className="listing-studio-editor-actions">
-                              <Button
-                                onClick={() => toggleSelectedPhoto(asset.id)}
-                                size="sm"
-                                variant={isSelected ? "primary" : "secondary"}
+                          {isCover ? (
+                            <span className="listing-studio-editor-photo-badge">Cover</span>
+                          ) : null}
+                        </div>
+                        <div className="listing-studio-editor-photo-actions">
+                          <Button
+                            onClick={() => toggleEditorSelectedPhoto(asset.id)}
+                            size="sm"
+                            type="button"
+                            variant={isSelected ? "primary" : "secondary"}
+                          >
+                            {isSelected ? "Included" : "Include"}
+                          </Button>
+                          <Button
+                            onClick={() => setEditorCoverPhoto(asset.id)}
+                            size="sm"
+                            type="button"
+                            variant={isCover ? "primary" : "ghost"}
+                          >
+                            {isCover ? "Cover" : "Set Cover"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="listing-studio-editor-dropzone">
+                  <span>Click or drag to add images &amp; videos</span>
+                  <small>Upload wiring comes next. This round keeps imported media editable and cover-aware.</small>
+                </div>
+              </section>
+
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>Address</strong>
+                </div>
+                <div className="listing-studio-editor-grid">
+                  <label className="listing-studio-editor-field is-span-3">
+                    <span>Street Address</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("streetAddress", event.target.value)}
+                      value={editorState.streetAddress}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>City</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("city", event.target.value)}
+                      value={editorState.city}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>State</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("state", event.target.value)}
+                      value={editorState.state}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>ZIP</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("postalCode", event.target.value)}
+                      value={editorState.postalCode}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>Details</strong>
+                </div>
+                <div className="listing-studio-editor-grid">
+                  <label className="listing-studio-editor-field">
+                    <span>Price</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("price", event.target.value)}
+                      value={editorState.price}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Beds</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("beds", event.target.value)}
+                      value={editorState.beds}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Baths</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("baths", event.target.value)}
+                      value={editorState.baths}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Sqft</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("sqft", event.target.value)}
+                      value={editorState.sqft}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Property Type</span>
+                    <SelectInput
+                      className="listing-studio-editor-select"
+                      onChange={(event) => updateEditorField("propertyType", event.target.value)}
+                      value={editorState.propertyType}
+                    >
+                      <option value="">Select type</option>
+                      {PROPERTY_TYPE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Status</span>
+                    <SelectInput
+                      className="listing-studio-editor-select"
+                      onChange={(event) => updateEditorField("status", event.target.value)}
+                      value={editorState.status}
+                    >
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </label>
+                </div>
+              </section>
+
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>
+                    {editorState.listingKind === "sale" ? "Sale Details" : "Rental Details"}
+                  </strong>
+                </div>
+                <div className="listing-studio-editor-grid">
+                  <label className="listing-studio-editor-field">
+                    <span>Year Built</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("yearBuilt", event.target.value)}
+                      value={editorState.yearBuilt}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>List Date</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("listDate", event.target.value)}
+                      type="date"
+                      value={editorState.listDate}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Common Charges (HOA, /mo)</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) =>
+                        updateEditorField("commonCharges", event.target.value)
+                      }
+                      value={editorState.commonCharges}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Taxes (/mo)</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("taxes", event.target.value)}
+                      value={editorState.taxes}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="listing-studio-editor-section">
+                <div className="listing-studio-editor-section-head">
+                  <strong>Additional</strong>
+                </div>
+
+                <label className="listing-studio-editor-field is-span-3">
+                  <span>Description</span>
+                  <TextareaInput
+                    className="listing-studio-editor-textarea"
+                    onChange={(event) => updateEditorField("description", event.target.value)}
+                    rows={4}
+                    value={editorState.description}
+                  />
+                </label>
+
+                <div className="listing-studio-editor-amenity-stack">
+                  {editorState.amenitySections.map((section) => (
+                    <div className="listing-studio-editor-amenity-section" key={section.title}>
+                      <button
+                        className="listing-studio-editor-amenity-toggle"
+                        onClick={() => toggleAmenityOpen(section.title)}
+                        type="button"
+                      >
+                        <span>{section.title}</span>
+                        <em>{section.selected.length + section.customItems.length}</em>
+                        <IconChevronDown isOpen={section.open} />
+                      </button>
+
+                      {section.open ? (
+                        <div className="listing-studio-editor-amenity-body">
+                          <div className="listing-studio-editor-amenity-grid">
+                            {section.options.map((option) => (
+                              <CheckboxField
+                                className="listing-studio-editor-checkbox"
+                                key={`${section.title}-${option}`}
+                                label={option}
                               >
-                                {isSelected ? "Included" : "Include"}
-                              </Button>
-                              <Button
-                                onClick={() => setLeadPhoto(asset.id)}
-                                size="sm"
-                                variant={isLead ? "primary" : "ghost"}
+                                <input
+                                  checked={section.selected.includes(option)}
+                                  onChange={() => toggleAmenityOption(section.title, option)}
+                                  type="checkbox"
+                                />
+                              </CheckboxField>
+                            ))}
+                          </div>
+
+                          <div className="listing-studio-editor-custom-block">
+                            {section.customItems.length ? (
+                              <div className="listing-studio-editor-custom-chip-stack">
+                                <span className="listing-studio-editor-custom-label">
+                                  Custom amenities:
+                                </span>
+                                <div className="listing-studio-editor-chip-row">
+                                  {section.customItems.map((item) => (
+                                    <span className="listing-studio-editor-chip" key={item}>
+                                      {item}
+                                      <button
+                                        aria-label={`Remove ${item}`}
+                                        onClick={() => removeCustomAmenity(section.title, item)}
+                                        type="button"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {section.isAddingCustom ? (
+                              <div className="listing-studio-editor-custom-input-row">
+                                <TextInput
+                                  className="listing-studio-editor-input"
+                                  onChange={(event) =>
+                                    updateAmenityDraft(section.title, event.target.value)
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      addCustomAmenity(section.title);
+                                    }
+                                    if (event.key === "Escape") {
+                                      event.preventDefault();
+                                      toggleAddCustom(section.title, false);
+                                    }
+                                  }}
+                                  placeholder="Add custom amenity"
+                                  value={section.draftCustom}
+                                />
+                                <Button
+                                  onClick={() => addCustomAmenity(section.title)}
+                                  type="button"
+                                  variant="secondary"
+                                >
+                                  Add
+                                </Button>
+                                <Button
+                                  onClick={() => toggleAddCustom(section.title, false)}
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                className="listing-studio-editor-add-custom"
+                                onClick={() => toggleAddCustom(section.title, true)}
+                                type="button"
                               >
-                                {isLead ? "Lead photo" : "Set lead"}
-                              </Button>
-                            </div>
+                                <IconPlus />
+                                <span>Add custom</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="listing-studio-editor-grid">
+                  <label className="listing-studio-editor-field">
+                    <span>Unit Number</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("unit", event.target.value)}
+                      value={editorState.unit}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field">
+                    <span>Neighborhood</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("neighborhood", event.target.value)}
+                      value={editorState.neighborhood}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field is-span-2">
+                    <span>Building Name</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("buildingName", event.target.value)}
+                      value={editorState.buildingName}
+                    />
+                  </label>
+                  <label className="listing-studio-editor-field is-span-3">
+                    <span>Listing URL</span>
+                    <TextInput
+                      className="listing-studio-editor-input"
+                      onChange={(event) => updateEditorField("listingUrl", event.target.value)}
+                      value={editorState.listingUrl}
+                    />
+                  </label>
+                </div>
+              </section>
             </div>
 
-            <footer className="office-modal-footer">
-              <span>Publishing is still a separate explicit step after saving.</span>
-              <div className="office-modal-actions">
-                <Button
-                  onClick={() => setIsEditorOpen(false)}
-                  type="button"
-                  variant="secondary"
-                >
-                  Close
+            <footer className="listing-studio-editor-footer">
+              <button
+                className="listing-studio-editor-delete"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                type="button"
+              >
+                Delete listing
+              </button>
+              <div className="listing-studio-editor-footer-actions">
+                <Button onClick={closeEditor} type="button" variant="secondary">
+                  Cancel
                 </Button>
                 <Button
                   disabled={isSaving}
                   onClick={() => void savePack({ closeEditor: true })}
                   type="button"
                 >
-                  {isSaving ? "Saving..." : "Save changes"}
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </footer>
