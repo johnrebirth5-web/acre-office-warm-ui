@@ -21,6 +21,12 @@ type TransitSummary = {
   withinFiveHundredMeters: number | null;
 };
 
+type TransitItem = {
+  detail?: string | null;
+  distanceLabel?: string | null;
+  label: string;
+};
+
 type PrimaryFactCard = {
   accent?: "success";
   label: string;
@@ -36,6 +42,11 @@ type CollectionRecord = {
 type AmenityCatalogSection = {
   title: string;
   options: string[];
+};
+
+type DisplayAmenitySection = {
+  items: string[];
+  title: string;
 };
 
 type EditorAmenitySection = {
@@ -324,11 +335,61 @@ function IconArrowLeft() {
   );
 }
 
+function IconArrowRight() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m9 6 6 6-6 6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function IconSearch() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
       <path d="m16 16 4 4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconLocation() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 20s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <circle cx="12" cy="10" fill="currentColor" r="1.8" />
+    </svg>
+  );
+}
+
+function IconCopy() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <rect
+        height="12"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        width="10"
+        x="9"
+        y="7"
+      />
+      <path
+        d="M15 7V5.5A2.5 2.5 0 0 0 12.5 3h-6A2.5 2.5 0 0 0 4 5.5v9A2.5 2.5 0 0 0 6.5 17H9"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -654,7 +715,7 @@ function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
 }
 
 function parseTransitSummary(
-  transit: Array<{ label: string; detail?: string | null; distanceLabel?: string | null }>,
+  transit: TransitItem[],
 ): TransitSummary {
   let nearestWalkMinutes: number | null = null;
   let withinFiveHundredMeters = 0;
@@ -690,6 +751,38 @@ function parseTransitSummary(
   };
 }
 
+function parseFallbackTransitItem(value: string): TransitItem | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const compact = trimmed.replace(/\s+/g, " ").trim();
+  const parts = compact.split("·").map((part) => part.trim()).filter(Boolean);
+  const labelCandidate =
+    parts[0]?.replace(/\s+[0-9.]+\s*(?:km|mi|m)\b.*$/i, "").trim() ?? compact;
+  const label = labelCandidate || compact;
+  const minutesMatch = compact.match(/(\d+)\s*min(?:ute)?(?:s)?(?:\s*walk)?/i);
+  const distanceMatch = compact.match(/([0-9.]+\s*(?:km|mi|m))/i);
+  const detailParts: string[] = [];
+
+  if (distanceMatch?.[1]) {
+    detailParts.push(distanceMatch[1]);
+  }
+
+  if (minutesMatch?.[1]) {
+    detailParts.push(`${minutesMatch[1]} min walk`);
+  }
+
+  return {
+    label,
+    detail: detailParts.length ? detailParts.join(" • ") : parts.slice(1).join(" • ") || null,
+    distanceLabel: minutesMatch?.[1]
+      ? `${minutesMatch[1]} min`
+      : distanceMatch?.[1] ?? null,
+  };
+}
+
 function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
   const candidates = [
     detail.availabilityLabel,
@@ -711,6 +804,24 @@ function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
     return null;
   }
 
+  const yearFirstDateMatch = normalized.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (yearFirstDateMatch) {
+    const [, year, month, day] = yearFirstDateMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!Number.isNaN(parsed.getTime())) {
+      return `Available ${parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    }
+  }
+
+  const monthFirstDateMatch = normalized.match(/(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/);
+  if (monthFirstDateMatch) {
+    const [, month, day] = monthFirstDateMatch;
+    const parsed = new Date(2026, Number(month) - 1, Number(day));
+    if (!Number.isNaN(parsed.getTime())) {
+      return `Available ${parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    }
+  }
+
   if (/^(available|available now)$/i.test(normalized)) {
     return "Available";
   }
@@ -723,34 +834,52 @@ function resolveSqftValue(detail: StudioListingDetailSnapshot) {
     return new Intl.NumberFormat("en-US").format(detail.sqft);
   }
 
-  return (
+  const rawSqftValue =
     findSourceFactValue(detail.sourceFacts, /sqft|square feet|square foot/i) ??
-    findSourceFactValue(detail.facts, /sqft|square feet|square foot/i)
-  );
+    findSourceFactValue(detail.facts, /sqft|square feet|square foot/i) ??
+    detail.capturedSections
+      .flatMap((section) => section.items)
+      .find((item) => /sq\.?\s*ft|sqft|square feet|square foot/i.test(item)) ??
+    null;
+
+  if (!rawSqftValue) {
+    return null;
+  }
+
+  const sqftMatch = rawSqftValue.match(/([\d,]+(?:\.\d+)?)\s*(?:sq\.?\s*ft|sqft|square feet|square foot)?/i);
+  if (!sqftMatch?.[1]) {
+    return rawSqftValue;
+  }
+
+  const normalized = Number(sqftMatch[1].replace(/,/g, ""));
+  return Number.isFinite(normalized)
+    ? new Intl.NumberFormat("en-US").format(normalized)
+    : rawSqftValue;
 }
 
 function buildPrimaryFactCards(detail: StudioListingDetailSnapshot): PrimaryFactCard[] {
-  const cards: PrimaryFactCard[] = [];
-
-  if (detail.bedrooms !== null) {
-    cards.push({ label: "Bedrooms", value: String(detail.bedrooms) });
-  }
-
-  if (detail.bathrooms !== null) {
-    cards.push({ label: "Bathrooms", value: String(detail.bathrooms) });
-  }
-
   const sqftValue = resolveSqftValue(detail);
-  if (sqftValue) {
-    cards.push({ label: "Sqft", value: sqftValue });
-  }
-
   const availabilityValue = resolveAvailabilityValue(detail);
-  if (availabilityValue) {
-    cards.push({ accent: "success", label: "Availability", value: availabilityValue });
-  }
 
-  return cards;
+  return [
+    {
+      label: "Bedrooms",
+      value: detail.bedrooms !== null ? String(detail.bedrooms) : "—",
+    },
+    {
+      label: "Bathrooms",
+      value: detail.bathrooms !== null ? String(detail.bathrooms) : "—",
+    },
+    {
+      label: "Sqft",
+      value: sqftValue || "—",
+    },
+    {
+      accent: availabilityValue ? "success" : undefined,
+      label: "Availability",
+      value: availabilityValue || "—",
+    },
+  ];
 }
 
 function renderPrimaryFactIcon(label: string) {
@@ -978,6 +1107,108 @@ function buildAmenityEditorSections(
   return sections;
 }
 
+function buildDisplayAmenitySections(
+  amenities: StudioListingDetailSnapshot["amenities"],
+): DisplayAmenitySection[] {
+  const baseSections = AMENITY_CATALOG.map((section) => ({
+    items: [] as string[],
+    title: section.title,
+  }));
+  const sectionMap = new Map(baseSections.map((section) => [section.title, section]));
+  const sectionByKey = new Map(
+    baseSections.map((section) => [normalizeAmenityKey(section.title), section.title]),
+  );
+  const optionSectionMap = new Map<string, string>();
+  const optionValueMap = new Map<string, string>();
+
+  for (const section of AMENITY_CATALOG) {
+    for (const option of section.options) {
+      const key = normalizeAmenityKey(option);
+      optionSectionMap.set(key, section.title);
+      optionValueMap.set(key, option);
+    }
+  }
+
+  const extraSections = new Map<string, DisplayAmenitySection>();
+
+  for (const amenitySection of amenities) {
+    const normalizedSectionKey = normalizeAmenityKey(amenitySection.title);
+    const preferredSectionTitle =
+      sectionByKey.get(normalizedSectionKey) ?? formatAmenityLabel(amenitySection.title);
+
+    for (const item of amenitySection.items) {
+      const formatted = formatAmenityLabel(item);
+      if (!formatted) {
+        continue;
+      }
+
+      const optionKey = normalizeAmenityKey(formatted);
+      const matchedSectionTitle = optionSectionMap.get(optionKey);
+      const normalizedValue = optionValueMap.get(optionKey) ?? formatted;
+
+      if (matchedSectionTitle) {
+        const matchedSection = sectionMap.get(matchedSectionTitle);
+        if (matchedSection && !matchedSection.items.includes(normalizedValue)) {
+          matchedSection.items.push(normalizedValue);
+        }
+        continue;
+      }
+
+      const knownSection = sectionMap.get(preferredSectionTitle);
+      if (knownSection) {
+        if (!knownSection.items.includes(normalizedValue)) {
+          knownSection.items.push(normalizedValue);
+        }
+        continue;
+      }
+
+      const nextExtraSection =
+        extraSections.get(preferredSectionTitle) ??
+        {
+          items: [],
+          title: preferredSectionTitle,
+        };
+
+      if (!nextExtraSection.items.includes(normalizedValue)) {
+        nextExtraSection.items.push(normalizedValue);
+      }
+      extraSections.set(preferredSectionTitle, nextExtraSection);
+    }
+  }
+
+  return [
+    ...baseSections.filter((section) => section.items.length),
+    ...Array.from(extraSections.values()).filter((section) => section.items.length),
+  ];
+}
+
+function buildDisplayTransit(detail: StudioListingDetailSnapshot): TransitItem[] {
+  if (detail.transit.length) {
+    return detail.transit;
+  }
+
+  const fallbackItems = [
+    ...detail.capturedSections
+      .filter((section) => /transit|transportation|subway|station/i.test(section.title))
+      .flatMap((section) => section.items),
+    ...detail.sourceFacts
+      .filter((fact) => /transit|transportation|subway|station/i.test(fact.label))
+      .map((fact) => `${fact.label}: ${fact.value}`),
+  ]
+    .map((item) => parseFallbackTransitItem(item))
+    .filter((item): item is TransitItem => Boolean(item));
+
+  const seen = new Set<string>();
+  return fallbackItems.filter((item) => {
+    const key = `${item.label.toLowerCase()}::${item.distanceLabel ?? ""}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildAmenityPayload(sections: EditorAmenitySection[]) {
   return sections
     .map((section) => ({
@@ -1135,6 +1366,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const [collectionSearch, setCollectionSearch] = useState("");
   const [isCollectionOpen, setIsCollectionOpen] = useState(false);
   const [isDropzoneActive, setIsDropzoneActive] = useState(false);
+  const [isAddressCopied, setIsAddressCopied] = useState(false);
 
   const shareUrl = buildShareUrl(detailState.pack.shareCode);
   const photoAssets = useMemo(
@@ -1159,13 +1391,18 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const statusPill = getListingStateLabel(detailState);
   const headerEyebrow = getHeaderEyebrow(detailState);
   const primaryFactCards = useMemo(() => buildPrimaryFactCards(detailState), [detailState]);
+  const displayAmenitySections = useMemo(
+    () => buildDisplayAmenitySections(detailState.amenities),
+    [detailState.amenities],
+  );
+  const displayTransit = useMemo(() => buildDisplayTransit(detailState), [detailState]);
   const financialHighlights = useMemo(
     () => collectFinancialHighlights(detailState),
     [detailState],
   );
   const transitSummary = useMemo(
-    () => parseTransitSummary(detailState.transit),
-    [detailState.transit],
+    () => parseTransitSummary(displayTransit),
+    [displayTransit],
   );
   const sourceDetailFacts = useMemo(
     () =>
@@ -1222,6 +1459,24 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isCollectionOpen]);
+
+  useEffect(() => {
+    if (!statusMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setStatusMessage(""), 2800);
+    return () => window.clearTimeout(timeoutId);
+  }, [statusMessage]);
+
+  useEffect(() => {
+    if (!isAddressCopied) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setIsAddressCopied(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isAddressCopied]);
 
   function openEditor() {
     setEditorState(buildEditorState(detailState));
@@ -1339,6 +1594,41 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   function handleSelectPhoto(assetId: string) {
     setMediaMode("photo");
     setActivePhotoId(assetId);
+  }
+
+  function handleCyclePhoto(direction: -1 | 1) {
+    if (!photoAssets.length) {
+      return;
+    }
+
+    const currentIndex = activePhoto
+      ? photoAssets.findIndex((asset) => asset.id === activePhoto.id)
+      : 0;
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = (safeIndex + direction + photoAssets.length) % photoAssets.length;
+    const nextAsset = photoAssets[nextIndex];
+    if (nextAsset) {
+      handleSelectPhoto(nextAsset.id);
+    }
+  }
+
+  async function copyAddressLine() {
+    const nextCopyValue = [detailState.addressLine, detailState.locationLine]
+      .filter(Boolean)
+      .join(", ")
+      .trim();
+
+    if (!nextCopyValue) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(nextCopyValue);
+      setIsAddressCopied(true);
+      setStatusMessage("Address copied.");
+    } catch {
+      setStatusMessage("Unable to copy the address.");
+    }
   }
 
   function setEditorCoverPhoto(assetId: string) {
@@ -1775,11 +2065,34 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                 />
               )
             ) : activePhoto ? (
-              <img
-                alt={activePhoto.label ?? detailState.title}
-                className="listing-studio-view-stage-image"
-                src={`/api/listing-studio/assets/${activePhoto.id}`}
-              />
+              <>
+                {photoAssets.length > 1 ? (
+                  <>
+                    <button
+                      aria-label="Previous photo"
+                      className="listing-studio-view-stage-nav listing-studio-view-stage-nav--prev"
+                      onClick={() => handleCyclePhoto(-1)}
+                      type="button"
+                    >
+                      <IconArrowLeft />
+                    </button>
+                    <button
+                      aria-label="Next photo"
+                      className="listing-studio-view-stage-nav listing-studio-view-stage-nav--next"
+                      onClick={() => handleCyclePhoto(1)}
+                      type="button"
+                    >
+                      <IconArrowRight />
+                    </button>
+                  </>
+                ) : null}
+
+                <img
+                  alt={activePhoto.label ?? detailState.title}
+                  className="listing-studio-view-stage-image"
+                  src={`/api/listing-studio/assets/${activePhoto.id}`}
+                />
+              </>
             ) : (
               <div className="listing-studio-view-stage-empty">
                 No media was captured for this listing yet.
@@ -1841,7 +2154,22 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
 
           <div className="listing-studio-view-address-block">
             <strong>{detailState.addressLine}</strong>
-            {detailState.locationLine ? <span>{detailState.locationLine}</span> : null}
+            {detailState.locationLine ? (
+              <div className="listing-studio-view-address-meta">
+                <span>
+                  <IconLocation />
+                  <span>{detailState.locationLine}</span>
+                </span>
+                <button
+                  aria-label={isAddressCopied ? "Address copied" : "Copy address"}
+                  className={`listing-studio-view-address-copy${isAddressCopied ? " is-copied" : ""}`}
+                  onClick={() => void copyAddressLine()}
+                  type="button"
+                >
+                  <IconCopy />
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {primaryFactCards.length ? (
@@ -1872,13 +2200,13 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
           ) : null}
         </section>
 
-        {detailState.amenities.length ? (
+        {displayAmenitySections.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
               <h2>Building amenities</h2>
             </div>
             <div className="listing-studio-view-amenities-sections">
-              {detailState.amenities.map((section) => (
+              {displayAmenitySections.map((section) => (
                 <div className="listing-studio-view-amenity-group" key={section.title}>
                   <strong>{section.title}</strong>
                   <ul className="listing-studio-view-amenity-list">
@@ -1892,7 +2220,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
           </section>
         ) : null}
 
-        {detailState.transit.length ? (
+        {displayTransit.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
               <div className="listing-studio-view-section-title">
@@ -1920,7 +2248,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             ) : null}
 
             <div className="listing-studio-view-transit-list">
-              {detailState.transit.map((item) => (
+              {displayTransit.map((item) => (
                 <div
                   className="listing-studio-view-transit-item"
                   key={`${item.label}-${item.distanceLabel ?? ""}`}
