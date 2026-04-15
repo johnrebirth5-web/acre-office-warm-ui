@@ -9,10 +9,13 @@ const EXTENSION_SOURCE = "acre-listing-studio-extension";
 const REQUEST_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_REQUEST";
 const RESPONSE_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_RESPONSE";
 const READY_TYPE = "ACRE_LISTING_STUDIO_BRIDGE_READY";
-const BRIDGE_READY_TIMEOUT_MS = 1200;
 const INSTALL_ROUTE = "/listing-studio/extension/install";
 const STORE_INSTALL_URL = LISTING_STUDIO_EXTENSION_STORE_URL;
 const POST_INSTALL_STORAGE_KEY = "acre-listing-studio-post-install-connect";
+const EXTENSION_NOT_REACHABLE_MESSAGE =
+  "Acre couldn't reach the Chrome extension on this tab. If it's already installed, reload the extension and refresh this page.";
+const EXTENSION_RELOAD_MESSAGE =
+  "The Acre extension stopped responding. Reload the extension and refresh this page.";
 
 type ExtensionConnectActionProps = {
   serverHasActiveToken: boolean;
@@ -52,7 +55,6 @@ export function ListingStudioExtensionConnectAction(
   const currentRequestIdRef = useRef<string | null>(null);
   const currentRequestActionRef = useRef<ExtensionMessageAction | null>(null);
   const responseTimeoutRef = useRef<number | null>(null);
-  const bridgeReadyTimeoutRef = useRef<number | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const hasPendingPostInstallConnectRef = useRef(false);
   const hasTriggeredAutoConnectRef = useRef(false);
@@ -87,13 +89,6 @@ export function ListingStudioExtensionConnectAction(
     }
   }
 
-  function clearBridgeTimeout() {
-    if (bridgeReadyTimeoutRef.current !== null) {
-      window.clearTimeout(bridgeReadyTimeoutRef.current);
-      bridgeReadyTimeoutRef.current = null;
-    }
-  }
-
   function stopPolling() {
     if (pollIntervalRef.current !== null) {
       window.clearInterval(pollIntervalRef.current);
@@ -121,12 +116,15 @@ export function ListingStudioExtensionConnectAction(
     responseTimeoutRef.current = window.setTimeout(() => {
       if (currentRequestIdRef.current === requestId) {
         setIsConnecting(false);
-        setBridgeReady(false);
-        bridgeReadyRef.current = false;
+        if (bridgeReadyRef.current) {
+          stopPolling();
+          setBrowserConnectionState("disconnected");
+          setStatusMessage(EXTENSION_RELOAD_MESSAGE);
+          return;
+        }
+
         setBrowserConnectionState("not_installed");
-        setStatusMessage(
-          "Chrome extension not detected on this browser. Install or reload it, then refresh this page.",
-        );
+        setStatusMessage(EXTENSION_NOT_REACHABLE_MESSAGE);
       }
     }, 1500);
   }
@@ -149,15 +147,6 @@ export function ListingStudioExtensionConnectAction(
       }
     } catch {}
 
-    bridgeReadyTimeoutRef.current = window.setTimeout(() => {
-      if (bridgeReadyRef.current) {
-        return;
-      }
-
-      setBridgeReady(false);
-      setBrowserConnectionState("not_installed");
-    }, BRIDGE_READY_TIMEOUT_MS);
-
     function handleMessage(event: MessageEvent) {
       if (event.source !== window) {
         return;
@@ -169,7 +158,6 @@ export function ListingStudioExtensionConnectAction(
       }
 
       if (data.type === READY_TYPE) {
-        clearBridgeTimeout();
         bridgeReadyRef.current = true;
         setBridgeReady(true);
         if (hasFreshApprovalReturnRef.current && !hasConsumedApprovalReturnRef.current) {
@@ -191,6 +179,11 @@ export function ListingStudioExtensionConnectAction(
       }
 
       clearResponseTimeout();
+
+      if (!bridgeReadyRef.current) {
+        bridgeReadyRef.current = true;
+        setBridgeReady(true);
+      }
 
       if (!data.ok) {
         setIsConnecting(false);
@@ -258,13 +251,13 @@ export function ListingStudioExtensionConnectAction(
 
     window.addEventListener("focus", handleVisibilityOrFocus);
     document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    sendExtensionRequest("GET_CONFIG");
 
     return () => {
       window.removeEventListener("message", handleMessage);
       window.removeEventListener("focus", handleVisibilityOrFocus);
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       clearResponseTimeout();
-      clearBridgeTimeout();
       stopPolling();
     };
   }, []);
@@ -302,9 +295,7 @@ export function ListingStudioExtensionConnectAction(
 
     if (!bridgeReady) {
       setBrowserConnectionState("not_installed");
-      setStatusMessage(
-        "Chrome extension not detected on this browser. Install or reload it, then refresh this page.",
-      );
+      setStatusMessage(EXTENSION_NOT_REACHABLE_MESSAGE);
       return;
     }
 
@@ -347,18 +338,18 @@ export function ListingStudioExtensionConnectAction(
     badgeLabel = "Ready to connect";
     panelMessage = "Connect this browser to save listings directly from supported pages.";
   } else if (browserConnectionState === "not_installed") {
-    heading = "Extension not detected on this page";
+    heading = "Extension not available on this tab";
     description = STORE_INSTALL_URL
       ? props.serverHasActiveToken && props.serverActiveTokenCount > 0
-        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else. Install Acre Listing Studio in this browser, then come back to this tab and Acre will finish connecting automatically.`
-        : "Install Acre Listing Studio in this browser from the Chrome Web Store. When you return to this tab, Acre will finish connecting automatically."
+        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else. If Acre Listing Studio is already installed here, reload the extension and refresh this tab. Otherwise, open the Chrome Web Store and finish setup for this browser.`
+        : "Acre could not confirm the extension from this tab yet. If Acre Listing Studio is already installed, reload it and refresh this page. Otherwise, open the Chrome Web Store and finish setup for this browser."
       : props.serverHasActiveToken && props.serverActiveTokenCount > 0
-        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else, but this browser still needs the Acre Chrome extension installed or reloaded.`
+        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else, but this tab still needs the Acre Chrome extension installed or reloaded.`
         : "Install or reload the Acre Chrome extension in this browser, then refresh this dashboard to continue.";
     badgeClassName = "office-status-badge office-status-badge-neutral";
-    badgeLabel = STORE_INSTALL_URL ? "Add to Chrome" : "Extension missing";
+    badgeLabel = STORE_INSTALL_URL ? "Needs setup" : "Extension missing";
     panelMessage = STORE_INSTALL_URL
-      ? "Open the Chrome Web Store, add Acre Listing Studio, then return to this tab. Acre will pick up the install and continue the connect flow."
+      ? "Open the Chrome Web Store if you still need to install Acre Listing Studio, or reload the installed extension, then return to this tab. Acre will continue the connect flow automatically."
       : "Install the Acre extension on this browser first. After Chrome adds it, come back here to connect.";
   }
 
@@ -371,8 +362,8 @@ export function ListingStudioExtensionConnectAction(
     actionLabel = "Connecting...";
   } else if (browserConnectionState === "not_installed") {
     actionLabel = STORE_INSTALL_URL
-      ? "Add to Chrome"
-      : "Install Chrome extension";
+      ? "Open extension setup"
+      : "Install or reload extension";
   }
 
   const isActionDisabled =

@@ -14,6 +14,12 @@ function postToPage(message) {
   );
 }
 
+function announceReady() {
+  postToPage({
+    type: READY_TYPE,
+  });
+}
+
 async function sendToBackground(message) {
   if (!chrome?.runtime?.id) {
     return {
@@ -93,6 +99,7 @@ window.addEventListener("message", (event) => {
   })();
 });
 
-postToPage({
-  type: READY_TYPE,
-});
+announceReady();
+window.setTimeout(announceReady, 250);
+window.setTimeout(announceReady, 1200);
+window.addEventListener("pageshow", announceReady);

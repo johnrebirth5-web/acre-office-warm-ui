@@ -10,6 +10,7 @@
     "https://zillow.com/*",
     "https://*.zillow.com/*",
     "https://acresystem.us/*",
+    "http://45.55.247.137:3105/*",
     "http://localhost:3105/*",
     "http://127.0.0.1:3105/*"
   ],
@@ -34,6 +35,7 @@
     {
       "matches": [
         "https://acresystem.us/listing-studio/*",
+        "http://45.55.247.137:3105/listing-studio/*",
         "http://localhost:3105/listing-studio/*",
         "http://127.0.0.1:3105/listing-studio/*"
       ],

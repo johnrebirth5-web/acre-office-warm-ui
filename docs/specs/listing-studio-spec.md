@@ -184,7 +184,7 @@
 
 连接流程：
 
-1. 如果当前浏览器尚未检测到扩展，dashboard 会先引导用户进入 `/listing-studio/extension/install`
+1. 如果当前 dashboard tab 尚未与扩展 bridge 成功握手，dashboard 会先引导用户进入 `/listing-studio/extension/install` / Chrome Web Store 设置入口
 2. 安装页会直接显示正式 `Add to Chrome`，并允许用 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 覆盖到别的商店条目
 3. 当前浏览器检测到扩展后，用户可从 dashboard 点击 `Connect Chrome extension`
 4. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展

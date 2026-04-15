@@ -46,6 +46,7 @@ npm run package --workspace=@acre/extension
   - `StreetEasy`
   - `Zillow`
   - `https://acresystem.us/*`
+  - `http://45.55.247.137:3105/*`
   - 本地开发 `localhost:3105` / `127.0.0.1:3105`
 
 注意：
