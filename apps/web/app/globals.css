@@ -18823,9 +18823,34 @@ body,
   background: rgba(255, 255, 255, 0.92);
 }
 
-.listing-studio-view-transit-item > div {
+.listing-studio-view-transit-item-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.listing-studio-view-transit-item-main > div {
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+
+.listing-studio-view-transit-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--office-text-soft);
+}
+
+.listing-studio-view-transit-item-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .listing-studio-view-transit-item strong {
@@ -18836,6 +18861,13 @@ body,
 .listing-studio-view-transit-item em {
   color: var(--office-text-muted);
   font-style: normal;
+}
+
+.listing-studio-view-transit-more {
+  margin: 2px 0 0;
+  color: var(--office-text-soft);
+  font-size: 0.95rem;
+  text-align: center;
 }
 
 .listing-studio-view-copy-stack {

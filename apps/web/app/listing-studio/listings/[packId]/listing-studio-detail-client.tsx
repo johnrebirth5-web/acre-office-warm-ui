@@ -1424,6 +1424,25 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     () => parseTransitSummary(displayTransit),
     [displayTransit],
   );
+  const visibleTransit = useMemo(() => displayTransit.slice(0, 3), [displayTransit]);
+  const hiddenTransitWithinOneKilometer = useMemo(() => {
+    const countWithinOneKilometer = (items: TransitItem[]) =>
+      items.reduce((count, item) => {
+        const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
+        const distanceMatch = haystack.match(/([0-9.]+)\s*km/i);
+        if (!distanceMatch?.[1]) {
+          return count;
+        }
+
+        const kilometers = Number(distanceMatch[1]);
+        return Number.isFinite(kilometers) && kilometers <= 1 ? count + 1 : count;
+      }, 0);
+
+    return Math.max(
+      countWithinOneKilometer(displayTransit) - countWithinOneKilometer(visibleTransit),
+      0,
+    );
+  }, [displayTransit, visibleTransit]);
   const editorUserName = detailState.pack.contactName || "Acre Admin";
   const editorUserEmail = detailState.pack.contactEmail || "listingstudio@acreny.us";
   const editorUserInitial = (editorUserName.trim().charAt(0) || "A").toUpperCase();
@@ -2254,19 +2273,30 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             ) : null}
 
             <div className="listing-studio-view-transit-list">
-              {displayTransit.map((item) => (
+              {visibleTransit.map((item) => (
                 <div
                   className="listing-studio-view-transit-item"
                   key={`${item.label}-${item.distanceLabel ?? ""}`}
                 >
-                  <div>
-                    <strong>{item.label}</strong>
-                    {item.detail ? <span>{item.detail}</span> : null}
+                  <div className="listing-studio-view-transit-item-main">
+                    <span className="listing-studio-view-transit-item-icon" aria-hidden="true">
+                      <IconTransit />
+                    </span>
+                    <div>
+                      <strong>{item.label}</strong>
+                      {item.detail ? <span>{item.detail}</span> : null}
+                    </div>
                   </div>
                   {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
                 </div>
               ))}
             </div>
+            {hiddenTransitWithinOneKilometer > 0 ? (
+              <p className="listing-studio-view-transit-more">
+                + {hiddenTransitWithinOneKilometer} more station
+                {hiddenTransitWithinOneKilometer === 1 ? "" : "s"} within 1km
+              </p>
+            ) : null}
           </section>
         ) : null}
 
