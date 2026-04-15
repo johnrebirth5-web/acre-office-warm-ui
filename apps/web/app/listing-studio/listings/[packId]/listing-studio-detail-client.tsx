@@ -690,8 +690,7 @@ function buildMapEmbedUrl(detail: StudioListingDetailSnapshot) {
 
 function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
   const candidates = [...detail.facts, ...detail.sourceFacts];
-  const highlights: Array<{ label: string; value: string }> = [];
-  const seen = new Set<string>();
+  const values = new Map<string, string>();
 
   for (const item of candidates) {
     const normalizedLabel = item.label.toLowerCase();
@@ -708,15 +707,41 @@ function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
     }
 
     const key = nextLabel.toLowerCase();
-    if (seen.has(key)) {
+    if (values.has(key)) {
       continue;
     }
 
-    seen.add(key);
-    highlights.push({ label: nextLabel, value: item.value });
+    values.set(key, item.value);
   }
 
-  return highlights;
+  return [
+    {
+      label: "HOA",
+      value: formatFinancialHighlightValue(values.get("hoa") ?? values.get("common charges") ?? ""),
+    },
+    {
+      label: "Taxes",
+      value: formatFinancialHighlightValue(values.get("taxes") ?? ""),
+    },
+  ];
+}
+
+function formatFinancialHighlightValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "—";
+  }
+
+  if (/\$\s*[\d,.]+.*\/mo/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, " ").trim();
+  }
+
+  const numericMatch = trimmed.match(/-?[\d,.]+/);
+  if (numericMatch?.[0]) {
+    return `$${numericMatch[0]}/mo`;
+  }
+
+  return trimmed;
 }
 
 function parseTransitSummary(
