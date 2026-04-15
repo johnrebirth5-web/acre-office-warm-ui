@@ -1,21 +1,19 @@
 "use client";
 
-import { startTransition, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
-import { Button, ConfirmActionDialog, SectionCard, TextareaInput, TextInput } from "@acre/ui";
-import {
-  buildListingStudioMarketingKit,
-  buildListingStudioPosterCopyText,
-  buildListingStudioPosterDraft,
-  buildListingStudioPosterHref,
-  buildListingStudioPosterScanTarget,
-  getListingStudioPosterTemplates,
-  type ListingStudioPosterTemplateId,
-} from "./listing-studio-poster";
+import { Button, ConfirmActionDialog, TextareaInput, TextInput } from "@acre/ui";
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
+};
+
+type MediaMode = "photo" | "floorplan" | "map";
+
+type TransitSummary = {
+  nearestWalkMinutes: number | null;
+  withinFiveHundredMeters: number | null;
 };
 
 function buildShareUrl(shareCode: string | null) {
@@ -29,28 +27,164 @@ function normalizeBulletPointsInput(value: string) {
     .filter(Boolean);
 }
 
-function summarizeText(value: string, limit = 180) {
-  const normalized = value.replace(/\s+/g, " ").trim();
+function isPhotoAssetKind(kind: StudioListingDetailSnapshot["assets"][number]["kind"]) {
+  return kind === "hero" || kind === "gallery";
+}
 
-  if (!normalized) {
-    return "";
+function isLikelyPdf(url: string | null, mimeType?: string | null) {
+  if (mimeType?.toLowerCase().includes("pdf")) {
+    return true;
   }
 
-  if (normalized.length <= limit) {
-    return normalized;
+  return typeof url === "string" && /\.pdf(?:$|\?)/i.test(url);
+}
+
+function getInitialPhotoId(detail: StudioListingDetailSnapshot) {
+  const photoAssets = detail.assets.filter((asset) => isPhotoAssetKind(asset.kind));
+  const preferredIds = [detail.pack.coverAssetId, ...detail.pack.selectedAssetIds].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  return (
+    preferredIds.find((assetId) => photoAssets.some((asset) => asset.id === assetId)) ??
+    photoAssets[0]?.id ??
+    null
+  );
+}
+
+function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
+  if (getInitialPhotoId(detail)) {
+    return "photo";
   }
 
-  return `${normalized.slice(0, limit).trimEnd()}…`;
+  if (
+    detail.assets.some((asset) => asset.kind === "floor_plan") ||
+    detail.floorPlans.length
+  ) {
+    return "floorplan";
+  }
+
+  if (detail.latitude !== null || detail.longitude !== null || detail.addressLine) {
+    return "map";
+  }
+
+  return "photo";
+}
+
+function findSourceFactValue(
+  items: Array<{ label: string; value: string }>,
+  matcher: RegExp,
+) {
+  return items.find((item) => matcher.test(item.label))?.value ?? null;
+}
+
+function getHeaderEyebrow(detail: StudioListingDetailSnapshot) {
+  return (
+    findSourceFactValue(detail.sourceFacts, /building/i) ??
+    detail.locationLine
+      ?.split("·")
+      .map((entry) => entry.trim())
+      .find(Boolean) ??
+    (detail.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow")
+  );
+}
+
+function getListingStateLabel(detail: StudioListingDetailSnapshot) {
+  if (detail.listingType) {
+    if (/rent/i.test(detail.listingType)) {
+      return "For rent";
+    }
+    if (/sale/i.test(detail.listingType)) {
+      return "For sale";
+    }
+  }
+
+  return detail.statusLabel ?? "Saved listing";
+}
+
+function buildMapEmbedUrl(detail: StudioListingDetailSnapshot) {
+  if (detail.latitude !== null && detail.longitude !== null) {
+    return `https://www.google.com/maps?q=${detail.latitude},${detail.longitude}&z=16&output=embed`;
+  }
+
+  const query = [detail.addressLine, detail.locationLine].filter(Boolean).join(", ").trim();
+  if (!query) {
+    return null;
+  }
+
+  return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
+}
+
+function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
+  const candidates = [...detail.facts, ...detail.sourceFacts];
+  const highlights: Array<{ label: string; value: string }> = [];
+  const seen = new Set<string>();
+
+  for (const item of candidates) {
+    if (
+      !/common charges|hoa|maintenance|tax|price \/ ft|lease term|net effective/i.test(
+        item.label,
+      )
+    ) {
+      continue;
+    }
+
+    const key = item.label.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    highlights.push(item);
+  }
+
+  return highlights;
+}
+
+function parseTransitSummary(
+  transit: Array<{ label: string; detail?: string | null; distanceLabel?: string | null }>,
+): TransitSummary {
+  let nearestWalkMinutes: number | null = null;
+  let withinFiveHundredMeters = 0;
+  let foundDistance = false;
+
+  for (const item of transit) {
+    const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
+    const walkMatch = haystack.match(/(\d+)\s*min(?:ute)?(?:s)?\s*walk/i);
+    const distanceMatch = haystack.match(/([0-9.]+)\s*km/i);
+
+    if (walkMatch) {
+      const minutes = Number(walkMatch[1]);
+      if (Number.isFinite(minutes)) {
+        nearestWalkMinutes =
+          nearestWalkMinutes === null ? minutes : Math.min(nearestWalkMinutes, minutes);
+      }
+    }
+
+    if (distanceMatch) {
+      const kilometers = Number(distanceMatch[1]);
+      if (Number.isFinite(kilometers)) {
+        foundDistance = true;
+        if (kilometers <= 0.5) {
+          withinFiveHundredMeters += 1;
+        }
+      }
+    }
+  }
+
+  return {
+    nearestWalkMinutes,
+    withinFiveHundredMeters: foundDistance ? withinFiveHundredMeters : null,
+  };
 }
 
 function ListingStudioDisclosure(props: {
   children: ReactNode;
-  defaultOpen?: boolean;
   description: string;
   title: string;
 }) {
   return (
-    <details className="listing-studio-disclosure-card" open={props.defaultOpen}>
+    <details className="listing-studio-disclosure-card">
       <summary className="listing-studio-disclosure-summary">
         <div>
           <strong>{props.title}</strong>
@@ -63,46 +197,12 @@ function ListingStudioDisclosure(props: {
   );
 }
 
-function buildPosterUrl(input: {
-  packId: string;
-  templateId: ListingStudioPosterTemplateId;
-  kicker: string;
-  headline: string;
-  subheadline: string;
-  cta: string;
-  footer: string;
-  coverAssetId: string | null;
-  contactName?: string;
-  contactTitle?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  download?: boolean;
-  print?: boolean;
-}) {
-  return buildListingStudioPosterHref({
-    packId: input.packId,
-    draft: {
-      templateId: input.templateId,
-      kicker: input.kicker,
-      headline: input.headline,
-      subheadline: input.subheadline,
-      cta: input.cta,
-      footer: input.footer,
-      coverAssetId: input.coverAssetId,
-    },
-    contactName: input.contactName,
-    contactTitle: input.contactTitle,
-    contactPhone: input.contactPhone,
-    contactEmail: input.contactEmail,
-    download: input.download,
-    print: input.print,
-  });
-}
-
 export function ListingStudioDetailClient({
   detail,
 }: ListingStudioDetailClientProps) {
   const router = useRouter();
+  const menuRef = useRef<HTMLDetailsElement | null>(null);
+
   const [headline, setHeadline] = useState(detail.pack.headline);
   const [summary, setSummary] = useState(detail.pack.summary);
   const [agentNote, setAgentNote] = useState(detail.pack.agentNote);
@@ -115,308 +215,186 @@ export function ListingStudioDetailClient({
     detail.pack.selectedAssetIds,
   );
   const [coverAssetId, setCoverAssetId] = useState<string | null>(
-    detail.pack.coverAssetId ?? detail.assets[0]?.id ?? null,
+    detail.pack.coverAssetId ?? getInitialPhotoId(detail),
   );
-  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [activePhotoId, setActivePhotoId] = useState<string | null>(() =>
+    getInitialPhotoId(detail),
+  );
+  const [mediaMode, setMediaMode] = useState<MediaMode>(() =>
+    getInitialMediaMode(detail),
+  );
+  const [shareCode, setShareCode] = useState(detail.pack.shareCode);
+  const [shareEnabled, setShareEnabled] = useState(detail.pack.shareEnabled);
+  const [statusMessage, setStatusMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [shareCode, setShareCode] = useState(detail.pack.shareCode);
-  const [shareEnabled, setShareEnabled] = useState(detail.pack.shareEnabled);
-  const initialPosterDraft = buildListingStudioPosterDraft(
-    detail,
-    "editorial",
-    detail.pack.coverAssetId ?? detail.assets[0]?.id ?? null,
-  );
-  const [posterTemplateId, setPosterTemplateId] = useState<
-    ListingStudioPosterTemplateId
-  >(initialPosterDraft.templateId);
-  const [posterKicker, setPosterKicker] = useState(initialPosterDraft.kicker);
-  const [posterHeadline, setPosterHeadline] = useState(
-    initialPosterDraft.headline,
-  );
-  const [posterSubheadline, setPosterSubheadline] = useState(
-    initialPosterDraft.subheadline,
-  );
-  const [posterCta, setPosterCta] = useState(initialPosterDraft.cta);
-  const [posterFooter, setPosterFooter] = useState(initialPosterDraft.footer);
-  const [posterCoverAssetId, setPosterCoverAssetId] = useState<string | null>(
-    initialPosterDraft.coverAssetId,
-  );
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const normalizedBulletPoints = useMemo(
     () => normalizeBulletPointsInput(bulletText),
     [bulletText],
   );
-  const heroAssetId =
-    coverAssetId ?? selectedAssetIds[0] ?? detail.assets[0]?.id ?? null;
   const shareUrl = buildShareUrl(shareCode);
-  const posterTemplates = getListingStudioPosterTemplates();
-  const packetPreviewDetail = useMemo(
-    () => ({
-      ...detail,
-      pack: {
-        ...detail.pack,
-        headline,
-        summary,
-        bulletPoints: normalizedBulletPoints,
-        selectedAssetIds,
-        coverAssetId,
-        agentNote,
-        shareEnabled,
-        shareCode,
-        contactName,
-        contactTitle,
-        contactPhone,
-        contactEmail,
-      },
-    }),
-    [
-      agentNote,
-      contactEmail,
-      contactName,
-      contactPhone,
-      contactTitle,
-      coverAssetId,
-      detail,
-      headline,
-      normalizedBulletPoints,
-      selectedAssetIds,
-      shareCode,
-      shareEnabled,
-      summary,
-    ],
+  const photoAssets = useMemo(
+    () => detail.assets.filter((asset) => isPhotoAssetKind(asset.kind)),
+    [detail.assets],
   );
-  const posterDraft = useMemo(
-    () => ({
-      templateId: posterTemplateId,
-      kicker: posterKicker,
-      headline: posterHeadline,
-      subheadline: posterSubheadline,
-      cta: posterCta,
-      footer: posterFooter,
-      coverAssetId: posterCoverAssetId,
-    }),
-    [
-      posterCta,
-      posterCoverAssetId,
-      posterFooter,
-      posterHeadline,
-      posterKicker,
-      posterSubheadline,
-      posterTemplateId,
-    ],
+  const photoAssetIds = useMemo(
+    () => new Set(photoAssets.map((asset) => asset.id)),
+    [photoAssets],
   );
-  const posterPreviewUrl = useMemo(
+  const activePhoto =
+    photoAssets.find((asset) => asset.id === activePhotoId) ?? photoAssets[0] ?? null;
+  const floorPlanAsset = detail.assets.find((asset) => asset.kind === "floor_plan") ?? null;
+  const floorPlanSrc =
+    (floorPlanAsset ? `/api/listing-studio/assets/${floorPlanAsset.id}` : null) ??
+    (detail.floorPlans[0]?.assetId
+      ? `/api/listing-studio/assets/${detail.floorPlans[0].assetId}`
+      : null) ??
+    detail.floorPlans[0]?.url ??
+    null;
+  const floorPlanIsPdf = isLikelyPdf(floorPlanSrc, floorPlanAsset?.mimeType ?? null);
+  const floorPlanLabel =
+    floorPlanAsset?.label ?? detail.floorPlans[0]?.label ?? "Floor plan";
+  const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(detail), [detail]);
+  const statusPill = getListingStateLabel(detail);
+  const headerEyebrow = getHeaderEyebrow(detail);
+  const financialHighlights = useMemo(
+    () => collectFinancialHighlights(detail),
+    [detail],
+  );
+  const transitSummary = useMemo(
+    () => parseTransitSummary(detail.transit),
+    [detail.transit],
+  );
+  const sourceDetailFacts = useMemo(
     () =>
-      buildPosterUrl({
-        packId: detail.packId,
-        templateId: posterTemplateId,
-        kicker: posterKicker,
-        headline: posterHeadline,
-        subheadline: posterSubheadline,
-        cta: posterCta,
-        footer: posterFooter,
-        coverAssetId: posterCoverAssetId,
-        contactName,
-        contactTitle,
-        contactPhone,
-        contactEmail,
-      }),
-    [
-      contactEmail,
-      contactName,
-      contactPhone,
-      contactTitle,
-      detail.packId,
-      posterCta,
-      posterCoverAssetId,
-      posterFooter,
-      posterHeadline,
-      posterKicker,
-      posterSubheadline,
-      posterTemplateId,
-    ],
-  );
-  const posterPrintUrl = useMemo(
-    () =>
-      buildPosterUrl({
-        packId: detail.packId,
-        templateId: posterTemplateId,
-        kicker: posterKicker,
-        headline: posterHeadline,
-        subheadline: posterSubheadline,
-        cta: posterCta,
-        footer: posterFooter,
-        coverAssetId: posterCoverAssetId,
-        print: true,
-        contactName,
-        contactTitle,
-        contactPhone,
-        contactEmail,
-      }),
-    [
-      contactEmail,
-      contactName,
-      contactPhone,
-      contactTitle,
-      detail.packId,
-      posterCta,
-      posterCoverAssetId,
-      posterFooter,
-      posterHeadline,
-      posterKicker,
-      posterSubheadline,
-      posterTemplateId,
-    ],
-  );
-  const posterDownloadUrl = useMemo(
-    () =>
-      buildPosterUrl({
-        packId: detail.packId,
-        templateId: posterTemplateId,
-        kicker: posterKicker,
-        headline: posterHeadline,
-        subheadline: posterSubheadline,
-        cta: posterCta,
-        footer: posterFooter,
-        coverAssetId: posterCoverAssetId,
-        download: true,
-        contactName,
-        contactTitle,
-        contactPhone,
-        contactEmail,
-      }),
-    [
-      contactEmail,
-      contactName,
-      contactPhone,
-      contactTitle,
-      detail.packId,
-      posterCta,
-      posterCoverAssetId,
-      posterFooter,
-      posterHeadline,
-      posterKicker,
-      posterSubheadline,
-      posterTemplateId,
-    ],
-  );
-  const posterCopyText = useMemo(
-    () =>
-      buildListingStudioPosterCopyText(
-        packetPreviewDetail,
-        posterDraft,
+      detail.sourceFacts.filter(
+        (item) =>
+          !/common charges|hoa|maintenance|tax|price \/ ft|lease term|net effective/i.test(
+            item.label,
+          ),
       ),
-    [packetPreviewDetail, posterDraft],
+    [detail.sourceFacts],
   );
-  const marketingKit = useMemo(
-    () => buildListingStudioMarketingKit(packetPreviewDetail, posterDraft),
-    [packetPreviewDetail, posterDraft],
-  );
-  const posterPacketTarget = buildListingStudioPosterScanTarget(packetPreviewDetail);
-  const scanTargetHref = posterPacketTarget.href;
-  const scanTargetLabel = posterPacketTarget.label;
-  const scanTargetHint = posterPacketTarget.hint;
-  const activePosterTemplate =
-    posterTemplates.find((template) => template.id === posterTemplateId) ??
-    posterTemplates[0];
-  const activeGallery = useMemo(
-    () =>
-      detail.assets.filter(
-        (asset) =>
-          selectedAssetIds.includes(asset.id) || asset.id === heroAssetId,
-      ),
-    [detail.assets, heroAssetId, selectedAssetIds],
-  );
-  const selectedGalleryPreview = activeGallery.slice(0, 6);
-  const heroAsset = detail.assets.find((asset) => asset.id === heroAssetId) ?? null;
-  const posterHeroAsset =
-    detail.assets.find((asset) => asset.id === posterCoverAssetId) ?? null;
-  const primaryMarketingBundles = marketingKit.bundles.slice(0, 2);
 
-  function toggleAsset(assetId: string) {
+  function closeMenu() {
+    if (menuRef.current) {
+      menuRef.current.open = false;
+    }
+  }
+
+  function handleSelectPhoto(assetId: string) {
+    setMediaMode("photo");
+    setActivePhotoId(assetId);
+  }
+
+  function toggleSelectedPhoto(assetId: string) {
     setSelectedAssetIds((current) => {
-      if (current.includes(assetId)) {
-        const next = current.filter((value) => value !== assetId);
-        if (!next.length) {
+      const currentPhotoIds = current.filter((id) => photoAssetIds.has(id));
+      const nonPhotoIds = current.filter((id) => !photoAssetIds.has(id));
+
+      if (currentPhotoIds.includes(assetId)) {
+        const nextPhotoIds = currentPhotoIds.filter((id) => id !== assetId);
+        if (!nextPhotoIds.length) {
           return current;
         }
+
         if (coverAssetId === assetId) {
-          setCoverAssetId(next[0] ?? null);
+          setCoverAssetId(nextPhotoIds[0] ?? photoAssets[0]?.id ?? null);
         }
-        return next;
+
+        return [...nonPhotoIds, ...nextPhotoIds];
       }
 
-      return [...current, assetId];
+      return [...nonPhotoIds, ...currentPhotoIds, assetId];
     });
   }
 
-  function savePack() {
+  function setLeadPhoto(assetId: string) {
+    setCoverAssetId(assetId);
+    setActivePhotoId(assetId);
+    setMediaMode("photo");
+    setSelectedAssetIds((current) =>
+      current.includes(assetId) ? current : [...current, assetId],
+    );
+  }
+
+  async function savePack(options?: { closeEditor?: boolean }) {
     setIsSaving(true);
     setStatusMessage("");
 
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            headline,
-            summary,
-            bulletPoints: normalizedBulletPoints,
-            selectedAssetIds,
-            coverAssetId,
-            agentNote,
-            contactName,
-            contactTitle,
-            contactPhone,
-            contactEmail,
-          }),
-        });
+    try {
+      const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          headline,
+          summary,
+          bulletPoints: normalizedBulletPoints,
+          selectedAssetIds,
+          coverAssetId,
+          agentNote,
+          contactName,
+          contactTitle,
+          contactPhone,
+          contactEmail,
+        }),
+      });
 
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Unable to save the listing.");
-        }
-
-        setStatusMessage("Listing changes saved.");
-      } catch (error) {
-        setStatusMessage(error instanceof Error ? error.message : "Unable to save the listing.");
-      } finally {
-        setIsSaving(false);
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error || "Unable to save the listing.");
       }
-    });
+
+      setStatusMessage("Listing changes saved.");
+      if (options?.closeEditor) {
+        setIsEditorOpen(false);
+      }
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Unable to save the listing.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function publishShare() {
+  async function publishShare() {
     setIsSharing(true);
     setStatusMessage("");
 
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/listing-studio/listings/${detail.packId}/share`, {
-          method: "POST",
-        });
+    try {
+      const response = await fetch(`/api/listing-studio/listings/${detail.packId}/share`, {
+        method: "POST",
+      });
 
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Unable to publish the share link.");
-        }
-
-        const body = (await response.json()) as { shareCode: string; shareUrl: string };
-        setShareCode(body.shareCode);
-        setShareEnabled(true);
-        setStatusMessage("Public share link is ready.");
-      } catch (error) {
-        setStatusMessage(error instanceof Error ? error.message : "Unable to publish the share link.");
-      } finally {
-        setIsSharing(false);
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error || "Unable to publish the share link.");
       }
-    });
+
+      const body = (await response.json()) as { shareCode: string };
+      setShareCode(body.shareCode);
+      setShareEnabled(true);
+      setStatusMessage("Public share link is ready.");
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to publish the share link.",
+      );
+    } finally {
+      setIsSharing(false);
+    }
   }
 
   async function copyShareUrl() {
@@ -424,54 +402,8 @@ export function ListingStudioDetailClient({
       return;
     }
 
-    await navigator.clipboard.writeText(window.location.origin + shareUrl);
+    await navigator.clipboard.writeText(`${window.location.origin}${shareUrl}`);
     setStatusMessage("Share URL copied.");
-  }
-
-  async function copyPosterCopy() {
-    try {
-      await navigator.clipboard.writeText(posterCopyText);
-      setStatusMessage("Poster copy copied.");
-    } catch {
-      setStatusMessage("Clipboard access is not available for poster copy.");
-    }
-  }
-
-  async function copyMarketingKitCopy(label: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setStatusMessage(`${label} copied.`);
-    } catch {
-      setStatusMessage(`Clipboard access is not available for ${label.toLowerCase()}.`);
-    }
-  }
-
-  async function copyScanLink() {
-    try {
-      const absoluteUrl = scanTargetHref.startsWith("http")
-        ? scanTargetHref
-        : `${window.location.origin}${scanTargetHref.startsWith("/") ? scanTargetHref : `/${scanTargetHref}`}`;
-      await navigator.clipboard.writeText(absoluteUrl);
-      setStatusMessage("Scan link copied.");
-    } catch {
-      setStatusMessage("Unable to copy the scan link in this browser.");
-    }
-  }
-
-  async function copyPosterHtml() {
-    try {
-      const response = await fetch(posterPreviewUrl, {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error("Unable to load the poster preview.");
-      }
-
-      await navigator.clipboard.writeText(await response.text());
-      setStatusMessage("Poster HTML copied.");
-    } catch {
-      setStatusMessage("Unable to copy poster HTML in this browser.");
-    }
   }
 
   function deleteListing() {
@@ -482,1025 +414,579 @@ export function ListingStudioDetailClient({
     setIsDeleting(true);
     setStatusMessage("");
 
-    startTransition(async () => {
+    void (async () => {
       try {
         const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
           method: "DELETE",
         });
 
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          const body = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null;
           throw new Error(body?.error || "Unable to delete the listing.");
         }
 
         router.push("/listing-studio/listings?deleted=1");
         router.refresh();
       } catch (error) {
-        setStatusMessage(error instanceof Error ? error.message : "Unable to delete the listing.");
+        setStatusMessage(
+          error instanceof Error ? error.message : "Unable to delete the listing.",
+        );
         setIsDeleting(false);
         setIsDeleteDialogOpen(false);
       }
-    });
+    })();
   }
 
   return (
     <>
-      <div className="listing-studio-detail-layout">
-        <div className="listing-studio-detail-main">
-          <SectionCard
-            className="listing-studio-hero-card"
-            subtitle={detail.locationLine ?? "Imported listing"}
-            title={detail.title}
-          >
-            <div className="listing-studio-hero-stack">
-              <div className="listing-studio-hero-media">
-                {heroAssetId ? (
-                  <img
-                    alt={detail.title}
-                    src={`/api/listing-studio/assets/${heroAssetId}`}
-                  />
-                ) : (
-                  <div className="listing-studio-card-media-fallback">
-                    {detail.sourceSite}
-                  </div>
-                )}
-              </div>
-              <div className="listing-studio-hero-strip">
-                <strong>{detail.priceLabel}</strong>
-                <span>{detail.addressLine}</span>
-                <span>{detail.listingType ?? detail.statusLabel ?? "Saved listing"}</span>
-              </div>
-              <div className="listing-studio-facts-grid">
-                {detail.facts.map((fact) => (
-                  <div className="listing-studio-fact-card" key={fact.label}>
-                    <span>{fact.label}</span>
-                    <strong>{fact.value}</strong>
-                  </div>
-                ))}
-              </div>
-              <div className="listing-studio-hero-workspace">
-                <div className="listing-studio-keyvalue-card listing-studio-hero-workspace-card">
-                  <span>Workspace structure</span>
-                  <strong>Curate first, publish second</strong>
-                  <span>
-                    Edit the client-facing packet here, keep imported source detail nearby, and use the right rail for save, share, and export.
-                  </span>
-                </div>
-                <div className="listing-studio-anchor-row">
-                  <a className="office-button office-button-secondary office-button-sm" href="#listing-studio-editor">
-                    Edit pack
-                  </a>
-                  <a className="office-button office-button-secondary office-button-sm" href="#listing-studio-source-data">
-                    Source data
-                  </a>
-                  <a className="office-button office-button-secondary office-button-sm" href="#listing-studio-media">
-                    Photos
-                  </a>
-                  <a className="office-button office-button-secondary office-button-sm" href="#listing-studio-poster">
-                    Poster
-                  </a>
-                  <a className="office-button office-button-secondary office-button-sm" href="#listing-studio-marketing">
-                    Marketing
-                  </a>
-                </div>
-              </div>
-              {activeGallery.length ? (
-                <div className="listing-studio-thumbnail-row">
-                  {activeGallery.map((asset) => (
-                    <button
-                      className={`listing-studio-thumbnail${asset.id === heroAssetId ? " is-active" : ""}`}
-                      key={asset.id}
-                      onClick={() => setCoverAssetId(asset.id)}
-                      type="button"
-                    >
-                      <img
-                        alt={asset.label ?? detail.title}
-                        src={`/api/listing-studio/assets/${asset.id}`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {detail.descriptionText ? (
-                <p className="listing-studio-description">{detail.descriptionText}</p>
-              ) : null}
-            </div>
-          </SectionCard>
+      <div className="listing-studio-view-page">
+        <header className="listing-studio-view-header">
+          <div className="listing-studio-view-header-copy">
+            <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
+            <h1>{detail.addressLine}</h1>
+            {detail.locationLine ? <p>{detail.locationLine}</p> : null}
+          </div>
 
-          <SectionCard
-            className="office-list-card"
-            id="listing-studio-editor"
-            subtitle="Keep the curated client-facing packet compact here. Save, publish, and export from the right rail."
-            title="Curated page editor"
-          >
-            <div className="listing-studio-keyvalue-grid">
-              <div className="listing-studio-keyvalue-card">
-                <span>Share state</span>
-                <strong>{shareEnabled && shareUrl ? "Published share page" : "Draft only"}</strong>
-                <span>
-                  {shareEnabled && shareUrl
-                    ? shareUrl
-                    : "Publish when the packet is ready for a public Acre link."}
-                </span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Selected media</span>
-                <strong>
-                  {selectedAssetIds.length} of {detail.assets.length} images active
-                </strong>
-                <span>{coverAssetId ? "A hero image is set for share, PDF, and poster output." : "Pick a hero image in the media section."}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Poster mode</span>
-                <strong>{activePosterTemplate.label}</strong>
-                <span>{activePosterTemplate.description}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Scan path</span>
-                <strong>{scanTargetLabel}</strong>
-                <span>{scanTargetHint}</span>
-              </div>
-            </div>
-            <div className="listing-studio-form-grid">
-              <label className="listing-studio-filter-field">
-                <span>Contact name</span>
-                <TextInput value={contactName} onChange={(event) => setContactName(event.target.value)} />
-              </label>
-              <label className="listing-studio-filter-field">
-                <span>Contact phone</span>
-                <TextInput value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
-              </label>
-              <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                <span>Headline</span>
-                <TextInput value={headline} onChange={(event) => setHeadline(event.target.value)} />
-              </label>
-              <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                <span>Summary</span>
-                <TextareaInput
-                  rows={3}
-                  value={summary}
-                  onChange={(event) => setSummary(event.target.value)}
-                />
-              </label>
-            </div>
-
-            <ListingStudioDisclosure
-              description="Secondary contact fields, bullet lists, and internal note stay here so the main editor can stay short."
-              title="Advanced contact and copy blocks"
-            >
-              <div className="listing-studio-form-grid">
-                <label className="listing-studio-filter-field">
-                  <span>Contact title</span>
-                  <TextInput value={contactTitle} onChange={(event) => setContactTitle(event.target.value)} />
-                </label>
-                <label className="listing-studio-filter-field">
-                  <span>Contact email</span>
-                  <TextInput value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
-                </label>
-                <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                  <span>Bullet points</span>
-                  <TextareaInput
-                    rows={5}
-                    value={bulletText}
-                    onChange={(event) => setBulletText(event.target.value)}
-                  />
-                </label>
-                <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                  <span>Agent note</span>
-                  <TextareaInput
-                    rows={4}
-                    value={agentNote}
-                    onChange={(event) => setAgentNote(event.target.value)}
-                  />
-                </label>
-              </div>
-            </ListingStudioDisclosure>
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            id="listing-studio-source-data"
-            subtitle="Keep the imported source context nearby without letting it take over the editing surface."
-            title="Imported snapshot"
-          >
-            {detail.sourceFacts.length ? (
-              <div className="listing-studio-keyvalue-grid">
-                {detail.sourceFacts.slice(0, 4).map((item) => (
-                  <div className="listing-studio-keyvalue-card" key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <ListingStudioDisclosure
-              description="Amenities and transit stay available here, but they should not flood the default editorial view."
-              title="Amenities and transit"
-            >
-              <div className="listing-studio-section-grid">
-                <div className="listing-studio-detail-section-block">
-                  <strong>Amenities</strong>
-                  {detail.amenities.length ? (
-                    <div className="listing-studio-pill-section">
-                      {detail.amenities.map((section) => (
-                        <div className="listing-studio-pill-group" key={section.title}>
-                          <strong>{section.title}</strong>
-                          <div className="listing-studio-pill-row">
-                            {section.items.map((item) => (
-                              <span className="listing-studio-pill" key={item}>
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="listing-studio-muted">No amenities were captured.</p>
-                  )}
-                </div>
-                <div className="listing-studio-detail-section-block">
-                  <strong>Transit</strong>
-                  {detail.transit.length ? (
-                    <div className="listing-studio-transit-list">
-                      {detail.transit.map((item) => (
-                        <div className="listing-studio-transit-item" key={`${item.label}-${item.distanceLabel ?? ""}`}>
-                          <strong>{item.label}</strong>
-                          <span>{item.detail ?? "Transit access captured"}</span>
-                          {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="listing-studio-muted">No transit details were captured.</p>
-                  )}
-                </div>
-              </div>
-            </ListingStudioDisclosure>
-
-            {detail.sourceFacts.length > 4 ? (
-              <ListingStudioDisclosure
-                description="Open the full fact table only when you need the entire scraped payload."
-                title="All source facts"
+          <details className="listing-studio-view-menu" ref={menuRef}>
+            <summary className="listing-studio-view-menu-trigger" aria-label="Listing actions">
+              <span />
+              <span />
+              <span />
+            </summary>
+            <div className="listing-studio-view-menu-popover">
+              <span className="listing-studio-view-menu-label">Acre actions</span>
+              <button
+                className="listing-studio-view-menu-item"
+                onClick={() => {
+                  closeMenu();
+                  setIsEditorOpen(true);
+                }}
+                type="button"
               >
-                <div className="listing-studio-keyvalue-grid">
-                  {detail.sourceFacts.map((item) => (
-                    <div className="listing-studio-keyvalue-card" key={item.label}>
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </ListingStudioDisclosure>
-            ) : null}
-
-            {detail.propertyHistory.length || detail.capturedSections.length || detail.floorPlans.length ? (
-              <ListingStudioDisclosure
-                description="Property history, extra scraped sections, and floor plan links stay tucked away until needed."
-                title="History and captured extras"
+                Edit packet
+              </button>
+              <button
+                className="listing-studio-view-menu-item"
+                disabled={isSaving}
+                onClick={() => {
+                  closeMenu();
+                  void savePack();
+                }}
+                type="button"
               >
-                {detail.propertyHistory.length ? (
-                  <div className="listing-studio-detail-section-list">
-                    {detail.propertyHistory.map((section) => (
-                      <div className="listing-studio-detail-section-block" key={section.title}>
-                        <strong>{section.title}</strong>
-                        <div className="listing-studio-detail-section-items">
-                          {section.items.map((item) => (
-                            <span key={`${section.title}-${item}`}>{item}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {detail.capturedSections.length ? (
-                  <div className="listing-studio-detail-section-list">
-                    {detail.capturedSections.map((section) => (
-                      <div className="listing-studio-detail-section-block" key={section.title}>
-                        <strong>{section.title}</strong>
-                        <div className="listing-studio-detail-section-items">
-                          {section.items.map((item) => (
-                            <span key={`${section.title}-${item}`}>{item}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {detail.floorPlans.length ? (
-                  <div className="listing-studio-floorplan-list">
-                    {detail.floorPlans.map((plan, index) => (
-                      <a
-                        className="listing-studio-floorplan-link"
-                        href={
-                          plan.assetId
-                            ? `/api/listing-studio/assets/${plan.assetId}`
-                            : plan.url || "#"
-                        }
-                        key={`${plan.label}-${index}`}
-                        target="_blank"
-                      >
-                        {plan.label}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </ListingStudioDisclosure>
-            ) : null}
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            id="listing-studio-media"
-            subtitle="Select the images that stay on the public page and choose the hero image."
-            title="Media library"
-          >
-            <div className="listing-studio-keyvalue-grid">
-              <div className="listing-studio-keyvalue-card">
-                <span>Selected media</span>
-                <strong>{selectedAssetIds.length} active</strong>
-                <span>{detail.assets.length - selectedAssetIds.length} hidden from the packet right now.</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Hero image</span>
-                <strong>{heroAsset?.label ?? "Not set"}</strong>
-                <span>{heroAsset ? "This image leads share, PDF, and top-of-page presentation." : "Choose one when the packet is ready."}</span>
-              </div>
-            </div>
-            {selectedGalleryPreview.length ? (
-              <div className="listing-studio-thumbnail-row">
-                {selectedGalleryPreview.map((asset) => (
-                  <button
-                    className={`listing-studio-thumbnail${asset.id === heroAssetId ? " is-active" : ""}`}
-                    key={asset.id}
-                    onClick={() => setCoverAssetId(asset.id)}
-                    type="button"
-                  >
-                    <img
-                      alt={asset.label ?? detail.title}
-                      src={`/api/listing-studio/assets/${asset.id}`}
-                    />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <ListingStudioDisclosure
-              description="Open the full asset wall only when you're actively curating inclusion or changing the hero image."
-              title="Full media selector"
-            >
-              <div className="listing-studio-media-selector-grid">
-                {detail.assets.map((asset) => {
-                  const isSelected = selectedAssetIds.includes(asset.id);
-                  const isCover = asset.id === coverAssetId;
-
-                  return (
-                    <div className="listing-studio-media-selector-card" key={asset.id}>
-                      <img
-                        alt={asset.label ?? detail.title}
-                        src={`/api/listing-studio/assets/${asset.id}`}
-                      />
-                      <div className="listing-studio-media-selector-body">
-                        <div className="listing-studio-card-meta">
-                          <span className="office-status-badge office-status-badge-neutral">
-                            {asset.kind}
-                          </span>
-                          {isCover ? (
-                            <span className="office-status-badge office-status-badge-success">
-                              Hero
-                            </span>
-                          ) : null}
-                        </div>
-                        <strong>{asset.label ?? "Imported asset"}</strong>
-                        <div className="listing-studio-media-selector-actions">
-                          <Button
-                            onClick={() => toggleAsset(asset.id)}
-                            size="sm"
-                            variant={isSelected ? "primary" : "secondary"}
-                          >
-                            {isSelected ? "Included" : "Include"}
-                          </Button>
-                          <Button
-                            disabled={!isSelected}
-                            onClick={() => setCoverAssetId(asset.id)}
-                            size="sm"
-                            variant="ghost"
-                          >
-                            Set hero
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ListingStudioDisclosure>
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            id="listing-studio-poster"
-            subtitle="Build the HTML poster from the same saved packet. Preview stays inline so it feels like part of the page, not a separate tool."
-            title="Poster studio"
-          >
-            <div className="listing-studio-keyvalue-grid">
-              <div className="listing-studio-keyvalue-card">
-                <span>Template</span>
-                <strong>{activePosterTemplate.label}</strong>
-                <span>{activePosterTemplate.description}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Poster hero</span>
-                <strong>{posterHeroAsset?.label ?? "No image selected"}</strong>
-                <span>{posterCoverAssetId ? "Poster preview uses the selected hero asset." : "Pick a poster hero to finish the layout."}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Agent block</span>
-                <strong>{contactName || "Acre listing studio"}</strong>
-                <span>{contactTitle || "Listing presentation"}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Scan target</span>
-                <strong>{scanTargetLabel}</strong>
-                <span>{scanTargetHint}</span>
-              </div>
-            </div>
-            <div className="listing-studio-editor-actions">
-              <a
-                className="office-button office-button-secondary"
-                href={posterPrintUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Open print view
-              </a>
-              <a
-                className="office-button office-button-secondary"
-                download
-                href={posterDownloadUrl}
-              >
-                Download HTML
-              </a>
-              <Button onClick={() => void copyPosterHtml()} variant="ghost">
-                Copy HTML
-              </Button>
-              <Button onClick={() => void copyPosterCopy()} variant="ghost">
-                Copy poster copy
-              </Button>
-            </div>
-            <p className="listing-studio-muted">
-              Review the poster before sharing or exporting. This stays manual and review-first.
-            </p>
-            <ListingStudioDisclosure
-              description="Template switching and draft editing stay available here, but they no longer stretch the page by default."
-              title="Edit poster draft"
-            >
-              <div className="listing-studio-filter-actions">
-                {posterTemplates.map((template) => (
-                  <Button
-                    key={template.id}
-                    onClick={() => {
-                      const nextDraft = buildListingStudioPosterDraft(
-                        packetPreviewDetail,
-                        template.id,
-                        posterCoverAssetId,
-                      );
-                      setPosterTemplateId(template.id);
-                      setPosterKicker(nextDraft.kicker);
-                      setPosterHeadline(nextDraft.headline);
-                      setPosterSubheadline(nextDraft.subheadline);
-                      setPosterCta(nextDraft.cta);
-                      setPosterFooter(nextDraft.footer);
-                    }}
-                    size="sm"
-                    variant={posterTemplateId === template.id ? "primary" : "secondary"}
-                  >
-                    {template.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="listing-studio-form-grid">
-                <label className="listing-studio-filter-field">
-                  <span>Kicker</span>
-                  <TextInput value={posterKicker} onChange={(event) => setPosterKicker(event.target.value)} />
-                </label>
-                <label className="listing-studio-filter-field">
-                  <span>CTA</span>
-                  <TextInput value={posterCta} onChange={(event) => setPosterCta(event.target.value)} />
-                </label>
-                <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                  <span>Headline</span>
-                  <TextInput value={posterHeadline} onChange={(event) => setPosterHeadline(event.target.value)} />
-                </label>
-                <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                  <span>Subheadline</span>
-                  <TextareaInput
-                    rows={3}
-                    value={posterSubheadline}
-                    onChange={(event) => setPosterSubheadline(event.target.value)}
-                  />
-                </label>
-                <label className="listing-studio-filter-field listing-studio-form-grid-span">
-                  <span>Footer</span>
-                  <TextInput value={posterFooter} onChange={(event) => setPosterFooter(event.target.value)} />
-                </label>
-              </div>
-              <div className="listing-studio-filter-field">
-                <span>Poster hero image</span>
-                <div className="listing-studio-filter-actions">
-                  {detail.assets.slice(0, 6).map((asset) => (
-                    <Button
-                      key={asset.id}
-                      onClick={() => setPosterCoverAssetId(asset.id)}
-                      size="sm"
-                      variant={posterCoverAssetId === asset.id ? "primary" : "secondary"}
-                    >
-                      {asset.label ?? asset.kind}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </ListingStudioDisclosure>
-            <ListingStudioDisclosure
-              description="Open the inline preview only when you need to visually inspect the poster layout."
-              title="Poster preview"
-            >
-              <div className="listing-studio-poster-frame">
-                <iframe
-                  key={posterPreviewUrl}
-                  src={posterPreviewUrl}
-                  title="Listing Studio poster preview"
-                />
-              </div>
-            </ListingStudioDisclosure>
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            id="listing-studio-marketing"
-            subtitle="Copy-ready campaign material stays attached to the same packet, but only the highest-value pieces stay open by default."
-            title="Marketing workspace"
-          >
-            <div className="listing-studio-editor-actions">
-              <Button
-                onClick={() =>
-                  void copyMarketingKitCopy("Full marketing kit", marketingKit.fullText)
-                }
-                variant="secondary"
-              >
-                Copy full kit
-              </Button>
-              {marketingKit.bundles.map((bundle) => (
-                <Button
-                  key={bundle.id}
-                  onClick={() => void copyMarketingKitCopy(bundle.title, bundle.text)}
-                  variant="ghost"
-                >
-                  Copy {bundle.title}
-                </Button>
-              ))}
-            </div>
-            <div className="listing-studio-keyvalue-grid">
-              <div className="listing-studio-keyvalue-card">
-                <span>Copy included</span>
-                <strong>Caption, blurb, follow-up</strong>
-                <span>All copy blocks derive from the same saved listing and current poster draft.</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Delivery plan</span>
-                <strong>
-                  {marketingKit.deliveryPlan.sequence.length} steps · {marketingKit.deliveryPlan.checklist.length} checks
-                </strong>
-                <span>The manual delivery plan stays available, but no longer floods the page by default.</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Template briefs</span>
-                <strong>{marketingKit.templateBriefs.length} briefs</strong>
-                <span>Every poster layout still carries a quick use brief for easier selection.</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Campaign flights</span>
-                <strong>{marketingKit.flights.length} reusable cadences</strong>
-                <span>Launch, event, and evergreen sequences stay ready to copy when needed.</span>
-              </div>
-            </div>
-
-            <div className="listing-studio-keyvalue-grid">
-              {primaryMarketingBundles.map((bundle) => (
-                <div className="listing-studio-keyvalue-card" key={bundle.id}>
-                  <div className="listing-studio-card-meta">
-                    <span className="office-status-badge office-status-badge-neutral">
-                      {bundle.note}
-                    </span>
-                    <span className="office-status-badge office-status-badge-success">
-                      Campaign bundle
-                    </span>
-                  </div>
-                  <strong>{bundle.title}</strong>
-                  <span>{bundle.description}</span>
-                  <span>{summarizeText(bundle.text, 150)}</span>
-                  <div className="listing-studio-editor-actions">
-                    <Button
-                      onClick={() => void copyMarketingKitCopy(bundle.title, bundle.text)}
-                      size="sm"
-                      variant="secondary"
-                    >
-                      Copy bundle
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <ListingStudioDisclosure
-              description="Send-ready packages, delivery sequence, and readiness checks stay here for later execution."
-              title="Send-ready packages and delivery plan"
-            >
-                <div className="listing-studio-keyvalue-grid">
-                  {marketingKit.deliveryPlan.packages.map((campaignPackage) => (
-                    <div className="listing-studio-keyvalue-card" key={campaignPackage.id}>
-                      <div className="listing-studio-card-meta">
-                        <span className="office-status-badge office-status-badge-neutral">
-                          {campaignPackage.note}
-                        </span>
-                        <span className="office-status-badge office-status-badge-success">
-                          Send-ready
-                        </span>
-                      </div>
-                      <strong>{campaignPackage.title}</strong>
-                      <span>{campaignPackage.description}</span>
-                      <span className="listing-studio-prewrap">{campaignPackage.text}</span>
-                      <div className="listing-studio-editor-actions">
-                        <Button
-                          onClick={() => void copyMarketingKitCopy(campaignPackage.title, campaignPackage.text)}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          Copy package
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="listing-studio-detail-section-list">
-                  <div className="listing-studio-detail-section-block">
-                    <div className="listing-studio-card-meta">
-                      <span className="office-status-badge office-status-badge-neutral">
-                        Manual review path
-                      </span>
-                    </div>
-                    <strong>Delivery sequence</strong>
-                    <div className="listing-studio-keyvalue-grid">
-                      {marketingKit.deliveryPlan.sequence.map((step, index) => (
-                        <div className="listing-studio-keyvalue-card" key={step.id}>
-                          <div className="listing-studio-card-meta">
-                            <span className="office-status-badge office-status-badge-neutral">
-                              Step {index + 1}
-                            </span>
-                            <span className="office-status-badge office-status-badge-success">
-                              {step.note}
-                            </span>
-                          </div>
-                          <strong>{step.title}</strong>
-                          <span>{step.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="listing-studio-detail-section-block">
-                    <div className="listing-studio-card-meta">
-                      <span className="office-status-badge office-status-badge-neutral">
-                        {marketingKit.deliveryPlan.summary}
-                      </span>
-                    </div>
-                    <strong>Readiness checklist</strong>
-                    <div className="listing-studio-keyvalue-grid">
-                      {marketingKit.deliveryPlan.checklist.map((item) => (
-                        <div className="listing-studio-keyvalue-card" key={item.id}>
-                          <div className="listing-studio-card-meta">
-                            <span className={`office-status-badge ${item.ready ? "office-status-badge-success" : "office-status-badge-warning"}`}>
-                              {item.ready ? "Ready" : "Review"}
-                            </span>
-                          </div>
-                          <strong>{item.title}</strong>
-                          <span>{item.note}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-            </ListingStudioDisclosure>
-
-            <ListingStudioDisclosure
-              description="Higher-volume planning material stays collapsed until you actually need it."
-              title="Template briefs and campaign flights"
-            >
-                <div className="listing-studio-keyvalue-grid">
-                  {marketingKit.templateBriefs.map((brief) => (
-                    <div className="listing-studio-keyvalue-card" key={brief.id}>
-                      <div className="listing-studio-card-meta">
-                        <span className="office-status-badge office-status-badge-neutral">
-                          {brief.note}
-                        </span>
-                        <span className="office-status-badge office-status-badge-success">
-                          Template brief
-                        </span>
-                      </div>
-                      <strong>{brief.title}</strong>
-                      <span>{brief.description}</span>
-                      <span className="listing-studio-prewrap">{brief.text}</span>
-                      <div className="listing-studio-editor-actions">
-                        <Button
-                          onClick={() => void copyMarketingKitCopy(brief.title, brief.text)}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          Copy brief
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="listing-studio-keyvalue-grid">
-                  {marketingKit.flights.map((flight) => (
-                    <div className="listing-studio-keyvalue-card" key={flight.id}>
-                      <div className="listing-studio-card-meta">
-                        <span className="office-status-badge office-status-badge-neutral">
-                          {flight.note}
-                        </span>
-                        <span className="office-status-badge office-status-badge-success">
-                          Flight plan
-                        </span>
-                      </div>
-                      <strong>{flight.title}</strong>
-                      <span>{flight.description}</span>
-                      <span className="listing-studio-prewrap">
-                        {flight.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
-                      </span>
-                      <span className="listing-studio-prewrap">{flight.text}</span>
-                      <div className="listing-studio-editor-actions">
-                        <Button
-                          onClick={() => void copyMarketingKitCopy(flight.title, flight.text)}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          Copy flight
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-            </ListingStudioDisclosure>
-
-            <ListingStudioDisclosure
-              description="Keep the lower-level caption, blurb, and follow-up variants tucked away until needed."
-              title="Variant blocks"
-            >
-                <div className="listing-studio-detail-section-list">
-                  {marketingKit.sections.map((section) => (
-                    <div className="listing-studio-detail-section-block" key={section.title}>
-                      <div className="listing-studio-editor-actions listing-studio-inline-space-between">
-                        <strong>{section.title}</strong>
-                        <Button
-                          onClick={() =>
-                            void copyMarketingKitCopy(
-                              `${section.title} block`,
-                              [
-                                section.title,
-                                section.subtitle,
-                                ...section.variants.map(
-                                  (variant) => `\n${variant.label}\n${variant.note}\n${variant.text}`,
-                                ),
-                              ].join("\n"),
-                            )
-                          }
-                          size="sm"
-                          variant="ghost"
-                        >
-                          Copy section
-                        </Button>
-                      </div>
-                      <p className="listing-studio-muted">{section.subtitle}</p>
-                      <div className="listing-studio-keyvalue-grid">
-                        {section.variants.map((variant) => (
-                          <div className="listing-studio-keyvalue-card" key={variant.id}>
-                            <div className="listing-studio-card-meta">
-                              <span className="office-status-badge office-status-badge-neutral">
-                                {variant.note}
-                              </span>
-                              <span className="office-status-badge office-status-badge-success">
-                                {section.title}
-                              </span>
-                            </div>
-                            <strong>{variant.label}</strong>
-                            <span>{variant.text}</span>
-                            <div className="listing-studio-editor-actions">
-                              <Button
-                                onClick={() => void copyMarketingKitCopy(variant.label, variant.text)}
-                                size="sm"
-                                variant="secondary"
-                              >
-                                Copy
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-            </ListingStudioDisclosure>
-
-            <p className="listing-studio-muted">
-              {marketingKit.summaryLine}. The kit keeps the scan link, contact block, and listing copy aligned.
-            </p>
-          </SectionCard>
-        </div>
-
-        <div className="listing-studio-detail-rail">
-          <SectionCard
-            className="office-list-card listing-studio-rail-priority-card"
-            subtitle="The right rail now focuses on save, share, and export so the main column can stay editorial."
-            title="Publish and export"
-          >
-            <div className="listing-studio-rail-status-list">
-              <div className="listing-studio-keyvalue-card">
-                <span>Save state</span>
-                <strong>{isSaving ? "Saving in progress" : "Ready to save"}</strong>
-                <span>Persist the current contact block, copy, and media selection back into this packet.</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Share page</span>
-                <strong>{shareEnabled && shareUrl ? "Published" : "Not published"}</strong>
-                <span>{shareEnabled && shareUrl ? shareUrl : "Publish when the packet should open as a public Acre page."}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Export output</span>
-                <strong>{activePosterTemplate.label} + saved PDF</strong>
-                <span>Poster preview, HTML, and PDF follow the same saved packet so you only review one story.</span>
-              </div>
-            </div>
-            <div className="listing-studio-editor-actions">
-              <Button disabled={isDeleting} onClick={savePack} variant="primary">
                 {isSaving ? "Saving..." : "Save listing"}
-              </Button>
-              <Button
-                disabled={isDeleting}
-                onClick={publishShare}
-                variant="secondary"
+              </button>
+              <button
+                className="listing-studio-view-menu-item"
+                disabled={isSharing}
+                onClick={() => {
+                  closeMenu();
+                  void publishShare();
+                }}
+                type="button"
               >
                 {isSharing ? "Publishing..." : shareEnabled ? "Refresh share link" : "Publish share"}
-              </Button>
+              </button>
               <a
-                className="office-button office-button-secondary"
+                className="listing-studio-view-menu-item"
                 href={`/api/listing-studio/listings/${detail.packId}/pdf`}
+                onClick={closeMenu}
+                rel="noreferrer"
                 target="_blank"
               >
                 Export PDF
               </a>
-            </div>
-            <ListingStudioDisclosure
-              description="Share-page links, print output, HTML download, and poster copy stay here without taking over the rail."
-              title="More export tools"
-            >
-              <div className="listing-studio-editor-actions">
-                {shareUrl ? (
-                  <>
-                    <a
-                      className="office-button office-button-secondary"
-                      href={shareUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Open share page
-                    </a>
-                    <Button disabled={isDeleting} onClick={copyShareUrl} variant="ghost">
-                      Copy share link
-                    </Button>
-                  </>
-                ) : null}
-                <a
-                  className="office-button office-button-secondary"
-                  href={posterPrintUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Open print view
-                </a>
-                <a
-                  className="office-button office-button-secondary"
-                  download
-                  href={posterDownloadUrl}
-                >
-                  Download HTML
-                </a>
-                <Button onClick={() => void copyPosterCopy()} variant="ghost">
-                  Copy poster copy
-                </Button>
-              </div>
-            </ListingStudioDisclosure>
-            {statusMessage ? (
-              <p className="listing-studio-status-message">{statusMessage}</p>
-            ) : null}
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle="Contact, scan path, and original source stay grouped here so the rail acts like a compact reference shelf."
-            title="Reference links"
-          >
-            <div className="listing-studio-keyvalue-grid">
-              <div className="listing-studio-keyvalue-card">
-                <span>Agent info</span>
-                <strong>{contactName || "Acre listing studio"}</strong>
-                <span>{contactTitle || "Listing presentation"}</span>
-                <strong>{contactPhone || "Phone not published"}</strong>
-                <span>{contactEmail || "Email not published"}</span>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Scan path</span>
-                <strong>{scanTargetLabel}</strong>
-                <span>{scanTargetHint}</span>
-                <strong>{scanTargetHref}</strong>
-              </div>
-              <div className="listing-studio-keyvalue-card">
-                <span>Source</span>
-                <strong>{detail.sourceSite}</strong>
-                <span>{detail.sourceUrl}</span>
-              </div>
-            </div>
-            <div className="listing-studio-editor-actions">
-              <Button onClick={() => void copyScanLink()} variant="secondary">
-                Copy scan link
-              </Button>
+              {shareUrl ? (
+                <>
+                  <a
+                    className="listing-studio-view-menu-item"
+                    href={shareUrl}
+                    onClick={closeMenu}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Open share page
+                  </a>
+                  <button
+                    className="listing-studio-view-menu-item"
+                    onClick={() => {
+                      closeMenu();
+                      void copyShareUrl();
+                    }}
+                    type="button"
+                  >
+                    Copy share link
+                  </button>
+                </>
+              ) : null}
+              <div className="listing-studio-view-menu-divider" />
               <a
-                className="office-button office-button-secondary"
-                href={scanTargetHref}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Open scan link
-              </a>
-              <a
-                className="office-button office-button-secondary"
+                className="listing-studio-view-menu-item"
                 href={detail.sourceUrl}
+                onClick={closeMenu}
                 rel="noreferrer"
                 target="_blank"
               >
                 Open original listing
               </a>
+              <button
+                className="listing-studio-view-menu-item is-danger"
+                onClick={() => {
+                  closeMenu();
+                  setIsDeleteDialogOpen(true);
+                }}
+                type="button"
+              >
+                Delete listing
+              </button>
             </div>
-            <ListingStudioDisclosure
-              description="Floor plans and file-like references stay tucked away until you need them."
-              title="Files and floor plans"
-            >
-              {detail.floorPlans.length ? (
-                <div className="listing-studio-floorplan-list">
-                  {detail.floorPlans.map((plan, index) => (
-                    <a
-                      className="listing-studio-floorplan-link"
-                      href={
-                        plan.assetId
-                          ? `/api/listing-studio/assets/${plan.assetId}`
-                          : plan.url || "#"
-                      }
-                      key={`${plan.label}-${index}`}
-                      target="_blank"
-                    >
-                      {plan.label}
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="listing-studio-muted">No floor plan files were captured for this listing.</p>
-              )}
-            </ListingStudioDisclosure>
-          </SectionCard>
+          </details>
+        </header>
 
-          <SectionCard
-            className="office-list-card"
-            subtitle="Delete this saved listing from Listing Studio."
-            title="Danger zone"
-          >
-            <ListingStudioDisclosure
-              description="Keep destructive actions folded unless you are intentionally cleaning out this packet."
-              title="Delete saved listing"
-            >
-              <div className="listing-studio-editor-form">
-                <p className="listing-studio-muted">
-                  This only deletes the local Listing Studio record. The source StreetEasy or Zillow page is untouched.
-                </p>
-                <Button
-                  disabled={isDeleting}
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  variant="danger"
+        {statusMessage ? (
+          <p className="listing-studio-view-feedback">{statusMessage}</p>
+        ) : null}
+
+        <section className="listing-studio-view-stage-card">
+          <div className="listing-studio-view-stage">
+            <span className="listing-studio-view-status-pill">{statusPill}</span>
+
+            {mediaMode === "map" && mapEmbedUrl ? (
+              <iframe
+                allowFullScreen
+                className="listing-studio-view-stage-frame"
+                loading="lazy"
+                src={mapEmbedUrl}
+                title={`${detail.addressLine} map`}
+              />
+            ) : mediaMode === "floorplan" && floorPlanSrc ? (
+              floorPlanIsPdf ? (
+                <iframe
+                  allowFullScreen
+                  className="listing-studio-view-stage-frame"
+                  loading="lazy"
+                  src={floorPlanSrc}
+                  title={floorPlanLabel}
+                />
+              ) : (
+                <img
+                  alt={floorPlanLabel}
+                  className="listing-studio-view-stage-image is-contained"
+                  src={floorPlanSrc}
+                />
+              )
+            ) : activePhoto ? (
+              <img
+                alt={activePhoto.label ?? detail.title}
+                className="listing-studio-view-stage-image"
+                src={`/api/listing-studio/assets/${activePhoto.id}`}
+              />
+            ) : (
+              <div className="listing-studio-view-stage-empty">
+                No media was captured for this listing yet.
+              </div>
+            )}
+          </div>
+
+          <div className="listing-studio-view-stage-rail">
+            <div className="listing-studio-view-thumbnail-row">
+              {photoAssets.map((asset) => (
+                <button
+                  className={`listing-studio-view-thumbnail${mediaMode === "photo" && activePhoto?.id === asset.id ? " is-active" : ""}`}
+                  key={asset.id}
+                  onClick={() => handleSelectPhoto(asset.id)}
+                  type="button"
                 >
-                  {isDeleting ? "Deleting..." : "Delete listing"}
+                  <img
+                    alt={asset.label ?? detail.title}
+                    src={`/api/listing-studio/assets/${asset.id}`}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <div className="listing-studio-view-mode-row">
+              {floorPlanSrc ? (
+                <button
+                  className={`listing-studio-view-mode-button${mediaMode === "floorplan" ? " is-active" : ""}`}
+                  onClick={() => setMediaMode("floorplan")}
+                  type="button"
+                >
+                  Floor plan
+                </button>
+              ) : null}
+              {mapEmbedUrl ? (
+                <button
+                  className={`listing-studio-view-mode-button${mediaMode === "map" ? " is-active" : ""}`}
+                  onClick={() => setMediaMode("map")}
+                  type="button"
+                >
+                  Map
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="listing-studio-view-summary-card">
+          <div className="listing-studio-view-price-block">
+            <strong>{detail.priceLabel}</strong>
+            <span>{headerEyebrow}</span>
+          </div>
+
+          <div className="listing-studio-view-address-block">
+            <strong>{detail.addressLine}</strong>
+            {detail.locationLine ? <span>{detail.locationLine}</span> : null}
+          </div>
+
+          {detail.facts.length ? (
+            <div className="listing-studio-view-facts-grid">
+              {detail.facts.map((fact) => (
+                <div className="listing-studio-view-fact-card" key={fact.label}>
+                  <span>{fact.label}</span>
+                  <strong>{fact.value}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {financialHighlights.length ? (
+            <div className="listing-studio-view-chip-row">
+              {financialHighlights.map((item) => (
+                <span className="listing-studio-view-chip" key={item.label}>
+                  {item.label} {item.value}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
+        {detail.amenities.length ? (
+          <section className="listing-studio-view-info-card">
+            <div className="listing-studio-view-section-head">
+              <h2>Building amenities</h2>
+            </div>
+            <div className="listing-studio-view-amenities-sections">
+              {detail.amenities.map((section) => (
+                <div className="listing-studio-view-amenity-group" key={section.title}>
+                  <strong>{section.title}</strong>
+                  <ul className="listing-studio-view-amenity-list">
+                    {section.items.map((item) => (
+                      <li key={`${section.title}-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {detail.transit.length ? (
+          <section className="listing-studio-view-info-card">
+            <div className="listing-studio-view-section-head">
+              <h2>Nearby transit</h2>
+            </div>
+
+            {transitSummary.nearestWalkMinutes !== null ||
+            transitSummary.withinFiveHundredMeters !== null ? (
+              <div className="listing-studio-view-transit-summary">
+                {transitSummary.nearestWalkMinutes !== null ? (
+                  <div className="listing-studio-view-transit-summary-card">
+                    <span>Nearest station</span>
+                    <strong>{transitSummary.nearestWalkMinutes} min walk</strong>
+                  </div>
+                ) : null}
+                {transitSummary.withinFiveHundredMeters !== null ? (
+                  <div className="listing-studio-view-transit-summary-card">
+                    <span>Within 500m</span>
+                    <strong>{transitSummary.withinFiveHundredMeters} stations</strong>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="listing-studio-view-transit-list">
+              {detail.transit.map((item) => (
+                <div
+                  className="listing-studio-view-transit-item"
+                  key={`${item.label}-${item.distanceLabel ?? ""}`}
+                >
+                  <div>
+                    <strong>{item.label}</strong>
+                    {item.detail ? <span>{item.detail}</span> : null}
+                  </div>
+                  {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {detail.pack.summary || detail.descriptionText ? (
+          <section className="listing-studio-view-info-card">
+            <div className="listing-studio-view-section-head">
+              <h2>Overview</h2>
+            </div>
+            <div className="listing-studio-view-copy-stack">
+              {detail.pack.summary ? <p>{detail.pack.summary}</p> : null}
+              {detail.descriptionText ? <p>{detail.descriptionText}</p> : null}
+            </div>
+          </section>
+        ) : null}
+
+        {sourceDetailFacts.length ? (
+          <section className="listing-studio-view-info-card">
+            <div className="listing-studio-view-section-head">
+              <h2>Source facts</h2>
+            </div>
+            <div className="listing-studio-view-source-grid">
+              {sourceDetailFacts.slice(0, 6).map((item) => (
+                <div className="listing-studio-view-source-card" key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {detail.propertyHistory.length ? (
+          <ListingStudioDisclosure
+            description="Raw price and listing history stay nearby without taking over the primary reading flow."
+            title="Property history"
+          >
+            <div className="listing-studio-detail-section-list">
+              {detail.propertyHistory.map((section) => (
+                <div className="listing-studio-detail-section-block" key={section.title}>
+                  <strong>{section.title}</strong>
+                  <div className="listing-studio-detail-section-items">
+                    {section.items.map((item) => (
+                      <span key={`${section.title}-${item}`}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ListingStudioDisclosure>
+        ) : null}
+
+        {detail.capturedSections.length ? (
+          <ListingStudioDisclosure
+            description="Additional scraped sections stay collapsed until you need the raw source payload."
+            title="Additional details"
+          >
+            <div className="listing-studio-detail-section-list">
+              {detail.capturedSections.map((section) => (
+                <div className="listing-studio-detail-section-block" key={section.title}>
+                  <strong>{section.title}</strong>
+                  <div className="listing-studio-detail-section-items">
+                    {section.items.map((item) => (
+                      <span key={`${section.title}-${item}`}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ListingStudioDisclosure>
+        ) : null}
+      </div>
+
+      {isEditorOpen ? (
+        <div
+          className="office-modal-overlay"
+          onClick={() => {
+            if (!isSaving) {
+              setIsEditorOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-label="Edit listing packet"
+            aria-modal="true"
+            className="office-modal listing-studio-view-edit-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header className="office-modal-header office-modal-header-configurable">
+              <div className="office-modal-title-block">
+                <span className="listing-studio-view-edit-kicker">Edit packet</span>
+                <h3>{detail.addressLine}</h3>
+                <p>
+                  Packet edits stay internal to Acre. The detail page itself now stays aligned
+                  to the imported listing view.
+                </p>
+              </div>
+              <div className="office-modal-header-actions">
+                <Button
+                  onClick={() => setIsEditorOpen(false)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Close
+                </Button>
+                <Button
+                  disabled={isSaving}
+                  onClick={() => void savePack({ closeEditor: true })}
+                  type="button"
+                >
+                  {isSaving ? "Saving..." : "Save changes"}
                 </Button>
               </div>
-            </ListingStudioDisclosure>
-          </SectionCard>
+            </header>
+
+            <div className="office-modal-body">
+              <div className="listing-studio-view-edit-body">
+                <section className="listing-studio-view-edit-section">
+                  <div className="listing-studio-view-edit-section-head">
+                    <strong>Editorial copy</strong>
+                    <span>These fields still control the internal packet, share page, and exports.</span>
+                  </div>
+                  <div className="listing-studio-form-grid">
+                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
+                      <span>Headline</span>
+                      <TextInput
+                        value={headline}
+                        onChange={(event) => setHeadline(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
+                      <span>Summary</span>
+                      <TextareaInput
+                        rows={4}
+                        value={summary}
+                        onChange={(event) => setSummary(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
+                      <span>Bullet points</span>
+                      <TextareaInput
+                        rows={5}
+                        value={bulletText}
+                        onChange={(event) => setBulletText(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field listing-studio-form-grid-span">
+                      <span>Agent note</span>
+                      <TextareaInput
+                        rows={4}
+                        value={agentNote}
+                        onChange={(event) => setAgentNote(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="listing-studio-view-edit-section">
+                  <div className="listing-studio-view-edit-section-head">
+                    <strong>Contact block</strong>
+                    <span>The share page and packet exports still use this Acre contact panel.</span>
+                  </div>
+                  <div className="listing-studio-form-grid">
+                    <label className="listing-studio-filter-field">
+                      <span>Contact name</span>
+                      <TextInput
+                        value={contactName}
+                        onChange={(event) => setContactName(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field">
+                      <span>Contact title</span>
+                      <TextInput
+                        value={contactTitle}
+                        onChange={(event) => setContactTitle(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field">
+                      <span>Contact phone</span>
+                      <TextInput
+                        value={contactPhone}
+                        onChange={(event) => setContactPhone(event.target.value)}
+                      />
+                    </label>
+                    <label className="listing-studio-filter-field">
+                      <span>Contact email</span>
+                      <TextInput
+                        value={contactEmail}
+                        onChange={(event) => setContactEmail(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="listing-studio-view-edit-section">
+                  <div className="listing-studio-view-edit-section-head">
+                    <strong>Share / PDF media selection</strong>
+                    <span>
+                      The detail page always shows all imported photos. These choices only affect
+                      what Acre uses for share and PDF outputs.
+                    </span>
+                  </div>
+                  <div className="listing-studio-view-edit-media-grid">
+                    {photoAssets.map((asset) => {
+                      const isSelected = selectedAssetIds.includes(asset.id);
+                      const isLead = coverAssetId === asset.id;
+
+                      return (
+                        <div className="listing-studio-view-edit-media-card" key={asset.id}>
+                          <img
+                            alt={asset.label ?? detail.title}
+                            src={`/api/listing-studio/assets/${asset.id}`}
+                          />
+                          <div className="listing-studio-view-edit-media-body">
+                            <div className="listing-studio-view-edit-media-copy">
+                              <strong>{asset.label ?? "Imported photo"}</strong>
+                              <span>{isLead ? "Lead asset" : "Gallery asset"}</span>
+                            </div>
+                            <div className="listing-studio-editor-actions">
+                              <Button
+                                onClick={() => toggleSelectedPhoto(asset.id)}
+                                size="sm"
+                                variant={isSelected ? "primary" : "secondary"}
+                              >
+                                {isSelected ? "Included" : "Include"}
+                              </Button>
+                              <Button
+                                onClick={() => setLeadPhoto(asset.id)}
+                                size="sm"
+                                variant={isLead ? "primary" : "ghost"}
+                              >
+                                {isLead ? "Lead photo" : "Set lead"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <footer className="office-modal-footer">
+              <span>Publishing is still a separate explicit step after saving.</span>
+              <div className="office-modal-actions">
+                <Button
+                  onClick={() => setIsEditorOpen(false)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Close
+                </Button>
+                <Button
+                  disabled={isSaving}
+                  onClick={() => void savePack({ closeEditor: true })}
+                  type="button"
+                >
+                  {isSaving ? "Saving..." : "Save changes"}
+                </Button>
+              </div>
+            </footer>
+          </section>
         </div>
-      </div>
+      ) : null}
+
       <ConfirmActionDialog
         cancelLabel="Keep listing"
         confirmLabel={isDeleting ? "Deleting..." : "Delete listing"}
@@ -1516,7 +1002,7 @@ export function ListingStudioDetailClient({
         title="Delete this listing?"
       >
         <p className="listing-studio-muted">
-          You can always save the source page again later, but this saved listing will be gone.
+          You can save the source page again later, but this saved listing will be gone.
         </p>
       </ConfirmActionDialog>
     </>

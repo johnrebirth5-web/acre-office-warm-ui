@@ -72,6 +72,8 @@ export type StudioListingDetailSnapshot = {
   priceLabel: string;
   addressLine: string;
   locationLine: string | null;
+  latitude: number | null;
+  longitude: number | null;
   descriptionText: string | null;
   facts: Array<{ label: string; value: string }>;
   sourceFacts: Array<{ label: string; value: string }>;
@@ -84,6 +86,8 @@ export type StudioListingDetailSnapshot = {
     id: string;
     kind: StudioListingAssetKind;
     label: string | null;
+    mimeType: string | null;
+    fileName: string;
     sortOrder: number;
   }>;
   pack: {
@@ -1237,6 +1241,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     id: asset.id,
     kind: asset.kind,
     label: asset.label,
+    mimeType: asset.mimeType,
+    fileName: asset.fileName,
     sortOrder: asset.sortOrder,
   }));
 
@@ -1260,6 +1266,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
       city: snapshot.city,
       state: snapshot.state,
     }),
+    latitude: snapshot.latitude ? Number(snapshot.latitude) : null,
+    longitude: snapshot.longitude ? Number(snapshot.longitude) : null,
     descriptionText: snapshot.descriptionText,
     facts:
       Array.isArray(snapshot.heroFactsJson)

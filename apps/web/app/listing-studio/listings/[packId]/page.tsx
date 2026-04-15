@@ -23,12 +23,6 @@ export default async function ListingStudioDetailPage(
 
   return (
     <div className="office-list-page listing-studio-page">
-      <section className="office-page-header listing-studio-header">
-        <div className="office-page-heading">
-          <span className="office-eyebrow">Saved listing</span>
-          <h2>{detail.title}</h2>
-        </div>
-      </section>
       <ListingStudioDetailClient detail={detail} />
     </div>
   );
