@@ -704,6 +704,28 @@ function formatNumericInput(value: number | null) {
   return value === null ? "" : String(value);
 }
 
+function buildEditorDescription(detail: StudioListingDetailSnapshot) {
+  if (detail.descriptionText?.trim()) {
+    return detail.descriptionText.trim();
+  }
+
+  const addressDescription = [
+    detail.streetAddress?.trim(),
+    [detail.city?.trim(), detail.state?.trim(), detail.postalCode?.trim()]
+      .filter(Boolean)
+      .join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .trim();
+
+  if (addressDescription) {
+    return addressDescription;
+  }
+
+  return detail.pack.summary?.trim() ?? "";
+}
+
 function parseNumberishInput(value: string) {
   const normalized = value.replace(/[^0-9.-]+/g, "");
   if (!normalized) {
@@ -853,7 +875,7 @@ function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorSta
     commonCharges:
       findSourceFactValue(detail.sourceFacts, /common charges|hoa|maintenance/i) ?? "",
     taxes: findSourceFactValue(detail.sourceFacts, /tax/i) ?? "",
-    description: detail.descriptionText ?? detail.pack.summary,
+    description: buildEditorDescription(detail),
     amenitySections: buildAmenityEditorSections(detail.amenities),
   };
 }
@@ -2150,7 +2172,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                   <strong>Additional</strong>
                 </div>
 
-                <label className="listing-studio-editor-field is-span-3">
+                <label className="listing-studio-editor-field">
                   <span>Description</span>
                   <TextareaInput
                     className="listing-studio-editor-textarea"
@@ -2159,6 +2181,10 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                     value={editorState.description}
                   />
                 </label>
+
+                <div className="listing-studio-editor-subsection-label">
+                  <span>Building Amenities</span>
+                </div>
 
                 <div className="listing-studio-editor-amenity-stack">
                   {editorState.amenitySections.map((section) => (
@@ -2266,7 +2292,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                   ))}
                 </div>
 
-                <div className="listing-studio-editor-grid">
+                <div className="listing-studio-editor-grid listing-studio-editor-meta-grid">
                   <label className="listing-studio-editor-field">
                     <span>Unit Number</span>
                     <TextInput
@@ -2283,15 +2309,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                       value={editorState.neighborhood}
                     />
                   </label>
-                  <label className="listing-studio-editor-field is-span-2">
-                    <span>Building Name</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("buildingName", event.target.value)}
-                      value={editorState.buildingName}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field is-span-3">
+                  <label className="listing-studio-editor-field listing-studio-editor-meta-url">
                     <span>Listing URL</span>
                     <TextInput
                       className="listing-studio-editor-input"
@@ -2300,7 +2318,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                     />
                   </label>
                 </div>
-                </section>
+              </section>
               </div>
 
               <footer className="listing-studio-editor-footer">
