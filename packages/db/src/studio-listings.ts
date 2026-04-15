@@ -403,6 +403,38 @@ function normalizeTransitItems(value: unknown): StudioTransitItem[] {
   return items;
 }
 
+function parseFallbackTransitItem(value: string): StudioTransitItem | null {
+  const trimmed = trimString(value);
+  if (!trimmed) {
+    return null;
+  }
+
+  const compact = trimmed.replace(/\s+/g, " ").trim();
+  const parts = compact.split("·").map((part) => part.trim()).filter(Boolean);
+  const labelCandidate =
+    parts[0]?.replace(/\s+[0-9.]+\s*(?:km|mi|m)\b.*$/i, "").trim() ?? compact;
+  const label = labelCandidate || compact;
+  const minutesMatch = compact.match(/(\d+)\s*min(?:ute)?(?:s)?(?:\s*walk)?/i);
+  const distanceMatch = compact.match(/([0-9.]+\s*(?:km|mi|m))/i);
+  const detailParts: string[] = [];
+
+  if (distanceMatch?.[1]) {
+    detailParts.push(distanceMatch[1]);
+  }
+
+  if (minutesMatch?.[1]) {
+    detailParts.push(`${minutesMatch[1]} min walk`);
+  }
+
+  return {
+    label,
+    detail: detailParts.length ? detailParts.join(" • ") : parts.slice(1).join(" • ") || null,
+    distanceLabel: minutesMatch?.[1]
+      ? `${minutesMatch[1]} min`
+      : distanceMatch?.[1] ?? null,
+  };
+}
+
 function normalizeFloorPlans(value: unknown): StudioFloorPlanItem[] {
   const items: StudioFloorPlanItem[] = [];
 
@@ -1279,9 +1311,14 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
   const sourceFacts = normalizeLabeledValues(
     readCanonicalFieldFromRawParsed(snapshot.rawParsedJson as Prisma.JsonValue | null, "sourceFacts"),
   );
-  const capturedSections = normalizeDetailSections(
+  const rawDetailSections = normalizeDetailSections(
     readCanonicalFieldFromRawParsed(snapshot.rawParsedJson as Prisma.JsonValue | null, "detailSections"),
-  ).filter(
+  );
+  const fallbackTransit = rawDetailSections
+    .filter((section) => /transit|transportation|subway|station/i.test(section.title))
+    .flatMap((section) => section.items.map(parseFallbackTransitItem))
+    .filter((entry): entry is StudioTransitItem => Boolean(entry));
+  const capturedSections = rawDetailSections.filter(
     (section) => !/amenities|features|transit|transportation|history|about|overview/i.test(section.title),
   );
   const propertyHistory = normalizeDetailSections(snapshot.propertyHistoryJson as Prisma.JsonValue | null);
@@ -1353,8 +1390,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
       ? (snapshot.amenitiesJson as Array<{ title: string; items: string[] }>)
       : [],
     transit: Array.isArray(snapshot.transitJson)
-      ? (snapshot.transitJson as Array<{ label: string; detail?: string | null; distanceLabel?: string | null }>)
-      : [],
+      ? normalizeTransitItems(snapshot.transitJson as Prisma.JsonValue)
+      : fallbackTransit,
     floorPlans: Array.isArray(snapshot.floorPlanJson)
       ? (snapshot.floorPlanJson as Array<{ label: string; assetId?: string | null; url?: string | null }>)
       : [],

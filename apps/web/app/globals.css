@@ -18050,10 +18050,40 @@ body,
   font-size: 0.85rem;
 }
 
+.listing-studio-listed-shell {
+  min-height: calc(100vh - 28px);
+}
+
+.listing-studio-listed-frame {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  width: min(1180px, 100%);
+  min-height: calc(100vh - 28px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(22, 39, 60, 0.08);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 56px rgba(15, 23, 42, 0.12);
+}
+
+.listing-studio-listed-sidebar {
+  min-height: 100%;
+}
+
+.listing-studio-listed-main {
+  display: grid;
+  align-content: start;
+  padding: 28px 32px;
+  background: #f7f7f5;
+}
+
 .listing-studio-view-page {
   display: grid;
-  gap: 22px;
+  gap: 18px;
+  width: min(820px, 100%);
   min-width: 0;
+  margin: 0 auto;
 }
 
 .listing-studio-view-page > * {
@@ -18070,12 +18100,12 @@ body,
 
 .listing-studio-view-header-copy {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .listing-studio-view-eyebrow {
   color: var(--office-text-muted);
-  font-size: 0.96rem;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 
@@ -18090,7 +18120,7 @@ body,
 .listing-studio-view-header-copy p {
   margin: 0;
   color: var(--office-text-muted);
-  font-size: 1rem;
+  font-size: 0.96rem;
 }
 
 .listing-studio-view-menu {
@@ -18205,14 +18235,14 @@ body,
 
 .listing-studio-view-stage-card {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: 14px;
 }
 
 .listing-studio-view-stage {
   position: relative;
   overflow: hidden;
-  min-height: 520px;
+  min-height: 460px;
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(20, 74, 119, 0.08), rgba(20, 74, 119, 0.03));
 }
@@ -18414,7 +18444,7 @@ body,
 .listing-studio-view-stage-frame {
   display: block;
   width: 100%;
-  min-height: 520px;
+  min-height: 460px;
   border: 0;
 }
 
@@ -18431,10 +18461,30 @@ body,
 .listing-studio-view-stage-empty {
   display: grid;
   place-items: center;
-  min-height: 520px;
+  min-height: 460px;
   padding: 24px;
   color: var(--office-text-muted);
   text-align: center;
+}
+
+.listing-studio-view-stage-count {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--office-text);
+  font-size: 0.96rem;
+  font-weight: 800;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
 }
 
 .listing-studio-view-stage-rail {
@@ -18510,8 +18560,8 @@ body,
 .listing-studio-view-summary-card,
 .listing-studio-view-info-card {
   display: grid;
-  gap: 20px;
-  padding: 26px 28px;
+  gap: 18px;
+  padding: 22px 24px;
 }
 
 .listing-studio-view-price-block {
@@ -18521,7 +18571,7 @@ body,
 
 .listing-studio-view-price-block strong {
   color: var(--office-text);
-  font-size: clamp(2rem, 3vw, 3.1rem);
+  font-size: clamp(2rem, 3vw, 2.8rem);
   line-height: 1;
   letter-spacing: -0.04em;
   overflow-wrap: anywhere;
@@ -18547,19 +18597,43 @@ body,
 
 .listing-studio-view-facts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .listing-studio-view-fact-card,
 .listing-studio-view-transit-summary-card,
 .listing-studio-view-source-card {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   padding: 16px 18px;
   border: 1px solid rgba(22, 39, 60, 0.08);
   border-radius: 18px;
   background: rgba(250, 251, 253, 0.95);
+}
+
+.listing-studio-view-fact-card {
+  justify-items: center;
+  text-align: center;
+}
+
+.listing-studio-view-fact-card.is-accent-success strong,
+.listing-studio-view-fact-card.is-accent-success span:last-child {
+  color: #2f9e44;
+}
+
+.listing-studio-view-fact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--office-text-soft);
+}
+
+.listing-studio-view-fact-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .listing-studio-view-fact-card span,
@@ -18576,7 +18650,7 @@ body,
 .listing-studio-view-transit-summary-card strong,
 .listing-studio-view-source-card strong {
   color: var(--office-text);
-  font-size: 1.02rem;
+  font-size: 1.18rem;
   line-height: 1.35;
 }
 
@@ -18607,9 +18681,21 @@ body,
 
 .listing-studio-view-section-head h2 {
   margin: 0;
-  font-size: 1.55rem;
+  font-size: 1.35rem;
   line-height: 1.1;
   letter-spacing: -0.03em;
+}
+
+.listing-studio-view-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.listing-studio-view-section-title svg {
+  width: 20px;
+  height: 20px;
+  color: var(--office-text-soft);
 }
 
 .listing-studio-view-amenities-sections {
@@ -18624,20 +18710,22 @@ body,
 
 .listing-studio-view-amenity-group > strong {
   color: var(--office-text-muted);
-  font-size: 0.98rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .listing-studio-view-amenity-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
+  gap: 10px 20px;
   margin: 0;
   padding-left: 20px;
 }
 
 .listing-studio-view-amenity-list li {
   color: var(--office-text);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .listing-studio-view-transit-summary {
@@ -19324,15 +19412,6 @@ body,
   backdrop-filter: blur(12px);
 }
 
-.listing-studio-editor-delete {
-  border: 0;
-  background: transparent;
-  color: #b42318;
-  font-size: 0.96rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .listing-studio-editor-footer-actions {
   display: flex;
   align-items: center;
@@ -19366,6 +19445,18 @@ body,
 
   .listing-studio-view-mode-row {
     justify-content: flex-end;
+  }
+
+  .listing-studio-listed-frame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .listing-studio-listed-sidebar {
+    display: none;
+  }
+
+  .listing-studio-listed-main {
+    padding: 22px;
   }
 
   .listing-studio-editor-frame {
@@ -19472,6 +19563,10 @@ body,
   .listing-studio-view-stage-frame,
   .listing-studio-view-stage-empty {
     min-height: 320px;
+  }
+
+  .listing-studio-view-facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .listing-studio-view-thumbnail {

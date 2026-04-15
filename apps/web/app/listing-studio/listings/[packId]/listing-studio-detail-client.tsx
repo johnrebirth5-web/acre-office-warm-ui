@@ -1,12 +1,10 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 import {
   Button,
   CheckboxField,
-  ConfirmActionDialog,
   SelectInput,
   TextareaInput,
   TextInput,
@@ -21,6 +19,12 @@ type MediaMode = "photo" | "floorplan" | "map";
 type TransitSummary = {
   nearestWalkMinutes: number | null;
   withinFiveHundredMeters: number | null;
+};
+
+type PrimaryFactCard = {
+  accent?: "success";
+  label: string;
+  value: string;
 };
 
 type CollectionRecord = {
@@ -460,6 +464,77 @@ function IconSidebarShares() {
   );
 }
 
+function IconFactBedrooms() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M4 18V9.5A1.5 1.5 0 0 1 5.5 8h13A1.5 1.5 0 0 1 20 9.5V18M4 14h16M7 11h3m4 0h3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconFactBathrooms() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M7 10.5h10M9 10.5V7.8A3 3 0 0 1 12 5a3 3 0 0 1 3 2.8v2.7M8 19h8M9 19l-.8-4.5M15 19l.8-4.5M6 14.5h12"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconFactSqft() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M7 17 17 7M8 7h9v9"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconFactAvailability() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 8v4l2.5 2.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IconTransit() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M8 18h8M9.5 18 8 20M14.5 18 16 20M8 6.5A2.5 2.5 0 0 1 10.5 4h3A2.5 2.5 0 0 1 16 6.5v7A2.5 2.5 0 0 1 13.5 16h-3A2.5 2.5 0 0 1 8 13.5v-7ZM8 10h8"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
 function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
 }
@@ -613,6 +688,85 @@ function parseTransitSummary(
     nearestWalkMinutes,
     withinFiveHundredMeters: foundDistance ? withinFiveHundredMeters : null,
   };
+}
+
+function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
+  const candidates = [
+    detail.availabilityLabel,
+    findSourceFactValue(detail.sourceFacts, /availability|available|move[- ]?in|occupancy/i),
+    ...detail.capturedSections
+      .filter((section) => /availability|move[- ]?in|occupancy/i.test(section.title))
+      .flatMap((section) => section.items),
+  ]
+    .map((value) => value?.trim() || "")
+    .filter(Boolean);
+
+  const best = candidates.sort((left, right) => right.length - left.length)[0] ?? "";
+  if (!best) {
+    return null;
+  }
+
+  const normalized = best.replace(/^availability[:\s-]*/i, "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^(available|available now)$/i.test(normalized)) {
+    return "Available";
+  }
+
+  return /^available/i.test(normalized) ? normalized : `Available ${normalized}`;
+}
+
+function resolveSqftValue(detail: StudioListingDetailSnapshot) {
+  if (detail.sqft !== null) {
+    return new Intl.NumberFormat("en-US").format(detail.sqft);
+  }
+
+  return (
+    findSourceFactValue(detail.sourceFacts, /sqft|square feet|square foot/i) ??
+    findSourceFactValue(detail.facts, /sqft|square feet|square foot/i)
+  );
+}
+
+function buildPrimaryFactCards(detail: StudioListingDetailSnapshot): PrimaryFactCard[] {
+  const cards: PrimaryFactCard[] = [];
+
+  if (detail.bedrooms !== null) {
+    cards.push({ label: "Bedrooms", value: String(detail.bedrooms) });
+  }
+
+  if (detail.bathrooms !== null) {
+    cards.push({ label: "Bathrooms", value: String(detail.bathrooms) });
+  }
+
+  const sqftValue = resolveSqftValue(detail);
+  if (sqftValue) {
+    cards.push({ label: "Sqft", value: sqftValue });
+  }
+
+  const availabilityValue = resolveAvailabilityValue(detail);
+  if (availabilityValue) {
+    cards.push({ accent: "success", label: "Availability", value: availabilityValue });
+  }
+
+  return cards;
+}
+
+function renderPrimaryFactIcon(label: string) {
+  if (/bed/i.test(label)) {
+    return <IconFactBedrooms />;
+  }
+
+  if (/bath/i.test(label)) {
+    return <IconFactBathrooms />;
+  }
+
+  if (/sqft|square/i.test(label)) {
+    return <IconFactSqft />;
+  }
+
+  return <IconFactAvailability />;
 }
 
 function ListingStudioDisclosure(props: {
@@ -963,7 +1117,6 @@ function StageActionButton(props: {
 }
 
 export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
-  const router = useRouter();
   const collectionRef = useRef<HTMLDivElement | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
@@ -974,10 +1127,8 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const [statusMessage, setStatusMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingAssets, setIsUploadingAssets] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorState, setEditorState] = useState(() => buildEditorState(detail));
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
@@ -1007,6 +1158,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(detailState), [detailState]);
   const statusPill = getListingStateLabel(detailState);
   const headerEyebrow = getHeaderEyebrow(detailState);
+  const primaryFactCards = useMemo(() => buildPrimaryFactCards(detailState), [detailState]);
   const financialHighlights = useMemo(
     () => collectFinancialHighlights(detailState),
     [detailState],
@@ -1032,6 +1184,12 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const editorUserName = detailState.pack.contactName || "Acre Admin";
   const editorUserEmail = detailState.pack.contactEmail || "listingstudio@acreny.us";
   const editorUserInitial = (editorUserName.trim().charAt(0) || "A").toUpperCase();
+  const activePhotoIndex = activePhoto
+    ? Math.max(
+        0,
+        photoAssets.findIndex((asset) => asset.id === activePhoto.id),
+      ) + 1
+    : 0;
   const filteredCollections = useMemo(() => {
     const query = collectionSearch.trim().toLowerCase();
     if (!query) {
@@ -1401,37 +1559,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     }
   }
 
-  function deleteListing() {
-    if (isDeleting) {
-      return;
-    }
-
-    setIsDeleting(true);
-    setStatusMessage("");
-
-    void (async () => {
-      try {
-        const response = await fetch(`/api/listing-studio/listings/${detailState.packId}`, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Unable to delete the listing.");
-        }
-
-        router.push("/listing-studio/listings?deleted=1");
-        router.refresh();
-      } catch (error) {
-        setStatusMessage(
-          error instanceof Error ? error.message : "Unable to delete the listing.",
-        );
-        setIsDeleting(false);
-        setIsDeleteDialogOpen(false);
-      }
-    })();
-  }
-
   function saveCollections(nextCollections: CollectionRecord[]) {
     setCollections(nextCollections);
     persistCollectionsToStorage(nextCollections);
@@ -1488,18 +1615,56 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
 
   return (
     <>
-      <div className="listing-studio-view-page">
-        <header className="listing-studio-view-header">
-          <div className="listing-studio-view-header-copy">
-            <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
-            <h1>{detailState.addressLine}</h1>
-            {detailState.locationLine ? <p>{detailState.locationLine}</p> : null}
-          </div>
-        </header>
+      <div className="listing-studio-listed-shell">
+        <div className="listing-studio-listed-frame">
+          <aside className="listing-studio-editor-sidebar listing-studio-listed-sidebar">
+            <div className="listing-studio-editor-sidebar-brand">
+              <span className="listing-studio-editor-sidebar-brand-mark">L</span>
+              <strong>Listed</strong>
+            </div>
 
-        {statusMessage ? <p className="listing-studio-view-feedback">{statusMessage}</p> : null}
+            <nav className="listing-studio-editor-sidebar-nav" aria-label="Listing navigation">
+              <button className="listing-studio-editor-sidebar-link" type="button">
+                <IconSidebarDashboard />
+                <span>Dashboard</span>
+              </button>
+              <button className="listing-studio-editor-sidebar-link is-active" type="button">
+                <IconSidebarListings />
+                <span>Listings</span>
+              </button>
+              <button className="listing-studio-editor-sidebar-link" type="button">
+                <IconSidebarCollections />
+                <span>Collections</span>
+              </button>
+              <button className="listing-studio-editor-sidebar-link" type="button">
+                <IconSidebarShares />
+                <span>Shares</span>
+              </button>
+            </nav>
 
-        <section className="listing-studio-view-stage-card">
+            <div className="listing-studio-editor-sidebar-user">
+              <div className="listing-studio-editor-sidebar-avatar">{editorUserInitial}</div>
+              <div className="listing-studio-editor-sidebar-user-copy">
+                <strong>{editorUserName}</strong>
+                <span>{editorUserEmail}</span>
+              </div>
+              <span className="listing-studio-editor-sidebar-badge">PRO</span>
+            </div>
+          </aside>
+
+          <div className="listing-studio-listed-main">
+            <div className="listing-studio-view-page">
+              <header className="listing-studio-view-header">
+                <div className="listing-studio-view-header-copy">
+                  <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
+                  <h1>{detailState.addressLine}</h1>
+                  {detailState.locationLine ? <p>{detailState.locationLine}</p> : null}
+                </div>
+              </header>
+
+              {statusMessage ? <p className="listing-studio-view-feedback">{statusMessage}</p> : null}
+
+              <section className="listing-studio-view-stage-card">
           <div className="listing-studio-view-stage">
             <span className="listing-studio-view-status-pill">{statusPill}</span>
 
@@ -1620,6 +1785,12 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                 No media was captured for this listing yet.
               </div>
             )}
+
+            {mediaMode === "photo" && activePhoto && photoAssets.length ? (
+              <span className="listing-studio-view-stage-count">
+                {activePhotoIndex}/{photoAssets.length}
+              </span>
+            ) : null}
           </div>
 
           <div className="listing-studio-view-stage-rail">
@@ -1673,12 +1844,18 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             {detailState.locationLine ? <span>{detailState.locationLine}</span> : null}
           </div>
 
-          {detailState.facts.length ? (
+          {primaryFactCards.length ? (
             <div className="listing-studio-view-facts-grid">
-              {detailState.facts.map((fact) => (
-                <div className="listing-studio-view-fact-card" key={fact.label}>
-                  <span>{fact.label}</span>
+              {primaryFactCards.map((fact) => (
+                <div
+                  className={`listing-studio-view-fact-card${fact.accent === "success" ? " is-accent-success" : ""}`}
+                  key={fact.label}
+                >
+                  <div className="listing-studio-view-fact-icon">
+                    {renderPrimaryFactIcon(fact.label)}
+                  </div>
                   <strong>{fact.value}</strong>
+                  <span>{fact.label}</span>
                 </div>
               ))}
             </div>
@@ -1718,7 +1895,10 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         {detailState.transit.length ? (
           <section className="listing-studio-view-info-card">
             <div className="listing-studio-view-section-head">
-              <h2>Nearby transit</h2>
+              <div className="listing-studio-view-section-title">
+                <IconTransit />
+                <h2>Nearby Transit</h2>
+              </div>
             </div>
 
             {transitSummary.nearestWalkMinutes !== null ||
@@ -1824,6 +2004,9 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             </div>
           </ListingStudioDisclosure>
         ) : null}
+            </div>
+          </div>
+        </div>
       </div>
 
       {isEditorOpen ? (
@@ -2322,13 +2505,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
               </div>
 
               <footer className="listing-studio-editor-footer">
-                <button
-                  className="listing-studio-editor-delete"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  type="button"
-                >
-                  Delete listing
-                </button>
                 <div className="listing-studio-editor-footer-actions">
                   <Button onClick={closeEditor} type="button" variant="secondary">
                     Cancel
@@ -2346,25 +2522,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
           </div>
         </div>
       ) : null}
-
-      <ConfirmActionDialog
-        cancelLabel="Keep listing"
-        confirmLabel={isDeleting ? "Deleting..." : "Delete listing"}
-        confirmVariant="danger"
-        description="This permanently removes the imported listing, downloaded images, raw source files, share events, and generated PDF for this listing."
-        isOpen={isDeleteDialogOpen}
-        onCancel={() => {
-          if (!isDeleting) {
-            setIsDeleteDialogOpen(false);
-          }
-        }}
-        onConfirm={deleteListing}
-        title="Delete this listing?"
-      >
-        <p className="listing-studio-muted">
-          You can save the source page again later, but this saved listing will be gone.
-        </p>
-      </ConfirmActionDialog>
     </>
   );
 }
