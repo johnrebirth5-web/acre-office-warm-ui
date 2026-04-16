@@ -17686,6 +17686,52 @@ body,
   text-decoration: none;
 }
 
+.listing-studio-card-top-actions {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.listing-studio-card-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  color: var(--office-danger);
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease;
+}
+
+.listing-studio-card-delete-button:hover,
+.listing-studio-card-delete-button:focus-visible {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.2);
+  outline: 0;
+}
+
+.listing-studio-card-delete-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.listing-studio-card-delete-button svg {
+  width: 18px;
+  height: 18px;
+}
+
 .listing-studio-card-media {
   position: relative;
   aspect-ratio: 4 / 3;

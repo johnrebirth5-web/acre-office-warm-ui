@@ -116,6 +116,7 @@ export default async function ListingStudioListingsPage(
                   item={item}
                   key={item.packId}
                   showCollectionPicker
+                  showDeleteAction
                 />
               ))
             ) : (
