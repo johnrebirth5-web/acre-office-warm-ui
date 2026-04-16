@@ -17660,6 +17660,7 @@ body,
 }
 
 .listing-studio-card {
+  position: relative;
   display: grid;
   overflow: visible;
   border: 1px solid rgba(22, 39, 60, 0.1);
@@ -17670,8 +17671,13 @@ body,
 }
 
 .listing-studio-card:hover {
+  z-index: 2;
   transform: translateY(-2px);
   box-shadow: 0 18px 38px rgba(22, 39, 60, 0.12);
+}
+
+.listing-studio-card[data-collection-picker-open="true"] {
+  z-index: 40;
 }
 
 .listing-studio-card-link {
@@ -17961,6 +17967,10 @@ body,
 
 .studio-collection-picker {
   position: relative;
+}
+
+.studio-collection-picker.is-open {
+  z-index: 45;
 }
 
 .studio-collection-picker-trigger {

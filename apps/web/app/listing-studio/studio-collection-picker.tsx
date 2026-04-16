@@ -104,6 +104,23 @@ export function StudioCollectionPicker({
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isOpen]);
 
+  useEffect(() => {
+    const card = rootRef.current?.closest(".listing-studio-card");
+    if (!(card instanceof HTMLElement)) {
+      return undefined;
+    }
+
+    if (isOpen) {
+      card.dataset.collectionPickerOpen = "true";
+    } else {
+      delete card.dataset.collectionPickerOpen;
+    }
+
+    return () => {
+      delete card.dataset.collectionPickerOpen;
+    };
+  }, [isOpen]);
+
   async function loadItems() {
     setIsLoading(true);
     setErrorMessage("");
@@ -239,6 +256,7 @@ export function StudioCollectionPicker({
     <div
       className={cx(
         "studio-collection-picker",
+        isOpen && "is-open",
         variant === "icon" && "is-icon",
         className,
       )}
