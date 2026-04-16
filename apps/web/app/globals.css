@@ -788,6 +788,71 @@ select {
   justify-items: end;
 }
 
+.workspace-session-shell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workspace-session-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  color: var(--office-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.workspace-session-email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--office-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.workspace-session-role {
+  color: var(--office-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.workspace-session-separator {
+  color: rgba(126, 141, 166, 0.9);
+  font-weight: 600;
+}
+
+.workspace-session-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workspace-session-signout {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--office-accent);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.workspace-session-signout:hover {
+  color: var(--office-accent-strong);
+  text-decoration: underline;
+}
+
+.workspace-session-signout:focus-visible {
+  outline: 2px solid rgba(23, 63, 134, 0.24);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
 .office-search-shell {
   min-width: 320px;
   padding: 12px 14px;
@@ -1158,6 +1223,10 @@ select {
     justify-items: stretch;
   }
 
+  .workspace-session-shell {
+    justify-content: flex-start;
+  }
+
   .office-search-shell {
     min-width: 0;
   }
@@ -1178,6 +1247,11 @@ select {
 
   .office-app-grid {
     grid-template-columns: 1fr;
+  }
+
+  .workspace-session-inline {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .office-topbar,
@@ -15781,6 +15855,11 @@ body,
 }
 
 @media (max-width: 760px) {
+  .workspace-session-inline {
+    align-items: baseline;
+    gap: 6px;
+  }
+
   .office-page-header {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requireSessionContext } from "../../lib/auth-session";
+import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
 import { AgentNav } from "./agent-nav";
 
 export default async function AgentLayout({ children }: { children: ReactNode }) {
@@ -21,7 +22,10 @@ export default async function AgentLayout({ children }: { children: ReactNode })
           currentCompanyId={context.currentOffice?.id ?? null}
           homeHref="/agent/dashboard"
         />
-        <div className="main-area acre-main-area office-dashboard-main">{children}</div>
+        <div className="main-area acre-main-area office-dashboard-main">
+          <WorkspaceSessionStatus context={context} />
+          {children}
+        </div>
       </div>
     </main>
   );

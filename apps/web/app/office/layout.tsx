@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { canManageOfficeSettings } from "@acre/auth";
 import { getOfficeTableLayouts } from "@acre/db";
 import { requireOfficeSession } from "../../lib/auth-session";
+import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
 import { buildOfficeTableLayoutBootstrapScript } from "./office-table-layout-bootstrap";
 import { OfficeNav } from "./office-nav";
 import { OfficeTableLayoutRuntime } from "./office-table-layout-runtime";
@@ -30,6 +31,7 @@ export default async function OfficeLayout({ children }: { children: ReactNode }
             canManageTableLayouts={canManageOfficeSettings(context.currentMembership)}
             initialLayouts={initialLayouts}
           />
+          <WorkspaceSessionStatus context={context} />
           {children}
           {bootstrapScript ? <script dangerouslySetInnerHTML={{ __html: bootstrapScript }} /> : null}
         </div>

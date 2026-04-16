@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { canAccessListingStudio, getDefaultAppPath } from "@acre/auth";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../lib/auth-session";
+import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
 import { AgentNav } from "../agent/agent-nav";
 
 export default async function ListingStudioLayout({
@@ -32,6 +33,7 @@ export default async function ListingStudioLayout({
           homeHref="/listing-studio/dashboard"
         />
         <div className="main-area acre-main-area office-dashboard-main">
+          <WorkspaceSessionStatus context={context} />
           {children}
         </div>
       </div>
