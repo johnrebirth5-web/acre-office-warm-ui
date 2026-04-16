@@ -156,4 +156,5 @@ The training tab should feel separate:
 
 - only YouTube training videos
 - simple search by topic
+- open a single on-demand full-screen player inside the page instead of preloading many embeds
 - no PDFs or vendor cards mixed in

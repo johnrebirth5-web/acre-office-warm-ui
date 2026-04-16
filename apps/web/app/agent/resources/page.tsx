@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
+import { FrontOfficeTrainingGallery } from "./front-office-training-gallery";
 import {
   FrontOfficeResourceSearchForm,
   type FrontOfficeResourceSearchTab,
@@ -224,24 +225,6 @@ function vendorMatchesSearch(vendor: VendorRecord, query: string) {
   return haystack.includes(query);
 }
 
-function isYouTubeUrl(value: string) {
-  try {
-    const parsedUrl = new URL(value);
-    return (
-      parsedUrl.protocol === "https:" &&
-      [
-        "youtube.com",
-        "www.youtube.com",
-        "m.youtube.com",
-        "music.youtube.com",
-        "youtu.be",
-      ].includes(parsedUrl.hostname.toLowerCase())
-    );
-  } catch {
-    return false;
-  }
-}
-
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -364,65 +347,6 @@ function VendorCard(props: { vendor: VendorRecord }) {
       </div>
 
       <div style={actionRowStyle}>{renderVendorActions(vendor)}</div>
-    </article>
-  );
-}
-
-function TrainingRecordCard(props: { resource: ResourceRecord }) {
-  const { resource } = props;
-
-  return (
-    <article style={resourceCardStyle}>
-      <div style={resourceHeaderStyle}>
-        <div style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
-          <div style={resourceTitleRowStyle}>
-            <strong style={resourceTitleWrapStyle}>{resource.title}</strong>
-            <div
-              style={{
-                ...resourceBadgeWrapStyle,
-                display: "flex",
-                gap: "8px",
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-              }}
-            >
-              <StatusBadge tone="warning">{resource.typeLabel}</StatusBadge>
-              {isYouTubeUrl(resource.href) ? (
-                <StatusBadge tone="accent">YouTube</StatusBadge>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={metaRowStyle}>
-        <span>YouTube video</span>
-        <span>{resource.detailLabel}</span>
-        <span>{resource.freshnessLabel}</span>
-      </div>
-
-      {resource.tags.length ? (
-        <div style={tagRowStyle}>
-          {resource.tags.map((tag) => (
-            <span key={tag} style={tagStyle}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      <div style={documentActionRowStyle}>
-        <FrontOfficeTrackedLink
-          className="office-button-secondary office-button-sm"
-          href={resource.href}
-          tracking={{
-            type: "resource_open",
-            resourceId: resource.id,
-          }}
-        >
-          Watch on YouTube
-        </FrontOfficeTrackedLink>
-      </div>
     </article>
   );
 }
@@ -601,11 +525,7 @@ export default async function AgentResourcesPage(props: {
       </ListPageStatsGrid>
     );
     resultContent = filteredTraining.length ? (
-      <div style={cardGridStyle}>
-        {filteredTraining.map((resource) => (
-          <TrainingRecordCard key={resource.id} resource={resource} />
-        ))}
-      </div>
+      <FrontOfficeTrainingGallery resources={filteredTraining} />
     ) : (
       <EmptyState
         action={
