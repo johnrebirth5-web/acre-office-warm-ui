@@ -18,7 +18,7 @@ export default async function ListingStudioLayout({
   return (
     <main
       aria-label="Front Office workspace shell"
-      className="app-shell acre-app-shell office-backoffice-shell agent-backoffice-shell listing-studio-shell"
+      className="app-shell acre-app-shell office-backoffice-shell agent-backoffice-shell listing-studio-layout-shell"
       data-workspace="front-office"
       data-workspace-role="listing-studio"
     >

@@ -17552,6 +17552,12 @@ body,
 .listing-studio-page {
   display: grid;
   gap: 18px;
+  align-content: start;
+}
+
+.listing-studio-page > * {
+  min-width: 0;
+  align-self: start;
 }
 
 .listing-studio-header h2 {
@@ -17791,6 +17797,12 @@ body,
 .listing-studio-shell {
   display: grid;
   gap: 20px;
+  align-content: start;
+}
+
+.listing-studio-shell > * {
+  min-width: 0;
+  align-self: start;
 }
 
 .listing-studio-shell-header,
@@ -17798,6 +17810,8 @@ body,
 .listing-studio-listed-section,
 .listing-studio-collection-manager,
 .listing-studio-collection-map-panel {
+  display: grid;
+  align-content: start;
   border: 1px solid rgba(22, 39, 60, 0.08);
   border-radius: 28px;
   background:
@@ -17807,10 +17821,8 @@ body,
 }
 
 .listing-studio-shell-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 18px;
   padding: 28px 30px;
 }
@@ -17873,23 +17885,27 @@ body,
 
 .listing-studio-listed-filterbar {
   grid-template-columns:
-    minmax(0, 1.7fr)
-    minmax(190px, 0.8fr)
-    minmax(190px, 0.8fr)
-    auto;
-  align-items: end;
+    minmax(0, 1.45fr)
+    minmax(220px, 0.85fr)
+    minmax(220px, 0.85fr);
+  align-items: start;
+  gap: 16px 18px;
 }
 
 .listing-studio-shell-search {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .listing-studio-shell-search span {
+  display: block;
   color: var(--office-text);
   font-size: 0.8rem;
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .listing-studio-shell-search input,
@@ -17908,6 +17924,12 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.listing-studio-listed-filterbar .listing-studio-shell-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 2px;
 }
 
 .listing-studio-listed-section {
@@ -17984,6 +18006,10 @@ body,
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
+}
+
+.listing-studio-collections-grid > .listing-studio-empty-state {
+  grid-column: 1 / -1;
 }
 
 .listing-studio-collection-card {
@@ -18095,11 +18121,17 @@ body,
 .listing-studio-create-collection-form {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
+  gap: 16px 18px;
+}
+
+.listing-studio-create-collection-form > .listing-studio-status-message {
+  grid-column: 1 / -1;
 }
 
 .listing-studio-placeholder-card {
   display: grid;
   gap: 10px;
+  align-content: start;
 }
 
 .listing-studio-placeholder-card strong {
@@ -20695,6 +20727,10 @@ body,
   .listing-studio-listed-filterbar,
   .listing-studio-create-collection-form {
     grid-template-columns: 1fr;
+  }
+
+  .listing-studio-listed-filterbar .listing-studio-shell-actions {
+    justify-content: flex-start;
   }
 
   .listing-studio-hero-workspace,
