@@ -973,10 +973,22 @@ function formatNotificationType(type: NotificationType) {
 }
 
 function formatResourceType(type: ResourceType) {
-  return type
+  return (type === ResourceType.training_video ? type : ResourceType.document)
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function buildFrontOfficeDashboardResourceHref(
+  resourceId: string,
+  type: ResourceType,
+  url: string | null,
+) {
+  if (type === ResourceType.training_video) {
+    return url?.trim() || "";
+  }
+
+  return `/api/resources/${resourceId}/file`;
 }
 
 function formatEventVisibilityLabel(
@@ -3573,7 +3585,11 @@ export async function getFrontOfficeDashboardSnapshot(
         title: resource.title,
         typeLabel: formatResourceType(resource.type),
         summary: resource.summary,
-        href: resource.url,
+        href: buildFrontOfficeDashboardResourceHref(
+          resource.id,
+          resource.type,
+          resource.url,
+        ),
       })),
       vendors: vendors.map((vendor) => ({
         id: vendor.id,

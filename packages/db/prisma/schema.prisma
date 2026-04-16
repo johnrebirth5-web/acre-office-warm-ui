@@ -1971,7 +1971,11 @@ model Resource {
   title          String
   slug           String
   summary        String
-  url            String
+  url            String?
+  originalFileName String?
+  mimeType       String?
+  fileSizeBytes  Int?
+  storageKey     String?
   tags           String[]
   isPublished    Boolean      @default(true)
   searchText     String?

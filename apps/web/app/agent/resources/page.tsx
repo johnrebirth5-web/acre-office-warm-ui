@@ -455,6 +455,7 @@ function DocumentRecordCard(props: { resource: ResourceRecord }) {
         <FrontOfficeTrackedLink
           className="office-button-secondary office-button-sm"
           href={resource.href}
+          openInNewTab
           tracking={{
             type: "resource_open",
             resourceId: resource.id,

@@ -204,6 +204,7 @@ export {
   createOfficeVendor,
   deleteOfficeResource,
   deleteOfficeVendor,
+  getOfficeResourceStorageRecord,
   getOfficeResourcesAdminSnapshot,
   updateOfficeResource,
   updateOfficeVendor,

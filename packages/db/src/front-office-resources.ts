@@ -174,35 +174,29 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
   };
 }
 
+function normalizeFrontOfficeResourceType(type: ResourceType) {
+  return type === ResourceType.training_video
+    ? ResourceType.training_video
+    : ResourceType.document;
+}
+
 function formatResourceTypeLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Playbook";
-    case ResourceType.template:
-      return "Template";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
       return "Document";
     case ResourceType.training_video:
       return "Training video";
-    case ResourceType.vendor_card:
-      return "Vendor support card";
     default:
       return "Resource";
   }
 }
 
 function getResourceActionLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Open playbook";
-    case ResourceType.template:
-      return "Open template";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
       return "Open document";
     case ResourceType.training_video:
       return "Watch training";
-    case ResourceType.vendor_card:
-      return "Open vendor card";
     default:
       return "Open resource";
   }

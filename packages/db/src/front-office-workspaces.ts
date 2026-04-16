@@ -2459,35 +2459,39 @@ function getFrontOfficeNotificationPressureState(input: {
 }
 
 function formatResourceType(type: ResourceType) {
-  return type
+  return normalizeFrontOfficeResourceType(type)
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
 }
 
+function normalizeFrontOfficeResourceType(type: ResourceType) {
+  return type === ResourceType.training_video
+    ? ResourceType.training_video
+    : ResourceType.document;
+}
+
+function buildFrontOfficeResourceHref(resourceId: string, type: ResourceType, url: string) {
+  if (normalizeFrontOfficeResourceType(type) === ResourceType.document) {
+    return `/api/resources/${resourceId}/file`;
+  }
+
+  return url;
+}
+
 function getResourceTypePriority(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return 0;
-    case ResourceType.template:
-      return 1;
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
-      return 2;
-    case ResourceType.vendor_card:
-      return 3;
+      return 0;
     case ResourceType.training_video:
-      return 4;
+      return 1;
     default:
-      return 5;
+      return 2;
   }
 }
 
 function getResourceTypeTone(type: ResourceType): FrontOfficeTone {
-  switch (type) {
-    case ResourceType.template:
-      return "success";
-    case ResourceType.playbook:
-      return "accent";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.training_video:
       return "warning";
     default:
@@ -2496,70 +2500,57 @@ function getResourceTypeTone(type: ResourceType): FrontOfficeTone {
 }
 
 function getResourceTypeDescription(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Step-by-step guidance for live calls, next-touch recovery, showings, and Front Office to Back Office handoff prep.";
-    case ResourceType.template:
-      return "Copy-ready structure for intros, follow-up, appointment coordination, and shortlist sends.";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
-      return "Shared forms, reference sheets, and canonical docs that support the active Front Office workflow.";
+      return "Shared PDFs and reference docs that agents can open quickly from one searchable directory.";
     case ResourceType.training_video:
       return "Short coaching clips for refreshers, onboarding, and fast workflow recovery between live tasks.";
-    case ResourceType.vendor_card:
-      return "Partner shortcuts that help agents line up financing, legal, inspection, repair, and move support fast.";
     default:
       return "Published Front Office material ready to open.";
   }
 }
 
 function getResourceTypeLaneLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Call & workflow guides";
-    case ResourceType.template:
-      return "Copy & send kits";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
-      return "Forms & references";
+      return "Documents & PDFs";
     case ResourceType.training_video:
       return "Coaching refreshers";
-    case ResourceType.vendor_card:
-      return "Vendor support cards";
     default:
       return formatResourceType(type);
   }
 }
 
 function getResourceTypeStartLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Start with the call guide";
-    case ResourceType.template:
-      return "Start with the send kit";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
-      return "Start with the form or reference";
+      return "Start with the document";
     case ResourceType.training_video:
       return "Start with the refresher";
-    case ResourceType.vendor_card:
-      return "Start with the partner desk";
     default:
       return "Start here";
   }
 }
 
 function getResourceTypeDetailLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Best opened when an agent needs the next call step, objection path, or handoff checklist right now.";
-    case ResourceType.template:
-      return "Use this section when the structure should already exist and the agent only needs to personalize the final send.";
+  switch (normalizeFrontOfficeResourceType(type)) {
     case ResourceType.document:
-      return "Keep the canonical form or reference close without turning this page into a second formal records system.";
+      return "Keep the canonical PDF or reference close without turning this page into a second formal records system.";
     case ResourceType.training_video:
       return "Use for quick refreshers and coaching moments, not as a background automation or hidden progress layer.";
-    case ResourceType.vendor_card:
-      return "Use this section when the job needs a real outside partner, a quick action, and a clear next owner.";
     default:
       return "Published Front Office material that can be opened directly from the live workflow.";
+  }
+}
+
+function getResourceActionLabel(type: ResourceType) {
+  switch (normalizeFrontOfficeResourceType(type)) {
+    case ResourceType.document:
+      return "Open document";
+    case ResourceType.training_video:
+      return "Watch training";
+    default:
+      return "Open resource";
   }
 }
 
@@ -2576,23 +2567,6 @@ function buildResourceDetailLabel(input: {
   return getResourceTypeDetailLabel(input.type);
 }
 
-function getResourceActionLabel(type: ResourceType) {
-  switch (type) {
-    case ResourceType.playbook:
-      return "Open playbook";
-    case ResourceType.template:
-      return "Open template";
-    case ResourceType.document:
-      return "Open document";
-    case ResourceType.training_video:
-      return "Watch training";
-    case ResourceType.vendor_card:
-      return "Open vendor hub";
-    default:
-      return "Open resource";
-  }
-}
-
 function buildFrontOfficeResourcesExecutionPulse(input: {
   resourceTypeGroups: Array<{
     type: ResourceType;
@@ -2607,8 +2581,6 @@ function buildFrontOfficeResourcesExecutionPulse(input: {
     input.resourceTypeGroups.map((group) => [group.type, group._count._all]),
   );
   const libraryLaneKeys: ResourceType[] = [
-    ResourceType.playbook,
-    ResourceType.template,
     ResourceType.document,
     ResourceType.training_video,
   ];
@@ -4068,16 +4040,39 @@ export async function getFrontOfficeResourcesSnapshot(
       return left.name.localeCompare(right.name);
     });
   const executionPulse = buildFrontOfficeResourcesExecutionPulse({
-    resourceTypeGroups,
+    resourceTypeGroups: Array.from(
+      resources.reduce((map, resource) => {
+        const normalizedType = normalizeFrontOfficeResourceType(resource.type);
+        map.set(normalizedType, (map.get(normalizedType) ?? 0) + 1);
+        return map;
+      }, new Map<ResourceType, number>()),
+    ).map(([type, count]) => ({
+      type,
+      _count: {
+        _all: count,
+      },
+    })),
     vendorCount,
     quickContactVendorCount,
   });
+  const normalizedResourceTypeGroups = Array.from(
+    resources.reduce((map, resource) => {
+      const normalizedType = normalizeFrontOfficeResourceType(resource.type);
+      map.set(normalizedType, (map.get(normalizedType) ?? 0) + 1);
+      return map;
+    }, new Map<ResourceType, number>()),
+  ).map(([type, count]) => ({
+    type,
+    _count: {
+      _all: count,
+    },
+  }));
 
   return {
     summary: {
       resourceCount,
       vendorCount,
-      resourceTypeCount: resourceTypeGroups.length,
+      resourceTypeCount: normalizedResourceTypeGroups.length,
       featuredVendorCount,
       quickContactVendorCount,
       vendorCategoryCount: vendorCategoryGroups.length,
@@ -4087,7 +4082,7 @@ export async function getFrontOfficeResourcesSnapshot(
       sharedTracking: sharedInteractionTracking,
     },
     executionPulse,
-    resourceTypes: resourceTypeGroups
+    resourceTypes: normalizedResourceTypeGroups
       .slice()
       .sort(
         (left, right) =>
@@ -4124,29 +4119,37 @@ export async function getFrontOfficeResourcesSnapshot(
         tone: mapVendorCategoryTone(group.category),
         description: buildVendorCategoryDescription(group.category),
       })),
-    resources: sortedResources.map((resource) => ({
-      id: resource.id,
-      title: resource.title,
-      summary:
-        resource.summary?.trim() || getResourceTypeDescription(resource.type),
-      detailLabel: buildResourceDetailLabel({
-        type: resource.type,
-        tags: resource.tags,
-      }),
-      freshnessLabel: buildFreshnessLabel(
-        resource.updatedAt,
-        new Date(),
-        input.timeZone,
-      ),
-      actionLabel: getResourceActionLabel(resource.type),
-      laneLabel: getResourceTypeLaneLabel(resource.type),
-      typeKey: resource.type,
-      typeLabel: formatResourceType(resource.type),
-      typeTone: getResourceTypeTone(resource.type),
-      tagCount: cleanStringList(resource.tags).length,
-      tags: cleanStringList(resource.tags, 4),
-      href: resource.url,
-    })),
+    resources: sortedResources.map((resource) => {
+      const normalizedType = normalizeFrontOfficeResourceType(resource.type);
+
+      return {
+        id: resource.id,
+        title: resource.title,
+        summary:
+          resource.summary?.trim() || getResourceTypeDescription(normalizedType),
+        detailLabel: buildResourceDetailLabel({
+          type: normalizedType,
+          tags: resource.tags,
+        }),
+        freshnessLabel: buildFreshnessLabel(
+          resource.updatedAt,
+          new Date(),
+          input.timeZone,
+        ),
+        actionLabel: getResourceActionLabel(normalizedType),
+        laneLabel: getResourceTypeLaneLabel(normalizedType),
+        typeKey: normalizedType,
+        typeLabel: formatResourceType(normalizedType),
+        typeTone: getResourceTypeTone(normalizedType),
+        tagCount: cleanStringList(resource.tags).length,
+        tags: cleanStringList(resource.tags, 4),
+        href: buildFrontOfficeResourceHref(
+          resource.id,
+          normalizedType,
+          resource.url?.trim() || "",
+        ),
+      };
+    }),
     vendors: sortedVendors.map((vendor) => {
       const websiteHref = vendor.website?.trim() || null;
       const phoneHref = vendor.phone?.trim()

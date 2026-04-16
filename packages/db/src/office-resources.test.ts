@@ -88,10 +88,14 @@ test("office resource admin snapshot supports resource and vendor CRUD", async (
       officeId: context.office.id,
       title: "Buyer intro template",
       summary: "Shared message template for first buyer outreach.",
-      url: "https://example.com/buyer-intro-template",
+      uploadedFile: {
+        originalFileName: "buyer-intro-template.pdf",
+        mimeType: "application/pdf",
+        fileSizeBytes: 2048,
+        storageKey: `resources/${randomUUID()}.pdf`,
+      },
       tags: ["buyers", "intro"],
       type: ResourceType.template,
-      isPublished: true,
       visibilityScope: "office_only",
     });
 
@@ -120,20 +124,30 @@ test("office resource admin snapshot supports resource and vendor CRUD", async (
     assert.equal(snapshot.summary.publishedResourceCount, 1);
     assert.equal(snapshot.summary.vendorCount, 1);
     assert.equal(snapshot.resources[0]?.title, "Buyer intro template");
+    assert.equal(snapshot.resources[0]?.type, ResourceType.document);
     assert.equal(snapshot.resources[0]?.scopeKey, "office_only");
+    assert.equal(snapshot.resources[0]?.hasStoredFile, true);
+    assert.equal(
+      snapshot.resources[0]?.originalFileName,
+      "buyer-intro-template.pdf",
+    );
     assert.equal(snapshot.vendors[0]?.name, "North Star Lending");
     assert.equal(snapshot.vendors[0]?.scopeKey, "organization_wide");
 
-    const updatedResourceId = await updateOfficeResource({
+    const updatedResource = await updateOfficeResource({
       organizationId: context.organization.id,
       officeId: context.office.id,
       resourceId,
-      title: "Buyer intro playbook",
-      summary: "Updated first-touch talking points for buyer outreach.",
-      url: "https://example.com/buyer-intro-playbook",
+      title: "Buyer intro document",
+      summary: "Updated PDF checklist for first buyer outreach.",
+      uploadedFile: {
+        originalFileName: "buyer-intro-document.pdf",
+        mimeType: "application/pdf",
+        fileSizeBytes: 4096,
+        storageKey: `resources/${randomUUID()}.pdf`,
+      },
       tags: ["buyers", "first-touch"],
-      type: ResourceType.playbook,
-      isPublished: false,
+      type: ResourceType.document,
       visibilityScope: "organization_wide",
     });
 
@@ -153,7 +167,8 @@ test("office resource admin snapshot supports resource and vendor CRUD", async (
       visibilityScope: "office_only",
     });
 
-    assert.equal(updatedResourceId, resourceId);
+    assert.equal(updatedResource?.id, resourceId);
+    assert.ok(updatedResource?.previousStorageKey);
     assert.equal(updatedVendorId, vendorId);
 
     snapshot = await getOfficeResourcesAdminSnapshot({
@@ -162,19 +177,25 @@ test("office resource admin snapshot supports resource and vendor CRUD", async (
       timeZone: "America/New_York",
     });
 
-    assert.equal(snapshot.summary.publishedResourceCount, 0);
-    assert.equal(snapshot.resources[0]?.title, "Buyer intro playbook");
-    assert.equal(snapshot.resources[0]?.type, ResourceType.playbook);
+    assert.equal(snapshot.summary.publishedResourceCount, 1);
+    assert.equal(snapshot.resources[0]?.title, "Buyer intro document");
+    assert.equal(snapshot.resources[0]?.type, ResourceType.document);
     assert.equal(snapshot.resources[0]?.scopeKey, "organization_wide");
+    assert.equal(
+      snapshot.resources[0]?.originalFileName,
+      "buyer-intro-document.pdf",
+    );
     assert.equal(snapshot.vendors[0]?.category, "attorney");
     assert.equal(snapshot.vendors[0]?.scopeKey, "office_only");
 
     assert.equal(
-      await deleteOfficeResource({
-        organizationId: context.organization.id,
-        officeId: context.office.id,
-        resourceId,
-      }),
+      (
+        await deleteOfficeResource({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          resourceId,
+        })
+      ).deleted,
       true,
     );
     assert.equal(
@@ -224,11 +245,11 @@ test("office resource admin snapshot exposes top-opened and stale resources", as
       data: {
         organizationId: context.organization.id,
         officeId: null,
-        type: ResourceType.playbook,
-        title: "Popular open-house playbook",
-        slug: `popular-open-house-playbook-${randomUUID().slice(0, 6)}`,
+        type: ResourceType.document,
+        title: "Popular open-house document",
+        slug: `popular-open-house-document-${randomUUID().slice(0, 6)}`,
         summary: "Frequently opened buyer prep material.",
-        url: "https://example.com/open-house-playbook",
+        url: "https://example.com/open-house-document.pdf",
         tags: ["open-house"],
         isPublished: true,
       },
@@ -294,7 +315,6 @@ test("office resources require YouTube links for training videos", async () => {
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       tags: ["training", "open house"],
       type: ResourceType.training_video,
-      isPublished: true,
       visibilityScope: "office_only",
     });
 
@@ -310,10 +330,37 @@ test("office resources require YouTube links for training videos", async () => {
           url: "https://vimeo.com/123456789",
           tags: ["training"],
           type: ResourceType.training_video,
-          isPublished: false,
           visibilityScope: "office_only",
         }),
       /YouTube URL/,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("office documents require PDF uploads when using stored files", async () => {
+  const context = await createOfficeResourcesTestContext();
+
+  try {
+    await assert.rejects(
+      () =>
+        createOfficeResource({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          title: "Invalid document",
+          summary: "This should fail because the upload is not a PDF.",
+          uploadedFile: {
+            originalFileName: "invalid-document.txt",
+            mimeType: "text/plain",
+            fileSizeBytes: 128,
+            storageKey: `resources/${randomUUID()}.txt`,
+          },
+          tags: ["documents"],
+          type: ResourceType.document,
+          visibilityScope: "office_only",
+        }),
+      /PDF file/,
     );
   } finally {
     await context.cleanup();

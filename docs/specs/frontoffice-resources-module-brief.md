@@ -94,16 +94,16 @@ The system does not need to decide whether the user’s next step is vendor-rela
 
 ## Office Admin Positioning
 
-`/office/resources` is the management side of this directory and includes internal tabs for `Resources` and `Training`.
+`/office/resources` is the management side of this directory and includes internal tabs for `Documents`, `Vendors`, and `Training`.
 
 It should be:
 
 - office-admin only
-- simple CRUD for resources
+- PDF upload and simple CRUD for documents
 - training videos managed in the `Training` tab, using direct YouTube links
 - simple CRUD for vendors
 - no approval flow
-- no publishing workflow beyond basic publish/unpublish state
+- no draft-first workflow in the admin UI; new records should publish directly into the agent-facing directory
 - no complex curation logic
 
 The office admin is the single owner of directory content.
@@ -114,7 +114,7 @@ The boundary should stay explicit:
 
 - `/office/library` = Back Office internal document library
 - `/agent/resources` = the single agent-facing directory route, with separate tabs for documents, vendors, and YouTube training
-- `/office/resources` = the single office-admin management route, with separate tabs for document/vendor management and YouTube training management
+- `/office/resources` = the single office-admin management route, with separate tabs for `Documents`, `Vendors`, and `Training`
 
 `/agent/resources` should not simply be treated as a workflow hub layered on top of `/office/library`.
 

@@ -17,6 +17,13 @@ type SaveStoredLibraryFileInput = {
   bytes: Uint8Array;
 };
 
+type SaveStoredResourceFileInput = {
+  organizationId: string;
+  officeId?: string | null;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
 type SaveStoredTextInput = {
   organizationId: string;
   transactionId: string;
@@ -264,6 +271,15 @@ export async function saveStoredLibraryFile(input: SaveStoredLibraryFileInput): 
   return saveScopedFile({
     organizationId: input.organizationId,
     scopeSegments: ["library", input.officeId ? `office-${input.officeId}` : "company"],
+    fileName: input.fileName,
+    bytes: input.bytes
+  });
+}
+
+export async function saveStoredResourceFile(input: SaveStoredResourceFileInput): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["resources", input.officeId ? `office-${input.officeId}` : "company"],
     fileName: input.fileName,
     bytes: input.bytes
   });

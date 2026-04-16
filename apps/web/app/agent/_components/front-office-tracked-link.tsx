@@ -6,6 +6,7 @@ type FrontOfficeTrackedLinkProps = {
   href: string;
   className?: string;
   children: ReactNode;
+  openInNewTab?: boolean;
   tracking:
     | {
         type: "resource_open";
@@ -61,7 +62,7 @@ function recordInteraction(tracking: FrontOfficeTrackedLinkProps["tracking"]) {
 }
 
 export function FrontOfficeTrackedLink(props: FrontOfficeTrackedLinkProps) {
-  const externalHref = isExternalHref(props.href);
+  const openInNewTab = props.openInNewTab || isExternalHref(props.href);
 
   return (
     <a
@@ -70,8 +71,8 @@ export function FrontOfficeTrackedLink(props: FrontOfficeTrackedLinkProps) {
       onClick={() => {
         recordInteraction(props.tracking);
       }}
-      rel={externalHref ? "noreferrer" : undefined}
-      target={externalHref ? "_blank" : undefined}
+      rel={openInNewTab ? "noreferrer" : undefined}
+      target={openInNewTab ? "_blank" : undefined}
     >
       {props.children}
     </a>
