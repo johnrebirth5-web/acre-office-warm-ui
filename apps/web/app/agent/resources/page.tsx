@@ -105,6 +105,13 @@ const actionRowStyle: CSSProperties = {
   gap: "8px 12px",
 };
 
+const documentActionRowStyle: CSSProperties = {
+  ...actionRowStyle,
+  marginTop: "auto",
+  justifyContent: "flex-end",
+  paddingTop: "0.25rem",
+};
+
 const segmentedTabsShellStyle: CSSProperties = {
   display: "grid",
   width: "100%",
@@ -316,9 +323,9 @@ function DocumentRecordCard(props: { resource: ResourceRecord }) {
         </div>
       ) : null}
 
-      <div style={actionRowStyle}>
+      <div style={documentActionRowStyle}>
         <FrontOfficeTrackedLink
-          className="office-inline-link front-office-inline-link"
+          className="office-button-secondary office-button-sm"
           href={resource.href}
           tracking={{
             type: "resource_open",
