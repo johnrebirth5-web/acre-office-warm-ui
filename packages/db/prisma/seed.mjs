@@ -476,13 +476,13 @@ async function main() {
       id: "seed-team-membership-jane",
       teamId: "seed-team-east-river",
       membershipEmail: "jane@acre.com",
-      role: "leader_i"
+      role: "team_leader"
     },
     {
       id: "seed-team-membership-simon",
       teamId: "seed-team-operations",
       membershipEmail: "simon@acre.com",
-      role: "leader_i"
+      role: "team_leader"
     },
     {
       id: "seed-team-membership-naomi",
@@ -2301,6 +2301,74 @@ async function main() {
         visibility: document.visibility,
         sortOrder: document.sortOrder
       }
+    });
+  }
+
+  const seededFrontOfficeResources = [
+    {
+      slug: "acre-nyc-rental-faq",
+      officeId: office.id,
+      type: "document",
+      title: "ACRE｜纽约租房常见问答",
+      summary: "面向纽约租房客户的常见问题 PDF，适合首次咨询后直接发送。",
+      url: "/resources/acre-nyc-rental-faq.pdf",
+      tags: ["纽约", "租房", "常见问答", "客户材料", "rental"],
+      isPublished: true,
+    },
+    {
+      slug: "acre-nyc-buying-top-10",
+      officeId: office.id,
+      type: "document",
+      title: "ACRE｜纽约买房十问",
+      summary: "面向纽约买房客户的十问十答 PDF，适合咨询、跟进和统一答疑。",
+      url: "/resources/acre-nyc-buying-top-10.pdf",
+      tags: ["纽约", "买房", "十问", "客户材料", "buyer"],
+      isPublished: true,
+    },
+    {
+      slug: "acre-nyc-investment-top-10",
+      officeId: office.id,
+      type: "document",
+      title: "ACRE｜纽约投资十问",
+      summary: "面向纽约投资客户的十问十答 PDF，用于解释投资常见问题与基础判断。",
+      url: "/resources/acre-nyc-investment-top-10.pdf",
+      tags: ["纽约", "投资", "十问", "客户材料", "investment"],
+      isPublished: true,
+    },
+  ];
+
+  for (const resource of seededFrontOfficeResources) {
+    const searchText = [resource.title, resource.summary, ...resource.tags].join(" ");
+
+    await prisma.resource.upsert({
+      where: {
+        organizationId_slug: {
+          organizationId: organization.id,
+          slug: resource.slug,
+        },
+      },
+      update: {
+        officeId: resource.officeId,
+        type: resource.type,
+        title: resource.title,
+        summary: resource.summary,
+        url: resource.url,
+        tags: resource.tags,
+        isPublished: resource.isPublished,
+        searchText,
+      },
+      create: {
+        organizationId: organization.id,
+        officeId: resource.officeId,
+        type: resource.type,
+        title: resource.title,
+        slug: resource.slug,
+        summary: resource.summary,
+        url: resource.url,
+        tags: resource.tags,
+        isPublished: resource.isPublished,
+        searchText,
+      },
     });
   }
 
@@ -4426,7 +4494,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`
+    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${seededFrontOfficeResources.length} front-office resources, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`
   );
 }
 
