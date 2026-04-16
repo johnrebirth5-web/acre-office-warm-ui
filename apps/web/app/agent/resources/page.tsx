@@ -46,7 +46,22 @@ const resourceHeaderStyle: CSSProperties = {
   alignItems: "flex-start",
   justifyContent: "space-between",
   gap: "0.8rem",
-  flexWrap: "wrap",
+};
+
+const resourceTitleRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.8rem",
+};
+
+const resourceTitleWrapStyle: CSSProperties = {
+  flex: "1 1 auto",
+  minWidth: 0,
+};
+
+const resourceBadgeWrapStyle: CSSProperties = {
+  flexShrink: 0,
 };
 
 const metaRowStyle: CSSProperties = {
@@ -257,11 +272,17 @@ function ResourceRecordCard(props: { resource: ResourceRecord }) {
   return (
     <article style={resourceCardStyle}>
       <div style={resourceHeaderStyle}>
-        <div style={{ display: "grid", gap: "0.4rem" }}>
-          <strong>{resource.title}</strong>
+        <div style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
+          <div style={resourceTitleRowStyle}>
+            <strong style={resourceTitleWrapStyle}>{resource.title}</strong>
+            <div style={resourceBadgeWrapStyle}>
+              <StatusBadge tone={resource.typeTone}>
+                {resource.typeLabel}
+              </StatusBadge>
+            </div>
+          </div>
           <p style={helperTextStyle}>{resource.summary}</p>
         </div>
-        <StatusBadge tone={resource.typeTone}>{resource.typeLabel}</StatusBadge>
       </div>
 
       <div style={metaRowStyle}>
