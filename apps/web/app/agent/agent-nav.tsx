@@ -13,10 +13,22 @@ export function AgentNav() {
       title: t((messages) => messages.agentNav.groups.execution),
       icon: "◫",
       items: [
-        { href: "/agent/dashboard", label: t((messages) => messages.agentNav.items.dashboard) },
-        { href: "/agent/clients", label: t((messages) => messages.agentNav.items.clients) },
-        { href: "/agent/calendar", label: t((messages) => messages.agentNav.items.calendar) },
-        { href: "/agent/listings", label: t((messages) => messages.agentNav.items.listings) },
+        {
+          href: "/agent/dashboard",
+          label: t((messages) => messages.agentNav.items.dashboard),
+        },
+        {
+          href: "/agent/clients",
+          label: t((messages) => messages.agentNav.items.clients),
+        },
+        {
+          href: "/agent/calendar",
+          label: t((messages) => messages.agentNav.items.calendar),
+        },
+        {
+          href: "/agent/listings",
+          label: t((messages) => messages.agentNav.items.listings),
+        },
         {
           href: "/listing-studio/dashboard",
           label: t((messages) => messages.agentNav.items.studio),
@@ -39,8 +51,18 @@ export function AgentNav() {
             },
           ],
         },
-        { href: "/agent/notifications", label: t((messages) => messages.agentNav.items.activity) },
-        { href: "/agent/resources", label: t((messages) => messages.agentNav.items.resources) },
+        {
+          href: "/agent/notifications",
+          label: t((messages) => messages.agentNav.items.activity),
+        },
+        {
+          href: "/agent/resources",
+          label: t((messages) => messages.agentNav.items.resources),
+        },
+        {
+          href: "/agent/training",
+          label: t((messages) => messages.agentNav.items.training),
+        },
       ],
     },
   ];
@@ -60,7 +82,9 @@ export function AgentNav() {
         {
           href: "/office/dashboard",
           label: t((messages) => messages.agentNav.shortcuts.backOffice.label),
-          description: t((messages) => messages.agentNav.shortcuts.backOffice.description),
+          description: t(
+            (messages) => messages.agentNav.shortcuts.backOffice.description,
+          ),
         },
       ]}
     />

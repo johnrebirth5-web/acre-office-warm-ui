@@ -23,6 +23,7 @@ export type OfficeResourcesAdminSnapshot = {
   topOpenedResources: Array<{
     id: string;
     title: string;
+    type: ResourceType;
     typeLabel: string;
     openCount: number;
     lastOpenedLabel: string;
@@ -30,6 +31,7 @@ export type OfficeResourcesAdminSnapshot = {
   staleResources: Array<{
     id: string;
     title: string;
+    type: ResourceType;
     typeLabel: string;
     updatedAtLabel: string;
     lastOpenedLabel: string;
@@ -455,6 +457,7 @@ export async function getOfficeResourcesAdminSnapshot(input: {
     .map((resource) => ({
       id: resource.id,
       title: resource.title,
+      type: resource.type,
       typeLabel: resource.typeLabel,
       openCount: resource.openCount,
       lastOpenedLabel: resource.lastOpenedLabel,
@@ -472,6 +475,7 @@ export async function getOfficeResourcesAdminSnapshot(input: {
     .map((resource) => ({
       id: resource.id,
       title: resource.title,
+      type: resource.type,
       typeLabel: resource.typeLabel,
       updatedAtLabel: resource.updatedAtLabel,
       lastOpenedLabel: resource.lastOpenedLabel,

@@ -20,34 +20,37 @@ export default async function OfficeResourcesPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
   });
+  const resourceCount = snapshot.resources.filter(
+    (resource) => resource.type !== "training_video",
+  ).length;
+  const publishedResourceCount = snapshot.resources.filter(
+    (resource) => resource.type !== "training_video" && resource.isPublished,
+  ).length;
+  const staleResourceCount = snapshot.staleResources.filter(
+    (resource) => resource.type !== "training_video",
+  ).length;
 
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        description="Manage the agent-facing directory: keep resource types covered, vendor categories consistent, and cleanup signals lightweight."
+        description="Manage the agent-facing document directory: keep PDFs, templates, playbooks, and vendors cleanly separated from YouTube training."
         eyebrow="Office admin"
         summary={
           <>
-            <SummaryChip
-              label="Resources"
-              value={snapshot.summary.resourceCount}
-            />
+            <SummaryChip label="Resources" value={resourceCount} />
             <SummaryChip
               label="Published"
               tone="accent"
-              value={snapshot.summary.publishedResourceCount}
+              value={publishedResourceCount}
             />
             <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
-            <SummaryChip
-              label="Stale"
-              value={snapshot.summary.staleResourceCount}
-            />
+            <SummaryChip label="Stale" value={staleResourceCount} />
           </>
         }
         title="Resources"
       />
 
-      <OfficeResourcesClient snapshot={snapshot} />
+      <OfficeResourcesClient resourceMode="resources" snapshot={snapshot} />
     </OfficeListPageShell>
   );
 }

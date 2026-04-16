@@ -22,6 +22,7 @@ import type { OfficeResourcesAdminSnapshot } from "@acre/db";
 
 type OfficeResourcesClientProps = {
   snapshot: OfficeResourcesAdminSnapshot;
+  resourceMode?: "resources" | "training";
 };
 
 type ConfirmState =
@@ -184,7 +185,6 @@ const resourceStarterShelf = [
   "Playbook: buyer consultation checklist, showing prep, offer process notes",
   "Template: intro email, follow-up text, open-house recap, vendor handoff email",
   "Document: fee sheet, offer checklist PDF, neighborhood explainer, one-page FAQ",
-  "Training video: short YouTube refreshers for scripts, tools, or office process changes",
 ];
 
 const vendorStarterShelf = [
@@ -227,7 +227,9 @@ async function parseError(response: Response, fallback: string) {
 
 export function OfficeResourcesClient({
   snapshot,
+  resourceMode = "resources",
 }: OfficeResourcesClientProps) {
+  const isTrainingMode = resourceMode === "training";
   const router = useRouter();
   const [editingResourceId, setEditingResourceId] = useState<string | null>(
     null,
@@ -236,8 +238,30 @@ export function OfficeResourcesClient({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
-  const resourceCoverage = snapshot.resourceTypeOptions.map((option) => {
-    const records = snapshot.resources.filter(
+  const scopedResourceTypeOptions = snapshot.resourceTypeOptions.filter(
+    (option) =>
+      isTrainingMode
+        ? option.value === "training_video"
+        : option.value !== "training_video",
+  );
+  const scopedResources = snapshot.resources.filter((resource) =>
+    isTrainingMode
+      ? resource.type === "training_video"
+      : resource.type !== "training_video",
+  );
+  const scopedTopOpenedResources = snapshot.topOpenedResources.filter(
+    (resource) =>
+      isTrainingMode
+        ? resource.type === "training_video"
+        : resource.type !== "training_video",
+  );
+  const scopedStaleResources = snapshot.staleResources.filter((resource) =>
+    isTrainingMode
+      ? resource.type === "training_video"
+      : resource.type !== "training_video",
+  );
+  const resourceCoverage = scopedResourceTypeOptions.map((option) => {
+    const records = scopedResources.filter(
       (resource) => resource.type === option.value,
     );
     const published = records.filter((resource) => resource.isPublished).length;
@@ -250,8 +274,12 @@ export function OfficeResourcesClient({
       drafts: records.length - published,
     };
   });
+  const publishedResourceCount = scopedResources.filter(
+    (resource) => resource.isPublished,
+  ).length;
+  const draftResourceCount = scopedResources.length - publishedResourceCount;
   const vendorCoverage = Array.from(
-    snapshot.vendors
+    (isTrainingMode ? [] : snapshot.vendors)
       .reduce(
         (map, vendor) => {
           const current = map.get(vendor.categoryLabel) ?? {
@@ -282,6 +310,40 @@ export function OfficeResourcesClient({
     (left, right) =>
       right.total - left.total || left.label.localeCompare(right.label),
   );
+  const directoryCoverageTitle = isTrainingMode
+    ? "Training coverage"
+    : "Directory coverage";
+  const directoryCoverageSubtitle = isTrainingMode
+    ? "Keep video training separate from the document directory: store only short YouTube refreshers here and keep the library lightweight."
+    : "Keep the agent directory simple: cover the basic material types, keep vendor categories consistent, and avoid turning this into a second document system.";
+  const resourceSectionTitle = isTrainingMode ? "Training videos" : "Resources";
+  const resourceSectionSubtitle = isTrainingMode
+    ? "Manage the YouTube training videos that agents can search and watch from the separate Training module."
+    : "Create and maintain the published materials that agents can search from Front Office.";
+  const resourceEmptyTitle = isTrainingMode
+    ? "No training videos yet"
+    : "No resources yet";
+  const resourceEmptyDescription = isTrainingMode
+    ? "Add the first YouTube training video for agents from the form above."
+    : "Add the first published material for agents from the form above.";
+  const resourceActionAnchorLabel = isTrainingMode
+    ? "Add a training video"
+    : "Add a resource";
+  const resourceCreateButtonLabel = isTrainingMode
+    ? "Add training video"
+    : "Add resource";
+  const resourceHelperText = isTrainingMode
+    ? "Keep video titles literal, summaries short, and tags practical. Agents should be able to search a topic and immediately find the right YouTube refresher."
+    : "Keep titles literal, summaries short, and tags practical. Agents usually search the title first, then tags or type if they do not remember the exact file name.";
+  const resourceTitlePlaceholder = isTrainingMode
+    ? "New buyer objection refresher"
+    : "New buyer consultation checklist";
+  const resourceSummaryPlaceholder = isTrainingMode
+    ? "What this video refreshes for the agent."
+    : "What this material helps the agent do.";
+  const resourceTagsPlaceholder = isTrainingMode
+    ? "buyers, objections, script"
+    : "buyers, consultation, checklist";
 
   async function refreshWithFeedback(nextFeedback: FeedbackState) {
     setFeedback(nextFeedback);
@@ -566,16 +628,21 @@ export function OfficeResourcesClient({
 
       <SectionCard
         className="office-list-card"
-        subtitle="Keep the agent directory simple: cover the basic material types, keep vendor categories consistent, and avoid turning this into a second document system."
-        title="Directory coverage"
+        subtitle={directoryCoverageSubtitle}
+        title={directoryCoverageTitle}
       >
         <div style={coverageGridStyle}>
           <article style={coverageCardStyle}>
             <div style={{ display: "grid", gap: "0.3rem" }}>
-              <strong>Resource type coverage</strong>
+              <strong>
+                {isTrainingMode
+                  ? "Training video coverage"
+                  : "Resource type coverage"}
+              </strong>
               <p className="office-form-helper" style={{ margin: 0 }}>
-                Search is the main use case, so the directory works best when
-                each major type has at least a few clean, current records.
+                {isTrainingMode
+                  ? "Training works best when each YouTube entry is clearly titled, current, and easy to search by topic."
+                  : "Search is the main use case, so the directory works best when each major type has at least a few clean, current records."}
               </p>
             </div>
             <div style={starterGridStyle}>
@@ -597,109 +664,129 @@ export function OfficeResourcesClient({
             </div>
           </article>
 
-          <article style={coverageCardStyle}>
-            <div style={{ display: "grid", gap: "0.3rem" }}>
-              <strong>Vendor category coverage</strong>
-              <p className="office-form-helper" style={{ margin: 0 }}>
-                Categories become part of the searchable directory, so stable
-                naming matters more than heavy workflow logic.
-              </p>
-            </div>
-            {vendorCoverage.length ? (
-              <div style={starterGridStyle}>
-                {vendorCoverage.map((group) => (
-                  <div key={group.label} style={coverageRowStyle}>
-                    <div style={{ display: "grid", gap: "0.18rem" }}>
-                      <strong>{group.label}</strong>
-                      <div style={coverageMetaStyle}>
-                        <span>{group.total} total</span>
-                        <span>{group.featured} featured</span>
-                      </div>
-                    </div>
-                    <Badge tone={group.featured > 0 ? "accent" : "neutral"}>
-                      {group.total}
-                    </Badge>
-                  </div>
-                ))}
+          {!isTrainingMode ? (
+            <article style={coverageCardStyle}>
+              <div style={{ display: "grid", gap: "0.3rem" }}>
+                <strong>Vendor category coverage</strong>
+                <p className="office-form-helper" style={{ margin: 0 }}>
+                  Categories become part of the searchable directory, so stable
+                  naming matters more than heavy workflow logic.
+                </p>
               </div>
-            ) : (
-              <EmptyState
-                description="Add the first vendor category once the office is ready to publish partner contacts."
-                title="No vendor categories yet"
-              />
-            )}
-          </article>
+              {vendorCoverage.length ? (
+                <div style={starterGridStyle}>
+                  {vendorCoverage.map((group) => (
+                    <div key={group.label} style={coverageRowStyle}>
+                      <div style={{ display: "grid", gap: "0.18rem" }}>
+                        <strong>{group.label}</strong>
+                        <div style={coverageMetaStyle}>
+                          <span>{group.total} total</span>
+                          <span>{group.featured} featured</span>
+                        </div>
+                      </div>
+                      <Badge tone={group.featured > 0 ? "accent" : "neutral"}>
+                        {group.total}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  description="Add the first vendor category once the office is ready to publish partner contacts."
+                  title="No vendor categories yet"
+                />
+              )}
+            </article>
+          ) : null}
         </div>
 
         <div style={{ ...coverageGridStyle, marginTop: "1rem" }}>
           <article style={coverageCardStyle}>
             <div style={{ display: "grid", gap: "0.3rem" }}>
-              <strong>Starter resource shelf</strong>
+              <strong>
+                {isTrainingMode
+                  ? "Starter training shelf"
+                  : "Starter resource shelf"}
+              </strong>
               <p className="office-form-helper" style={{ margin: 0 }}>
-                Good first uploads are the materials agents repeatedly search
-                for, not every internal file the office owns.
+                {isTrainingMode
+                  ? "Good first uploads are the short YouTube videos agents re-watch when they need a fast refresher."
+                  : "Good first uploads are the materials agents repeatedly search for, not every internal file the office owns."}
               </p>
             </div>
             <ul style={starterListStyle}>
-              {resourceStarterShelf.map((item) => (
+              {(isTrainingMode
+                ? [
+                    "Training video: buyer scripts, objection handling, showing prep, CRM walkthroughs, and office process refreshers",
+                  ]
+                : resourceStarterShelf
+              ).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
             <div style={anchorActionStyle}>
               <a className="office-inline-link" href="#resource-create-form">
-                Add a resource
+                {resourceActionAnchorLabel}
               </a>
             </div>
           </article>
 
-          <article style={coverageCardStyle}>
-            <div style={{ display: "grid", gap: "0.3rem" }}>
-              <strong>Starter vendor shelf</strong>
-              <p className="office-form-helper" style={{ margin: 0 }}>
-                Vendor pool entries should stay brief and useful so agents can
-                search, scan, and contact someone quickly.
-              </p>
-            </div>
-            <ul style={starterListStyle}>
-              {vendorStarterShelf.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <div style={anchorActionStyle}>
-              <a className="office-inline-link" href="#vendor-create-form">
-                Add a vendor
-              </a>
-            </div>
-          </article>
+          {!isTrainingMode ? (
+            <article style={coverageCardStyle}>
+              <div style={{ display: "grid", gap: "0.3rem" }}>
+                <strong>Starter vendor shelf</strong>
+                <p className="office-form-helper" style={{ margin: 0 }}>
+                  Vendor pool entries should stay brief and useful so agents can
+                  search, scan, and contact someone quickly.
+                </p>
+              </div>
+              <ul style={starterListStyle}>
+                {vendorStarterShelf.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <div style={anchorActionStyle}>
+                <a className="office-inline-link" href="#vendor-create-form">
+                  Add a vendor
+                </a>
+              </div>
+            </article>
+          ) : null}
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card"
-        subtitle="Create and maintain the published materials that agents can search from Front Office."
-        title="Resources"
+        subtitle={resourceSectionSubtitle}
+        title={resourceSectionTitle}
       >
         <ListPageStatsGrid>
           <StatCard
             hint="visible records in this office scope"
-            label="Total resources"
+            label={isTrainingMode ? "Training videos" : "Total resources"}
             tone="accent"
-            value={snapshot.summary.resourceCount}
+            value={scopedResources.length}
           />
           <StatCard
             hint="currently visible to agents"
             label="Published"
-            value={snapshot.summary.publishedResourceCount}
+            value={publishedResourceCount}
           />
           <StatCard
-            hint="training materials in this directory"
-            label="Training"
-            value={snapshot.summary.trainingResourceCount}
+            hint={
+              isTrainingMode
+                ? "records still hidden from agents"
+                : "visible partner records in this office scope"
+            }
+            label={isTrainingMode ? "Drafts" : "Vendors"}
+            value={
+              isTrainingMode ? draftResourceCount : snapshot.summary.vendorCount
+            }
           />
           <StatCard
             hint="older records worth reviewing"
             label="Stale"
-            value={snapshot.summary.staleResourceCount}
+            value={scopedStaleResources.length}
           />
         </ListPageStatsGrid>
 
@@ -710,22 +797,26 @@ export function OfficeResourcesClient({
           style={{ marginTop: "1rem" }}
         >
           <FormField className="office-form-grid-span-2" label="Title">
-            <TextInput
-              name="title"
-              placeholder="New buyer consultation checklist"
-            />
+            <TextInput name="title" placeholder={resourceTitlePlaceholder} />
           </FormField>
           <FormField className="office-form-grid-span-2" label="Summary">
             <TextareaInput
               name="summary"
-              placeholder="What this material helps the agent do."
+              placeholder={resourceSummaryPlaceholder}
               rows={3}
             />
           </FormField>
-          <FormField className="office-form-grid-span-2" label="URL">
+          <FormField
+            className="office-form-grid-span-2"
+            label={isTrainingMode ? "YouTube URL" : "URL"}
+          >
             <TextInput
               name="url"
-              placeholder="https://www.youtube.com/watch?v=... or /resources/..."
+              placeholder={
+                isTrainingMode
+                  ? "https://www.youtube.com/watch?v=..."
+                  : "https://... or /resources/..."
+              }
               type="url"
             />
           </FormField>
@@ -733,19 +824,34 @@ export function OfficeResourcesClient({
             className="office-form-helper office-form-grid-span-2"
             style={fieldHintStyle}
           >
-            Choose <strong>Training video</strong> for YouTube links. Documents
-            and PDFs can use internal paths like
-            <code> /resources/...</code> or any direct file URL.
+            {isTrainingMode ? (
+              <>
+                Paste a full <strong>YouTube</strong> link here. Training videos
+                live in their own module, separate from the PDF and document
+                directory.
+              </>
+            ) : (
+              <>
+                Use this module for documents, templates, and playbooks.
+                Training videos belong in the separate <strong>Training</strong>{" "}
+                module. PDFs can use internal paths like
+                <code> /resources/...</code> or any direct file URL.
+              </>
+            )}
           </p>
-          <FormField label="Type">
-            <SelectInput defaultValue="playbook" name="type">
-              {snapshot.resourceTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectInput>
-          </FormField>
+          {isTrainingMode ? (
+            <input name="type" type="hidden" value="training_video" />
+          ) : (
+            <FormField label="Type">
+              <SelectInput defaultValue="playbook" name="type">
+                {scopedResourceTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+          )}
           <FormField label="Visibility">
             <SelectInput defaultValue="office_only" name="visibilityScope">
               <option value="office_only">Office only</option>
@@ -753,10 +859,7 @@ export function OfficeResourcesClient({
             </SelectInput>
           </FormField>
           <FormField className="office-form-grid-span-2" label="Tags">
-            <TextInput
-              name="tags"
-              placeholder="buyers, consultation, checklist"
-            />
+            <TextInput name="tags" placeholder={resourceTagsPlaceholder} />
           </FormField>
           <CheckboxField className="office-form-grid-span-2" label="Published">
             <input defaultChecked name="isPublished" type="checkbox" />
@@ -766,19 +869,17 @@ export function OfficeResourcesClient({
               disabled={pendingAction === "create-resource"}
               type="submit"
             >
-              Add resource
+              {resourceCreateButtonLabel}
             </Button>
           </div>
         </form>
 
         <p className="office-form-helper" style={{ margin: "1rem 0 0" }}>
-          Keep titles literal, summaries short, and tags practical. Agents
-          usually search the title first, then tags or type if they do not
-          remember the exact file name.
+          {resourceHelperText}
         </p>
 
         <div style={{ ...groupedListStyle, marginTop: "1rem" }}>
-          {snapshot.resources.length ? (
+          {scopedResources.length ? (
             resourceCoverage
               .filter((group) => group.records.length > 0)
               .map((group) => (
@@ -832,12 +933,16 @@ export function OfficeResourcesClient({
                               </FormField>
                               <FormField
                                 className="office-form-grid-span-2"
-                                label="URL"
+                                label={isTrainingMode ? "YouTube URL" : "URL"}
                               >
                                 <TextInput
                                   defaultValue={resource.url}
                                   name="url"
-                                  placeholder="https://www.youtube.com/watch?v=... or /resources/..."
+                                  placeholder={
+                                    isTrainingMode
+                                      ? "https://www.youtube.com/watch?v=..."
+                                      : "https://... or /resources/..."
+                                  }
                                   type="url"
                                 />
                               </FormField>
@@ -845,29 +950,44 @@ export function OfficeResourcesClient({
                                 className="office-form-helper office-form-grid-span-2"
                                 style={fieldHintStyle}
                               >
-                                Choose <strong>Training video</strong> for
-                                YouTube links. Documents and PDFs can keep using
-                                internal paths like
-                                <code> /resources/...</code> or other direct
-                                file URLs.
+                                {isTrainingMode ? (
+                                  <>
+                                    Paste a full <strong>YouTube</strong> link.
+                                    Training videos live in their own module,
+                                    separate from the PDF and document
+                                    directory.
+                                  </>
+                                ) : (
+                                  <>
+                                    Use this module for documents, templates,
+                                    and playbooks. Training videos belong in the
+                                    separate <strong>Training</strong> module.
+                                  </>
+                                )}
                               </p>
-                              <FormField label="Type">
-                                <SelectInput
-                                  defaultValue={resource.type}
+                              {isTrainingMode ? (
+                                <input
                                   name="type"
-                                >
-                                  {snapshot.resourceTypeOptions.map(
-                                    (option) => (
+                                  type="hidden"
+                                  value="training_video"
+                                />
+                              ) : (
+                                <FormField label="Type">
+                                  <SelectInput
+                                    defaultValue={resource.type}
+                                    name="type"
+                                  >
+                                    {scopedResourceTypeOptions.map((option) => (
                                       <option
                                         key={option.value}
                                         value={option.value}
                                       >
                                         {option.label}
                                       </option>
-                                    ),
-                                  )}
-                                </SelectInput>
-                              </FormField>
+                                    ))}
+                                  </SelectInput>
+                                </FormField>
+                              )}
                               <FormField label="Visibility">
                                 <SelectInput
                                   defaultValue={resource.scopeKey}
@@ -944,7 +1064,7 @@ export function OfficeResourcesClient({
                                     <Badge tone="neutral">
                                       {resource.typeLabel}
                                     </Badge>
-                                    {resource.type === "training_video" &&
+                                    {isTrainingMode &&
                                     isYouTubeUrl(resource.url) ? (
                                       <Badge tone="accent">YouTube</Badge>
                                     ) : null}
@@ -1010,334 +1130,345 @@ export function OfficeResourcesClient({
                   className="office-button-secondary"
                   href="#resource-create-form"
                 >
-                  Add the first resource
+                  {resourceActionAnchorLabel}
                 </a>
               }
-              description="Add the first published material for agents from the form above."
-              title="No resources yet"
+              description={resourceEmptyDescription}
+              title={resourceEmptyTitle}
             />
           )}
         </div>
       </SectionCard>
 
-      <SectionCard
-        className="office-list-card"
-        subtitle="Keep partner records simple so agents can search and contact them when needed."
-        title="Vendor pool"
-      >
-        <ListPageStatsGrid>
-          <StatCard
-            hint="visible partner records in this office scope"
-            label="Vendors"
-            tone="accent"
-            value={snapshot.summary.vendorCount}
-          />
-          <StatCard
-            hint="flagged as go-to contacts"
-            label="Featured"
-            value={snapshot.summary.featuredVendorCount}
-          />
-        </ListPageStatsGrid>
-
-        <form
-          className="office-form-grid"
-          id="vendor-create-form"
-          onSubmit={handleCreateVendor}
-          style={{ marginTop: "1rem" }}
+      {!isTrainingMode ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="Keep partner records simple so agents can search and contact them when needed."
+          title="Vendor pool"
         >
-          <FormField label="Category">
-            <TextInput name="category" placeholder="lender" />
-          </FormField>
-          <FormField label="Name">
-            <TextInput name="name" placeholder="North Star Lending" />
-          </FormField>
-          <FormField className="office-form-grid-span-2" label="Headline">
-            <TextInput
-              name="headline"
-              placeholder="Fast pre-approval support for NYC buyers."
+          <ListPageStatsGrid>
+            <StatCard
+              hint="visible partner records in this office scope"
+              label="Vendors"
+              tone="accent"
+              value={snapshot.summary.vendorCount}
             />
-          </FormField>
-          <FormField label="Phone">
-            <TextInput name="phone" placeholder="2125550199" />
-          </FormField>
-          <FormField label="Email">
-            <TextInput
-              name="email"
-              placeholder="team@example.com"
-              type="email"
+            <StatCard
+              hint="flagged as go-to contacts"
+              label="Featured"
+              value={snapshot.summary.featuredVendorCount}
             />
-          </FormField>
-          <FormField className="office-form-grid-span-2" label="Website">
-            <TextInput name="website" placeholder="https://..." type="url" />
-          </FormField>
-          <FormField className="office-form-grid-span-2" label="Coverage areas">
-            <TextInput
-              name="neighborhoods"
-              placeholder="Brooklyn, Queens, Jersey City"
-            />
-          </FormField>
-          <FormField className="office-form-grid-span-2" label="Notes">
-            <TextareaInput
-              name="notes"
-              placeholder="Anything the agent should know before reaching out."
-              rows={3}
-            />
-          </FormField>
-          <FormField label="Visibility">
-            <SelectInput defaultValue="office_only" name="visibilityScope">
-              <option value="office_only">Office only</option>
-              <option value="organization_wide">Organization-wide</option>
-            </SelectInput>
-          </FormField>
-          <CheckboxField label="Featured go-to">
-            <input name="isFeatured" type="checkbox" />
-          </CheckboxField>
-          <div className="office-filter-actions">
-            <Button disabled={pendingAction === "create-vendor"} type="submit">
-              Add vendor
-            </Button>
-          </div>
-        </form>
+          </ListPageStatsGrid>
 
-        <p className="office-form-helper" style={{ margin: "1rem 0 0" }}>
-          Keep vendor records short and searchable. Use the same category names
-          each time so agents can browse the pool without guessing synonyms.
-        </p>
+          <form
+            className="office-form-grid"
+            id="vendor-create-form"
+            onSubmit={handleCreateVendor}
+            style={{ marginTop: "1rem" }}
+          >
+            <FormField label="Category">
+              <TextInput name="category" placeholder="lender" />
+            </FormField>
+            <FormField label="Name">
+              <TextInput name="name" placeholder="North Star Lending" />
+            </FormField>
+            <FormField className="office-form-grid-span-2" label="Headline">
+              <TextInput
+                name="headline"
+                placeholder="Fast pre-approval support for NYC buyers."
+              />
+            </FormField>
+            <FormField label="Phone">
+              <TextInput name="phone" placeholder="2125550199" />
+            </FormField>
+            <FormField label="Email">
+              <TextInput
+                name="email"
+                placeholder="team@example.com"
+                type="email"
+              />
+            </FormField>
+            <FormField className="office-form-grid-span-2" label="Website">
+              <TextInput name="website" placeholder="https://..." type="url" />
+            </FormField>
+            <FormField
+              className="office-form-grid-span-2"
+              label="Coverage areas"
+            >
+              <TextInput
+                name="neighborhoods"
+                placeholder="Brooklyn, Queens, Jersey City"
+              />
+            </FormField>
+            <FormField className="office-form-grid-span-2" label="Notes">
+              <TextareaInput
+                name="notes"
+                placeholder="Anything the agent should know before reaching out."
+                rows={3}
+              />
+            </FormField>
+            <FormField label="Visibility">
+              <SelectInput defaultValue="office_only" name="visibilityScope">
+                <option value="office_only">Office only</option>
+                <option value="organization_wide">Organization-wide</option>
+              </SelectInput>
+            </FormField>
+            <CheckboxField label="Featured go-to">
+              <input name="isFeatured" type="checkbox" />
+            </CheckboxField>
+            <div className="office-filter-actions">
+              <Button
+                disabled={pendingAction === "create-vendor"}
+                type="submit"
+              >
+                Add vendor
+              </Button>
+            </div>
+          </form>
 
-        <div style={{ ...groupedListStyle, marginTop: "1rem" }}>
-          {snapshot.vendors.length ? (
-            vendorCoverage.map((group) => (
-              <section key={group.label} style={groupedSectionStyle}>
-                <div style={groupedSectionHeaderStyle}>
-                  <div style={{ display: "grid", gap: "0.24rem" }}>
-                    <strong>{group.label}</strong>
-                    <div style={coverageMetaStyle}>
-                      <span>{group.total} total</span>
-                      <span>{group.featured} featured</span>
+          <p className="office-form-helper" style={{ margin: "1rem 0 0" }}>
+            Keep vendor records short and searchable. Use the same category
+            names each time so agents can browse the pool without guessing
+            synonyms.
+          </p>
+
+          <div style={{ ...groupedListStyle, marginTop: "1rem" }}>
+            {snapshot.vendors.length ? (
+              vendorCoverage.map((group) => (
+                <section key={group.label} style={groupedSectionStyle}>
+                  <div style={groupedSectionHeaderStyle}>
+                    <div style={{ display: "grid", gap: "0.24rem" }}>
+                      <strong>{group.label}</strong>
+                      <div style={coverageMetaStyle}>
+                        <span>{group.total} total</span>
+                        <span>{group.featured} featured</span>
+                      </div>
                     </div>
+                    <Badge tone={group.featured > 0 ? "accent" : "neutral"}>
+                      {group.total}
+                    </Badge>
                   </div>
-                  <Badge tone={group.featured > 0 ? "accent" : "neutral"}>
-                    {group.total}
-                  </Badge>
-                </div>
 
-                <div style={cardGridStyle}>
-                  {group.records.map((vendor) => {
-                    const isEditing = editingVendorId === vendor.id;
-                    const isBusy =
-                      pendingAction === `update-vendor:${vendor.id}` ||
-                      pendingAction === `delete:vendor:${vendor.id}`;
+                  <div style={cardGridStyle}>
+                    {group.records.map((vendor) => {
+                      const isEditing = editingVendorId === vendor.id;
+                      const isBusy =
+                        pendingAction === `update-vendor:${vendor.id}` ||
+                        pendingAction === `delete:vendor:${vendor.id}`;
 
-                    return (
-                      <article key={vendor.id} style={recordCardStyle}>
-                        {isEditing ? (
-                          <form
-                            className="office-form-grid"
-                            onSubmit={(event) =>
-                              handleUpdateVendor(event, vendor.id)
-                            }
-                          >
-                            <FormField label="Category">
-                              <TextInput
-                                defaultValue={vendor.category}
-                                name="category"
-                              />
-                            </FormField>
-                            <FormField label="Name">
-                              <TextInput
-                                defaultValue={vendor.name}
-                                name="name"
-                              />
-                            </FormField>
-                            <FormField
-                              className="office-form-grid-span-2"
-                              label="Headline"
+                      return (
+                        <article key={vendor.id} style={recordCardStyle}>
+                          {isEditing ? (
+                            <form
+                              className="office-form-grid"
+                              onSubmit={(event) =>
+                                handleUpdateVendor(event, vendor.id)
+                              }
                             >
-                              <TextInput
-                                defaultValue={vendor.headline}
-                                name="headline"
-                              />
-                            </FormField>
-                            <FormField label="Phone">
-                              <TextInput
-                                defaultValue={vendor.phone}
-                                name="phone"
-                              />
-                            </FormField>
-                            <FormField label="Email">
-                              <TextInput
-                                defaultValue={vendor.email}
-                                name="email"
-                                type="email"
-                              />
-                            </FormField>
-                            <FormField
-                              className="office-form-grid-span-2"
-                              label="Website"
-                            >
-                              <TextInput
-                                defaultValue={vendor.website}
-                                name="website"
-                                type="url"
-                              />
-                            </FormField>
-                            <FormField
-                              className="office-form-grid-span-2"
-                              label="Coverage areas"
-                            >
-                              <TextInput
-                                defaultValue={vendor.neighborhoodsText}
-                                name="neighborhoods"
-                              />
-                            </FormField>
-                            <FormField
-                              className="office-form-grid-span-2"
-                              label="Notes"
-                            >
-                              <TextareaInput
-                                defaultValue={vendor.notes}
-                                name="notes"
-                                rows={3}
-                              />
-                            </FormField>
-                            <FormField label="Visibility">
-                              <SelectInput
-                                defaultValue={vendor.scopeKey}
-                                name="visibilityScope"
+                              <FormField label="Category">
+                                <TextInput
+                                  defaultValue={vendor.category}
+                                  name="category"
+                                />
+                              </FormField>
+                              <FormField label="Name">
+                                <TextInput
+                                  defaultValue={vendor.name}
+                                  name="name"
+                                />
+                              </FormField>
+                              <FormField
+                                className="office-form-grid-span-2"
+                                label="Headline"
                               >
-                                <option value="office_only">Office only</option>
-                                <option value="organization_wide">
-                                  Organization-wide
-                                </option>
-                              </SelectInput>
-                            </FormField>
-                            <CheckboxField label="Featured go-to">
-                              <input
-                                defaultChecked={vendor.isFeatured}
-                                name="isFeatured"
-                                type="checkbox"
-                              />
-                            </CheckboxField>
-
-                            <div style={actionRowStyle}>
-                              <Button disabled={isBusy} type="submit">
-                                Save
-                              </Button>
-                              <Button
-                                disabled={isBusy}
-                                onClick={() => setEditingVendorId(null)}
-                                type="button"
-                                variant="secondary"
+                                <TextInput
+                                  defaultValue={vendor.headline}
+                                  name="headline"
+                                />
+                              </FormField>
+                              <FormField label="Phone">
+                                <TextInput
+                                  defaultValue={vendor.phone}
+                                  name="phone"
+                                />
+                              </FormField>
+                              <FormField label="Email">
+                                <TextInput
+                                  defaultValue={vendor.email}
+                                  name="email"
+                                  type="email"
+                                />
+                              </FormField>
+                              <FormField
+                                className="office-form-grid-span-2"
+                                label="Website"
                               >
-                                Cancel
-                              </Button>
-                              <Button
-                                disabled={isBusy}
-                                onClick={() =>
-                                  setConfirmState({
-                                    kind: "vendor",
-                                    id: vendor.id,
-                                    title: vendor.name,
-                                  })
-                                }
-                                type="button"
-                                variant="danger"
+                                <TextInput
+                                  defaultValue={vendor.website}
+                                  name="website"
+                                  type="url"
+                                />
+                              </FormField>
+                              <FormField
+                                className="office-form-grid-span-2"
+                                label="Coverage areas"
                               >
-                                Delete
-                              </Button>
-                            </div>
-                          </form>
-                        ) : (
-                          <>
-                            <div style={recordHeaderStyle}>
-                              <div style={{ display: "grid", gap: "0.4rem" }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: "8px",
-                                    flexWrap: "wrap",
-                                  }}
+                                <TextInput
+                                  defaultValue={vendor.neighborhoodsText}
+                                  name="neighborhoods"
+                                />
+                              </FormField>
+                              <FormField
+                                className="office-form-grid-span-2"
+                                label="Notes"
+                              >
+                                <TextareaInput
+                                  defaultValue={vendor.notes}
+                                  name="notes"
+                                  rows={3}
+                                />
+                              </FormField>
+                              <FormField label="Visibility">
+                                <SelectInput
+                                  defaultValue={vendor.scopeKey}
+                                  name="visibilityScope"
                                 >
-                                  <strong>{vendor.name}</strong>
-                                  <Badge
-                                    tone={
-                                      vendor.isFeatured ? "accent" : "neutral"
-                                    }
-                                  >
-                                    {vendor.categoryLabel}
-                                  </Badge>
-                                  {vendor.isFeatured ? (
-                                    <StatusBadge tone="accent">
-                                      Featured
-                                    </StatusBadge>
-                                  ) : null}
-                                </div>
-                                <p
-                                  style={{
-                                    margin: 0,
-                                    color: "#556a83",
-                                    lineHeight: 1.5,
-                                  }}
+                                  <option value="office_only">
+                                    Office only
+                                  </option>
+                                  <option value="organization_wide">
+                                    Organization-wide
+                                  </option>
+                                </SelectInput>
+                              </FormField>
+                              <CheckboxField label="Featured go-to">
+                                <input
+                                  defaultChecked={vendor.isFeatured}
+                                  name="isFeatured"
+                                  type="checkbox"
+                                />
+                              </CheckboxField>
+
+                              <div style={actionRowStyle}>
+                                <Button disabled={isBusy} type="submit">
+                                  Save
+                                </Button>
+                                <Button
+                                  disabled={isBusy}
+                                  onClick={() => setEditingVendorId(null)}
+                                  type="button"
+                                  variant="secondary"
                                 >
-                                  {vendor.headline}
-                                </p>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  disabled={isBusy}
+                                  onClick={() =>
+                                    setConfirmState({
+                                      kind: "vendor",
+                                      id: vendor.id,
+                                      title: vendor.name,
+                                    })
+                                  }
+                                  type="button"
+                                  variant="danger"
+                                >
+                                  Delete
+                                </Button>
                               </div>
-                              <Button
-                                onClick={() => setEditingVendorId(vendor.id)}
-                                size="sm"
-                                type="button"
-                                variant="secondary"
-                              >
-                                Edit
-                              </Button>
-                            </div>
+                            </form>
+                          ) : (
+                            <>
+                              <div style={recordHeaderStyle}>
+                                <div style={{ display: "grid", gap: "0.4rem" }}>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: "8px",
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <strong>{vendor.name}</strong>
+                                    <Badge
+                                      tone={
+                                        vendor.isFeatured ? "accent" : "neutral"
+                                      }
+                                    >
+                                      {vendor.categoryLabel}
+                                    </Badge>
+                                    {vendor.isFeatured ? (
+                                      <StatusBadge tone="accent">
+                                        Featured
+                                      </StatusBadge>
+                                    ) : null}
+                                  </div>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      color: "#556a83",
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {vendor.headline}
+                                  </p>
+                                </div>
+                                <Button
+                                  onClick={() => setEditingVendorId(vendor.id)}
+                                  size="sm"
+                                  type="button"
+                                  variant="secondary"
+                                >
+                                  Edit
+                                </Button>
+                              </div>
 
-                            <div style={recordMetaStyle}>
-                              <span>{vendor.scopeLabel}</span>
-                              <span>Updated {vendor.updatedAtLabel}</span>
-                              <span>{vendor.coverageLabel}</span>
-                            </div>
+                              <div style={recordMetaStyle}>
+                                <span>{vendor.scopeLabel}</span>
+                                <span>Updated {vendor.updatedAtLabel}</span>
+                                <span>{vendor.coverageLabel}</span>
+                              </div>
 
-                            <div style={recordMetaStyle}>
-                              {vendor.phone ? (
-                                <span>{vendor.phone}</span>
-                              ) : null}
-                              {vendor.email ? (
-                                <span>{vendor.email}</span>
-                              ) : null}
-                              {vendor.website ? (
-                                <span>{vendor.website}</span>
-                              ) : null}
-                            </div>
-                          </>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ))
-          ) : (
-            <EmptyState
-              action={
-                <a
-                  className="office-button-secondary"
-                  href="#vendor-create-form"
-                >
-                  Add the first vendor
-                </a>
-              }
-              description="Add the first vendor record for agents from the form above."
-              title="No vendors yet"
-            />
-          )}
-        </div>
-      </SectionCard>
+                              <div style={recordMetaStyle}>
+                                {vendor.phone ? (
+                                  <span>{vendor.phone}</span>
+                                ) : null}
+                                {vendor.email ? (
+                                  <span>{vendor.email}</span>
+                                ) : null}
+                                {vendor.website ? (
+                                  <span>{vendor.website}</span>
+                                ) : null}
+                              </div>
+                            </>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))
+            ) : (
+              <EmptyState
+                action={
+                  <a
+                    className="office-button-secondary"
+                    href="#vendor-create-form"
+                  >
+                    Add the first vendor
+                  </a>
+                }
+                description="Add the first vendor record for agents from the form above."
+                title="No vendors yet"
+              />
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         className="office-list-card"
         subtitle="Keep signals lightweight: what people open the most and what may be ready to clean up."
-        title="Usage signals"
+        title={isTrainingMode ? "Training usage signals" : "Usage signals"}
       >
         <div
           style={{
@@ -1347,9 +1478,13 @@ export function OfficeResourcesClient({
           }}
         >
           <div style={signalListStyle}>
-            <strong>Top opened resources</strong>
-            {snapshot.topOpenedResources.length ? (
-              snapshot.topOpenedResources.map((resource) => (
+            <strong>
+              {isTrainingMode
+                ? "Top opened training videos"
+                : "Top opened resources"}
+            </strong>
+            {scopedTopOpenedResources.length ? (
+              scopedTopOpenedResources.map((resource) => (
                 <article key={resource.id} style={signalItemStyle}>
                   <div
                     style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
@@ -1374,9 +1509,11 @@ export function OfficeResourcesClient({
           </div>
 
           <div style={signalListStyle}>
-            <strong>Stale resources</strong>
-            {snapshot.staleResources.length ? (
-              snapshot.staleResources.map((resource) => (
+            <strong>
+              {isTrainingMode ? "Stale training videos" : "Stale resources"}
+            </strong>
+            {scopedStaleResources.length ? (
+              scopedStaleResources.map((resource) => (
                 <article key={resource.id} style={signalItemStyle}>
                   <div
                     style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}

@@ -5,10 +5,11 @@ import { FilterBar, FilterField, SelectInput, TextInput } from "@acre/ui";
 
 const interactionEndpoint = "/api/resources/interactions";
 
-function recordSearch(query: string) {
+function recordSearch(query: string, contextPage: "resources" | "training") {
   const body = JSON.stringify({
     type: "resource_search",
     query,
+    contextPage,
   });
 
   if (
@@ -46,7 +47,13 @@ export function FrontOfficeResourceSearchForm(props: {
     value: string;
     label: string;
   }>;
+  hideTypeFilter?: boolean;
+  searchContext?: "resources" | "training";
+  placeholder?: string;
 }) {
+  const baseHref =
+    props.searchContext === "training" ? "/agent/training" : "/agent/resources";
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const query = `${formData.get("q") ?? ""}`.trim();
@@ -55,7 +62,7 @@ export function FrontOfficeResourceSearchForm(props: {
       return;
     }
 
-    recordSearch(query);
+    recordSearch(query, props.searchContext ?? "resources");
   }
 
   return (
@@ -64,26 +71,31 @@ export function FrontOfficeResourceSearchForm(props: {
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
-          placeholder="Search titles, summaries, tags, YouTube trainings, or vendor names"
+          placeholder={
+            props.placeholder ??
+            "Search titles, summaries, tags, or vendor names"
+          }
           type="search"
         />
       </FilterField>
-      <FilterField label="Type">
-        <SelectInput defaultValue={props.initialType ?? ""} name="type">
-          <option value="">All resources</option>
-          {props.typeOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </SelectInput>
-      </FilterField>
+      {!props.hideTypeFilter ? (
+        <FilterField label="Type">
+          <SelectInput defaultValue={props.initialType ?? ""} name="type">
+            <option value="">All resources</option>
+            {props.typeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </FilterField>
+      ) : null}
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
           Search
         </button>
         {props.initialQuery || props.initialType ? (
-          <a className="office-button-secondary" href="/agent/resources">
+          <a className="office-button-secondary" href={baseHref}>
             Clear
           </a>
         ) : null}

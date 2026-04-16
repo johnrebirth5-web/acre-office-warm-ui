@@ -52,8 +52,14 @@ function getNavGroups(
       title: t((messages) => messages.officeNav.groups.overview),
       icon: "◫",
       items: [
-        { label: t((messages) => messages.officeNav.items.dashboard), href: "/office/dashboard" },
-        { label: t((messages) => messages.officeNav.items.pipeline), href: "/office/pipeline" },
+        {
+          label: t((messages) => messages.officeNav.items.dashboard),
+          href: "/office/dashboard",
+        },
+        {
+          label: t((messages) => messages.officeNav.items.pipeline),
+          href: "/office/pipeline",
+        },
         {
           label: t((messages) => messages.officeNav.items.transactions),
           href: "/office/transactions",
@@ -92,6 +98,11 @@ function getNavGroups(
         {
           label: t((messages) => messages.officeNav.items.resources),
           href: "/office/resources",
+          isVisible: canViewOfficeResourcesWorkspace,
+        },
+        {
+          label: t((messages) => messages.officeNav.items.training),
+          href: "/office/training",
           isVisible: canViewOfficeResourcesWorkspace,
         },
         {
@@ -189,9 +200,18 @@ function getNavGroups(
           href: "/office/notifications",
           isVisible: canAccessOfficeNotifications,
         },
-        { label: t((messages) => messages.officeNav.items.account), href: "/office/account" },
-        { label: t((messages) => messages.officeNav.items.billing), href: "/office/billing" },
-        { label: t((messages) => messages.officeNav.items.addOns), kind: "muted" as const },
+        {
+          label: t((messages) => messages.officeNav.items.account),
+          href: "/office/account",
+        },
+        {
+          label: t((messages) => messages.officeNav.items.billing),
+          href: "/office/billing",
+        },
+        {
+          label: t((messages) => messages.officeNav.items.addOns),
+          kind: "muted" as const,
+        },
         {
           label: t((messages) => messages.officeNav.items.signOut),
           kind: "submit" as const,
@@ -258,11 +278,17 @@ export function OfficeNav({
       void loadMailUnreadCount();
     }
 
-    window.addEventListener("office-mail-unread-changed", handleUnreadCountRefresh);
+    window.addEventListener(
+      "office-mail-unread-changed",
+      handleUnreadCountRefresh,
+    );
 
     return () => {
       isActive = false;
-      window.removeEventListener("office-mail-unread-changed", handleUnreadCountRefresh);
+      window.removeEventListener(
+        "office-mail-unread-changed",
+        handleUnreadCountRefresh,
+      );
     };
   }, [canViewMail, mailRefreshKey]);
 
@@ -276,8 +302,12 @@ export function OfficeNav({
       switcherShortcuts={[
         {
           href: "/agent/dashboard",
-          label: t((messages) => messages.officeNav.shortcuts.frontOffice.label),
-          description: t((messages) => messages.officeNav.shortcuts.frontOffice.description),
+          label: t(
+            (messages) => messages.officeNav.shortcuts.frontOffice.label,
+          ),
+          description: t(
+            (messages) => messages.officeNav.shortcuts.frontOffice.description,
+          ),
         },
       ]}
     />

@@ -63,8 +63,7 @@ export const enUSMessages = {
       "Update the password for your internal Acre account without changing any other sign-in settings.",
     changePasswordRequiredLead:
       "This internal account is marked as requiring a password change before Back Office access can continue.",
-    passwordLengthRule:
-      "Passwords must be at least {min} characters.",
+    passwordLengthRule: "Passwords must be at least {min} characters.",
     signInEmail: "Sign-in email",
     currentStatus: "Current status",
     passwordLastChanged: "Password last changed",
@@ -93,8 +92,7 @@ export const enUSMessages = {
       "Use this page to rotate the current internal Acre password. After save, you will return to My profile.",
     errorMismatch: "New password and confirmation must match.",
     errorCurrentPassword: "Current password is incorrect.",
-    errorPasswordLength:
-      "Password must be at least {min} characters.",
+    errorPasswordLength: "Password must be at least {min} characters.",
     errorMissingPassword: "Enter a new password to continue.",
     errorUnknown: "Unable to change password. Try again.",
   },
@@ -133,6 +131,7 @@ export const enUSMessages = {
       activity: "Activity",
       library: "Library",
       resources: "Resources",
+      training: "Training",
       signatures: "Signatures",
       accounting: "Accounting",
       tracker1099: "1099 Tracker",
@@ -155,7 +154,8 @@ export const enUSMessages = {
     shortcuts: {
       frontOffice: {
         label: "Front Office",
-        description: "Clients, outreach, calendar, studio outputs, and active follow-up",
+        description:
+          "Clients, outreach, calendar, studio outputs, and active follow-up",
       },
     },
   },
@@ -178,12 +178,12 @@ export const enUSMessages = {
       studioShares: "Shares",
       activity: "Activity",
       resources: "Resources",
+      training: "Training",
     },
     shortcuts: {
       backOffice: {
         label: "Back Office",
-        description:
-          "Transactions, signatures, accounting, and formal handoff",
+        description: "Transactions, signatures, accounting, and formal handoff",
       },
     },
   },
@@ -240,8 +240,7 @@ export const enUSMessages = {
     recentInboxItems: "Recent inbox items",
     lastUpdated: "Last updated",
     inAppNotifications: "In-app notifications",
-    inAppNotificationsBody:
-      "Master switch for the Office notifications inbox.",
+    inAppNotificationsBody: "Master switch for the Office notifications inbox.",
     approvalAlerts: "Approval alerts",
     approvalAlertsBody:
       "Review and secondary-review reminders from task and document workflows.",
@@ -252,8 +251,7 @@ export const enUSMessages = {
     offerAlertsBody:
       "Offer created, expiring-soon, and response-needed alerts.",
     messageAlerts: "Internal mail alerts",
-    messageAlertsBody:
-      "Unread reminders for Acre internal mail threads.",
+    messageAlertsBody: "Unread reminders for Acre internal mail threads.",
     security: "Security",
     securitySubtitle:
       "This reflects the current internal password-account model and only shows actions the system truly supports today.",
@@ -369,8 +367,7 @@ export const enUSMessages = {
     description:
       "Live office transaction list with search, filters, summary, and quick create.",
     search: "Search",
-    searchPlaceholder:
-      "Search transaction, contact, address, owner, or MLS...",
+    searchPlaceholder: "Search transaction, contact, address, owner, or MLS...",
     currentView: "Current view",
     applyFilters: "Apply filters",
     reset: "Reset",
@@ -409,8 +406,7 @@ export const enUSMessages = {
     operational: "Operational",
     builtIn: "Built-in",
     custom: "Custom",
-    operationalFieldsBody:
-      "Shared filters that apply across the office.",
+    operationalFieldsBody: "Shared filters that apply across the office.",
     builtInFieldsBody:
       "Visible built-in transaction fields from Settings > Fields.",
     customFieldsBody:
@@ -593,8 +589,7 @@ export const enUSMessages = {
     topLevelFolder: "Top-level folder",
     createFolderScopeLabel: "Scope",
     uploadTitle: "Upload file",
-    uploadBody:
-      "Add a PDF or internal document to the shared office library.",
+    uploadBody: "Add a PDF or internal document to the shared office library.",
     closeUploadAria: "Close upload file modal",
     uploadFileLabel: "File",
     uploadTitleLabel: "Document title",
@@ -649,8 +644,7 @@ export const enUSMessages = {
       "Saved requests that are ready for send review but have not gone out yet.",
     statsInFlightHint:
       "Envelopes already in recipient hands or partially completed.",
-    statsCompletedHint:
-      "Finished requests in the current filtered view.",
+    statsCompletedHint: "Finished requests in the current filtered view.",
     statsNonTransactionTrackedHint:
       "HR, finance, admin, and generic requests can be tracked here after they already exist, but brand-new non-transaction drafts still cannot start here yet.",
     statsActiveTemplatesHint:
@@ -692,8 +686,7 @@ export const enUSMessages = {
       "Managed through the shared template library",
     requestsTrackedHere: "Requests tracked here",
     noRequestsInCurrentFilterSet: "No requests in the current filter set",
-    driveRoutingTitle:
-      "Drive routing stays visible.",
+    driveRoutingTitle: "Drive routing stays visible.",
     driveRoutingBody:
       "Drive routing stays visible here so operations can see where completed requests are archived.",
     genericEnvelopes: "Generic envelopes",
@@ -754,12 +747,10 @@ export const enUSMessages = {
     completedPrefix: "Completed {value}",
     stillActive: "Still active",
     noSignerAssignedYet: "No signer assigned yet",
-    noRequestsMatchedTitle:
-      "No signature requests matched the current filters",
+    noRequestsMatchedTitle: "No signature requests matched the current filters",
     noRequestsMatchedBody:
       "Clear a filter, continue an existing draft, or start from a transaction PDF.",
-    rolesSummary:
-      "{signers} signer · {approvers} approver · {cc} CC",
+    rolesSummary: "{signers} signer · {approvers} approver · {cc} CC",
     driveSyncRetryFailed: "Drive sync retry failed.",
     driveSyncRetried: "Drive sync retried.",
     blockerTransactionRequiredTitle:
@@ -770,12 +761,10 @@ export const enUSMessages = {
       "Recipients and fields are still set up there",
     blockerRecipientsRequiredDetail:
       "Signer routing, recipients, and field placement are still configured through the current transaction-based flow.",
-    blockerEditorNeedsPdfTitle:
-      "The editor still opens from a transaction PDF",
+    blockerEditorNeedsPdfTitle: "The editor still opens from a transaction PDF",
     blockerEditorNeedsPdfDetail:
       "The current editor still needs a transaction PDF to get started, so non-transaction requests do not have a blank starting point yet.",
-    blockerGenericMissingTitle:
-      "Generic templates are not fully reusable yet",
+    blockerGenericMissingTitle: "Generic templates are not fully reusable yet",
     blockerGenericMissingDetail:
       "Templates already cover transaction, HR, finance, and admin use cases, but generic templates are not fully supported yet.",
     openRequest: "Open request",
@@ -819,8 +808,7 @@ export const enUSMessages = {
     neverUsed: "Never used",
     clearFilters: "Clear filters",
     openSignaturesCenter: "Open signatures",
-    showingTemplates:
-      "{note} Showing {filtered} of {total} templates.",
+    showingTemplates: "{note} Showing {filtered} of {total} templates.",
     tableTitle: "Template library",
     tableSubtitle:
       "This library shows whether each template already has a live draft or recent request activity.",
@@ -995,7 +983,8 @@ export const enUSMessages = {
     archive: "Archive",
     markRead: "Mark read",
     markUnread: "Mark unread",
-    noArchivedMatched: "No archived notifications match the current filters yet.",
+    noArchivedMatched:
+      "No archived notifications match the current filters yet.",
     noInboxMatched: "No inbox notifications match the current filters yet.",
     noArchivedTitle: "No archived notifications",
     noInboxTitle: "No notifications in this inbox view",
@@ -1070,8 +1059,7 @@ export const enUSMessages = {
     sortBy: "Sort By",
     direction: "Direction",
     editFields: "Edit fields",
-    editFieldsBody:
-      "Choose which report filters stay visible on this page.",
+    editFieldsBody: "Choose which report filters stay visible on this page.",
     groupOperational: "Operational",
     groupFinancial: "Financial",
     groupOrganizational: "Organizational",
@@ -1184,23 +1172,27 @@ export const enUSMessages = {
     selectedRangeYear: "Annual performance · {start}-{end}",
     companyScope: "Company scope",
     teamScope: "Team scope",
-    noVisibleRowsTitle: "No visible performance rows matched the current scope and period.",
+    noVisibleRowsTitle:
+      "No visible performance rows matched the current scope and period.",
     noVisibleRowsBody:
       "Try a different year window, or check whether any matching transactions have move-in or closing dates in this company scope.",
     noRankedPerformanceTitle: "No ranked performance for this period yet.",
-    noRankedPerformanceBody: "No visible performance was ranked inside this period yet.",
+    noRankedPerformanceBody:
+      "No visible performance was ranked inside this period yet.",
     topPerformersInTeam: "Top performers in the visible team scope",
     topPerformersInCompany: "Top performers in {company}",
   },
   agentDashboard: {
     eyebrow: "Dashboard",
     title: "Front Office dashboard",
-    description: "See today's priorities, follow-up, appointments, and handoff status in one place.",
+    description:
+      "See today's priorities, follow-up, appointments, and handoff status in one place.",
   },
   agentClients: {
     eyebrow: "Clients",
     title: "Clients",
-    description: "Manage leads, follow-up, duplicate review, and client details in one place.",
+    description:
+      "Manage leads, follow-up, duplicate review, and client details in one place.",
     allLanes: "All views",
     followFirst: "Follow first",
     anchorNow: "Needs attention",
@@ -1227,14 +1219,14 @@ export const enUSMessages = {
     nothingWaitingTitle: "Nothing waiting for formal workflow",
     nothingWaitingBody:
       "When a client reaches a BO-ready phase such as negotiation or offer, the draft queue will appear here.",
-    formalWorkflowLivesInBackOffice:
-      "Formal workflow lives in Back Office",
+    formalWorkflowLivesInBackOffice: "Formal workflow lives in Back Office",
     openBackOfficeCreateFlow: "Open Back Office create flow",
   },
   agentNotifications: {
     eyebrow: "Activity",
     title: "Activity",
-    description: "Review follow-up, reminders, team items, and notices from one activity page.",
+    description:
+      "Review follow-up, reminders, team items, and notices from one activity page.",
     currentRouteFocus: "Current view",
     personalCleanupWorkbench: "My follow-ups",
     calendarWritebackLane: "Appointments",

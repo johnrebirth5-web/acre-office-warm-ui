@@ -131,6 +131,7 @@ export const zhCNMessages = {
       activity: "活动",
       library: "资料库",
       resources: "资源",
+      training: "培训",
       signatures: "签署",
       accounting: "财务",
       tracker1099: "1099 跟踪",
@@ -176,6 +177,7 @@ export const zhCNMessages = {
       studioShares: "Shares",
       activity: "动态",
       resources: "资源",
+      training: "培训",
     },
     shortcuts: {
       backOffice: {
@@ -228,8 +230,7 @@ export const zhCNMessages = {
     noTeamAssignments: "暂无团队归属",
     noTeamAssignmentsBody: "该成员当前还没有加入任何团队。",
     notifications: "通知",
-    notificationsSubtitle:
-      "当前只实现了站内收件箱。邮件、短信和推送仍未提供。",
+    notificationsSubtitle: "当前只实现了站内收件箱。邮件、短信和推送仍未提供。",
     savePreferences: "保存偏好",
     unreadInboxItems: "未读收件箱条目",
     recentInboxItems: "最近收件箱条目",
@@ -268,7 +269,8 @@ export const zhCNMessages = {
     livePipeline: "实时管道",
     myMonthCommission: "本月佣金",
     goalTracking: "目标跟踪",
-    goalTrackingSubtitle: "查看当前办公室范围下的目标进度、访问上下文和实时管道压力。",
+    goalTrackingSubtitle:
+      "查看当前办公室范围下的目标进度、访问上下文和实时管道压力。",
     recentTransactions: "最近交易",
     recentTransactionsSubtitle: "当前办公室范围内最近更新的交易。",
     transaction: "交易",
@@ -280,7 +282,8 @@ export const zhCNMessages = {
     myCommissionsSubtitle:
       "这里只显示与你本人相关、已经持久化的佣金记录和 payout statement，不会混入团队或公司分摊。",
     needsYourReview: "需要你审核",
-    payoutAwaitingReviewSingle: "当前有 1 份 payout statement 等待你在 Acre 中审核。",
+    payoutAwaitingReviewSingle:
+      "当前有 1 份 payout statement 等待你在 Acre 中审核。",
     payoutAwaitingReviewMultiple:
       "当前有 {count} 份 payout statement 等待你在 Acre 中审核。",
     latestStatement:
@@ -295,7 +298,8 @@ export const zhCNMessages = {
     rowsCalculatedThisMonthHint: "当前自然月计算出的佣金行",
     rowsMarkedPayableHint: "已经标记为可支付的佣金行",
     rowsMarkedPaidHint: "已经标记为已支付的佣金行",
-    persistedRowsSummary: "与你当前成员身份关联的已持久化佣金行共有 {count} 条。",
+    persistedRowsSummary:
+      "与你当前成员身份关联的已持久化佣金行共有 {count} 条。",
     monthlyTotalsSummary:
       "月度汇总只反映你自己的 statement 金额，即便底层交易属于其他办公室也不会混算。",
     currentMonth: "当前月份",
@@ -335,7 +339,8 @@ export const zhCNMessages = {
     dealsStillInMotion: "仍在推进中的交易",
     closedThisMonth: "本月成交",
     closedHistory: "成交历史",
-    closedHistoryBody: "最近几个月的表现会一直保留可见，即使某个月为空也不会消失。",
+    closedHistoryBody:
+      "最近几个月的表现会一直保留可见，即使某个月为空也不会消失。",
     years: "年份",
     transactionCountLabel: "{count} 笔交易",
     noTransactionsTitle: "当前管道选择下没有匹配的交易。",
@@ -425,17 +430,14 @@ export const zhCNMessages = {
     noContactsBody: "可以尝试放宽搜索条件，或重置阶段筛选。",
     createModalKicker: "联系人",
     createModalTitle: "创建联系人",
-    createModalBody:
-      "添加线索或客户档案，以便立即开始跟进。",
+    createModalBody: "添加线索或客户档案，以便立即开始跟进。",
     closeCreateModal: "关闭创建联系人弹窗",
     close: "关闭",
     contactDetails: "联系人详情",
-    contactDetailsBody:
-      "记录这个人的核心身份、当前阶段和跟进上下文。",
+    contactDetailsBody: "记录这个人的核心身份、当前阶段和跟进上下文。",
     selectPlaceholder: "请选择...",
     saveProfileLead: "保存档案并开始办公室跟进",
-    saveProfileLeadBody:
-      "联系人字段会在列表页和详情页保持一致。",
+    saveProfileLeadBody: "联系人字段会在列表页和详情页保持一致。",
     noContactInfo: "暂无直接联系方式",
     allStages: "全部阶段",
     warm: "高意向",
@@ -469,7 +471,8 @@ export const zhCNMessages = {
     tagLabel: "标签",
     allTags: "全部标签",
     browserTitle: "文件夹与文件",
-    browserSubtitle: "选择一个文件夹即可展开其中的文件。只有打开文档后才会显示 PDF 预览。",
+    browserSubtitle:
+      "选择一个文件夹即可展开其中的文件。只有打开文档后才会显示 PDF 预览。",
     allFiles: "全部文件",
     unfiledDocuments: "未归档文档",
     noFilesTitle: "当前视图没有文件",
@@ -510,7 +513,8 @@ export const zhCNMessages = {
     deleteDocumentTitle: "要删除 {name} 吗？",
     deleteDocumentBody: "这会永久删除资料库中的文档记录以及其存储文件。",
     previewUnavailableTitle: "暂时无法预览",
-    previewUnavailableBody: "当前内联预览优先支持 PDF。这个文件类型请使用“打开”或“下载”。",
+    previewUnavailableBody:
+      "当前内联预览优先支持 PDF。这个文件类型请使用“打开”或“下载”。",
     documentDetailsSummary: "文档详情",
     documentDetailsTitle: "文档详情",
     documentDetailsBody: "可在这里重命名、移动并更新内部元数据。",
@@ -599,14 +603,16 @@ export const zhCNMessages = {
     completed: "已完成",
     nonTransactionTracked: "非交易请求追踪",
     genericDriveRoute: "通用 Drive 路由",
-    statsDraftsHint: "仍需要补齐收件人或 PDF 字段配置后才能继续推进的已保存请求。",
+    statsDraftsHint:
+      "仍需要补齐收件人或 PDF 字段配置后才能继续推进的已保存请求。",
     statsReadyToSendHint: "已经准备好发送审核，但尚未真正发出的已保存请求。",
     statsInFlightHint: "已经到达收件人手中或处于部分完成状态的信封。",
     statsCompletedHint: "当前筛选视图内已完成的请求。",
     statsNonTransactionTrackedHint:
       "HR、财务、行政和通用请求在已存在后可以在这里追踪，但新的非交易草稿还不能直接从这里发起。",
     statsActiveTemplatesHint: "下一个请求编排流程中可复用的启用模板。",
-    statsGenericDriveRouteHint: "当前已完成的非交易信封会路由到这里进入 Signature Drive。",
+    statsGenericDriveRouteHint:
+      "当前已完成的非交易信封会路由到这里进入 Signature Drive。",
     continueTitle: "继续处理",
     continueSubtitle:
       "这里可以继续处理已保存草稿，显示仍需关注的已发送信封，并允许运营团队在不回到交易详情页的情况下重试 Drive 同步。",
@@ -671,10 +677,10 @@ export const zhCNMessages = {
     updateQueue: "更新队列",
     clear: "清空",
     templateLibrary: "模板库",
-    driveRouteHelper: "当前已完成的非交易信封会路由到 Signature Drive 中的 {target}。",
+    driveRouteHelper:
+      "当前已完成的非交易信封会路由到 Signature Drive 中的 {target}。",
     requestTableTitle: "签署请求",
-    requestTableSubtitle:
-      "可用它继续草稿、检查活动信封，以及确认归档状态。",
+    requestTableSubtitle: "可用它继续草稿、检查活动信封，以及确认归档状态。",
     tableRequest: "请求",
     tablePath: "路径",
     tableRequestedBy: "发起人",
@@ -718,8 +724,7 @@ export const zhCNMessages = {
   officeSignatureTemplates: {
     title: "签署模板",
     eyebrow: "文档",
-    description:
-      "在一个地方维护可复用签署模板，并追踪哪些模板已经有活动草稿。",
+    description: "在一个地方维护可复用签署模板，并追踪哪些模板已经有活动草稿。",
     backToSignatures: "返回签署",
     genericCategoryNote:
       "当前模板支持交易、HR、财务和行政分类。通用类型仍只用于请求本身。",
@@ -768,7 +773,8 @@ export const zhCNMessages = {
     fieldsCount: "{count} 个字段",
     totalUses: "总共使用 {count} 次",
     noLiveUsage: "暂无活动使用",
-    usageBreakdown: "{drafts} 个活动草稿 · {inFlight} 个处理中 · {completed} 个已完成",
+    usageBreakdown:
+      "{drafts} 个活动草稿 · {inFlight} 个处理中 · {completed} 个已完成",
     noTemplatesMatchedTitle: "当前筛选条件下没有匹配的模板",
     noTemplatesMatchedBody:
       "可以尝试清空筛选，或者在签署编辑器中把一个已准备好的请求保存为模板，这样它就会出现在这里。",
@@ -876,11 +882,14 @@ export const zhCNMessages = {
     payoutReview: "Payout 审核",
     summaryUnreadHint: "整个收件箱范围内，未读项优先显示。",
     summaryReviewHint: "仍在等待你处理的任务审核和 incoming update 项。",
-    summaryPayoutHint: "在你确认 statement 或要求修订之前，payout review 任务会一直保持可见。",
-    summaryTimeSensitiveHint: "即将到期、已逾期或临近到期的提醒通知，包括 appointment 外部触达截止项。",
+    summaryPayoutHint:
+      "在你确认 statement 或要求修订之前，payout review 任务会一直保持可见。",
+    summaryTimeSensitiveHint:
+      "即将到期、已逾期或临近到期的提醒通知，包括 appointment 外部触达截止项。",
     summaryArchivedHint: "这些通知被有意暂时移出默认收件箱，直到你主动恢复。",
     needsPayoutReview: "需要你的 payout 审核",
-    payoutPinnedSubtitle: "这些 payout 提醒会一直固定在这里，直到你确认 statement 或把它退回修订。",
+    payoutPinnedSubtitle:
+      "这些 payout 提醒会一直固定在这里，直到你确认 statement 或把它退回修订。",
     singlePayoutWaiting: "当前有 1 份 payout statement 正在等你处理。",
     multiplePayoutWaiting: "当前有 {count} 份 payout statement 正在等你处理。",
     awaitingReview: "{count} 项待审核",
@@ -891,7 +900,8 @@ export const zhCNMessages = {
     openStatement: "打开 statement",
     openRecord: "打开记录",
     filtersTitle: "筛选器",
-    filtersSubtitle: "默认情况下收件箱会隐藏归档项。即使收件箱行被归档，payout review 仍会保持活动可见。",
+    filtersSubtitle:
+      "默认情况下收件箱会隐藏归档项。即使收件箱行被归档，payout review 仍会保持活动可见。",
     view: "视图",
     category: "分类",
     type: "类型",
@@ -945,7 +955,8 @@ export const zhCNMessages = {
     filtersTitle: "报表筛选",
     filtersSubtitle: "所有筛选都直接读取交易数据，并同时驱动页面、摘要和导出。",
     performanceTitle: "交易表现",
-    performanceSubtitle: "摘要值来自同一套筛选后的交易集合。表格和 CSV 导出都会使用 {sortLabel}。",
+    performanceSubtitle:
+      "摘要值来自同一套筛选后的交易集合。表格和 CSV 导出都会使用 {sortLabel}。",
     totalTransactions: "匹配交易数",
     askingPrice: "挂牌价",
     purchasedPrice: "成交价",
@@ -968,7 +979,8 @@ export const zhCNMessages = {
     noSide: "未记录代理方向",
     noTransactionsMatchedTitle: "当前筛选条件下没有匹配的交易",
     noTransactionsMatchedBody: "可以尝试放宽筛选范围，或清空某个精确匹配字段。",
-    showingRowsSortedBy: "显示 {start}-{end} / 共 {total} 条交易记录 | 排序：{sortSummary}",
+    showingRowsSortedBy:
+      "显示 {start}-{end} / 共 {total} 条交易记录 | 排序：{sortSummary}",
     sortCreatedAt: "创建时间",
     sortAskingPrice: "挂牌价",
     sortPurchasedPrice: "成交价",
@@ -989,10 +1001,12 @@ export const zhCNMessages = {
     groupOrganizational: "组织",
     groupOperationalBody: "日期、流程状态和交易属性等日常报表筛选条件。",
     groupFinancialBody: "影响财务报表的佣金与价格筛选条件。",
-    groupOrganizationalBody: "与当前组织结构绑定的负责人、办公室和层级筛选条件。",
+    groupOrganizationalBody:
+      "与当前组织结构绑定的负责人、办公室和层级筛选条件。",
     saveFieldsFailed: "保存报表筛选字段失败。",
     noFieldsConfiguredTitle: "还没有配置报表字段",
-    noFieldsConfiguredAdmin: "使用“编辑字段”来决定这个办公室应该长期显示哪些报表筛选条件。",
+    noFieldsConfiguredAdmin:
+      "使用“编辑字段”来决定这个办公室应该长期显示哪些报表筛选条件。",
     noFieldsConfiguredUser: "办公室管理员可以为这个页面启用报表筛选字段。",
     any: "任意",
     selectedCount: "已选 {count} 项",
@@ -1047,11 +1061,14 @@ export const zhCNMessages = {
     filtersTitle: "业绩筛选",
     filtersSubtitle: "周期和公司筛选会同时驱动摘要、表格和排名板。",
     summaryTitle: "业绩摘要",
-    summarySubtitle: "摘要卡会根据当前角色范围自适应，而排名卡会同时保留月、季、年的快照。",
+    summarySubtitle:
+      "摘要卡会根据当前角色范围自适应，而排名卡会同时保留月、季、年的快照。",
     tableTitle: "业绩表",
-    tableSubtitle: "表格行遵循当前 Office 角色范围，每个单元格显示的都是已经扣除 rebate、referral fee 和 reimbursement 后的业绩结果。",
+    tableSubtitle:
+      "表格行遵循当前 Office 角色范围，每个单元格显示的都是已经扣除 rebate、referral fee 和 reimbursement 后的业绩结果。",
     boardTitle: "业绩 PK 榜",
-    boardSubtitle: "普通经纪人只能看到自己的金额，团队负责人看到组内金额，公司范围查看者则看到整张公司榜单。",
+    boardSubtitle:
+      "普通经纪人只能看到自己的金额，团队负责人看到组内金额，公司范围查看者则看到整张公司榜单。",
     tableName: "姓名",
     totalPrefix: "总计 {value}",
     currentRank: "当前排名",
@@ -1088,7 +1105,8 @@ export const zhCNMessages = {
     companyScope: "公司范围",
     teamScope: "团队范围",
     noVisibleRowsTitle: "当前范围和周期下没有匹配的可见业绩记录。",
-    noVisibleRowsBody: "可以尝试切换年份区间，或检查该公司范围内是否已有带入住日或成交日的匹配交易。",
+    noVisibleRowsBody:
+      "可以尝试切换年份区间，或检查该公司范围内是否已有带入住日或成交日的匹配交易。",
     noRankedPerformanceTitle: "这个周期里还没有可排名的业绩。",
     noRankedPerformanceBody: "当前周期内还没有进入榜单的可见业绩。",
     topPerformersInTeam: "当前可见团队范围内的 Top performers",
@@ -1127,7 +1145,8 @@ export const zhCNMessages = {
     writebackPending: "待回写",
     boReady: "可交接 BO",
     nothingWaitingTitle: "当前没有正式工作流待处理",
-    nothingWaitingBody: "当客户进入谈判、报价等可交接 BO 的阶段后，草稿队列会显示在这里。",
+    nothingWaitingBody:
+      "当客户进入谈判、报价等可交接 BO 的阶段后，草稿队列会显示在这里。",
     formalWorkflowLivesInBackOffice: "正式工作流仍在 Back Office 中处理",
     openBackOfficeCreateFlow: "打开 Back Office 创建流程",
   },

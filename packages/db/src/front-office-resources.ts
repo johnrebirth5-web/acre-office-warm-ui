@@ -47,6 +47,7 @@ type FrontOfficeResourceSearchInput = {
   membershipId: string;
   officeId?: string | null;
   query: string;
+  contextPage?: "resources" | "training";
 };
 
 type FrontOfficeResourceProgressInput = {
@@ -948,6 +949,8 @@ export async function recordFrontOfficeResourceSearch(
   input: FrontOfficeResourceSearchInput,
 ) {
   const query = input.query.trim();
+  const contextPage =
+    input.contextPage === "training" ? "training" : "resources";
 
   if (!query) {
     throw new Error("Search query is required.");
@@ -962,11 +965,16 @@ export async function recordFrontOfficeResourceSearch(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: "Resource hub search",
-      contextHref: `/agent/resources?q=${encodeURIComponent(query)}`,
+      contextHref:
+        contextPage === "training"
+          ? `/agent/training?q=${encodeURIComponent(query)}`
+          : `/agent/resources?q=${encodeURIComponent(query)}`,
       actionSource: "front_office_resource_hub",
       details: [
         `Query: ${query}`,
-        "Scope: Resources + vendors",
+        contextPage === "training"
+          ? "Scope: Training videos"
+          : "Scope: Resources + vendors",
         "Signal: Search-led operator lookup",
       ],
     },
@@ -1014,7 +1022,7 @@ export async function recordFrontOfficeResourceProgress(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: resource.title,
-      contextHref: "/agent/resources#published-tool-library",
+      contextHref: "/agent/training#training-library",
       actionSource: "front_office_resource_hub",
       progressPercent: input.progressPercent,
       details: [
@@ -1057,7 +1065,10 @@ export async function recordFrontOfficeResourceOpen(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: resource.title,
-      contextHref: "/agent/resources#published-tool-library",
+      contextHref:
+        resource.type === ResourceType.training_video
+          ? "/agent/training#training-library"
+          : "/agent/resources#published-tool-library",
       actionSource: "front_office_resource_hub",
       details: [
         `Lane: ${formatResourceTypeLabel(resource.type)}`,

@@ -220,40 +220,6 @@ function buildResourcesUrl(updates: Record<string, string | null>) {
   return query ? `/agent/resources?${query}` : "/agent/resources";
 }
 
-function isYouTubeUrl(value: string) {
-  try {
-    const parsedUrl = new URL(value);
-    return (
-      parsedUrl.protocol === "https:" &&
-      [
-        "youtube.com",
-        "www.youtube.com",
-        "m.youtube.com",
-        "music.youtube.com",
-        "youtu.be",
-      ].includes(parsedUrl.hostname.toLowerCase())
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getResourcePlatformLabel(resource: ResourceRecord) {
-  if (resource.typeKey === "training_video" && isYouTubeUrl(resource.href)) {
-    return "YouTube video";
-  }
-
-  return null;
-}
-
-function getResourceActionText(resource: ResourceRecord) {
-  if (resource.typeKey === "training_video" && isYouTubeUrl(resource.href)) {
-    return "Watch on YouTube";
-  }
-
-  return resource.actionLabel;
-}
-
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -302,8 +268,6 @@ function renderVendorActions(vendor: VendorRecord) {
 
 function ResourceRecordCard(props: { resource: ResourceRecord }) {
   const { resource } = props;
-  const platformLabel = getResourcePlatformLabel(resource);
-  const actionText = getResourceActionText(resource);
 
   return (
     <article style={resourceCardStyle}>
@@ -322,7 +286,6 @@ function ResourceRecordCard(props: { resource: ResourceRecord }) {
       </div>
 
       <div style={metaRowStyle}>
-        {platformLabel ? <span>{platformLabel}</span> : null}
         <span>{resource.detailLabel}</span>
         <span>{resource.freshnessLabel}</span>
       </div>
@@ -346,7 +309,7 @@ function ResourceRecordCard(props: { resource: ResourceRecord }) {
             resourceId: resource.id,
           }}
         >
-          {actionText}
+          {resource.actionLabel}
         </FrontOfficeTrackedLink>
       </div>
     </article>
@@ -410,7 +373,9 @@ export default async function AgentResourcesPage(props: {
   });
 
   const resourceTypeOptions = snapshot.resourceTypes
-    .filter((type) => type.key !== "vendor_card")
+    .filter(
+      (type) => type.key !== "vendor_card" && type.key !== "training_video",
+    )
     .map((type) => ({
       value: type.key,
       label: type.label,
@@ -421,7 +386,9 @@ export default async function AgentResourcesPage(props: {
     ? selectedType
     : "";
   const baseResources = snapshot.resources.filter(
-    (resource) => resource.typeKey !== "vendor_card",
+    (resource) =>
+      resource.typeKey !== "vendor_card" &&
+      resource.typeKey !== "training_video",
   );
   const filteredResources = baseResources
     .filter((resource) =>
@@ -437,9 +404,6 @@ export default async function AgentResourcesPage(props: {
         : true,
     )
     .filter((vendor) => vendorMatchesSearch(vendor, normalizedSearchQuery));
-  const trainingCount = baseResources.filter(
-    (resource) => resource.typeKey === "training_video",
-  ).length;
   const groupedResources = resourceTypeOptions
     .map((option) => ({
       ...option,
@@ -453,13 +417,12 @@ export default async function AgentResourcesPage(props: {
     "buyer consultation",
     "listing presentation",
     "offer checklist",
-    "youtube training",
     "lender",
   ];
 
   return (
     <FrontOfficePageTemplate
-      description="Search the published office directory for shared materials and vendor contacts."
+      description="Search the published office directory for shared materials and vendor contacts. YouTube training lives in the separate Training module."
       eyebrow="Resources"
       main={
         <div style={stackStyle}>
@@ -471,6 +434,7 @@ export default async function AgentResourcesPage(props: {
             <FrontOfficeResourceSearchForm
               initialQuery={searchQuery}
               initialType={effectiveType}
+              searchContext="resources"
               typeOptions={resourceTypeOptions}
             />
 
@@ -739,7 +703,6 @@ export default async function AgentResourcesPage(props: {
       summary={
         <>
           <SummaryChip label="Resources" value={baseResources.length} />
-          <SummaryChip label="Training" value={trainingCount} />
           <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
         </>
       }
