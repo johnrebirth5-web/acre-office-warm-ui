@@ -520,7 +520,74 @@ export function OfficeSettingsUserDetailClient({
         </div>
       </SectionCard>
 
-      <div className="office-detail-two-column office-settings-user-detail-grid">
+      <div className="office-settings-user-detail-grid">
+        <SectionCard
+          className="office-settings-user-permissions-card"
+          subtitle="Open a dedicated full-page editor to review the permission tree and manage per-user overrides."
+          title="Permissions"
+        >
+          {accountAccessChanged ? (
+            <p className="office-form-helper">
+              Save access first if you want the permission editor to reflect the
+              current role, company list, and default company.
+            </p>
+          ) : null}
+
+          <div className="office-settings-user-permissions-cta">
+            <div className="office-settings-user-permissions-copy">
+              <strong>
+                {canManageSensitiveUsers
+                  ? "Dedicated manage page"
+                  : "Dedicated read-only page"}
+              </strong>
+              <p>
+                Review role defaults, inherited permissions, and member-level
+                overrides in a focused editor. Company rows on the left also
+                open directly into each saved company scope.
+              </p>
+            </div>
+            {accountAccessChanged ? (
+              <Button disabled type="button" variant="secondary">
+                Save access to continue
+              </Button>
+            ) : (
+              <Link
+                className="office-button office-button-primary office-button-sm"
+                href={permissionEditorHref}
+              >
+                {canManageSensitiveUsers
+                  ? "Edit permissions"
+                  : "View permissions"}
+              </Link>
+            )}
+          </div>
+
+          <div className="office-settings-user-permissions-grid">
+            <div className="office-detail-field">
+              <span>Current role template</span>
+              <strong>{snapshot.permissions.roleLabel}</strong>
+            </div>
+            <div className="office-detail-field">
+              <span>Persisted overrides</span>
+              <strong>{snapshot.permissions.overrides.length}</strong>
+            </div>
+            <div className="office-detail-field">
+              <span>Effective permissions</span>
+              <strong>
+                {snapshot.permissions.effectivePermissions.length}
+              </strong>
+            </div>
+            <div className="office-detail-field">
+              <span>Editor mode</span>
+              <strong>
+                {canManageUsers
+                  ? "Dedicated manage page"
+                  : "Dedicated read-only page"}
+              </strong>
+            </div>
+          </div>
+        </SectionCard>
+
         <SectionCard
           actions={
             accountAccessChanged ? (
@@ -880,73 +947,6 @@ export function OfficeSettingsUserDetailClient({
               </div>
             </div>
           ) : null}
-        </SectionCard>
-
-        <SectionCard
-          className="office-settings-user-permissions-card"
-          subtitle="Open a dedicated full-page editor to review the permission tree and manage per-user overrides."
-          title="Permissions"
-        >
-          {accountAccessChanged ? (
-            <p className="office-form-helper">
-              Save access first if you want the permission editor to reflect the
-              current role, company list, and default company.
-            </p>
-          ) : null}
-
-          <div className="office-settings-user-permissions-cta">
-            <div className="office-settings-user-permissions-copy">
-              <strong>
-                {canManageSensitiveUsers
-                  ? "Dedicated manage page"
-                  : "Dedicated read-only page"}
-              </strong>
-              <p>
-                Review role defaults, inherited permissions, and member-level
-                overrides in a focused editor. Company rows on the left also
-                open directly into each saved company scope.
-              </p>
-            </div>
-            {accountAccessChanged ? (
-              <Button disabled type="button" variant="secondary">
-                Save access to continue
-              </Button>
-            ) : (
-              <Link
-                className="office-button office-button-primary office-button-sm"
-                href={permissionEditorHref}
-              >
-                {canManageSensitiveUsers
-                  ? "Edit permissions"
-                  : "View permissions"}
-              </Link>
-            )}
-          </div>
-
-          <div className="office-settings-user-permissions-grid">
-            <div className="office-detail-field">
-              <span>Current role template</span>
-              <strong>{snapshot.permissions.roleLabel}</strong>
-            </div>
-            <div className="office-detail-field">
-              <span>Persisted overrides</span>
-              <strong>{snapshot.permissions.overrides.length}</strong>
-            </div>
-            <div className="office-detail-field">
-              <span>Effective permissions</span>
-              <strong>
-                {snapshot.permissions.effectivePermissions.length}
-              </strong>
-            </div>
-            <div className="office-detail-field">
-              <span>Editor mode</span>
-              <strong>
-                {canManageUsers
-                  ? "Dedicated manage page"
-                  : "Dedicated read-only page"}
-              </strong>
-            </div>
-          </div>
         </SectionCard>
       </div>
 

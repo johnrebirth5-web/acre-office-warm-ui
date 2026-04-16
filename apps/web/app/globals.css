@@ -9467,8 +9467,9 @@ a {
 }
 
 .office-settings-user-detail-grid {
+  display: grid;
+  gap: 18px;
   align-items: start;
-  grid-template-columns: minmax(0, 1.32fr) minmax(320px, 0.88fr);
 }
 
 @media (max-width: 900px) {
@@ -9768,10 +9769,15 @@ a {
   line-height: 1.45;
 }
 
-.office-settings-user-security-grid,
-.office-settings-user-permissions-grid {
+.office-settings-user-security-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.office-settings-user-permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
