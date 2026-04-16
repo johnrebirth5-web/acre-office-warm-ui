@@ -13,7 +13,6 @@ import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
-import { FrontOfficeResourceProgressActions } from "./front-office-resource-progress-actions";
 import {
   FrontOfficeResourceSearchForm,
   type FrontOfficeResourceSearchTab,
@@ -375,15 +374,24 @@ function TrainingRecordCard(props: { resource: ResourceRecord }) {
   return (
     <article style={resourceCardStyle}>
       <div style={resourceHeaderStyle}>
-        <div style={{ display: "grid", gap: "0.45rem" }}>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <strong>{resource.title}</strong>
-            <StatusBadge tone="warning">{resource.typeLabel}</StatusBadge>
-            {isYouTubeUrl(resource.href) ? (
-              <StatusBadge tone="accent">YouTube</StatusBadge>
-            ) : null}
+        <div style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
+          <div style={resourceTitleRowStyle}>
+            <strong style={resourceTitleWrapStyle}>{resource.title}</strong>
+            <div
+              style={{
+                ...resourceBadgeWrapStyle,
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
+              <StatusBadge tone="warning">{resource.typeLabel}</StatusBadge>
+              {isYouTubeUrl(resource.href) ? (
+                <StatusBadge tone="accent">YouTube</StatusBadge>
+              ) : null}
+            </div>
           </div>
-          <p style={helperTextStyle}>{resource.summary}</p>
         </div>
       </div>
 
@@ -403,9 +411,9 @@ function TrainingRecordCard(props: { resource: ResourceRecord }) {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gap: "0.75rem" }}>
+      <div style={documentActionRowStyle}>
         <FrontOfficeTrackedLink
-          className="office-inline-link front-office-inline-link"
+          className="office-button-secondary office-button-sm"
           href={resource.href}
           tracking={{
             type: "resource_open",
@@ -414,7 +422,6 @@ function TrainingRecordCard(props: { resource: ResourceRecord }) {
         >
           Watch on YouTube
         </FrontOfficeTrackedLink>
-        <FrontOfficeResourceProgressActions resourceId={resource.id} />
       </div>
     </article>
   );

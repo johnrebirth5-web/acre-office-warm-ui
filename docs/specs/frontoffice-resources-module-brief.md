@@ -156,5 +156,4 @@ The training tab should feel separate:
 
 - only YouTube training videos
 - simple search by topic
-- optional lightweight progress logging
 - no PDFs or vendor cards mixed in
