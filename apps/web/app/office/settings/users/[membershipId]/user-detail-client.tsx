@@ -598,9 +598,6 @@ export function OfficeSettingsUserDetailClient({
                   );
                   const overrideCount =
                     companyPermission?.permissions.overrides.length ?? 0;
-                  const effectivePermissionCount =
-                    companyPermission?.permissions.effectivePermissions
-                      .length ?? 0;
                   const canClearAccess =
                     hasImplicitAllCompanyAccess ||
                     !hasAccess ||
@@ -608,27 +605,8 @@ export function OfficeSettingsUserDetailClient({
                   const canChooseDefault = hasAccess;
                   const canOpenCompanyPermissions =
                     !accountAccessChanged && hasAccess;
-                  const accessSummary = hasImplicitAllCompanyAccess
-                    ? "Access is inherited from the current role for every company."
-                    : accessDraftChanged && hasAccess
-                      ? "Access will be granted after you save this draft."
-                      : accessDraftChanged && !hasAccess
-                        ? "Access will be removed after you save this draft."
-                        : hasAccess
-                          ? "This user can sign in and switch into this company."
-                          : "Enable access if this user should be able to switch into this company.";
-                  const defaultSummary = !canChooseDefault
-                    ? "Grant access before choosing this company as the default sign-in location."
-                    : isDefault
-                      ? "This company is the first destination after sign-in."
-                      : `Selecting Default company also keeps this company in the access list.${overrideCount > 0 ? ` ${effectivePermissionCount} effective permissions are already saved for this scope.` : ""}`;
-                  const permissionsSummary = canOpenCompanyPermissions
-                    ? overrideCount > 0
-                      ? `${overrideCount} saved override${overrideCount === 1 ? " is" : "s are"} available for this company.`
-                      : "Open the dedicated page only if this company needs permission exceptions."
-                    : accountAccessChanged
-                      ? "Save access first so the permission page reflects this draft."
-                      : "Grant access first, then choose a default company or open company permissions.";
+                  const permissionsSummary =
+                    "Access is required before a company can become the default sign-in location. Save access before opening company permissions.";
 
                   return (
                     <article
@@ -640,53 +618,65 @@ export function OfficeSettingsUserDetailClient({
                       <div className="office-settings-user-company-access-copy">
                         <div className="office-settings-user-company-access-heading">
                           <strong>{option.label}</strong>
-                          {isDefault ? (
-                            <Badge
-                              tone={defaultDraftChanged ? "warning" : "accent"}
+                          <div className="office-settings-user-company-access-heading-badges">
+                            {isDefault ? (
+                              <Badge
+                                tone={defaultDraftChanged ? "warning" : "accent"}
+                              >
+                                {defaultDraftChanged
+                                  ? "Will become default"
+                                  : "Default"}
+                              </Badge>
+                            ) : null}
+                            {!isDefault &&
+                            savedIsDefault &&
+                            defaultDraftChanged ? (
+                              <Badge tone="warning">Current default</Badge>
+                            ) : null}
+                            <StatusBadge
+                              className="office-settings-user-company-access-status"
+                              tone={
+                                accessDraftChanged
+                                  ? "warning"
+                                  : hasAccess
+                                    ? "success"
+                                    : "neutral"
+                              }
                             >
-                              {defaultDraftChanged
-                                ? "Will become default"
-                                : "Default"}
-                            </Badge>
-                          ) : null}
-                          {!isDefault && savedIsDefault && defaultDraftChanged ? (
-                            <Badge tone="warning">Current default</Badge>
-                          ) : null}
-                          <StatusBadge
-                            tone={
-                              accessDraftChanged
-                                ? "warning"
+                              {accessDraftChanged
+                                ? hasAccess
+                                  ? "Pending access"
+                                  : "Removing access"
                                 : hasAccess
-                                  ? "success"
-                                  : "neutral"
-                            }
-                          >
-                            {accessDraftChanged
-                              ? hasAccess
-                                ? "Will grant access"
-                                : "Will remove access"
-                              : hasAccess
-                                ? "Access granted"
-                                : "No access"}
-                          </StatusBadge>
-                          {overrideCount > 0 ? (
-                            <Badge tone="neutral">
-                              {overrideCount} overrides
-                            </Badge>
-                          ) : null}
+                                  ? "Access granted"
+                                  : "No access"}
+                            </StatusBadge>
+                            {overrideCount > 0 ? (
+                              <Badge tone="neutral">
+                                {overrideCount} override
+                                {overrideCount === 1 ? "" : "s"}
+                              </Badge>
+                            ) : null}
+                          </div>
                         </div>
                         <div className="office-settings-user-company-access-meta">
                           <div className="office-settings-user-company-access-meta-card">
                             <span className="office-settings-user-company-access-meta-label">
                               Access
                             </span>
-                            <p>{accessSummary}</p>
+                            <p>
+                              Allow this user to sign in and switch into this
+                              company after the access draft is saved.
+                            </p>
                           </div>
                           <div className="office-settings-user-company-access-meta-card">
                             <span className="office-settings-user-company-access-meta-label">
                               Default sign-in
                             </span>
-                            <p>{defaultSummary}</p>
+                            <p>
+                              The default company is the first destination after
+                              sign-in and always stays in the access list.
+                            </p>
                           </div>
                         </div>
                       </div>

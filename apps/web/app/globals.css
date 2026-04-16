@@ -9598,9 +9598,10 @@ a {
 
 .office-settings-user-company-access-item {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.95fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+  min-height: 248px;
   padding: 18px 20px;
   border: 1px solid rgba(177, 188, 204, 0.4);
   border-radius: 18px;
@@ -9621,15 +9622,28 @@ a {
 }
 
 .office-settings-user-company-access-heading {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 10px 12px;
   align-items: center;
-  gap: 8px;
 }
 
 .office-settings-user-company-access-heading strong {
   font-size: 1rem;
   line-height: 1.35;
+}
+
+.office-settings-user-company-access-heading-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.office-settings-user-company-access-status {
+  min-width: 118px;
+  justify-content: center;
 }
 
 .office-settings-user-company-access-meta {
@@ -9638,8 +9652,8 @@ a {
 }
 
 .office-settings-user-company-access-actions {
-  width: min(100%, 620px);
-  justify-self: end;
+  width: 100%;
+  justify-self: stretch;
   align-content: start;
 }
 
@@ -9670,7 +9684,7 @@ a {
 
 .office-settings-user-company-access-action-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(168px, 1fr) minmax(168px, 1fr) minmax(210px, 1.1fr);
   gap: 10px;
   align-items: stretch;
 }
@@ -9741,13 +9755,14 @@ a {
 
 .office-settings-user-company-access-action-link {
   width: 100%;
-  justify-content: flex-start;
+  min-width: 0;
+  justify-content: center;
 }
 
 .office-settings-user-company-access-action-note {
   margin: 0;
-  min-height: 42px;
-  padding: 4px 2px 0;
+  min-height: 24px;
+  padding: 2px 2px 0;
   color: var(--office-text-muted);
   font-size: 0.81rem;
   line-height: 1.45;
