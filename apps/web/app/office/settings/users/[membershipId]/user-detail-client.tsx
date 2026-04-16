@@ -578,7 +578,8 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
             </div>
 
-            <FormField label="Company access and default company">
+            <div className="office-form-field">
+              <span>Company access and default company</span>
               {accountAccessChanged ? (
                 <div className="office-settings-user-access-draft">
                   <StatusBadge tone="warning">Draft only</StatusBadge>
@@ -761,7 +762,7 @@ export function OfficeSettingsUserDetailClient({
                   );
                 })}
               </div>
-            </FormField>
+            </div>
 
             <div className="office-settings-user-access-callout">
               <strong>Permissions scope</strong>
