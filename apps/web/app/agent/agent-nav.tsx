@@ -59,10 +59,6 @@ export function AgentNav() {
           href: "/agent/resources",
           label: t((messages) => messages.agentNav.items.resources),
         },
-        {
-          href: "/agent/training",
-          label: t((messages) => messages.agentNav.items.training),
-        },
       ],
     },
   ];

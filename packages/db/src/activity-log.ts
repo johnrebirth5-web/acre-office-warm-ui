@@ -540,10 +540,10 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "appointment.updated": "Appointment updated",
   "appointment.bridge_opened": "Appointment bridge opened",
   "front_office.cleanup_digest_run": "Cleanup digest run",
-  "front_office.cleanup_digest_thread_opened":
-    "Cleanup digest thread opened",
+  "front_office.cleanup_digest_thread_opened": "Cleanup digest thread opened",
   "front_office.resource_searched": "Front Office resources searched",
-  "front_office.resource_progress_logged": "Front Office resource progress logged",
+  "front_office.resource_progress_logged":
+    "Front Office resource progress logged",
   "front_office.resource_opened": "Front Office resource opened",
   "front_office.vendor_clicked": "Front Office vendor clicked",
   "contact.created": "Contact created",
@@ -679,8 +679,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.appointmentCreated ||
       action === activityLogActions.appointmentUpdated ||
       action === activityLogActions.appointmentBridgeOpened ||
-      action ===
-        activityLogActions.appointmentInternalMailThreadOpened ||
+      action === activityLogActions.appointmentInternalMailThreadOpened ||
       action === activityLogActions.contactCreated ||
       action === activityLogActions.contactUpdated,
   },
@@ -1238,11 +1237,11 @@ function getActivityHref(
   }
 
   if (record.entityType === "resource") {
-    return payload.contextHref ?? "/agent/resources#published-tool-library";
+    return payload.contextHref ?? "/agent/resources?tab=documents";
   }
 
   if (record.entityType === "vendor") {
-    return payload.contextHref ?? "/agent/resources#vendor-hub";
+    return payload.contextHref ?? "/agent/resources?tab=vendors";
   }
 
   if (record.entityType === "transaction_task" && payload.transactionId) {
@@ -1339,9 +1338,10 @@ function getDetailValue(
   prefix: string,
 ): string | null {
   return (
-    payload.details.find((detail) => detail.startsWith(prefix))?.slice(
-      prefix.length,
-    ).trim() ?? null
+    payload.details
+      .find((detail) => detail.startsWith(prefix))
+      ?.slice(prefix.length)
+      .trim() ?? null
   );
 }
 
@@ -1353,9 +1353,7 @@ function getFrontOfficeResourceSearchSummary(payload: ParsedActivityPayload) {
     : "searched the Front Office resource hub";
 }
 
-function getFrontOfficeResourceProgressSummary(
-  payload: ParsedActivityPayload,
-) {
+function getFrontOfficeResourceProgressSummary(payload: ParsedActivityPayload) {
   const objectLabel = payload.objectLabel?.trim() || null;
 
   if (payload.progressPercent === 100) {

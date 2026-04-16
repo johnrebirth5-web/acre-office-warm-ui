@@ -8,12 +8,31 @@ import {
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { OfficeResourcesClient } from "./office-resources-client";
 
-export default async function OfficeResourcesPage() {
+function getSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0]?.trim() || "";
+  }
+
+  return value?.trim() || "";
+}
+
+function getActiveTab(value: string) {
+  return value === "training" ? "training" : "resources";
+}
+
+export default async function OfficeResourcesPage(props: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const context = await requireOfficeSession();
 
   if (context.currentMembership.role !== "office_admin") {
     redirect("/office/dashboard");
   }
+
+  const resolvedSearchParams = props.searchParams
+    ? await props.searchParams
+    : {};
+  const activeTab = getActiveTab(getSearchParamValue(resolvedSearchParams.tab));
 
   const snapshot = await getOfficeResourcesAdminSnapshot({
     organizationId: context.currentOrganization.id,
@@ -26,31 +45,37 @@ export default async function OfficeResourcesPage() {
   const publishedResourceCount = snapshot.resources.filter(
     (resource) => resource.type !== "training_video" && resource.isPublished,
   ).length;
-  const staleResourceCount = snapshot.staleResources.filter(
-    (resource) => resource.type !== "training_video",
+  const trainingVideoCount = snapshot.resources.filter(
+    (resource) => resource.type === "training_video",
+  ).length;
+  const staleResourceCount = snapshot.staleResources.filter((resource) =>
+    activeTab === "training"
+      ? resource.type === "training_video"
+      : resource.type !== "training_video",
   ).length;
 
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        description="Manage the agent-facing document directory: keep PDFs, templates, playbooks, and vendors cleanly separated from YouTube training."
+        description="Manage the agent-facing directory from one workspace. Documents and vendors live in the Resources tab, while YouTube videos stay in the Training tab."
         eyebrow="Office admin"
         summary={
           <>
             <SummaryChip label="Resources" value={resourceCount} />
+            <SummaryChip label="Training" value={trainingVideoCount} />
+            <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
             <SummaryChip
               label="Published"
               tone="accent"
               value={publishedResourceCount}
             />
-            <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
             <SummaryChip label="Stale" value={staleResourceCount} />
           </>
         }
-        title="Resources"
+        title="Resources & Training"
       />
 
-      <OfficeResourcesClient resourceMode="resources" snapshot={snapshot} />
+      <OfficeResourcesClient resourceMode={activeTab} snapshot={snapshot} />
     </OfficeListPageShell>
   );
 }

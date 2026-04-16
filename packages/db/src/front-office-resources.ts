@@ -47,7 +47,7 @@ type FrontOfficeResourceSearchInput = {
   membershipId: string;
   officeId?: string | null;
   query: string;
-  contextPage?: "resources" | "training";
+  contextTab?: "documents" | "vendors" | "training";
 };
 
 type FrontOfficeResourceProgressInput = {
@@ -571,8 +571,8 @@ function buildResourceInteractionSummary(
     href:
       interaction.contextHref ??
       (interaction.action === activityLogActions.frontOfficeVendorClicked
-        ? "/agent/resources#vendor-hub"
-        : "/agent/resources#published-tool-library"),
+        ? "/agent/resources?tab=vendors"
+        : "/agent/resources?tab=documents"),
   }));
   const totalCount =
     searchCount + progressCount + resourceOpenCount + vendorClickCount;
@@ -867,8 +867,8 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     const href =
       interaction.contextHref ??
       (interaction.action === activityLogActions.frontOfficeVendorClicked
-        ? "/agent/resources#vendor-hub"
-        : "/agent/resources#published-tool-library");
+        ? "/agent/resources?tab=vendors"
+        : "/agent/resources?tab=documents");
     const key = `${kindLabel}:${title}:${href}`;
     const existing = targetStats.get(key);
 
@@ -949,8 +949,12 @@ export async function recordFrontOfficeResourceSearch(
   input: FrontOfficeResourceSearchInput,
 ) {
   const query = input.query.trim();
-  const contextPage =
-    input.contextPage === "training" ? "training" : "resources";
+  const contextTab =
+    input.contextTab === "vendors"
+      ? "vendors"
+      : input.contextTab === "training"
+        ? "training"
+        : "documents";
 
   if (!query) {
     throw new Error("Search query is required.");
@@ -965,16 +969,15 @@ export async function recordFrontOfficeResourceSearch(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: "Resource hub search",
-      contextHref:
-        contextPage === "training"
-          ? `/agent/training?q=${encodeURIComponent(query)}`
-          : `/agent/resources?q=${encodeURIComponent(query)}`,
+      contextHref: `/agent/resources?tab=${contextTab}&q=${encodeURIComponent(query)}`,
       actionSource: "front_office_resource_hub",
       details: [
         `Query: ${query}`,
-        contextPage === "training"
+        contextTab === "training"
           ? "Scope: Training videos"
-          : "Scope: Resources + vendors",
+          : contextTab === "vendors"
+            ? "Scope: Vendor pool"
+            : "Scope: Documents",
         "Signal: Search-led operator lookup",
       ],
     },
@@ -1022,7 +1025,7 @@ export async function recordFrontOfficeResourceProgress(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: resource.title,
-      contextHref: "/agent/training#training-library",
+      contextHref: "/agent/resources?tab=training",
       actionSource: "front_office_resource_hub",
       progressPercent: input.progressPercent,
       details: [
@@ -1067,8 +1070,8 @@ export async function recordFrontOfficeResourceOpen(
       objectLabel: resource.title,
       contextHref:
         resource.type === ResourceType.training_video
-          ? "/agent/training#training-library"
-          : "/agent/resources#published-tool-library",
+          ? "/agent/resources?tab=training"
+          : "/agent/resources?tab=documents",
       actionSource: "front_office_resource_hub",
       details: [
         `Lane: ${formatResourceTypeLabel(resource.type)}`,
@@ -1133,7 +1136,7 @@ export async function recordFrontOfficeVendorClick(
     payload: {
       officeId: input.officeId ?? null,
       objectLabel: vendor.name,
-      contextHref: "/agent/resources#vendor-hub",
+      contextHref: "/agent/resources?tab=vendors",
       actionSource: "front_office_resource_hub",
       details: [
         `Action: ${formatVendorActionLabel(input.action)}`,

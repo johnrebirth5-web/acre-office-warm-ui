@@ -101,11 +101,6 @@ function getNavGroups(
           isVisible: canViewOfficeResourcesWorkspace,
         },
         {
-          label: t((messages) => messages.officeNav.items.training),
-          href: "/office/training",
-          isVisible: canViewOfficeResourcesWorkspace,
-        },
-        {
           label: t((messages) => messages.officeNav.items.signatures),
           href: "/office/signatures",
           isVisible: canViewOfficeSignatures,

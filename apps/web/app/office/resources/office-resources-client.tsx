@@ -181,6 +181,37 @@ const fieldHintStyle = {
   lineHeight: 1.45,
 };
 
+const segmentedTabsShellStyle = {
+  display: "inline-flex",
+  flexWrap: "wrap" as const,
+  gap: "0.35rem",
+  padding: "0.35rem",
+  borderRadius: "16px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background: "rgba(248, 250, 253, 0.96)",
+};
+
+const segmentedTabStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0.55rem 0.9rem",
+  borderRadius: "12px",
+  color: "#51677f",
+  fontSize: "0.86rem",
+  fontWeight: 700,
+  lineHeight: 1,
+  textDecoration: "none",
+  whiteSpace: "nowrap" as const,
+};
+
+const activeSegmentedTabStyle = {
+  ...segmentedTabStyle,
+  color: "#173153",
+  background: "#ffffff",
+  boxShadow: "0 8px 20px rgba(18, 53, 104, 0.08)",
+};
+
 const resourceStarterShelf = [
   "Playbook: buyer consultation checklist, showing prep, offer process notes",
   "Template: intro email, follow-up text, open-house recap, vendor handoff email",
@@ -278,6 +309,12 @@ export function OfficeResourcesClient({
     (resource) => resource.isPublished,
   ).length;
   const draftResourceCount = scopedResources.length - publishedResourceCount;
+  const resourceTabCount = snapshot.resources.filter(
+    (resource) => resource.type !== "training_video",
+  ).length;
+  const trainingTabCount = snapshot.resources.filter(
+    (resource) => resource.type === "training_video",
+  ).length;
   const vendorCoverage = Array.from(
     (isTrainingMode ? [] : snapshot.vendors)
       .reduce(
@@ -314,12 +351,12 @@ export function OfficeResourcesClient({
     ? "Training coverage"
     : "Directory coverage";
   const directoryCoverageSubtitle = isTrainingMode
-    ? "Keep video training separate from the document directory: store only short YouTube refreshers here and keep the library lightweight."
+    ? "Keep YouTube refreshers in this Training tab so video learning stays separate from the document directory."
     : "Keep the agent directory simple: cover the basic material types, keep vendor categories consistent, and avoid turning this into a second document system.";
   const resourceSectionTitle = isTrainingMode ? "Training videos" : "Resources";
   const resourceSectionSubtitle = isTrainingMode
-    ? "Manage the YouTube training videos that agents can search and watch from the separate Training module."
-    : "Create and maintain the published materials that agents can search from Front Office.";
+    ? "Manage the YouTube videos that agents find under the Training tab inside Resources."
+    : "Create and maintain the published materials and partner directory that agents search from Front Office.";
   const resourceEmptyTitle = isTrainingMode
     ? "No training videos yet"
     : "No resources yet";
@@ -628,6 +665,31 @@ export function OfficeResourcesClient({
 
       <SectionCard
         className="office-list-card"
+        subtitle="Keep one workspace in the sidebar, then use the tabs here to switch between the document directory and YouTube training."
+        title="Workspace tabs"
+      >
+        <div style={segmentedTabsShellStyle}>
+          <a
+            aria-current={!isTrainingMode ? "page" : undefined}
+            href="/office/resources?tab=resources"
+            style={
+              !isTrainingMode ? activeSegmentedTabStyle : segmentedTabStyle
+            }
+          >
+            Resources ({resourceTabCount})
+          </a>
+          <a
+            aria-current={isTrainingMode ? "page" : undefined}
+            href="/office/resources?tab=training"
+            style={isTrainingMode ? activeSegmentedTabStyle : segmentedTabStyle}
+          >
+            Training ({trainingTabCount})
+          </a>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        className="office-list-card"
         subtitle={directoryCoverageSubtitle}
         title={directoryCoverageTitle}
       >
@@ -827,14 +889,14 @@ export function OfficeResourcesClient({
             {isTrainingMode ? (
               <>
                 Paste a full <strong>YouTube</strong> link here. Training videos
-                live in their own module, separate from the PDF and document
-                directory.
+                live in the <strong>Training</strong> tab inside Resources and
+                stay separate from the PDF and document directory.
               </>
             ) : (
               <>
                 Use this module for documents, templates, and playbooks.
-                Training videos belong in the separate <strong>Training</strong>{" "}
-                module. PDFs can use internal paths like
+                Training videos belong in the <strong>Training</strong> tab
+                above. PDFs can use internal paths like
                 <code> /resources/...</code> or any direct file URL.
               </>
             )}
@@ -953,15 +1015,15 @@ export function OfficeResourcesClient({
                                 {isTrainingMode ? (
                                   <>
                                     Paste a full <strong>YouTube</strong> link.
-                                    Training videos live in their own module,
-                                    separate from the PDF and document
-                                    directory.
+                                    Training videos live in the Training tab
+                                    inside Resources, separate from the PDF and
+                                    document directory.
                                   </>
                                 ) : (
                                   <>
                                     Use this module for documents, templates,
-                                    and playbooks. Training videos belong in the
-                                    separate <strong>Training</strong> module.
+                                    and playbooks. Training videos belong in the{" "}
+                                    <strong>Training</strong> tab above.
                                   </>
                                 )}
                               </p>

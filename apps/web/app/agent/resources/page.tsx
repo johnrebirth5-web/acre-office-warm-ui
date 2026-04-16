@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeResourcesSnapshot } from "@acre/db";
 import {
@@ -10,10 +10,14 @@ import {
   StatusBadge,
 } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
-import { requireSessionContext } from "../../../lib/auth-session";
-import { FrontOfficeResourceSearchForm } from "./front-office-resource-search-form";
+import { FrontOfficeResourceProgressActions } from "./front-office-resource-progress-actions";
+import {
+  FrontOfficeResourceSearchForm,
+  type FrontOfficeResourceSearchTab,
+} from "./front-office-resource-search-form";
 
 type ResourcesSnapshot = Awaited<
   ReturnType<typeof getFrontOfficeResourcesSnapshot>
@@ -64,6 +68,12 @@ const resourceBadgeWrapStyle: CSSProperties = {
   flexShrink: 0,
 };
 
+const helperTextStyle: CSSProperties = {
+  margin: 0,
+  color: "#556a83",
+  lineHeight: 1.5,
+};
+
 const metaRowStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
@@ -89,45 +99,6 @@ const tagStyle: CSSProperties = {
   lineHeight: 1.3,
 };
 
-const filterRowStyle: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "8px",
-  marginBottom: "1rem",
-};
-
-const filterPillStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "0.45rem 0.78rem",
-  borderRadius: "999px",
-  border: "1px solid rgba(18, 53, 104, 0.12)",
-  background: "#ffffff",
-  color: "#39516b",
-  fontSize: "0.82rem",
-  fontWeight: 600,
-  lineHeight: 1,
-  textDecoration: "none",
-};
-
-const activeFilterPillStyle: CSSProperties = {
-  ...filterPillStyle,
-  borderColor: "rgba(18, 53, 104, 0.32)",
-  background: "rgba(18, 53, 104, 0.08)",
-};
-
-const vendorGridStyle: CSSProperties = {
-  display: "grid",
-  gap: "1rem",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-};
-
-const helperTextStyle: CSSProperties = {
-  margin: 0,
-  color: "#556a83",
-  lineHeight: 1.5,
-};
-
 const actionRowStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
@@ -138,25 +109,43 @@ const quickSearchRowStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   gap: "8px",
-  marginTop: "1rem",
 };
 
-const groupedDirectoryStyle: CSSProperties = {
-  display: "grid",
-  gap: "1.15rem",
-};
-
-const groupedSectionStyle: CSSProperties = {
-  display: "grid",
-  gap: "0.85rem",
-};
-
-const groupedSectionHeaderStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "space-between",
-  gap: "0.75rem",
+const segmentedTabsShellStyle: CSSProperties = {
+  display: "inline-flex",
   flexWrap: "wrap",
+  gap: "0.35rem",
+  padding: "0.35rem",
+  borderRadius: "16px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background: "rgba(248, 250, 253, 0.96)",
+};
+
+const segmentedTabStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0.55rem 0.9rem",
+  borderRadius: "12px",
+  color: "#51677f",
+  fontSize: "0.86rem",
+  fontWeight: 700,
+  lineHeight: 1,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
+
+const activeSegmentedTabStyle: CSSProperties = {
+  ...segmentedTabStyle,
+  color: "#173153",
+  background: "#ffffff",
+  boxShadow: "0 8px 20px rgba(18, 53, 104, 0.08)",
+};
+
+const vendorGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "1rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
 };
 
 function getSearchParamValue(value: string | string[] | undefined) {
@@ -167,8 +156,30 @@ function getSearchParamValue(value: string | string[] | undefined) {
   return value?.trim() || "";
 }
 
+function getActiveTab(value: string): FrontOfficeResourceSearchTab {
+  if (value === "vendors" || value === "training") {
+    return value;
+  }
+
+  return "documents";
+}
+
 function normalizeSearchQuery(value: string) {
   return value.trim().toLowerCase();
+}
+
+function buildResourcesUrl(params: {
+  tab: FrontOfficeResourceSearchTab;
+  q?: string | null;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("tab", params.tab);
+
+  if (params.q?.trim()) {
+    searchParams.set("q", params.q.trim());
+  }
+
+  return `/agent/resources?${searchParams.toString()}`;
 }
 
 function resourceMatchesSearch(resource: ResourceRecord, query: string) {
@@ -207,17 +218,22 @@ function vendorMatchesSearch(vendor: VendorRecord, query: string) {
   return haystack.includes(query);
 }
 
-function buildResourcesUrl(updates: Record<string, string | null>) {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(updates)) {
-    if (value && value.trim()) {
-      params.set(key, value);
-    }
+function isYouTubeUrl(value: string) {
+  try {
+    const parsedUrl = new URL(value);
+    return (
+      parsedUrl.protocol === "https:" &&
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+      ].includes(parsedUrl.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
   }
-
-  const query = params.toString();
-  return query ? `/agent/resources?${query}` : "/agent/resources";
 }
 
 function renderVendorActions(vendor: VendorRecord) {
@@ -266,7 +282,7 @@ function renderVendorActions(vendor: VendorRecord) {
   );
 }
 
-function ResourceRecordCard(props: { resource: ResourceRecord }) {
+function DocumentRecordCard(props: { resource: ResourceRecord }) {
   const { resource } = props;
 
   return (
@@ -346,6 +362,57 @@ function VendorCard(props: { vendor: VendorRecord }) {
   );
 }
 
+function TrainingRecordCard(props: { resource: ResourceRecord }) {
+  const { resource } = props;
+
+  return (
+    <article style={resourceCardStyle}>
+      <div style={resourceHeaderStyle}>
+        <div style={{ display: "grid", gap: "0.45rem" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <strong>{resource.title}</strong>
+            <StatusBadge tone="warning">{resource.typeLabel}</StatusBadge>
+            {isYouTubeUrl(resource.href) ? (
+              <StatusBadge tone="accent">YouTube</StatusBadge>
+            ) : null}
+          </div>
+          <p style={helperTextStyle}>{resource.summary}</p>
+        </div>
+      </div>
+
+      <div style={metaRowStyle}>
+        <span>YouTube video</span>
+        <span>{resource.detailLabel}</span>
+        <span>{resource.freshnessLabel}</span>
+      </div>
+
+      {resource.tags.length ? (
+        <div style={tagRowStyle}>
+          {resource.tags.map((tag) => (
+            <span key={tag} style={tagStyle}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div style={{ display: "grid", gap: "0.75rem" }}>
+        <FrontOfficeTrackedLink
+          className="office-inline-link front-office-inline-link"
+          href={resource.href}
+          tracking={{
+            type: "resource_open",
+            resourceId: resource.id,
+          }}
+        >
+          Watch on YouTube
+        </FrontOfficeTrackedLink>
+        <FrontOfficeResourceProgressActions resourceId={resource.id} />
+      </div>
+    </article>
+  );
+}
+
 export default async function AgentResourcesPage(props: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -358,11 +425,8 @@ export default async function AgentResourcesPage(props: {
   const resolvedSearchParams = props.searchParams
     ? await props.searchParams
     : {};
+  const activeTab = getActiveTab(getSearchParamValue(resolvedSearchParams.tab));
   const searchQuery = getSearchParamValue(resolvedSearchParams.q);
-  const selectedType = getSearchParamValue(resolvedSearchParams.type);
-  const selectedVendorCategory = getSearchParamValue(
-    resolvedSearchParams.vendorCategory,
-  );
   const normalizedSearchQuery = normalizeSearchQuery(searchQuery);
 
   const snapshot = await getFrontOfficeResourcesSnapshot({
@@ -372,341 +436,274 @@ export default async function AgentResourcesPage(props: {
     timeZone: context.currentUser.timezone,
   });
 
-  const resourceTypeOptions = snapshot.resourceTypes
-    .filter(
-      (type) => type.key !== "vendor_card" && type.key !== "training_video",
-    )
-    .map((type) => ({
-      value: type.key,
-      label: type.label,
-    }));
-  const effectiveType = resourceTypeOptions.some(
-    (option) => option.value === selectedType,
-  )
-    ? selectedType
-    : "";
-  const baseResources = snapshot.resources.filter(
+  const documentResources = snapshot.resources.filter(
     (resource) =>
       resource.typeKey !== "vendor_card" &&
       resource.typeKey !== "training_video",
   );
-  const filteredResources = baseResources
-    .filter((resource) =>
-      effectiveType ? resource.typeKey === effectiveType : true,
-    )
-    .filter((resource) =>
-      resourceMatchesSearch(resource, normalizedSearchQuery),
-    );
-  const filteredVendors = snapshot.vendors
-    .filter((vendor) =>
-      selectedVendorCategory
-        ? vendor.category.toLowerCase() === selectedVendorCategory.toLowerCase()
-        : true,
-    )
-    .filter((vendor) => vendorMatchesSearch(vendor, normalizedSearchQuery));
-  const groupedResources = resourceTypeOptions
-    .map((option) => ({
-      ...option,
-      resources: baseResources.filter(
-        (resource) => resource.typeKey === option.value,
-      ),
-    }))
-    .filter((group) => group.resources.length > 0);
-  const showGroupedResourceBrowse = !normalizedSearchQuery && !effectiveType;
-  const searchExamples = [
-    "buyer consultation",
-    "listing presentation",
-    "offer checklist",
-    "lender",
+  const trainingResources = snapshot.resources.filter(
+    (resource) => resource.typeKey === "training_video",
+  );
+  const vendors = snapshot.vendors;
+
+  const filteredDocuments = documentResources.filter((resource) =>
+    resourceMatchesSearch(resource, normalizedSearchQuery),
+  );
+  const filteredTraining = trainingResources.filter((resource) =>
+    resourceMatchesSearch(resource, normalizedSearchQuery),
+  );
+  const filteredVendors = vendors.filter((vendor) =>
+    vendorMatchesSearch(vendor, normalizedSearchQuery),
+  );
+
+  const tabStats = {
+    documents: documentResources.length,
+    vendors: vendors.length,
+    training: trainingResources.length,
+  };
+  const tabDefinitions: Array<{
+    key: FrontOfficeResourceSearchTab;
+    label: string;
+  }> = [
+    { key: "documents", label: "Documents" },
+    { key: "vendors", label: "Vendors" },
+    { key: "training", label: "Video Academy" },
   ];
+  const quickSearchExamples: Record<FrontOfficeResourceSearchTab, string[]> = {
+    documents: [
+      "buyer consultation",
+      "listing presentation",
+      "offer checklist",
+      "租房",
+    ],
+    vendors: ["lender", "attorney", "insurance", "moving"],
+    training: [
+      "buyer script",
+      "objection handling",
+      "showing prep",
+      "crm walkthrough",
+    ],
+  };
+  const tabSubtitle: Record<FrontOfficeResourceSearchTab, string> = {
+    documents:
+      "Published PDFs, playbooks, templates, and other office-approved documents for agents.",
+    vendors:
+      "Partner contacts live here as a simple searchable pool. Search by category, coverage, or contact detail.",
+    training:
+      "YouTube-based refreshers stay in their own tab so video learning never gets mixed into the document list.",
+  };
+
+  let resultTitle = "Documents";
+  let resultDescription = tabSubtitle.documents;
+  let resultStats: ReactNode = (
+    <ListPageStatsGrid>
+      <StatCard
+        hint="published office documents"
+        label="Documents"
+        tone="accent"
+        value={filteredDocuments.length}
+      />
+      <StatCard
+        hint="available in this directory"
+        label="All documents"
+        value={documentResources.length}
+      />
+    </ListPageStatsGrid>
+  );
+  let resultContent: ReactNode = filteredDocuments.length ? (
+    <div style={cardGridStyle}>
+      {filteredDocuments.map((resource) => (
+        <DocumentRecordCard key={resource.id} resource={resource} />
+      ))}
+    </div>
+  ) : (
+    <EmptyState
+      action={
+        normalizedSearchQuery ? (
+          <a
+            className="office-button-secondary"
+            href={buildResourcesUrl({ tab: activeTab })}
+          >
+            Clear search
+          </a>
+        ) : undefined
+      }
+      description={
+        documentResources.length
+          ? "Try a different keyword. Search only checks the documents in this tab."
+          : "This office has not published any documents yet."
+      }
+      title={
+        documentResources.length ? "No documents found" : "No documents yet"
+      }
+    />
+  );
+
+  if (activeTab === "vendors") {
+    resultTitle = "Vendor pool";
+    resultDescription = tabSubtitle.vendors;
+    resultStats = (
+      <ListPageStatsGrid>
+        <StatCard
+          hint="searchable partner contacts"
+          label="Vendors"
+          tone="accent"
+          value={filteredVendors.length}
+        />
+        <StatCard
+          hint="flagged as go-to contacts"
+          label="Featured"
+          value={vendors.filter((vendor) => vendor.isFeatured).length}
+        />
+      </ListPageStatsGrid>
+    );
+    resultContent = filteredVendors.length ? (
+      <div style={vendorGridStyle}>
+        {filteredVendors.map((vendor) => (
+          <VendorCard key={vendor.id} vendor={vendor} />
+        ))}
+      </div>
+    ) : (
+      <EmptyState
+        action={
+          normalizedSearchQuery ? (
+            <a
+              className="office-button-secondary"
+              href={buildResourcesUrl({ tab: activeTab })}
+            >
+              Clear search
+            </a>
+          ) : undefined
+        }
+        description={
+          vendors.length
+            ? "Try a broader vendor keyword or browse again later."
+            : "This office has not published any vendor contacts yet."
+        }
+        title={vendors.length ? "No vendors found" : "No vendors yet"}
+      />
+    );
+  } else if (activeTab === "training") {
+    resultTitle = "Video academy";
+    resultDescription = tabSubtitle.training;
+    resultStats = (
+      <ListPageStatsGrid>
+        <StatCard
+          hint="matching YouTube training videos"
+          label="Videos"
+          tone="accent"
+          value={filteredTraining.length}
+        />
+        <StatCard
+          hint="available in this tab"
+          label="All training"
+          value={trainingResources.length}
+        />
+      </ListPageStatsGrid>
+    );
+    resultContent = filteredTraining.length ? (
+      <div style={cardGridStyle}>
+        {filteredTraining.map((resource) => (
+          <TrainingRecordCard key={resource.id} resource={resource} />
+        ))}
+      </div>
+    ) : (
+      <EmptyState
+        action={
+          normalizedSearchQuery ? (
+            <a
+              className="office-button-secondary"
+              href={buildResourcesUrl({ tab: activeTab })}
+            >
+              Clear search
+            </a>
+          ) : undefined
+        }
+        description={
+          trainingResources.length
+            ? "Try another topic, process, or script keyword. Search only checks YouTube videos in this tab."
+            : "This office has not published any YouTube training videos yet."
+        }
+        title={trainingResources.length ? "No videos found" : "No training yet"}
+      />
+    );
+  }
 
   return (
     <FrontOfficePageTemplate
-      description="Search the published office directory for shared materials and vendor contacts. YouTube training lives in the separate Training module."
+      description="One searchable directory for documents, vendors, and YouTube training. Use the tabs below the search bar to stay inside the section you need."
       eyebrow="Resources"
       main={
         <div style={stackStyle}>
           <SectionCard
             className="office-list-card"
-            subtitle="Most agents come here with a file or contact in mind. Search the title, summary, tags, or vendor name first."
-            title="Search"
+            subtitle="Search vendors, videos, and documents from one place. Results stay inside the tab you're viewing."
+            title="Resources & Training"
           >
             <FrontOfficeResourceSearchForm
               initialQuery={searchQuery}
-              initialType={effectiveType}
-              searchContext="resources"
-              typeOptions={resourceTypeOptions}
+              placeholder="Search vendors, videos, documents..."
+              tab={activeTab}
             />
 
-            {normalizedSearchQuery ? (
-              <div style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
-                <ListPageStatsGrid>
-                  <StatCard
-                    hint="matching resources"
-                    label="Resource matches"
-                    tone="accent"
-                    value={filteredResources.length}
-                  />
-                  <StatCard
-                    hint="matching vendors"
-                    label="Vendor matches"
-                    value={filteredVendors.length}
-                  />
-                </ListPageStatsGrid>
-
-                <div style={vendorGridStyle}>
-                  <div style={stackStyle}>
-                    <strong>Matching resources</strong>
-                    {filteredResources.length ? (
-                      filteredResources.map((resource) => (
-                        <ResourceRecordCard
-                          key={resource.id}
-                          resource={resource}
-                        />
-                      ))
-                    ) : (
-                      <EmptyState
-                        action={
-                          <a
-                            className="office-button-secondary"
-                            href="/agent/resources"
-                          >
-                            Clear filters
-                          </a>
-                        }
-                        description="Try a different keyword, remove the type filter, or browse the directory by type below."
-                        title="No matching resources"
-                      />
-                    )}
-                  </div>
-
-                  <div style={stackStyle}>
-                    <strong>Matching vendors</strong>
-                    {filteredVendors.length ? (
-                      filteredVendors.map((vendor) => (
-                        <VendorCard key={vendor.id} vendor={vendor} />
-                      ))
-                    ) : (
-                      <EmptyState
-                        action={
-                          <a
-                            className="office-button-secondary"
-                            href="/agent/resources"
-                          >
-                            Clear filters
-                          </a>
-                        }
-                        description="Try a broader query or browse the vendor pool below."
-                        title="No matching vendors"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                style={{ marginTop: "0.9rem", display: "grid", gap: "0.7rem" }}
-              >
-                <p className="office-form-helper" style={{ margin: 0 }}>
-                  Search is the fastest path. If you do not know the exact file
-                  yet, use the type filters below or start with one of these
-                  common searches.
-                </p>
-                <div style={quickSearchRowStyle}>
-                  {searchExamples.map((example) => (
-                    <a
-                      href={buildResourcesUrl({ q: example })}
-                      key={example}
-                      style={filterPillStyle}
-                    >
-                      {example}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle="This is the full published directory of office-approved materials for agents. Browse by type when you do not want to search yet."
-            title="Browse directory"
-          >
-            <div style={filterRowStyle}>
-              <a
-                href={buildResourcesUrl({
-                  q: searchQuery || null,
-                  vendorCategory: selectedVendorCategory || null,
-                })}
-                style={effectiveType ? filterPillStyle : activeFilterPillStyle}
-              >
-                All resources
-              </a>
-              {resourceTypeOptions.map((option) => (
-                <a
-                  href={buildResourcesUrl({
-                    q: searchQuery || null,
-                    type: option.value,
-                    vendorCategory: selectedVendorCategory || null,
-                  })}
-                  key={option.value}
-                  style={
-                    effectiveType === option.value
-                      ? activeFilterPillStyle
-                      : filterPillStyle
-                  }
-                >
-                  {option.label}
-                </a>
-              ))}
-            </div>
-
-            {showGroupedResourceBrowse ? (
-              groupedResources.length ? (
-                <div style={groupedDirectoryStyle}>
-                  {groupedResources.map((group) => (
-                    <section key={group.value} style={groupedSectionStyle}>
-                      <div style={groupedSectionHeaderStyle}>
-                        <div style={{ display: "grid", gap: "0.24rem" }}>
-                          <strong>{group.label}</strong>
-                          <p
-                            className="office-form-helper"
-                            style={{ margin: 0 }}
-                          >
-                            {group.resources.length} published{" "}
-                            {group.resources.length === 1 ? "item" : "items"}
-                          </p>
-                        </div>
-                        <StatusBadge tone="neutral">
-                          {group.resources.length}
-                        </StatusBadge>
-                      </div>
-
-                      <div style={cardGridStyle}>
-                        {group.resources.map((resource) => (
-                          <ResourceRecordCard
-                            key={resource.id}
-                            resource={resource}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  description="This office has not published any agent-facing materials yet."
-                  title="No resources yet"
-                />
-              )
-            ) : (
-              <>
-                {filteredResources.length ? (
-                  <div style={cardGridStyle}>
-                    {filteredResources.map((resource) => (
-                      <ResourceRecordCard
-                        key={resource.id}
-                        resource={resource}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    action={
-                      <a
-                        className="office-button-secondary"
-                        href="/agent/resources"
-                      >
-                        Clear filters
-                      </a>
+            <div style={{ marginTop: "1rem", display: "grid", gap: "0.9rem" }}>
+              <div style={segmentedTabsShellStyle}>
+                {tabDefinitions.map((tab) => (
+                  <a
+                    aria-current={activeTab === tab.key ? "page" : undefined}
+                    href={buildResourcesUrl({ tab: tab.key })}
+                    key={tab.key}
+                    style={
+                      activeTab === tab.key
+                        ? activeSegmentedTabStyle
+                        : segmentedTabStyle
                     }
-                    description="No published resource matches the current search or type filter."
-                    title="No resources in this view"
-                  />
-                )}
-              </>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle="A simple partner directory. Search or browse by category when an agent needs contact details or coverage."
-            title="Vendor pool"
-          >
-            <div style={filterRowStyle}>
-              <a
-                href={buildResourcesUrl({
-                  q: searchQuery || null,
-                  type: effectiveType || null,
-                })}
-                style={
-                  selectedVendorCategory
-                    ? filterPillStyle
-                    : activeFilterPillStyle
-                }
-              >
-                All vendors
-              </a>
-              {snapshot.vendorCategories.map((category) => (
-                <a
-                  href={buildResourcesUrl({
-                    q: searchQuery || null,
-                    type: effectiveType || null,
-                    vendorCategory: category.category,
-                  })}
-                  key={category.category}
-                  style={
-                    selectedVendorCategory.toLowerCase() ===
-                    category.category.toLowerCase()
-                      ? activeFilterPillStyle
-                      : filterPillStyle
-                  }
-                >
-                  {category.label}
-                </a>
-              ))}
-            </div>
-
-            {filteredVendors.length ? (
-              <div style={vendorGridStyle}>
-                {filteredVendors.map((vendor) => (
-                  <VendorCard key={vendor.id} vendor={vendor} />
+                  >
+                    {tab.label} ({tabStats[tab.key]})
+                  </a>
                 ))}
               </div>
-            ) : (
-              <EmptyState
-                action={
-                  selectedVendorCategory || normalizedSearchQuery ? (
-                    <a
-                      className="office-button-secondary"
-                      href="/agent/resources"
-                    >
-                      Clear filters
-                    </a>
-                  ) : undefined
-                }
-                description={
-                  snapshot.summary.vendorCount
-                    ? "No vendor matches the current search or category filter."
-                    : "This office has not published any vendor contacts yet."
-                }
-                title={
-                  snapshot.summary.vendorCount
-                    ? "No vendors in this view"
-                    : "No vendors yet"
-                }
-              />
-            )}
+
+              <p className="office-form-helper" style={{ margin: 0 }}>
+                {tabSubtitle[activeTab]}
+              </p>
+
+              <div style={quickSearchRowStyle}>
+                {quickSearchExamples[activeTab].map((example) => (
+                  <a
+                    href={buildResourcesUrl({
+                      tab: activeTab,
+                      q: example,
+                    })}
+                    key={example}
+                    style={segmentedTabStyle}
+                  >
+                    {example}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle={resultDescription}
+            title={resultTitle}
+          >
+            {resultStats}
+
+            <div style={{ marginTop: "1rem" }}>{resultContent}</div>
           </SectionCard>
         </div>
       }
       summary={
         <>
-          <SummaryChip label="Resources" value={baseResources.length} />
-          <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
+          <SummaryChip label="Documents" value={tabStats.documents} />
+          <SummaryChip label="Training" value={tabStats.training} />
+          <SummaryChip label="Vendors" value={tabStats.vendors} />
         </>
       }
-      title="Resources"
+      title="Resources & Training"
     />
   );
 }

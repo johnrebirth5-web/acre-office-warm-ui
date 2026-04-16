@@ -11,11 +11,9 @@ It replaces the earlier “execution hub” framing with the simpler directory m
 
 ## One-line Definition
 
-`/agent/resources` is a passive agent-facing document and vendor directory.
+`/agent/resources` is a passive agent-facing directory with internal tabs for documents, vendors, and YouTube training.
 
-`/agent/training` is the separate agent-facing YouTube training module.
-
-Their main job is to help agents search, browse, and open the materials they already know they need, without mixing PDF-style resources and video refreshers into one screen.
+Its main job is to help agents search, browse, and open the materials they already know they need, while keeping PDF-style resources, partner contacts, and video refreshers separated by tab inside one screen.
 
 It is not:
 
@@ -56,15 +54,17 @@ Product guidance for current use:
 - `Browse by type / section`: roughly `5%`
 - `Library-style browsing of all approved materials`: roughly `5%`
 - `Vendor lookup`: direct, manual lookup when needed
-- `Training`: lives in its own simple searchable module, not inside the document directory; entries use direct YouTube links
+- `Training`: stays in its own simple searchable tab inside Resources; entries use direct YouTube links
 
 ## Agent Experience
 
 The resources page should feel like a clean directory:
 
 - a strong search entry at the top
-- simple resource-type browsing
-- a simple vendor pool
+- segmented tabs below search
+- a `Documents` tab for PDFs, templates, and playbooks
+- a `Vendors` tab for partner lookup
+- a `Training` / `Video Academy` tab for YouTube videos
 - no YouTube training mixed into the document list
 - no execution-deck language
 - no “recommended next step”
@@ -94,15 +94,13 @@ The system does not need to decide whether the user’s next step is vendor-rela
 
 ## Office Admin Positioning
 
-`/office/resources` is the management side of the document/vendor directory.
-
-`/office/training` is the separate management surface for YouTube training videos.
+`/office/resources` is the management side of this directory and includes internal tabs for `Resources` and `Training`.
 
 It should be:
 
 - office-admin only
 - simple CRUD for resources
-- training videos managed separately from documents, using direct YouTube links
+- training videos managed in the `Training` tab, using direct YouTube links
 - simple CRUD for vendors
 - no approval flow
 - no publishing workflow beyond basic publish/unpublish state
@@ -115,10 +113,8 @@ The office admin is the single owner of directory content.
 The boundary should stay explicit:
 
 - `/office/library` = Back Office internal document library
-- `/agent/resources` = agent-facing directory of shared documents, templates, playbooks, and vendors
-- `/agent/training` = agent-facing YouTube training module
-- `/office/resources` = office-admin management surface for the agent-facing document/vendor directory
-- `/office/training` = office-admin management surface for YouTube training
+- `/agent/resources` = the single agent-facing directory route, with separate tabs for documents, vendors, and YouTube training
+- `/office/resources` = the single office-admin management route, with separate tabs for document/vendor management and YouTube training management
 
 `/agent/resources` should not simply be treated as a workflow hub layered on top of `/office/library`.
 
@@ -142,9 +138,9 @@ This module does not need a full analytics product surface.
 When implementing this module, default to these rules:
 
 - `Search` is the primary entry point
-- type browsing is secondary
+- tab switching and type browsing are secondary
 - vendor browsing is manual, not recommended
-- training is its own module, not just another row inside Resources
+- training is its own tab inside Resources, not just another row inside the document list
 - only office admins manage content
 - agent-facing experience should stay simple
 - do not introduce task guidance, next-action logic, or scenario routing
@@ -156,7 +152,7 @@ When implementing this module, default to these rules:
 Its value is not in telling agents what to do.
 
 Its value is in making sure that when an agent already knows they need a file, template, playbook, training item, or vendor contact, they can find it quickly and open it with minimal friction.
-The training page should feel separate:
+The training tab should feel separate:
 
 - only YouTube training videos
 - simple search by topic

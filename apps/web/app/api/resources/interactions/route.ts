@@ -14,7 +14,7 @@ type ResourceInteractionRequest =
   | {
       type: "resource_search";
       query: string;
-      contextPage?: "resources" | "training";
+      contextTab?: "documents" | "vendors" | "training";
     }
   | {
       type: "resource_progress";
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         membershipId: context.currentMembership.id,
         officeId: context.currentOffice?.id ?? null,
         query: body.query,
-        contextPage: body.contextPage,
+        contextTab: body.contextTab,
       });
     } else if (body.type === "resource_progress") {
       await recordFrontOfficeResourceProgress({

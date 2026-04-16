@@ -1,15 +1,21 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { FilterBar, FilterField, SelectInput, TextInput } from "@acre/ui";
+import { FilterBar, FilterField, TextInput } from "@acre/ui";
 
 const interactionEndpoint = "/api/resources/interactions";
 
-function recordSearch(query: string, contextPage: "resources" | "training") {
+export type FrontOfficeResourceSearchTab = "documents" | "vendors" | "training";
+
+function buildResourcesHref(tab: FrontOfficeResourceSearchTab) {
+  return `/agent/resources?tab=${tab}`;
+}
+
+function recordSearch(query: string, contextTab: FrontOfficeResourceSearchTab) {
   const body = JSON.stringify({
     type: "resource_search",
     query,
-    contextPage,
+    contextTab,
   });
 
   if (
@@ -42,18 +48,9 @@ function recordSearch(query: string, contextPage: "resources" | "training") {
 
 export function FrontOfficeResourceSearchForm(props: {
   initialQuery: string;
-  initialType?: string;
-  typeOptions: Array<{
-    value: string;
-    label: string;
-  }>;
-  hideTypeFilter?: boolean;
-  searchContext?: "resources" | "training";
+  tab: FrontOfficeResourceSearchTab;
   placeholder?: string;
 }) {
-  const baseHref =
-    props.searchContext === "training" ? "/agent/training" : "/agent/resources";
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const query = `${formData.get("q") ?? ""}`.trim();
@@ -62,11 +59,12 @@ export function FrontOfficeResourceSearchForm(props: {
       return;
     }
 
-    recordSearch(query, props.searchContext ?? "resources");
+    recordSearch(query, props.tab);
   }
 
   return (
     <FilterBar as="form" method="GET" onSubmit={handleSubmit}>
+      <input name="tab" type="hidden" value={props.tab} />
       <FilterField className="office-form-grid-span-2" label="Search">
         <TextInput
           defaultValue={props.initialQuery}
@@ -78,24 +76,15 @@ export function FrontOfficeResourceSearchForm(props: {
           type="search"
         />
       </FilterField>
-      {!props.hideTypeFilter ? (
-        <FilterField label="Type">
-          <SelectInput defaultValue={props.initialType ?? ""} name="type">
-            <option value="">All resources</option>
-            {props.typeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </SelectInput>
-        </FilterField>
-      ) : null}
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
           Search
         </button>
-        {props.initialQuery || props.initialType ? (
-          <a className="office-button-secondary" href={baseHref}>
+        {props.initialQuery ? (
+          <a
+            className="office-button-secondary"
+            href={buildResourcesHref(props.tab)}
+          >
             Clear
           </a>
         ) : null}

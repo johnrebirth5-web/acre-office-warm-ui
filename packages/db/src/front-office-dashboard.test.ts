@@ -201,7 +201,7 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
       membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceSearched,
       objectLabel: "Broker tour notes",
-      contextHref: "/agent/resources#resource-search-results",
+      contextHref: "/agent/resources?tab=documents",
       details: ["Query: broker tour notes", "Scope: Published resources"],
       createdAt: new Date(now - 20 * 24 * 60 * 60 * 1000),
     });
@@ -209,7 +209,7 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
       membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceOpened,
       objectLabel: context.resource.title,
-      contextHref: "/agent/resources#published-tool-library",
+      contextHref: "/agent/resources?tab=documents",
       details: ["Lane: Playbook", "Action: Open playbook"],
       createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
     });
@@ -217,7 +217,7 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
       membershipId: context.adminMembership.id,
       action: activityLogActions.frontOfficeVendorClicked,
       objectLabel: context.vendor.name,
-      contextHref: "/agent/resources#vendor-hub",
+      contextHref: "/agent/resources?tab=vendors",
       details: ["Action: Website", "Coverage: Brooklyn"],
       createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
     });
@@ -262,7 +262,7 @@ test("dashboard keeps shared resource pulse hidden for self-scoped agents", asyn
       membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceOpened,
       objectLabel: context.resource.title,
-      contextHref: "/agent/resources#published-tool-library",
+      contextHref: "/agent/resources?tab=documents",
       details: ["Lane: Playbook", "Action: Open playbook"],
       createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
     });
