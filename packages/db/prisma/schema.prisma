@@ -732,6 +732,7 @@ model Organization {
   studioListingSnapshots                StudioListingSnapshot[]
   studioListingAssets                   StudioListingAsset[]
   studioListingPacks                    StudioListingPack[]
+  studioListingCollections              StudioListingCollection[]
   studioListingShareEvents              StudioListingShareEvent[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
@@ -816,6 +817,7 @@ model Office {
   studioListingImports                  StudioListingImport[]
   studioListingSnapshots                StudioListingSnapshot[]
   studioListingPacks                    StudioListingPack[]
+  studioListingCollections              StudioListingCollection[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
   @@unique([organizationId, slug])
@@ -930,6 +932,8 @@ model Membership {
   sentOfficeMailMessages                       OfficeMailMessage[]                    @relation("OfficeMailMessageSender")
   studioListingImportsCreated                  StudioListingImport[]                  @relation("StudioListingImportCreatedBy")
   studioListingPacksUpdated                    StudioListingPack[]                    @relation("StudioListingPackUpdatedBy")
+  studioListingCollectionsCreated              StudioListingCollection[]              @relation("StudioListingCollectionCreatedBy")
+  studioListingCollectionsUpdated              StudioListingCollection[]              @relation("StudioListingCollectionUpdatedBy")
   studioListingExtensionTokens                 StudioListingExtensionToken[]          @relation("StudioListingExtensionTokenMembership")
   approvedStudioListingExtensionChallenges     StudioListingExtensionChallenge[]      @relation("StudioListingExtensionChallengeApprovedBy")
 
@@ -1419,10 +1423,43 @@ model StudioListingPack {
   office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
   snapshot              StudioListingSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
   updatedByMembership   Membership?            @relation("StudioListingPackUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+  collectionItems       StudioListingCollectionItem[]
   shareEvents           StudioListingShareEvent[]
 
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, shareEnabled, updatedAt])
+}
+
+model StudioListingCollection {
+  id                    String                       @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  createdByMembershipId String
+  updatedByMembershipId String
+  name                  String
+  nameNormalized        String
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  createdByMembership   Membership                   @relation("StudioListingCollectionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership                   @relation("StudioListingCollectionUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: Cascade)
+  items                 StudioListingCollectionItem[]
+
+  @@unique([organizationId, createdByMembershipId, nameNormalized])
+  @@index([organizationId, createdByMembershipId, updatedAt])
+}
+
+model StudioListingCollectionItem {
+  id           String                  @id @default(cuid())
+  collectionId String
+  packId       String
+  createdAt    DateTime                @default(now())
+  collection   StudioListingCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  pack         StudioListingPack       @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, packId])
+  @@index([packId, createdAt])
 }
 
 model StudioListingShareEvent {

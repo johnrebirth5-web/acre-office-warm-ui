@@ -9,6 +9,7 @@ import {
   TextareaInput,
   TextInput,
 } from "@acre/ui";
+import { StudioCollectionPicker } from "../../studio-collection-picker";
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
@@ -31,12 +32,6 @@ type PrimaryFactCard = {
   accent?: "success";
   label: string;
   value: string;
-};
-
-type CollectionRecord = {
-  id: string;
-  name: string;
-  packIds: string[];
 };
 
 type AmenityCatalogSection = {
@@ -85,8 +80,6 @@ type ListingEditorState = {
   description: string;
   amenitySections: EditorAmenitySection[];
 };
-
-const COLLECTION_STORAGE_KEY = "acre-listing-studio-collections";
 
 const PROPERTY_TYPE_OPTIONS = [
   "Rental unit",
@@ -349,15 +342,6 @@ function IconArrowRight() {
   );
 }
 
-function IconSearch() {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m16 16 4 4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
 function IconLocation() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
@@ -389,20 +373,6 @@ function IconCopy() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
-function IconCheck() {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <path
-        d="m5 12 4 4L19 6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.2"
       />
     </svg>
   );
@@ -1030,31 +1000,6 @@ function parseWholeNumberInput(value: string) {
   return parsed === null ? null : Math.round(parsed);
 }
 
-function loadCollectionsFromStorage(): CollectionRecord[] {
-  try {
-    const raw = window.localStorage.getItem(COLLECTION_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as CollectionRecord[];
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (entry) =>
-            typeof entry?.id === "string" &&
-            typeof entry?.name === "string" &&
-            Array.isArray(entry?.packIds),
-        )
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistCollectionsToStorage(collections: CollectionRecord[]) {
-  window.localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(collections));
-}
-
 function buildAmenityEditorSections(
   amenities: StudioListingDetailSnapshot["amenities"],
 ): EditorAmenitySection[] {
@@ -1344,7 +1289,6 @@ function StageActionButton(props: {
 }
 
 export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
-  const collectionRef = useRef<HTMLDivElement | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
   const [mediaMode, setMediaMode] = useState<MediaMode>(() => getInitialMediaMode(detail));
@@ -1358,9 +1302,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorState, setEditorState] = useState(() => buildEditorState(detail));
-  const [collections, setCollections] = useState<CollectionRecord[]>([]);
-  const [collectionSearch, setCollectionSearch] = useState("");
-  const [isCollectionOpen, setIsCollectionOpen] = useState(false);
   const [isDropzoneActive, setIsDropzoneActive] = useState(false);
   const [isAddressCopied, setIsAddressCopied] = useState(false);
 
@@ -1424,39 +1365,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         photoAssets.findIndex((asset) => asset.id === activePhoto.id),
       ) + 1
     : 0;
-  const filteredCollections = useMemo(() => {
-    const query = collectionSearch.trim().toLowerCase();
-    if (!query) {
-      return collections;
-    }
-
-    return collections.filter((collection) =>
-      collection.name.toLowerCase().includes(query),
-    );
-  }, [collectionSearch, collections]);
-
-  useEffect(() => {
-    setCollections(loadCollectionsFromStorage());
-  }, []);
-
-  useEffect(() => {
-    if (!isCollectionOpen) {
-      return undefined;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target;
-      if (target instanceof Node && collectionRef.current?.contains(target)) {
-        return;
-      }
-
-      setIsCollectionOpen(false);
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isCollectionOpen]);
-
   useEffect(() => {
     if (!statusMessage) {
       return undefined;
@@ -1478,7 +1386,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   function openEditor() {
     setEditorState(buildEditorState(detailState));
     setIsEditorOpen(true);
-    setIsCollectionOpen(false);
   }
 
   function closeEditor() {
@@ -1846,60 +1753,6 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     }
   }
 
-  function saveCollections(nextCollections: CollectionRecord[]) {
-    setCollections(nextCollections);
-    persistCollectionsToStorage(nextCollections);
-  }
-
-  function toggleCollectionMembership(collectionId: string) {
-    const nextCollections = collections.map((collection) => {
-      if (collection.id !== collectionId) {
-        return collection;
-      }
-
-      const hasPack = collection.packIds.includes(detailState.packId);
-      return {
-        ...collection,
-        packIds: hasPack
-          ? collection.packIds.filter((packId) => packId !== detailState.packId)
-          : [...collection.packIds, detailState.packId],
-      };
-    });
-
-    saveCollections(nextCollections);
-    setStatusMessage("Collection updated.");
-  }
-
-  function createCollectionFromSearch() {
-    const nextName = collectionSearch.trim();
-    if (!nextName) {
-      return;
-    }
-
-    const existingCollection = collections.find(
-      (collection) => collection.name.toLowerCase() === nextName.toLowerCase(),
-    );
-
-    if (existingCollection) {
-      toggleCollectionMembership(existingCollection.id);
-      setCollectionSearch("");
-      return;
-    }
-
-    const nextCollections = [
-      {
-        id: `collection_${Date.now().toString(36)}`,
-        name: nextName,
-        packIds: [detailState.packId],
-      },
-      ...collections,
-    ];
-
-    saveCollections(nextCollections);
-    setCollectionSearch("");
-    setStatusMessage(`Added to ${nextName}.`);
-  }
-
   return (
     <>
       <div className="listing-studio-listed-shell">
@@ -1921,68 +1774,11 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             <span className="listing-studio-view-status-pill">{statusPill}</span>
 
             <div className="listing-studio-view-stage-actions">
-              <div className="listing-studio-view-stage-collections" ref={collectionRef}>
-                <StageActionButton
-                  ariaLabel="Add to collection"
-                  onClick={() => setIsCollectionOpen((current) => !current)}
-                >
-                  <IconPlus />
-                </StageActionButton>
-
-                {isCollectionOpen ? (
-                  <div className="listing-studio-view-collection-popover">
-                    <div className="listing-studio-view-collection-head">
-                      <strong>Add to collection</strong>
-                    </div>
-                    <label className="listing-studio-view-collection-search">
-                      <IconSearch />
-                      <input
-                        onChange={(event) => setCollectionSearch(event.target.value)}
-                        placeholder="Search..."
-                        value={collectionSearch}
-                      />
-                    </label>
-
-                    <div className="listing-studio-view-collection-list">
-                      {filteredCollections.length ? (
-                        filteredCollections.map((collection) => {
-                          const isIncluded = collection.packIds.includes(detailState.packId);
-
-                          return (
-                            <button
-                              className="listing-studio-view-collection-item"
-                              key={collection.id}
-                              onClick={() => toggleCollectionMembership(collection.id)}
-                              type="button"
-                            >
-                              <span className="listing-studio-view-collection-check">
-                                {isIncluded ? <IconCheck /> : null}
-                              </span>
-                              <strong>{collection.name}</strong>
-                              <span className="listing-studio-view-collection-count">
-                                ({collection.packIds.length})
-                              </span>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <p className="listing-studio-view-collection-empty">
-                          No collections yet. Create one below.
-                        </p>
-                      )}
-                    </div>
-
-                    <button
-                      className="listing-studio-view-collection-create"
-                      onClick={createCollectionFromSearch}
-                      type="button"
-                    >
-                      <IconPlus />
-                      <span>Create New</span>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+              <StudioCollectionPicker
+                className="listing-studio-view-stage-collections"
+                packId={detailState.packId}
+                variant="icon"
+              />
 
               <StageActionButton
                 ariaLabel="Open share page"

@@ -17,7 +17,28 @@ export function AgentNav() {
         { href: "/agent/clients", label: t((messages) => messages.agentNav.items.clients) },
         { href: "/agent/calendar", label: t((messages) => messages.agentNav.items.calendar) },
         { href: "/agent/listings", label: t((messages) => messages.agentNav.items.listings) },
-        { href: "/listing-studio/dashboard", label: t((messages) => messages.agentNav.items.studio) },
+        {
+          href: "/listing-studio/dashboard",
+          label: t((messages) => messages.agentNav.items.studio),
+          children: [
+            {
+              href: "/listing-studio/dashboard",
+              label: t((messages) => messages.agentNav.items.studioDashboard),
+            },
+            {
+              href: "/listing-studio/listings",
+              label: t((messages) => messages.agentNav.items.studioListings),
+            },
+            {
+              href: "/listing-studio/collections",
+              label: t((messages) => messages.agentNav.items.studioCollections),
+            },
+            {
+              href: "/listing-studio/shares",
+              label: t((messages) => messages.agentNav.items.studioShares),
+            },
+          ],
+        },
         { href: "/agent/notifications", label: t((messages) => messages.agentNav.items.activity) },
         { href: "/agent/resources", label: t((messages) => messages.agentNav.items.resources) },
       ],

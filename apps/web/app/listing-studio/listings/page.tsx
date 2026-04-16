@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listStudioListingPacks } from "@acre/db";
-import { SectionCard, TextInput } from "@acre/ui";
+import { TextInput } from "@acre/ui";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { ListingStudioCard } from "../listing-studio-card";
 
@@ -36,80 +36,99 @@ export default async function ListingStudioListingsPage(
 
   return (
     <div className="office-list-page listing-studio-page">
-      <section className="office-page-header listing-studio-header">
-        <div className="office-page-heading">
-          <span className="office-eyebrow">Listing Studio</span>
-          <h2>Saved listings</h2>
-        </div>
-      </section>
+      <div className="listing-studio-shell">
+        <header className="listing-studio-shell-header">
+          <div className="listing-studio-shell-header-copy">
+            <span className="listing-studio-shell-eyebrow">Listing Studio</span>
+            <h1>Listings</h1>
+            <p>
+              Review every parsed packet imported from the Chrome extension, then
+              sort them into collections without leaving Listing Studio.
+            </p>
+          </div>
+        </header>
 
-      <div className="office-list-page-stack listing-studio-stack">
         {deleted ? (
           <div className="listing-studio-status-message">
             Listing deleted from Listing Studio.
           </div>
         ) : null}
-        <SectionCard
-          className="office-list-card"
-          subtitle="Search by address, building, neighborhood, or title."
-          title="Filters"
-        >
-          <form className="listing-studio-filter-bar" method="get">
-            <label className="listing-studio-filter-field">
-              <span>Search</span>
+
+        <section className="listing-studio-toolbar-card">
+          <form className="listing-studio-listed-filterbar" method="get">
+            <label className="listing-studio-shell-search is-wide">
+              <span>Search listings</span>
               <TextInput
                 defaultValue={query}
                 name="q"
-                placeholder="Address, building, neighborhood..."
+                placeholder="Search by address, building, city, or title..."
               />
             </label>
-            <label className="listing-studio-filter-field">
+
+            <label className="listing-studio-shell-search">
               <span>Source</span>
               <select defaultValue={sourceSite} name="source">
-                <option value="">All</option>
+                <option value="">All sources</option>
                 <option value="streeteasy">StreetEasy</option>
                 <option value="zillow">Zillow</option>
               </select>
             </label>
-            <label className="listing-studio-filter-field">
-              <span>Type</span>
+
+            <label className="listing-studio-shell-search">
+              <span>Listing type</span>
               <select defaultValue={listingType} name="type">
-                <option value="">All</option>
+                <option value="">All types</option>
                 <option value="sale">Sale</option>
                 <option value="rent">Rent</option>
               </select>
             </label>
-            <div className="listing-studio-filter-actions">
+
+            <div className="listing-studio-shell-actions">
               <button className="office-button office-button-primary" type="submit">
                 Apply filters
               </button>
-              <Link className="office-button office-button-secondary" href="/listing-studio/listings">
+              <Link
+                className="office-button office-button-secondary"
+                href="/listing-studio/listings"
+              >
                 Reset
               </Link>
             </div>
           </form>
-        </SectionCard>
+        </section>
 
-        <SectionCard
-          className="office-list-card"
-          subtitle={`${items.length} listing${items.length === 1 ? "" : "s"} currently match this view.`}
-          title="Imported listings"
-        >
+        <section className="listing-studio-listed-section">
+          <div className="listing-studio-listed-section-head">
+            <div>
+              <span className="listing-studio-shell-eyebrow">Imported packets</span>
+              <h2>Saved listing packets</h2>
+            </div>
+            <p>
+              {items.length} listing{items.length === 1 ? "" : "s"} currently match
+              this view.
+            </p>
+          </div>
+
           <div className="listing-studio-card-grid">
             {items.length ? (
               items.map((item) => (
-                <ListingStudioCard item={item} key={item.packId} />
+                <ListingStudioCard
+                  item={item}
+                  key={item.packId}
+                  showCollectionPicker
+                />
               ))
             ) : (
               <div className="listing-studio-empty-state">
                 <strong>No listings match the current filters.</strong>
                 <p>
-                  Try a broader search or save a new listing from the Acre Chrome extension.
+                  Try a broader search or save a new listing from the Acre Chrome
+                  extension.
                 </p>
               </div>
             )}
           </div>
-        </SectionCard>
+        </section>
       </div>
     </div>
   );

@@ -232,18 +232,24 @@
 - 当前 `Listing Studio` 已通过 Prisma service 和 route handlers 落地到：
   - `/listing-studio/dashboard`
   - `/listing-studio/listings`
+  - `/listing-studio/collections`
+  - `/listing-studio/collections/[collectionId]`
+  - `/listing-studio/shares`
   - `/listing-studio/listings/[packId]`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
-  - 页面入口虽仍保留 `listing-studio` 路由前缀，但当前已挂到 `Front Office` workspace shell 中，而不是单独第三个 workspace
+  - 页面入口虽仍保留 `listing-studio` 路由前缀，但当前已挂到 `Front Office` workspace shell 中，而不是单独第三个 workspace；`Studio` 现在在 FO 侧边栏中作为可展开父级导航出现
   - 核心复用：
     - `StudioListingImport / Snapshot / Asset / Pack / ShareEvent`
+    - `StudioListingCollection / StudioListingCollectionItem`
     - `StudioListingExtensionToken / StudioListingExtensionChallenge`
-    - 现有 `document-storage` 适配器保存 raw HTML、raw JSON、下载图片和 PDF
+  - 现有 `document-storage` 适配器保存 raw HTML、raw JSON、下载图片和 PDF
   - 设计原则：
     - `Snapshot` 是原始事实层，只读
     - `Pack` 是客户版整理层，可编辑
+    - `Collections` 当前按 `organization + current membership` 做私有作用域，不与 FO curated listings 混用
     - 扩展保存动作在源站页面内完成，不要求用户先跳回 Acre 确认
+    - collection detail 的 live map / nearby POI 当前通过 Google Maps JavaScript API + Places 在运行时查询，不做 Acre 内部 POI 存储
 - 当前 `Office Accounting` 页面已经从旧 ledger/billing/EMD 工作台收口为 `office_admin` 专属的 `Agent Statements` 工作台：
   - `/office/accounting`
   - 只允许 `office_admin`

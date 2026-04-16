@@ -17,8 +17,12 @@
 ### Included in v1
 
 - `Front Office` 内的 studio 路由入口：
+  - `/listing-studio`
   - `/listing-studio/dashboard`
   - `/listing-studio/listings`
+  - `/listing-studio/collections`
+  - `/listing-studio/collections/[collectionId]`
+  - `/listing-studio/shares`
   - `/listing-studio/listings/[packId]`
 - Chrome Extension `apps/extension`
 - 支持站点：
@@ -64,7 +68,6 @@
 
 ### Explicitly not included in v1
 
-- collections
 - share management center
 - Canva sync / PNG render pipeline
 - batch import
@@ -128,6 +131,35 @@
 - source site 筛选
 - listing type 筛选
 - imported-at 时间排序
+- 每张 card 支持直接加入 / 移出 collections
+
+### Collections
+
+- 当前用户私有的 folder / collection 列表
+- 支持新建 collection，自定义命名
+- collection list card 展示：
+  - name
+  - listing count
+  - updated-at
+  - preview listings
+- collection detail 展示：
+  - saved listings card grid
+  - `Add listings` 多选管理器
+  - numbered Google map markers
+  - nearby POI filters：
+    - `Supermarket`
+    - `Subway`
+    - `Restaurant`
+    - `Coffee`
+    - `Nightlife`
+    - `All`
+- 当前 collection 地图和 POI 使用运行时 Google Maps / Places 查询，不做 Acre 内部 POI 持久化
+
+### Shares
+
+- 当前只保留路由和导航占位
+- 本轮不包含 share management center
+- 后续再定义真正的 share workspace、filters、history、analytics 和 resend workflow
 
 ### Listing detail
 
@@ -162,6 +194,12 @@
 - `StudioListingPack`
   - 客户版整理层，可编辑
   - 保存 headline、summary、bullet points、selected assets、share settings、agent contact
+- `StudioListingCollection`
+  - 当前用户私有 collection
+  - 保存 collection 名称、当前 organization / office scope、创建人与最后更新时间
+- `StudioListingCollectionItem`
+  - collection 与 saved pack 的 join layer
+  - 对同一 `collectionId + packId` 做唯一约束
 - `StudioListingShareEvent`
   - public share 的打开事件
 - `StudioListingExtensionToken`
@@ -207,6 +245,7 @@
   - 允许批准扩展连接并接收导入
 - `listing_studio:edit`
   - 允许编辑 pack
+  - 也允许创建 / 更新 / 删除 collections 以及管理 collection items
 - `listing_studio:share`
   - 允许发布 share 和导出 PDF
 
@@ -221,6 +260,13 @@
 - `GET /api/listing-studio/listings/[packId]`
 - `PATCH /api/listing-studio/listings/[packId]`
 - `DELETE /api/listing-studio/listings/[packId]`
+- `GET /api/listing-studio/collections`
+- `POST /api/listing-studio/collections`
+- `GET /api/listing-studio/collections/[collectionId]`
+- `PATCH /api/listing-studio/collections/[collectionId]`
+- `DELETE /api/listing-studio/collections/[collectionId]`
+- `POST /api/listing-studio/collections/[collectionId]/items`
+- `DELETE /api/listing-studio/collections/[collectionId]/items/[packId]`
 - `POST /api/listing-studio/listings/[packId]/share`
 - `GET /api/listing-studio/listings/[packId]/pdf`
 - `GET /api/listing-studio/listings/[packId]/poster`
@@ -244,6 +290,11 @@
 
 - 视觉语言跟随 Acre BO / FO，而不是另起品牌
 - `Listing Studio` 不再作为第三个独立 workspace 暴露给用户，而是挂在 `Front Office` shell 与侧边导航内
+- `Front Office` 侧边栏中的 `Studio` 现在是可展开父级导航，当前包含：
+  - `Dashboard`
+  - `Listings`
+  - `Collections`
+  - `Shares`
 - 详情页可以比 BO 更图片驱动，但 spacing、radius、标题层级和交互反馈保持 Acre 一致
 - 详情页默认分成 `main working column + compact action rail`，不要再把所有编辑、输出、原始抓取信息都堆成同一级长滚动页
 - 原始抓取细节、营销扩展块、长文案派生块应优先用 disclosure / collapsible 方式收纳，默认先展示高频动作和最关键摘要
@@ -258,6 +309,9 @@
 - 只有 `StreetEasy / Zillow` adapter
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
+- `Collections` 目前只支持当前用户私有视图，不做组织共享或办公室共享
+- `Shares` 目前仍是 placeholder，不是正式 share management center
+- `Collections` 地图与 POI 依赖 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`；缺失时页面会降级到 card-only 模式
 - 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并带本地生成的 scan-ready code；它还不是服务端 PNG 渲染或 Canva 工作流
 - 联系人信息现在可在 packet editor 里直接修改，并会流入 share / PDF / poster，但它仍然是手动维护的 packet 字段，不是独立 CRM 同步或外部模板同步
 - 如果 packet share 尚未发布，scan path 会回退到原始 source listing，而不是假装始终存在 Acre public packet

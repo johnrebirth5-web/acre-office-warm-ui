@@ -25,6 +25,10 @@
 
 - `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
 
+`Listing Studio` 的 collections 地图与附近设施筛选现在还支持一个前端公开地图 key：
+
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+
 这个值只影响前端安装页与 dashboard 安装按钮，不参与扩展鉴权或数据写入。
 
 ## 当前环境变量清单
@@ -189,6 +193,32 @@ NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.co
 - 不会影响 `Listing Studio` 的一键安装入口
 - 安装页和 dashboard 仍会默认打开正式 `Chrome Web Store` 条目
 - 只有在你需要覆盖到别的商店链接时，缺失这个变量才意味着无法替换默认地址
+
+### `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+
+用途：
+
+- 为 `Listing Studio > Collections` 详情页启用真实 Google 地图与附近设施筛选
+- 当前由 `/listing-studio/collections/[collectionId]` 的客户端地图组件读取
+- 用于运行时加载 `Google Maps JavaScript API` 和 `Places` library
+
+是否必填：
+
+- 不是全站必填
+- 但如果你希望在 collection detail 页面看到真实地图、listing 点位和 `Supermarket / Subway / Restaurant / Coffee / Nightlife / All` 附近设施筛选，就需要显式配置
+- 如果不配置，collections 列表和 collection 内的 listing cards 仍然正常工作，只是地图区域会降级为提示文案
+
+示例格式：
+
+```env
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="AIza..."
+```
+
+缺失后的影响：
+
+- `/listing-studio/collections` 首页不受影响
+- `/listing-studio/collections/[collectionId]` 仍会展示 collection 头部和 listing cards
+- 但 collection detail 底部的 live map、编号 marker、POI pills 与 nearby places 查询不会启用
 
 ### `ACRE_SETTINGS_ENCRYPTION_SECRET`
 

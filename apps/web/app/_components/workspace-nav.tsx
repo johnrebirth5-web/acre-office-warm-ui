@@ -8,11 +8,18 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { useI18n } from "../../lib/i18n/client";
 import { SiteReleaseBadge } from "../site-release-badge";
 
+type WorkspaceNavChildItem = {
+  label: string;
+  badgeText?: string;
+  href: string;
+};
+
 type WorkspaceNavItem =
   | {
       label: string;
       badgeText?: string;
       href: string;
+      children?: WorkspaceNavChildItem[];
     }
   | {
       label: string;
@@ -59,6 +66,7 @@ type WorkspaceLocation = {
 };
 
 type LinkNavItem = Extract<WorkspaceNavItem, { href: string }>;
+type BranchNavItem = LinkNavItem & { children: WorkspaceNavChildItem[] };
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -82,7 +90,11 @@ function isLinkItem(item: WorkspaceNavItem): item is LinkNavItem {
   return "href" in item;
 }
 
-function renderNavItemLabel(item: WorkspaceNavItem) {
+function isBranchItem(item: WorkspaceNavItem): item is BranchNavItem {
+  return isLinkItem(item) && Array.isArray(item.children) && item.children.length > 0;
+}
+
+function renderNavItemLabel(item: { label: string; badgeText?: string }) {
   return (
     <span className="office-nav-link-row">
       <span>{item.label}</span>
@@ -112,6 +124,7 @@ export function WorkspaceNav({
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+  const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const workspaceSwitcherRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -194,13 +207,22 @@ export function WorkspaceNav({
   function hasHashVariant(path: string) {
     return navGroups.some((group) =>
       group.items.some(
-        (item) => isLinkItem(item) && item.href.startsWith(`${path}#`),
+        (item) =>
+          isLinkItem(item) &&
+          (
+            item.href.startsWith(`${path}#`) ||
+            item.children?.some((child) => child.href.startsWith(`${path}#`))
+          ),
       ),
     );
   }
 
   function handleNavIntent(href: string) {
     setPendingLocationKey(normalizeHref(href));
+  }
+
+  function getBranchKey(item: LinkNavItem) {
+    return normalizeHref(item.href);
   }
 
   function isSidebarItemActive(href: string) {
@@ -236,13 +258,80 @@ export function WorkspaceNav({
       : isMobileSectionActive(href);
   }
 
+  function isBranchActive(item: BranchNavItem) {
+    return (
+      isSidebarItemActive(item.href) ||
+      item.children.some((child) => isSidebarItemActive(child.href))
+    );
+  }
+
+  function isBranchExpanded(item: BranchNavItem) {
+    const key = getBranchKey(item);
+    if (typeof expandedBranches[key] === "boolean") {
+      return expandedBranches[key];
+    }
+
+    return isBranchActive(item);
+  }
+
+  function toggleBranch(item: BranchNavItem) {
+    const key = getBranchKey(item);
+    setExpandedBranches((current) => {
+      const currentlyExpanded =
+        typeof current[key] === "boolean" ? current[key] : isBranchActive(item);
+
+      return {
+        ...current,
+        [key]: !currentlyExpanded,
+      };
+    });
+  }
+
+  useEffect(() => {
+    setExpandedBranches((current) => {
+      let changed = false;
+      let nextState = current;
+
+      for (const group of navGroups) {
+        for (const item of group.items) {
+          if (!isBranchItem(item) || !isBranchActive(item)) {
+            continue;
+          }
+
+          const key = getBranchKey(item);
+          if (current[key]) {
+            continue;
+          }
+
+          if (!changed) {
+            nextState = { ...current };
+            changed = true;
+          }
+
+          nextState[key] = true;
+        }
+      }
+
+      return changed ? nextState : current;
+    });
+  }, [actualLocationKey, navGroups]);
+
   const mobileActiveEntry =
     navGroups
       .flatMap((group) =>
-        group.items.filter(isLinkItem).map((item) => ({
-          group,
-          item,
-        })),
+        group.items.flatMap((item) => {
+          if (!isLinkItem(item)) {
+            return [];
+          }
+
+          return [
+            ...(item.children ?? []).map((child) => ({
+              group,
+              item: child,
+            })),
+            { group, item },
+          ];
+        }),
       )
       .find(({ item }) => isMobileMenuItemActive(item.href)) ?? null;
   const mobileCurrentLabel =
@@ -363,6 +452,62 @@ export function WorkspaceNav({
                 {group.items.map((item) => {
                   if (isLinkItem(item)) {
                     const href = item.href;
+
+                    if (isBranchItem(item)) {
+                      const isActive = isBranchActive(item);
+                      const isExpanded = isBranchExpanded(item);
+
+                      return (
+                        <div
+                          className={cx(
+                            "office-nav-branch",
+                            isExpanded && "is-open",
+                          )}
+                          key={item.label}
+                        >
+                          <div className="office-nav-branch-head">
+                            <Link
+                              className={`office-nav-link${isActive ? " is-active" : ""}`}
+                              href={href}
+                              onClick={() => handleNavIntent(href)}
+                            >
+                              {renderNavItemLabel(item)}
+                            </Link>
+                            <button
+                              aria-expanded={isExpanded}
+                              aria-label={
+                                isExpanded
+                                  ? `Collapse ${item.label}`
+                                  : `Expand ${item.label}`
+                              }
+                              className={cx(
+                                "office-nav-branch-toggle",
+                                isExpanded && "is-open",
+                              )}
+                              onClick={() => toggleBranch(item)}
+                              type="button"
+                            >
+                              <span aria-hidden="true">▾</span>
+                            </button>
+                          </div>
+
+                          {isExpanded ? (
+                            <div className="office-nav-children">
+                              {item.children.map((child) => (
+                                <Link
+                                  className={`office-nav-child-link${isSidebarItemActive(child.href) ? " is-active" : ""}`}
+                                  href={child.href}
+                                  key={child.href}
+                                  onClick={() => handleNavIntent(child.href)}
+                                >
+                                  {renderNavItemLabel(child)}
+                                </Link>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
 
                     return (
                       <Link
@@ -503,6 +648,68 @@ export function WorkspaceNav({
                     {group.items.map((item) => {
                       if (isLinkItem(item)) {
                         const href = item.href;
+
+                        if (isBranchItem(item)) {
+                          const isActive = isBranchActive(item);
+                          const isExpanded = isBranchExpanded(item);
+
+                          return (
+                            <div
+                              className={cx(
+                                "office-mobile-menu-branch",
+                                isExpanded && "is-open",
+                              )}
+                              key={item.label}
+                            >
+                              <div className="office-mobile-menu-branch-head">
+                                <Link
+                                  className={`office-mobile-menu-link${isActive ? " is-active" : ""}`}
+                                  href={href}
+                                  onClick={() => {
+                                    handleNavIntent(href);
+                                    setIsMobileMenuOpen(false);
+                                  }}
+                                >
+                                  {renderNavItemLabel(item)}
+                                </Link>
+                                <button
+                                  aria-expanded={isExpanded}
+                                  aria-label={
+                                    isExpanded
+                                      ? `Collapse ${item.label}`
+                                      : `Expand ${item.label}`
+                                  }
+                                  className={cx(
+                                    "office-mobile-menu-branch-toggle",
+                                    isExpanded && "is-open",
+                                  )}
+                                  onClick={() => toggleBranch(item)}
+                                  type="button"
+                                >
+                                  <span aria-hidden="true">▾</span>
+                                </button>
+                              </div>
+
+                              {isExpanded ? (
+                                <div className="office-mobile-menu-children">
+                                  {item.children.map((child) => (
+                                    <Link
+                                      className={`office-mobile-menu-child-link${isMobileMenuItemActive(child.href) ? " is-active" : ""}`}
+                                      href={child.href}
+                                      key={child.href}
+                                      onClick={() => {
+                                        handleNavIntent(child.href);
+                                        setIsMobileMenuOpen(false);
+                                      }}
+                                    >
+                                      {renderNavItemLabel(child)}
+                                    </Link>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        }
 
                         return (
                           <Link
