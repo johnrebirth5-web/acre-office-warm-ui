@@ -1,14 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeResourcesSnapshot } from "@acre/db";
-import {
-  EmptyState,
-  ListPageStatsGrid,
-  SectionCard,
-  StatCard,
-  SummaryChip,
-  StatusBadge,
-} from "@acre/ui";
+import { EmptyState, SectionCard, SummaryChip, StatusBadge } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
@@ -185,6 +178,39 @@ const paginationButtonsStyle: CSSProperties = {
   justifyContent: "flex-end",
 };
 
+const compactStatsRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.75rem",
+};
+
+const compactStatPillStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.08rem",
+  minWidth: "132px",
+  padding: "0.8rem 0.95rem",
+  borderRadius: "16px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background: "rgba(248, 250, 253, 0.92)",
+};
+
+const compactStatValueStyle: CSSProperties = {
+  color: "#173153",
+  fontSize: "1rem",
+  fontWeight: 800,
+  letterSpacing: "-0.02em",
+  lineHeight: 1.1,
+};
+
+const compactStatLabelStyle: CSSProperties = {
+  color: "#6a7f96",
+  fontSize: "0.74rem",
+  fontWeight: 700,
+  lineHeight: 1.3,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
+
 const resourcesPerPage = 12;
 
 function getSearchParamValue(value: string | string[] | undefined) {
@@ -264,6 +290,37 @@ function paginateItems<T>(items: T[], requestedPage: number) {
     pageCount,
     visibleItems: items.slice(startIndex, startIndex + resourcesPerPage),
   };
+}
+
+function renderCompactStats(
+  items: Array<{
+    label: string;
+    value: string | number;
+    tone?: "accent" | "neutral";
+  }>,
+) {
+  return (
+    <div style={compactStatsRowStyle}>
+      {items.map((item) => (
+        <div
+          key={item.label}
+          style={
+            item.tone === "accent"
+              ? {
+                  ...compactStatPillStyle,
+                  background:
+                    "linear-gradient(180deg, rgba(236, 243, 252, 0.98) 0%, rgba(230, 238, 249, 0.96) 100%)",
+                  border: "1px solid rgba(57, 92, 145, 0.12)",
+                }
+              : compactStatPillStyle
+          }
+        >
+          <span style={compactStatLabelStyle}>{item.label}</span>
+          <span style={compactStatValueStyle}>{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function resourceMatchesSearch(resource: ResourceRecord, query: string) {
@@ -505,21 +562,21 @@ export default async function AgentResourcesPage(props: {
 
   let resultTitle = "Documents";
   let resultDescription = tabSubtitle.documents;
-  let resultStats: ReactNode = (
-    <ListPageStatsGrid>
-      <StatCard
-        hint="published office documents"
-        label="Documents"
-        tone="accent"
-        value={filteredDocuments.length}
-      />
-      <StatCard
-        hint="available in this directory"
-        label="All documents"
-        value={documentResources.length}
-      />
-    </ListPageStatsGrid>
-  );
+  let resultStats: ReactNode = renderCompactStats([
+    {
+      label: "Showing now",
+      value: paginatedDocuments.visibleItems.length,
+      tone: "accent",
+    },
+    {
+      label: "Matching",
+      value: filteredDocuments.length,
+    },
+    {
+      label: "Library total",
+      value: documentResources.length,
+    },
+  ]);
   let resultContent: ReactNode = filteredDocuments.length ? (
     <div style={cardGridStyle}>
       {paginatedDocuments.visibleItems.map((resource) => (
@@ -552,21 +609,21 @@ export default async function AgentResourcesPage(props: {
   if (activeTab === "vendors") {
     resultTitle = "Vendor pool";
     resultDescription = tabSubtitle.vendors;
-    resultStats = (
-      <ListPageStatsGrid>
-        <StatCard
-          hint="searchable partner contacts"
-          label="Vendors"
-          tone="accent"
-          value={filteredVendors.length}
-        />
-        <StatCard
-          hint="flagged as go-to contacts"
-          label="Featured"
-          value={vendors.filter((vendor) => vendor.isFeatured).length}
-        />
-      </ListPageStatsGrid>
-    );
+    resultStats = renderCompactStats([
+      {
+        label: "Showing now",
+        value: paginatedVendors.visibleItems.length,
+        tone: "accent",
+      },
+      {
+        label: "Matching",
+        value: filteredVendors.length,
+      },
+      {
+        label: "Featured",
+        value: vendors.filter((vendor) => vendor.isFeatured).length,
+      },
+    ]);
     resultContent = filteredVendors.length ? (
       <div style={cardGridStyle}>
         {paginatedVendors.visibleItems.map((vendor) => (
@@ -596,21 +653,21 @@ export default async function AgentResourcesPage(props: {
   } else if (activeTab === "training") {
     resultTitle = "Video academy";
     resultDescription = tabSubtitle.training;
-    resultStats = (
-      <ListPageStatsGrid>
-        <StatCard
-          hint="matching YouTube training videos"
-          label="Videos"
-          tone="accent"
-          value={filteredTraining.length}
-        />
-        <StatCard
-          hint="available in this tab"
-          label="All training"
-          value={trainingResources.length}
-        />
-      </ListPageStatsGrid>
-    );
+    resultStats = renderCompactStats([
+      {
+        label: "Showing now",
+        value: paginatedTraining.visibleItems.length,
+        tone: "accent",
+      },
+      {
+        label: "Matching",
+        value: filteredTraining.length,
+      },
+      {
+        label: "All training",
+        value: trainingResources.length,
+      },
+    ]);
     resultContent = filteredTraining.length ? (
       <FrontOfficeTrainingGallery resources={paginatedTraining.visibleItems} />
     ) : (
