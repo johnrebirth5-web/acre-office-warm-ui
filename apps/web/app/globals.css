@@ -9591,6 +9591,22 @@ a {
   gap: 10px;
 }
 
+.office-settings-user-access-draft {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--office-warning) 40%, var(--office-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--office-warning-soft) 65%, #ffffff);
+}
+
+.office-settings-user-access-draft p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .office-settings-user-company-access-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -9657,11 +9673,16 @@ a {
 .office-settings-user-company-access-toggle input {
   margin: 0;
   accent-color: var(--office-accent-strong);
+  cursor: pointer;
 }
 
 .office-settings-user-company-access-toggle:has(input:disabled) {
   background: var(--office-surface-subtle);
   color: var(--office-text-muted);
+}
+
+.office-settings-user-company-access-toggle span {
+  cursor: default;
 }
 
 .office-settings-user-security-grid,

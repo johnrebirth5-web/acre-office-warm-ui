@@ -97,6 +97,9 @@ export function OfficeSettingsUserDetailClient({
     ? actualOfficeOptions.map((option) => option.id)
     : draft.accessibleOfficeIds;
   const effectiveAccessibleOfficeIdsSet = new Set(effectiveAccessibleOfficeIds);
+  const savedAccessibleOfficeIdsSet = new Set(
+    snapshot.profile.accessibleOfficeIds,
+  );
   const companyPermissionsByOfficeId = new Map(
     snapshot.companyPermissions.map((entry) => [entry.officeId, entry]),
   );
@@ -215,14 +218,19 @@ export function OfficeSettingsUserDetailClient({
   }
 
   function setDefaultOffice(officeId: string) {
+    if (
+      !hasImplicitAllCompanyAccess &&
+      !effectiveAccessibleOfficeIdsSet.has(officeId)
+    ) {
+      return;
+    }
+
     setDraft((current) => ({
       ...current,
       defaultOfficeId: officeId,
       accessibleOfficeIds: hasImplicitAllCompanyAccess
         ? actualOfficeOptions.map((option) => option.id)
-        : current.accessibleOfficeIds.includes(officeId)
-          ? current.accessibleOfficeIds
-          : [...current.accessibleOfficeIds, officeId],
+        : current.accessibleOfficeIds,
     }));
   }
 
@@ -514,6 +522,13 @@ export function OfficeSettingsUserDetailClient({
 
       <div className="office-detail-two-column office-settings-user-detail-grid">
         <SectionCard
+          actions={
+            accountAccessChanged ? (
+              <StatusBadge tone="warning">Unsaved changes</StatusBadge>
+            ) : (
+              <StatusBadge tone="success">Saved</StatusBadge>
+            )
+          }
           className="office-settings-user-access-card"
           subtitle="Update role, membership lifecycle, company access, and invitation state from one place."
           title="Account access"
@@ -564,12 +579,29 @@ export function OfficeSettingsUserDetailClient({
             </div>
 
             <FormField label="Company access and default company">
+              {accountAccessChanged ? (
+                <div className="office-settings-user-access-draft">
+                  <StatusBadge tone="warning">Draft only</StatusBadge>
+                  <p>
+                    These changes are only a local draft right now. Nothing
+                    below takes effect until you click Save access.
+                  </p>
+                </div>
+              ) : null}
+
               <div className="office-settings-user-company-access-list">
                 {actualOfficeOptions.map((option) => {
                   const hasAccess = effectiveAccessibleOfficeIdsSet.has(
                     option.id,
                   );
                   const isDefault = draft.defaultOfficeId === option.id;
+                  const savedHasAccess = savedAccessibleOfficeIdsSet.has(
+                    option.id,
+                  );
+                  const savedIsDefault =
+                    snapshot.profile.defaultOfficeId === option.id;
+                  const accessDraftChanged = hasAccess !== savedHasAccess;
+                  const defaultDraftChanged = isDefault !== savedIsDefault;
                   const companyPermission = companyPermissionsByOfficeId.get(
                     option.id,
                   );
@@ -582,6 +614,7 @@ export function OfficeSettingsUserDetailClient({
                     hasImplicitAllCompanyAccess ||
                     !hasAccess ||
                     effectiveAccessibleOfficeIds.length > 1;
+                  const canChooseDefault = hasAccess;
                   const canOpenCompanyPermissions =
                     !accountAccessChanged && hasAccess;
 
@@ -596,10 +629,33 @@ export function OfficeSettingsUserDetailClient({
                         <div className="office-settings-user-company-access-heading">
                           <strong>{option.label}</strong>
                           {isDefault ? (
-                            <Badge tone="accent">Default</Badge>
+                            <Badge
+                              tone={defaultDraftChanged ? "warning" : "accent"}
+                            >
+                              {defaultDraftChanged
+                                ? "Will become default"
+                                : "Default"}
+                            </Badge>
                           ) : null}
-                          <StatusBadge tone={hasAccess ? "success" : "neutral"}>
-                            {hasAccess ? "Access granted" : "No access"}
+                          {!isDefault && savedIsDefault && defaultDraftChanged ? (
+                            <Badge tone="warning">Current default</Badge>
+                          ) : null}
+                          <StatusBadge
+                            tone={
+                              accessDraftChanged
+                                ? "warning"
+                                : hasAccess
+                                  ? "success"
+                                  : "neutral"
+                            }
+                          >
+                            {accessDraftChanged
+                              ? hasAccess
+                                ? "Will grant access"
+                                : "Will remove access"
+                              : hasAccess
+                                ? "Access granted"
+                                : "No access"}
                           </StatusBadge>
                           {overrideCount > 0 ? (
                             <Badge tone="neutral">
@@ -611,12 +667,18 @@ export function OfficeSettingsUserDetailClient({
                           <span>
                             {hasImplicitAllCompanyAccess
                               ? "This role automatically inherits every company."
-                              : hasAccess
+                              : accessDraftChanged && hasAccess
+                                ? "This company will be added after you save access."
+                                : accessDraftChanged && !hasAccess
+                                  ? "This company will be removed after you save access."
+                                  : hasAccess
                                 ? "This user can sign in and switch into this company."
                                 : "Enable access if this user should be able to switch into this company."}
                           </span>
                           <span>
-                            {isDefault
+                            {!canChooseDefault
+                              ? "Grant access before choosing this company as the default sign-in location."
+                              : isDefault
                               ? "This is the first company they land in after sign-in."
                               : `Selecting Default company also keeps this company in the access list.${overrideCount > 0 ? ` ${effectivePermissionCount} effective permissions already exist for this saved scope.` : ""}`}
                           </span>
@@ -624,7 +686,7 @@ export function OfficeSettingsUserDetailClient({
                       </div>
 
                       <div className="office-settings-user-company-access-actions">
-                        <label className="office-settings-user-company-access-toggle">
+                        <div className="office-settings-user-company-access-toggle">
                           <input
                             checked={hasAccess}
                             disabled={
@@ -647,20 +709,26 @@ export function OfficeSettingsUserDetailClient({
                                 ? "Has access"
                                 : "Grant access"}
                           </span>
-                        </label>
+                        </div>
 
-                        <label className="office-settings-user-company-access-toggle">
+                        <div className="office-settings-user-company-access-toggle">
                           <input
                             checked={isDefault}
-                            disabled={!canManageAccountAccess}
+                            disabled={
+                              !canManageAccountAccess || !canChooseDefault
+                            }
                             name="defaultOfficeId"
                             onChange={() => setDefaultOffice(option.id)}
                             type="radio"
                           />
                           <span>
-                            {isDefault ? "Default company" : "Make default"}
+                            {!canChooseDefault
+                              ? "Grant access before default"
+                              : isDefault
+                                ? "Default company"
+                                : "Make default"}
                           </span>
-                        </label>
+                        </div>
 
                         {canOpenCompanyPermissions ? (
                           <Link
