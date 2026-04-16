@@ -15,7 +15,6 @@ const galleryShellStyle: CSSProperties = {
 const galleryGridStyle: CSSProperties = {
   display: "grid",
   gap: "1.25rem",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
 };
 
 const cardButtonStyle: CSSProperties = {
@@ -175,6 +174,22 @@ type VideoPlayerState = {
   href: string;
 };
 
+function getTrainingGridColumnCount(width: number) {
+  if (width >= 1320) {
+    return 4;
+  }
+
+  if (width >= 980) {
+    return 3;
+  }
+
+  if (width >= 640) {
+    return 2;
+  }
+
+  return 1;
+}
+
 function getYouTubeVideoId(value: string) {
   try {
     const parsedUrl = new URL(value);
@@ -307,6 +322,20 @@ export function FrontOfficeTrainingGallery(props: {
   resources: FrontOfficeResourceRecord[];
 }) {
   const [activeVideo, setActiveVideo] = useState<VideoPlayerState | null>(null);
+  const [gridColumnCount, setGridColumnCount] = useState(4);
+
+  useEffect(() => {
+    function syncGridColumns() {
+      setGridColumnCount(getTrainingGridColumnCount(window.innerWidth));
+    }
+
+    syncGridColumns();
+    window.addEventListener("resize", syncGridColumns);
+
+    return () => {
+      window.removeEventListener("resize", syncGridColumns);
+    };
+  }, []);
 
   useEffect(() => {
     if (!activeVideo) {
@@ -340,7 +369,12 @@ export function FrontOfficeTrainingGallery(props: {
   return (
     <>
       <div style={galleryShellStyle}>
-        <div style={galleryGridStyle}>
+        <div
+          style={{
+            ...galleryGridStyle,
+            gridTemplateColumns: `repeat(${gridColumnCount}, minmax(0, 1fr))`,
+          }}
+        >
           {props.resources.map((resource) => (
             <TrainingCard
               key={resource.id}

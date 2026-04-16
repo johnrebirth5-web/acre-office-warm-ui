@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeResourcesSnapshot } from "@acre/db";
-import { EmptyState, SectionCard, SummaryChip, StatusBadge } from "@acre/ui";
+import { EmptyState, SectionCard, StatusBadge } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
@@ -263,21 +263,33 @@ function parsePageNumber(value: string) {
 }
 
 function buildPageNumbers(pageCount: number, activePage: number) {
-  if (pageCount <= 7) {
+  if (pageCount <= 8) {
     return Array.from({ length: pageCount }, (_, index) => index + 1);
   }
 
-  const pages = new Set<number>([1, pageCount, activePage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const nextPage = activePage + offset;
-
-    if (nextPage > 1 && nextPage < pageCount) {
-      pages.add(nextPage);
-    }
+  if (activePage <= 4) {
+    return [1, 2, 3, 4, 5, pageCount];
   }
 
-  return Array.from(pages).sort((left, right) => left - right);
+  if (activePage >= pageCount - 3) {
+    return [
+      1,
+      pageCount - 4,
+      pageCount - 3,
+      pageCount - 2,
+      pageCount - 1,
+      pageCount,
+    ];
+  }
+
+  return [
+    1,
+    activePage - 1,
+    activePage,
+    activePage + 1,
+    activePage + 2,
+    pageCount,
+  ];
 }
 
 function paginateItems<T>(items: T[], requestedPage: number) {
@@ -885,13 +897,6 @@ export default async function AgentResourcesPage(props: {
             </div>
           </SectionCard>
         </div>
-      }
-      summary={
-        <>
-          <SummaryChip label="Documents" value={tabStats.documents} />
-          <SummaryChip label="Training" value={tabStats.training} />
-          <SummaryChip label="Vendors" value={tabStats.vendors} />
-        </>
       }
       title="Resources & Training"
     />

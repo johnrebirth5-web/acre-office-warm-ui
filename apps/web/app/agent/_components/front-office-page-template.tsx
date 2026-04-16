@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import {
   CanonicalListPageHeader,
   CanonicalListPageShell,
-  CanonicalListPageSplitLayout
+  CanonicalListPageSplitLayout,
 } from "../../_components/canonical-list-page-template";
 
 function cx(...values: Array<string | null | undefined | false>) {
@@ -13,7 +13,7 @@ export function FrontOfficePageTemplate(props: {
   eyebrow: string;
   title: string;
   description?: string;
-  summary: ReactNode;
+  summary?: ReactNode;
   main: ReactNode;
   rail?: ReactNode;
   pageClassName?: string;
@@ -22,13 +22,22 @@ export function FrontOfficePageTemplate(props: {
   layoutClassName?: string;
 }) {
   return (
-    <CanonicalListPageShell className={cx("office-agent-page", "front-office-template-page", props.pageClassName)}>
+    <CanonicalListPageShell
+      className={cx(
+        "office-agent-page",
+        "front-office-template-page",
+        props.pageClassName,
+      )}
+    >
       <CanonicalListPageHeader
         className={cx("front-office-template-header", props.headerClassName)}
         description={props.description}
         eyebrow={props.eyebrow}
         summary={props.summary}
-        summaryClassName={cx("front-office-template-summary", props.summaryClassName)}
+        summaryClassName={cx(
+          "front-office-template-summary",
+          props.summaryClassName,
+        )}
         title={props.title}
       />
 
