@@ -17,6 +17,8 @@ type VendorBody = {
   visibilityScope?: "organization_wide" | "office_only";
 };
 
+const sharedVisibilityScope = "organization_wide" as const;
+
 export async function POST(request: NextRequest) {
   const access = await requireOfficeAdminRequestContext(request);
 
@@ -41,9 +43,7 @@ export async function POST(request: NextRequest) {
         : [],
       notes: body?.notes ?? null,
       isFeatured: Boolean(body?.isFeatured),
-      visibilityScope: body?.visibilityScope === "organization_wide"
-        ? "organization_wide"
-        : "office_only",
+      visibilityScope: sharedVisibilityScope,
     });
 
     return NextResponse.json({ vendorId }, { status: 201 });

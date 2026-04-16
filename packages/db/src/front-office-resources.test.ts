@@ -36,11 +36,22 @@ async function createFrontOfficeResourcesTestContext() {
     },
   });
 
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `FO Resources Office Secondary ${suffix}`,
+      slug: `fo-resources-office-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false,
+    },
+  });
+
   const trackedUserIds: string[] = [];
 
   async function createMembership(
     role: "office_admin" | "agent",
     prefix: string,
+    officeId = office.id,
   ) {
     const user = await prisma.user.create({
       data: {
@@ -57,7 +68,7 @@ async function createFrontOfficeResourcesTestContext() {
     const membership = await prisma.membership.create({
       data: {
         organizationId: organization.id,
-        officeId: office.id,
+        officeId,
         userId: user.id,
         role,
         status: "active",
@@ -74,6 +85,11 @@ async function createFrontOfficeResourcesTestContext() {
     "resource-admin",
   );
   const agentMembership = await createMembership("agent", "resource-agent");
+  const secondaryAgentMembership = await createMembership(
+    "agent",
+    "resource-agent-secondary",
+    secondaryOffice.id,
+  );
 
   const resource = await prisma.resource.create({
     data: {
@@ -108,8 +124,10 @@ async function createFrontOfficeResourcesTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     adminMembership,
     agentMembership,
+    secondaryAgentMembership,
     resource,
     vendor,
     async recordInteraction(input: {
@@ -156,6 +174,28 @@ async function createFrontOfficeResourcesTestContext() {
     },
   };
 }
+
+test("front office resource snapshots stay shared across companies", async () => {
+  const context = await createFrontOfficeResourcesTestContext();
+
+  try {
+    const snapshot = await getFrontOfficeResourcesSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.secondaryAgentMembership.id,
+      officeId: context.secondaryOffice.id,
+      timeZone: "America/New_York",
+    });
+
+    assert.ok(
+      snapshot.resources.some((resource) => resource.id === context.resource.id),
+    );
+    assert.ok(
+      snapshot.vendors.some((vendor) => vendor.id === context.vendor.id),
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
 
 test("office admins see a shared resource adoption pulse for visible FO usage", async () => {
   const context = await createFrontOfficeResourcesTestContext();

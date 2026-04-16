@@ -987,9 +987,6 @@ export async function recordFrontOfficeResourceProgress(
       organizationId: input.organizationId,
       isPublished: true,
       type: ResourceType.training_video,
-      ...(buildOfficeScopeFilter(input.officeId ?? null)
-        ? { AND: [buildOfficeScopeFilter(input.officeId ?? null)!] }
-        : {}),
     },
     select: {
       id: true,
@@ -1034,13 +1031,11 @@ export async function recordFrontOfficeResourceProgress(
 export async function recordFrontOfficeResourceOpen(
   input: FrontOfficeResourceInteractionInput,
 ) {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const resource = await prisma.resource.findFirst({
     where: {
       id: input.resourceId,
       organizationId: input.organizationId,
       isPublished: true,
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
     },
     select: {
       id: true,
@@ -1079,12 +1074,10 @@ export async function recordFrontOfficeResourceOpen(
 export async function recordFrontOfficeVendorClick(
   input: FrontOfficeVendorInteractionInput,
 ) {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const vendor = await prisma.vendor.findFirst({
     where: {
       id: input.vendorId,
       organizationId: input.organizationId,
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
     },
     select: {
       id: true,

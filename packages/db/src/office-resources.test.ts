@@ -37,6 +37,16 @@ async function createOfficeResourcesTestContext() {
     },
   });
 
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Office Resources Secondary ${suffix}`,
+      slug: `office-resources-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false,
+    },
+  });
+
   const user = await prisma.user.create({
     data: {
       email: `office-admin-${suffix}@example.com`,
@@ -62,6 +72,7 @@ async function createOfficeResourcesTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     membership,
     user,
     async cleanup() {
@@ -215,6 +226,112 @@ test("office resource admin snapshot supports resource and vendor CRUD", async (
 
     assert.equal(snapshot.summary.resourceCount, 0);
     assert.equal(snapshot.summary.vendorCount, 0);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("office resources stay shared across companies in the same organization", async () => {
+  const context = await createOfficeResourcesTestContext();
+
+  try {
+    const createdResourceId = await createOfficeResource({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      title: "Shared buyer packet",
+      summary: "Newly created packet that should appear for every company.",
+      uploadedFile: {
+        originalFileName: "shared-buyer-packet.pdf",
+        mimeType: "application/pdf",
+        fileSizeBytes: 2048,
+        storageKey: `resources/${randomUUID()}.pdf`,
+      },
+      tags: ["buyers", "shared"],
+      type: ResourceType.document,
+      visibilityScope: "office_only",
+    });
+
+    const createdVendorId = await createOfficeVendor({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      category: "staging",
+      name: "Shared Vendor Desk",
+      headline: "Available to every company in the organization.",
+      phone: "2125550101",
+      email: "shared-vendor@example.com",
+      website: "https://example.com/shared-vendor",
+      neighborhoods: ["Brooklyn", "Queens"],
+      notes: "Shared resource pool.",
+      isFeatured: true,
+      visibilityScope: "office_only",
+    });
+
+    const legacyResource = await prisma.resource.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        type: ResourceType.document,
+        title: "Legacy office packet",
+        slug: `legacy-office-packet-${randomUUID().slice(0, 6)}`,
+        summary: "Older office-scoped document that should still remain visible.",
+        url: "https://example.com/legacy-office-packet.pdf",
+        tags: ["legacy"],
+        isPublished: true,
+      },
+    });
+
+    const legacyVendor = await prisma.vendor.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        category: "attorney",
+        name: "Legacy Shared Counsel",
+        headline: "Older vendor record that should still be shared.",
+        phone: "2125550102",
+        email: "legacy-vendor@example.com",
+        website: "https://example.com/legacy-vendor",
+        neighborhoods: ["Manhattan"],
+        notes: "Legacy office-scoped vendor.",
+        isFeatured: false,
+      },
+    });
+
+    const secondarySnapshot = await getOfficeResourcesAdminSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.secondaryOffice.id,
+      timeZone: "America/New_York",
+    });
+
+    assert.ok(
+      secondarySnapshot.resources.some(
+        (resource) => resource.id === createdResourceId,
+      ),
+    );
+    assert.ok(
+      secondarySnapshot.resources.some(
+        (resource) => resource.id === legacyResource.id,
+      ),
+    );
+    assert.ok(
+      secondarySnapshot.vendors.some((vendor) => vendor.id === createdVendorId),
+    );
+    assert.ok(
+      secondarySnapshot.vendors.some((vendor) => vendor.id === legacyVendor.id),
+    );
+    assert.ok(
+      secondarySnapshot.resources.every(
+        (resource) =>
+          resource.scopeKey === "organization_wide" &&
+          resource.scopeLabel === "Shared across all companies",
+      ),
+    );
+    assert.ok(
+      secondarySnapshot.vendors.every(
+        (vendor) =>
+          vendor.scopeKey === "organization_wide" &&
+          vendor.scopeLabel === "Shared across all companies",
+      ),
+    );
   } finally {
     await context.cleanup();
   }

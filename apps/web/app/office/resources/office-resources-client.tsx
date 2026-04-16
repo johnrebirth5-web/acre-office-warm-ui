@@ -11,7 +11,6 @@ import {
   EmptyState,
   FormField,
   SectionCard,
-  SelectInput,
   StatusBadge,
   TextInput,
   TextareaInput,
@@ -490,10 +489,6 @@ export function OfficeResourcesClient({
           url: String(formData.get("url") ?? ""),
           tags: parseCsv(formData.get("tags")),
           type: trainingType,
-          visibilityScope:
-            formData.get("visibilityScope") === "organization_wide"
-              ? "organization_wide"
-              : "office_only",
         }),
       });
 
@@ -542,10 +537,6 @@ export function OfficeResourcesClient({
           url: String(formData.get("url") ?? ""),
           tags: parseCsv(formData.get("tags")),
           type: trainingType,
-          visibilityScope:
-            formData.get("visibilityScope") === "organization_wide"
-              ? "organization_wide"
-              : "office_only",
         }),
       });
 
@@ -595,10 +586,6 @@ export function OfficeResourcesClient({
           website: String(formData.get("website") ?? "").trim() || null,
           neighborhoods: parseCsv(formData.get("neighborhoods")),
           isFeatured: formData.get("isFeatured") === "on",
-          visibilityScope:
-            formData.get("visibilityScope") === "organization_wide"
-              ? "organization_wide"
-              : "office_only",
         }),
       });
 
@@ -648,10 +635,6 @@ export function OfficeResourcesClient({
             website: String(formData.get("website") ?? "").trim() || null,
             neighborhoods: parseCsv(formData.get("neighborhoods")),
             isFeatured: formData.get("isFeatured") === "on",
-            visibilityScope:
-              formData.get("visibilityScope") === "organization_wide"
-                ? "organization_wide"
-                : "office_only",
           }),
         },
       );
@@ -782,15 +765,6 @@ export function OfficeResourcesClient({
                       name="tags"
                       placeholder="buyers, checklist, consultation"
                     />
-                  </FormField>
-                  <FormField label="Visibility">
-                    <SelectInput
-                      defaultValue={resource.scopeKey}
-                      name="visibilityScope"
-                    >
-                      <option value="office_only">Office only</option>
-                      <option value="organization_wide">Organization-wide</option>
-                    </SelectInput>
                   </FormField>
                   <div className="office-form-grid-span-2">
                     <p className="office-form-helper" style={{ margin: 0 }}>
@@ -952,15 +926,6 @@ export function OfficeResourcesClient({
                       placeholder="buyers, scripts, objections"
                     />
                   </FormField>
-                  <FormField label="Visibility">
-                    <SelectInput
-                      defaultValue={resource.scopeKey}
-                      name="visibilityScope"
-                    >
-                      <option value="office_only">Office only</option>
-                      <option value="organization_wide">Organization-wide</option>
-                    </SelectInput>
-                  </FormField>
                   <div style={actionRowStyle}>
                     <Button disabled={isBusy} type="submit">
                       Save
@@ -1114,15 +1079,6 @@ export function OfficeResourcesClient({
                       placeholder="Brooklyn, Queens, Jersey City"
                     />
                   </FormField>
-                  <FormField label="Visibility">
-                    <SelectInput
-                      defaultValue={vendor.scopeKey}
-                      name="visibilityScope"
-                    >
-                      <option value="office_only">Office only</option>
-                      <option value="organization_wide">Organization-wide</option>
-                    </SelectInput>
-                  </FormField>
                   <CheckboxField label="Featured">
                     <input
                       defaultChecked={vendor.isFeatured}
@@ -1239,7 +1195,7 @@ export function OfficeResourcesClient({
 
       <SectionCard
         className="office-list-card"
-        subtitle="This workspace only manages the three Front Office resources tabs: Documents, Vendors, and Training."
+        subtitle="This workspace manages the shared Front Office Documents, Vendors, and Training tabs for every company."
         title="Resource tabs"
       >
         <div style={tabsStyle}>
@@ -1260,7 +1216,7 @@ export function OfficeResourcesClient({
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Upload the PDF documents that agents should find in the Front Office Documents tab."
+            subtitle="Upload the PDF documents that agents across every company should find in the Front Office Documents tab."
             title="Add document"
           >
             <form
@@ -1298,12 +1254,6 @@ export function OfficeResourcesClient({
                   placeholder="buyers, consultation, checklist"
                 />
               </FormField>
-              <FormField label="Visibility">
-                <SelectInput defaultValue="office_only" name="visibilityScope">
-                  <option value="office_only">Office only</option>
-                  <option value="organization_wide">Organization-wide</option>
-                </SelectInput>
-              </FormField>
               <div className="office-filter-actions">
                 <Button disabled={pendingAction === "create-document"} type="submit">
                   Upload document
@@ -1314,7 +1264,7 @@ export function OfficeResourcesClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="Only Front Office-facing PDF materials belong here."
+            subtitle="Only Front Office-facing PDF materials belong here, and every company sees the same published set."
             title="Documents"
           >
             {renderDocumentList()}
@@ -1326,7 +1276,7 @@ export function OfficeResourcesClient({
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Add only YouTube links here so the Front Office Training tab stays video-only."
+            subtitle="Add only YouTube links here so the shared Front Office Training tab stays video-only."
             title="Add training video"
           >
             <form
@@ -1360,12 +1310,6 @@ export function OfficeResourcesClient({
               <FormField className="office-form-grid-span-2" label="Tags">
                 <TextInput name="tags" placeholder="buyers, scripts, objections" />
               </FormField>
-              <FormField label="Visibility">
-                <SelectInput defaultValue="office_only" name="visibilityScope">
-                  <option value="office_only">Office only</option>
-                  <option value="organization_wide">Organization-wide</option>
-                </SelectInput>
-              </FormField>
               <div className="office-filter-actions">
                 <Button disabled={pendingAction === "create-training"} type="submit">
                   Add training video
@@ -1376,7 +1320,7 @@ export function OfficeResourcesClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="These entries map directly to the Front Office Training tab."
+            subtitle="These entries map directly to the shared Front Office Training tab for every company."
             title="Training"
           >
             {renderTrainingList()}
@@ -1388,7 +1332,7 @@ export function OfficeResourcesClient({
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Keep vendor records short and directly useful for the Front Office Vendors tab."
+            subtitle="Keep vendor records short and directly useful for the shared Front Office Vendors tab."
             title="Add vendor"
           >
             <form
@@ -1424,12 +1368,6 @@ export function OfficeResourcesClient({
                   placeholder="Brooklyn, Queens, Jersey City"
                 />
               </FormField>
-              <FormField label="Visibility">
-                <SelectInput defaultValue="office_only" name="visibilityScope">
-                  <option value="office_only">Office only</option>
-                  <option value="organization_wide">Organization-wide</option>
-                </SelectInput>
-              </FormField>
               <CheckboxField label="Featured">
                 <input name="isFeatured" type="checkbox" />
               </CheckboxField>
@@ -1443,7 +1381,7 @@ export function OfficeResourcesClient({
 
           <SectionCard
             className="office-list-card"
-            subtitle="These cards appear directly in the Front Office vendor pool."
+            subtitle="These cards appear directly in the same Front Office vendor pool for every company."
             title="Vendors"
           >
             {renderVendorList()}

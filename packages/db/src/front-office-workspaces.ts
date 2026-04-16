@@ -3866,15 +3866,12 @@ export async function getFrontOfficeListingsSnapshot(
 export async function getFrontOfficeResourcesSnapshot(
   input: FrontOfficeWorkspaceInput,
 ): Promise<FrontOfficeResourcesSnapshot> {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
     isPublished: true,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
   const vendorWhere: Prisma.VendorWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const [

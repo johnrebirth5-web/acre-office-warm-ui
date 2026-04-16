@@ -102,6 +102,7 @@ It should be:
 - PDF upload and simple CRUD for documents
 - training videos managed in the `Training` tab, using direct YouTube links
 - simple CRUD for vendors
+- all content published here is shared across every company / office in the organization; there is no per-company resources split
 - no approval flow
 - no draft-first workflow in the admin UI; new records should publish directly into the agent-facing directory
 - no complex curation logic
@@ -143,6 +144,7 @@ When implementing this module, default to these rules:
 - training is its own tab inside Resources, not just another row inside the document list
 - each tab should stay lightweight with paginated results instead of one very long directory column
 - only office admins manage content
+- all published resources, vendors, and training entries are shared across all companies in the same organization
 - agent-facing experience should stay simple
 - do not introduce task guidance, next-action logic, or scenario routing
 

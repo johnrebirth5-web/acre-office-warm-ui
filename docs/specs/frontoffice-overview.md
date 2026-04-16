@@ -398,7 +398,7 @@ Rules:
 
 - `Agent`: manage own clients, reminders, sends, public resources, activity signup, and authorized BO jump points
 - `Team Leader`: see own + team overdue follow-up, team client overview, team listing/template usage, and team-related BO summaries
-- `Office / Admin`: global reminders, listing/template publish control, resource/activity maintenance, cross-system rule setup
+- `Office / Admin`: global reminders, listing/template publish control, shared cross-company resource/activity maintenance, cross-system rule setup
 - `Finance / Back Office`: mostly read-only FO context, while owning downstream accounting and payout workflows
 - `Super Admin`: full configuration and access
 

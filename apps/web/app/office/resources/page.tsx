@@ -57,7 +57,7 @@ export default async function OfficeResourcesPage(props: {
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        description="Publish exactly the three Front Office resources tabs from one admin workspace: Documents, Vendors, and Training."
+        description="Publish one shared Front Office resource set across every company from one admin workspace: Documents, Vendors, and Training."
         eyebrow="Office admin"
         summary={
           <>

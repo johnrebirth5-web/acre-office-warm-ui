@@ -23,6 +23,8 @@ type VendorBody = {
   visibilityScope?: "organization_wide" | "office_only";
 };
 
+const sharedVisibilityScope = "organization_wide" as const;
+
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const access = await requireOfficeAdminRequestContext(request);
 
@@ -49,9 +51,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         : [],
       notes: body?.notes ?? null,
       isFeatured: Boolean(body?.isFeatured),
-      visibilityScope: body?.visibilityScope === "organization_wide"
-        ? "organization_wide"
-        : "office_only",
+      visibilityScope: sharedVisibilityScope,
     });
 
     if (!updatedVendorId) {

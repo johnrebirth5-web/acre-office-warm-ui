@@ -1303,12 +1303,10 @@ export async function getFrontOfficeDashboardSnapshot(
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
     isPublished: true,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const vendorWhere: Prisma.VendorWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const notificationWhere: Prisma.NotificationWhereInput = {

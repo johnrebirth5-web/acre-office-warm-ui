@@ -30,6 +30,8 @@ type UpdateOfficeResourceResult = {
   previousStorageKey: string | null;
 };
 
+const sharedResourceScopeLabel = "Shared across all companies";
+
 export type OfficeResourcesAdminSnapshot = {
   summary: {
     resourceCount: number;
@@ -157,16 +159,6 @@ export type DeleteOfficeVendorInput = {
   vendorId: string;
 };
 
-function buildOfficeScopeFilter(officeId: string | null | undefined) {
-  if (!officeId) {
-    return undefined;
-  }
-
-  return {
-    OR: [{ officeId }, { officeId: null }],
-  };
-}
-
 function formatResourceTypeLabel(type: ResourceType) {
   switch (normalizeManagedResourceType(type)) {
     case ResourceType.document:
@@ -292,20 +284,21 @@ function buildSearchText(input: {
 }
 
 function resolveScopeValue(
-  officeId: string | null,
+  _officeId: string | null,
   visibilityScope: "organization_wide" | "office_only",
 ) {
-  return visibilityScope === "organization_wide" ? null : officeId;
+  void visibilityScope;
+  return null;
 }
 
 function getScopeKey(
-  resourceOfficeId: string | null,
+  _resourceOfficeId: string | null,
 ): "organization_wide" | "office_only" {
-  return resourceOfficeId ? "office_only" : "organization_wide";
+  return "organization_wide";
 }
 
-function getScopeLabel(resourceOfficeId: string | null) {
-  return resourceOfficeId ? "Office only" : "Organization-wide";
+function getScopeLabel(_resourceOfficeId: string | null) {
+  return sharedResourceScopeLabel;
 }
 
 function assertResourceType(type: ResourceType) {
@@ -412,13 +405,12 @@ async function getScopedResourceRecord(input: {
   officeId: string | null;
   resourceId: string;
 }) {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId);
+  void input.officeId;
 
   return prisma.resource.findFirst({
     where: {
       id: input.resourceId,
       organizationId: input.organizationId,
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
     },
   });
 }
@@ -428,13 +420,12 @@ async function getScopedVendorRecord(input: {
   officeId: string | null;
   vendorId: string;
 }) {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId);
+  void input.officeId;
 
   return prisma.vendor.findFirst({
     where: {
       id: input.vendorId,
       organizationId: input.organizationId,
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
     },
   });
 }
@@ -444,14 +435,13 @@ export async function getOfficeResourceStorageRecord(input: {
   officeId: string | null;
   resourceId: string;
 }) {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId);
+  void input.officeId;
 
   return prisma.resource.findFirst({
     where: {
       id: input.resourceId,
       organizationId: input.organizationId,
       isPublished: true,
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
     },
     select: {
       id: true,
@@ -471,14 +461,12 @@ export async function getOfficeResourcesAdminSnapshot(input: {
   officeId: string | null;
   timeZone?: string | null;
 }): Promise<OfficeResourcesAdminSnapshot> {
-  const officeScopeFilter = buildOfficeScopeFilter(input.officeId);
+  void input.officeId;
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
   const vendorWhere: Prisma.VendorWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const [resources, vendors] = await Promise.all([

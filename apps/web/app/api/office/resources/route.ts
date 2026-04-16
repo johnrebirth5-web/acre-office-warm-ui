@@ -19,15 +19,11 @@ type ResourceBody = {
   visibilityScope?: "organization_wide" | "office_only";
 };
 
+const sharedVisibilityScope = "organization_wide" as const;
+
 type OfficeAdminContext = NonNullable<
   Awaited<ReturnType<typeof requireOfficeAdminRequestContext>>["context"]
 >;
-
-function parseVisibilityScope(
-  value: FormDataEntryValue | string | null | undefined,
-) {
-  return value === "organization_wide" ? "organization_wide" : "office_only";
-}
 
 function parseTags(value: FormDataEntryValue | string | null | undefined) {
   if (typeof value !== "string") {
@@ -89,10 +85,7 @@ async function createDocumentResource(
   const fileBytes = new Uint8Array(await fileEntry.arrayBuffer());
   const storedFile = await saveStoredResourceFile({
     organizationId: context.currentOrganization.id,
-    officeId:
-      parseVisibilityScope(formData.get("visibilityScope")) === "office_only"
-        ? context.currentOffice?.id ?? null
-        : null,
+    officeId: null,
     fileName: fileEntry.name,
     bytes: fileBytes,
   });
@@ -105,7 +98,7 @@ async function createDocumentResource(
       summary: String(formData.get("summary") ?? ""),
       tags: parseTags(formData.get("tags")),
       type: ResourceType.document,
-      visibilityScope: parseVisibilityScope(formData.get("visibilityScope")),
+      visibilityScope: sharedVisibilityScope,
       uploadedFile: {
         originalFileName: fileEntry.name,
         mimeType: inferDocumentMimeType(fileEntry),
@@ -162,7 +155,7 @@ export async function POST(request: NextRequest) {
       url: body?.url ?? "",
       tags: Array.isArray(body?.tags) ? body.tags : [],
       type,
-      visibilityScope: parseVisibilityScope(body?.visibilityScope),
+      visibilityScope: sharedVisibilityScope,
     });
 
     return NextResponse.json({ resourceId }, { status: 201 });
