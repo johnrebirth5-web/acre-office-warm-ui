@@ -33,16 +33,19 @@ const stackStyle: CSSProperties = {
 const cardGridStyle: CSSProperties = {
   display: "grid",
   gap: "1rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
 };
 
 const resourceCardStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: "0.8rem",
-  padding: "1rem",
+  gap: "0.9rem",
+  minHeight: "100%",
+  padding: "1.05rem",
   borderRadius: "18px",
   border: "1px solid rgba(18, 53, 104, 0.08)",
   background: "#ffffff",
+  boxShadow: "0 12px 24px rgba(18, 53, 104, 0.05)",
 };
 
 const resourceHeaderStyle: CSSProperties = {
@@ -72,6 +75,10 @@ const helperTextStyle: CSSProperties = {
   margin: 0,
   color: "#556a83",
   lineHeight: 1.5,
+  display: "-webkit-box",
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
 };
 
 const metaRowStyle: CSSProperties = {
@@ -149,10 +156,10 @@ const activeSegmentedTabStyle: CSSProperties = {
     "0 14px 28px rgba(18, 53, 104, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.96)",
 };
 
-const vendorGridStyle: CSSProperties = {
-  display: "grid",
-  gap: "1rem",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+const vendorActionRowStyle: CSSProperties = {
+  ...actionRowStyle,
+  marginTop: "auto",
+  paddingTop: "0.25rem",
 };
 
 const paginationRowStyle: CSSProperties = {
@@ -300,7 +307,7 @@ function renderVendorActions(vendor: VendorRecord) {
     <>
       {vendor.phoneHref ? (
         <FrontOfficeTrackedLink
-          className="office-inline-link front-office-inline-link"
+          className="office-button-secondary office-button-sm"
           href={vendor.phoneHref}
           tracking={{
             type: "vendor_click",
@@ -313,7 +320,7 @@ function renderVendorActions(vendor: VendorRecord) {
       ) : null}
       {vendor.emailHref ? (
         <FrontOfficeTrackedLink
-          className="office-inline-link front-office-inline-link"
+          className="office-button-secondary office-button-sm"
           href={vendor.emailHref}
           tracking={{
             type: "vendor_click",
@@ -326,7 +333,7 @@ function renderVendorActions(vendor: VendorRecord) {
       ) : null}
       {vendor.websiteHref ? (
         <FrontOfficeTrackedLink
-          className="office-inline-link front-office-inline-link"
+          className="office-button-secondary office-button-sm"
           href={vendor.websiteHref}
           tracking={{
             type: "vendor_click",
@@ -397,18 +404,22 @@ function VendorCard(props: { vendor: VendorRecord }) {
   return (
     <article style={resourceCardStyle}>
       <div style={resourceHeaderStyle}>
-        <div style={{ display: "grid", gap: "0.4rem" }}>
+        <div style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
+          <div style={resourceTitleRowStyle}>
+            <strong style={resourceTitleWrapStyle}>{vendor.name}</strong>
+            <div style={resourceBadgeWrapStyle}>
+              <StatusBadge tone={vendor.categoryTone}>
+                {vendor.categoryLabel}
+              </StatusBadge>
+            </div>
+          </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <strong>{vendor.name}</strong>
             {vendor.isFeatured ? (
               <StatusBadge tone="accent">Featured go-to</StatusBadge>
             ) : null}
           </div>
           <p style={helperTextStyle}>{vendor.headline}</p>
         </div>
-        <StatusBadge tone={vendor.categoryTone}>
-          {vendor.categoryLabel}
-        </StatusBadge>
       </div>
 
       <div style={metaRowStyle}>
@@ -416,7 +427,7 @@ function VendorCard(props: { vendor: VendorRecord }) {
         <span>{vendor.contactLabel}</span>
       </div>
 
-      <div style={actionRowStyle}>{renderVendorActions(vendor)}</div>
+      <div style={vendorActionRowStyle}>{renderVendorActions(vendor)}</div>
     </article>
   );
 }
@@ -557,7 +568,7 @@ export default async function AgentResourcesPage(props: {
       </ListPageStatsGrid>
     );
     resultContent = filteredVendors.length ? (
-      <div style={vendorGridStyle}>
+      <div style={cardGridStyle}>
         {paginatedVendors.visibleItems.map((vendor) => (
           <VendorCard key={vendor.id} vendor={vendor} />
         ))}
