@@ -1,110 +1,114 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import type { FrontOfficeResourceRecord } from "@acre/db";
-import { StatusBadge } from "@acre/ui";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
 
 const interactionEndpoint = "/api/resources/interactions";
 
-const resourceCardStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "0.8rem",
-  padding: "1rem",
-  borderRadius: "18px",
-  border: "1px solid rgba(18, 53, 104, 0.08)",
-  background: "#ffffff",
+const galleryShellStyle: CSSProperties = {
+  display: "grid",
+  gap: "1.35rem",
 };
 
-const resourceHeaderStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "space-between",
-  gap: "0.8rem",
+const galleryGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "1.25rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
 };
 
-const resourceTitleRowStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "space-between",
-  gap: "0.8rem",
+const cardButtonStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.75rem",
+  padding: 0,
+  border: "none",
+  background: "transparent",
+  textAlign: "left",
+  cursor: "pointer",
 };
 
-const resourceTitleWrapStyle = {
-  flex: "1 1 auto",
-  minWidth: 0,
+const coverFrameStyle: CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
+  borderRadius: 0,
+  border: "1px solid rgba(18, 53, 104, 0.1)",
+  background:
+    "linear-gradient(180deg, rgba(238, 243, 250, 0.96) 0%, rgba(226, 234, 244, 0.98) 100%)",
+  boxShadow: "0 18px 30px rgba(18, 53, 104, 0.08)",
+  aspectRatio: "16 / 9",
 };
 
-const resourceBadgeWrapStyle = {
-  flexShrink: 0,
+const coverImageStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  display: "block",
 };
 
-const metaRowStyle = {
-  display: "flex",
-  flexWrap: "wrap" as const,
-  gap: "8px 12px",
+const fallbackCoverStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "grid",
+  placeItems: "center",
+  padding: "1.5rem",
+  color: "#173153",
+  fontSize: "1.05rem",
+  fontWeight: 800,
+  letterSpacing: "-0.03em",
+  textAlign: "center",
+};
+
+const cardMetaStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.35rem",
+  padding: "0 0.15rem",
+};
+
+const cardTitleStyle: CSSProperties = {
+  color: "#173153",
+  fontSize: "1rem",
+  fontWeight: 800,
+  lineHeight: 1.35,
+  letterSpacing: "-0.02em",
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+};
+
+const cardDetailStyle: CSSProperties = {
   color: "#667c93",
   fontSize: "0.83rem",
-  lineHeight: 1.4,
+  lineHeight: 1.45,
 };
 
-const tagRowStyle = {
-  display: "flex",
-  flexWrap: "wrap" as const,
-  gap: "8px",
-};
-
-const tagStyle = {
-  padding: "0.18rem 0.56rem",
-  borderRadius: "999px",
-  background: "rgba(18, 53, 104, 0.07)",
-  color: "#58708a",
-  fontSize: "0.78rem",
-  fontWeight: 600,
-  lineHeight: 1.3,
-};
-
-const actionRowStyle = {
-  display: "flex",
-  flexWrap: "wrap" as const,
-  gap: "8px 12px",
-  marginTop: "auto",
-  justifyContent: "flex-end",
-  paddingTop: "0.25rem",
-};
-
-const gridStyle = {
-  display: "grid",
-  gap: "1rem",
-};
-
-const overlayStyle = {
-  position: "fixed" as const,
+const overlayStyle: CSSProperties = {
+  position: "fixed",
   inset: 0,
   zIndex: 80,
-  background: "rgba(8, 17, 32, 0.62)",
-  backdropFilter: "blur(12px)",
+  background: "rgba(8, 17, 32, 0.68)",
+  backdropFilter: "blur(14px)",
   display: "flex",
   alignItems: "stretch",
   justifyContent: "center",
-  padding: "1rem",
+  padding: "0.85rem",
 };
 
-const shellStyle = {
+const shellStyle: CSSProperties = {
   display: "grid",
   gridTemplateRows: "auto 1fr",
-  width: "min(1520px, 100%)",
+  width: "min(1600px, 100%)",
   minHeight: "100%",
   borderRadius: "28px",
   overflow: "hidden",
   border: "1px solid rgba(255, 255, 255, 0.16)",
   background:
     "linear-gradient(180deg, rgba(244, 248, 252, 0.98) 0%, rgba(233, 239, 247, 0.98) 100%)",
-  boxShadow: "0 32px 80px rgba(8, 17, 32, 0.32)",
+  boxShadow: "0 32px 80px rgba(8, 17, 32, 0.34)",
 };
 
-const chromeStyle = {
+const chromeStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -115,14 +119,14 @@ const chromeStyle = {
     "linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(246, 249, 253, 0.92) 100%)",
 };
 
-const chromeDotsStyle = {
+const chromeDotsStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "0.45rem",
   flexShrink: 0,
 };
 
-const dotStyle = (color: string) => ({
+const dotStyle = (color: string): CSSProperties => ({
   width: "0.72rem",
   height: "0.72rem",
   borderRadius: "999px",
@@ -130,7 +134,7 @@ const dotStyle = (color: string) => ({
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
 });
 
-const addressBarStyle = {
+const addressBarStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "0.75rem",
@@ -142,21 +146,21 @@ const addressBarStyle = {
   border: "1px solid rgba(18, 53, 104, 0.08)",
 };
 
-const iframeWrapStyle = {
-  position: "relative" as const,
+const iframeWrapStyle: CSSProperties = {
+  position: "relative",
   minHeight: 0,
   background: "#050b16",
 };
 
-const iframeStyle = {
+const iframeStyle: CSSProperties = {
   width: "100%",
   height: "100%",
   border: 0,
   display: "block",
 };
 
-const placeholderStyle = {
-  position: "absolute" as const,
+const placeholderStyle: CSSProperties = {
+  position: "absolute",
   inset: 0,
   display: "grid",
   placeItems: "center",
@@ -170,24 +174,6 @@ type VideoPlayerState = {
   title: string;
   href: string;
 };
-
-function isYouTubeUrl(value: string) {
-  try {
-    const parsedUrl = new URL(value);
-    return (
-      parsedUrl.protocol === "https:" &&
-      [
-        "youtube.com",
-        "www.youtube.com",
-        "m.youtube.com",
-        "music.youtube.com",
-        "youtu.be",
-      ].includes(parsedUrl.hostname.toLowerCase())
-    );
-  } catch {
-    return false;
-  }
-}
 
 function getYouTubeVideoId(value: string) {
   try {
@@ -232,6 +218,16 @@ function buildEmbedHref(value: string) {
   return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
 }
 
+function buildThumbnailHref(value: string) {
+  const videoId = getYouTubeVideoId(value);
+
+  if (!videoId) {
+    return null;
+  }
+
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
 function recordResourceOpen(resourceId: string) {
   const body = JSON.stringify({
     type: "resource_open",
@@ -266,68 +262,44 @@ function recordResourceOpen(resourceId: string) {
   });
 }
 
-function TrainingRecordCard(props: {
+function TrainingCard(props: {
   resource: FrontOfficeResourceRecord;
   onPlay: (video: VideoPlayerState) => void;
 }) {
   const { resource, onPlay } = props;
+  const thumbnailHref = buildThumbnailHref(resource.href);
 
   return (
-    <article style={resourceCardStyle}>
-      <div style={resourceHeaderStyle}>
-        <div style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
-          <div style={resourceTitleRowStyle}>
-            <strong style={resourceTitleWrapStyle}>{resource.title}</strong>
-            <div
-              style={{
-                ...resourceBadgeWrapStyle,
-                display: "flex",
-                gap: "8px",
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-              }}
-            >
-              <StatusBadge tone="warning">{resource.typeLabel}</StatusBadge>
-              {isYouTubeUrl(resource.href) ? (
-                <StatusBadge tone="accent">YouTube</StatusBadge>
-              ) : null}
-            </div>
-          </div>
-        </div>
+    <button
+      onClick={() =>
+        onPlay({
+          id: resource.id,
+          title: resource.title,
+          href: resource.href,
+        })
+      }
+      style={cardButtonStyle}
+      type="button"
+    >
+      <div style={coverFrameStyle}>
+        {thumbnailHref ? (
+          <img
+            alt={resource.title}
+            loading="lazy"
+            src={thumbnailHref}
+            style={coverImageStyle}
+          />
+        ) : (
+          <div style={fallbackCoverStyle}>Video cover</div>
+        )}
       </div>
-
-      <div style={metaRowStyle}>
-        <span>YouTube video</span>
-        <span>{resource.detailLabel}</span>
-        <span>{resource.freshnessLabel}</span>
+      <div style={cardMetaStyle}>
+        <strong style={cardTitleStyle}>{resource.title}</strong>
+        <span style={cardDetailStyle}>
+          {resource.detailLabel} · {resource.freshnessLabel}
+        </span>
       </div>
-
-      {resource.tags.length ? (
-        <div style={tagRowStyle}>
-          {resource.tags.map((tag) => (
-            <span key={tag} style={tagStyle}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      <div style={actionRowStyle}>
-        <button
-          className="office-button-secondary office-button-sm"
-          onClick={() =>
-            onPlay({
-              id: resource.id,
-              title: resource.title,
-              href: resource.href,
-            })
-          }
-          type="button"
-        >
-          Watch full screen
-        </button>
-      </div>
-    </article>
+    </button>
   );
 }
 
@@ -367,14 +339,16 @@ export function FrontOfficeTrainingGallery(props: {
 
   return (
     <>
-      <div style={gridStyle}>
-        {props.resources.map((resource) => (
-          <TrainingRecordCard
-            key={resource.id}
-            onPlay={handlePlay}
-            resource={resource}
-          />
-        ))}
+      <div style={galleryShellStyle}>
+        <div style={galleryGridStyle}>
+          {props.resources.map((resource) => (
+            <TrainingCard
+              key={resource.id}
+              onPlay={handlePlay}
+              resource={resource}
+            />
+          ))}
+        </div>
       </div>
 
       {activeVideo ? (

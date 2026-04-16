@@ -155,6 +155,31 @@ const vendorGridStyle: CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
 };
 
+const paginationRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "1rem",
+  flexWrap: "wrap",
+  marginTop: "1rem",
+};
+
+const pageMetaStyle: CSSProperties = {
+  color: "#5a718d",
+  fontSize: "0.84rem",
+  fontWeight: 600,
+};
+
+const paginationButtonsStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const resourcesPerPage = 12;
+
 function getSearchParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0]?.trim() || "";
@@ -178,6 +203,7 @@ function normalizeSearchQuery(value: string) {
 function buildResourcesUrl(params: {
   tab: FrontOfficeResourceSearchTab;
   q?: string | null;
+  page?: number | null;
 }) {
   const searchParams = new URLSearchParams();
   searchParams.set("tab", params.tab);
@@ -186,7 +212,51 @@ function buildResourcesUrl(params: {
     searchParams.set("q", params.q.trim());
   }
 
+  if ((params.page ?? 1) > 1) {
+    searchParams.set("page", String(params.page));
+  }
+
   return `/agent/resources?${searchParams.toString()}`;
+}
+
+function parsePageNumber(value: string) {
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 1) {
+    return 1;
+  }
+
+  return parsedValue;
+}
+
+function buildPageNumbers(pageCount: number, activePage: number) {
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, pageCount, activePage]);
+
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const nextPage = activePage + offset;
+
+    if (nextPage > 1 && nextPage < pageCount) {
+      pages.add(nextPage);
+    }
+  }
+
+  return Array.from(pages).sort((left, right) => left - right);
+}
+
+function paginateItems<T>(items: T[], requestedPage: number) {
+  const pageCount = Math.max(1, Math.ceil(items.length / resourcesPerPage));
+  const currentPage = Math.min(requestedPage, pageCount);
+  const startIndex = (currentPage - 1) * resourcesPerPage;
+
+  return {
+    currentPage,
+    pageCount,
+    visibleItems: items.slice(startIndex, startIndex + resourcesPerPage),
+  };
 }
 
 function resourceMatchesSearch(resource: ResourceRecord, query: string) {
@@ -365,6 +435,9 @@ export default async function AgentResourcesPage(props: {
     : {};
   const activeTab = getActiveTab(getSearchParamValue(resolvedSearchParams.tab));
   const searchQuery = getSearchParamValue(resolvedSearchParams.q);
+  const requestedPage = parsePageNumber(
+    getSearchParamValue(resolvedSearchParams.page),
+  );
   const normalizedSearchQuery = normalizeSearchQuery(searchQuery);
 
   const snapshot = await getFrontOfficeResourcesSnapshot({
@@ -393,6 +466,9 @@ export default async function AgentResourcesPage(props: {
   const filteredVendors = vendors.filter((vendor) =>
     vendorMatchesSearch(vendor, normalizedSearchQuery),
   );
+  const paginatedDocuments = paginateItems(filteredDocuments, requestedPage);
+  const paginatedVendors = paginateItems(filteredVendors, requestedPage);
+  const paginatedTraining = paginateItems(filteredTraining, requestedPage);
 
   const tabStats = {
     documents: documentResources.length,
@@ -435,7 +511,7 @@ export default async function AgentResourcesPage(props: {
   );
   let resultContent: ReactNode = filteredDocuments.length ? (
     <div style={cardGridStyle}>
-      {filteredDocuments.map((resource) => (
+      {paginatedDocuments.visibleItems.map((resource) => (
         <DocumentRecordCard key={resource.id} resource={resource} />
       ))}
     </div>
@@ -482,7 +558,7 @@ export default async function AgentResourcesPage(props: {
     );
     resultContent = filteredVendors.length ? (
       <div style={vendorGridStyle}>
-        {filteredVendors.map((vendor) => (
+        {paginatedVendors.visibleItems.map((vendor) => (
           <VendorCard key={vendor.id} vendor={vendor} />
         ))}
       </div>
@@ -525,7 +601,7 @@ export default async function AgentResourcesPage(props: {
       </ListPageStatsGrid>
     );
     resultContent = filteredTraining.length ? (
-      <FrontOfficeTrainingGallery resources={filteredTraining} />
+      <FrontOfficeTrainingGallery resources={paginatedTraining.visibleItems} />
     ) : (
       <EmptyState
         action={
@@ -547,6 +623,29 @@ export default async function AgentResourcesPage(props: {
       />
     );
   }
+
+  const activePagination =
+    activeTab === "vendors"
+      ? paginatedVendors
+      : activeTab === "training"
+        ? paginatedTraining
+        : paginatedDocuments;
+  const paginationLinks = buildPageNumbers(
+    activePagination.pageCount,
+    activePagination.currentPage,
+  );
+  const resultCountLabel =
+    activeTab === "vendors"
+      ? filteredVendors.length === 1
+        ? "vendor"
+        : "vendors"
+      : activeTab === "training"
+        ? filteredTraining.length === 1
+          ? "video"
+          : "videos"
+        : filteredDocuments.length === 1
+          ? "document"
+          : "documents";
 
   return (
     <FrontOfficePageTemplate
@@ -598,7 +697,124 @@ export default async function AgentResourcesPage(props: {
           >
             {resultStats}
 
-            <div style={{ marginTop: "1rem" }}>{resultContent}</div>
+            <div style={{ marginTop: "1rem" }}>
+              {resultContent}
+
+              {activePagination.pageCount > 1 ? (
+                <div style={paginationRowStyle}>
+                  <span style={pageMetaStyle}>
+                    Page {activePagination.currentPage} of{" "}
+                    {activePagination.pageCount} ·{" "}
+                    {activeTab === "vendors"
+                      ? filteredVendors.length
+                      : activeTab === "training"
+                        ? filteredTraining.length
+                        : filteredDocuments.length}{" "}
+                    {resultCountLabel}
+                  </span>
+                  <div style={paginationButtonsStyle}>
+                    <a
+                      aria-disabled={activePagination.currentPage === 1}
+                      className="office-button-secondary office-button-sm"
+                      href={
+                        activePagination.currentPage === 1
+                          ? undefined
+                          : buildResourcesUrl({
+                              tab: activeTab,
+                              q: searchQuery,
+                              page: activePagination.currentPage - 1,
+                            })
+                      }
+                      style={
+                        activePagination.currentPage === 1
+                          ? {
+                              pointerEvents: "none",
+                              opacity: 0.45,
+                            }
+                          : undefined
+                      }
+                    >
+                      Previous
+                    </a>
+                    {paginationLinks.map((pageNumber, index) => {
+                      const previousPage = paginationLinks[index - 1];
+                      const showGap =
+                        previousPage && pageNumber - previousPage > 1;
+
+                      return (
+                        <span
+                          key={pageNumber}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          {showGap ? (
+                            <span
+                              style={{
+                                color: "#7a8ea6",
+                                fontSize: "0.86rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              ...
+                            </span>
+                          ) : null}
+                          <a
+                            aria-current={
+                              pageNumber === activePagination.currentPage
+                                ? "page"
+                                : undefined
+                            }
+                            className={
+                              pageNumber === activePagination.currentPage
+                                ? "office-button office-button-sm"
+                                : "office-button-secondary office-button-sm"
+                            }
+                            href={buildResourcesUrl({
+                              tab: activeTab,
+                              q: searchQuery,
+                              page: pageNumber,
+                            })}
+                          >
+                            {pageNumber}
+                          </a>
+                        </span>
+                      );
+                    })}
+                    <a
+                      aria-disabled={
+                        activePagination.currentPage ===
+                        activePagination.pageCount
+                      }
+                      className="office-button-secondary office-button-sm"
+                      href={
+                        activePagination.currentPage ===
+                        activePagination.pageCount
+                          ? undefined
+                          : buildResourcesUrl({
+                              tab: activeTab,
+                              q: searchQuery,
+                              page: activePagination.currentPage + 1,
+                            })
+                      }
+                      style={
+                        activePagination.currentPage ===
+                        activePagination.pageCount
+                          ? {
+                              pointerEvents: "none",
+                              opacity: 0.45,
+                            }
+                          : undefined
+                      }
+                    >
+                      Next
+                    </a>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </SectionCard>
         </div>
       }

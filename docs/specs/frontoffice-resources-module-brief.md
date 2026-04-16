@@ -141,6 +141,7 @@ When implementing this module, default to these rules:
 - tab switching and type browsing are secondary
 - vendor browsing is manual, not recommended
 - training is its own tab inside Resources, not just another row inside the document list
+- each tab should stay lightweight with paginated results instead of one very long directory column
 - only office admins manage content
 - agent-facing experience should stay simple
 - do not introduce task guidance, next-action logic, or scenario routing
@@ -156,5 +157,7 @@ The training tab should feel separate:
 
 - only YouTube training videos
 - simple search by topic
+- show thumbnail-grid browsing with page controls instead of document-style rows
+- keep the list lightweight with 12 videos per page
 - open a single on-demand full-screen player inside the page instead of preloading many embeds
 - no PDFs or vendor cards mixed in
