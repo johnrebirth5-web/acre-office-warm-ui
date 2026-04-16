@@ -24,11 +24,14 @@ export default async function OfficeResourcesPage() {
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        description="Manage the simple agent-facing directory: published resources, vendor records, and a small cleanup signal."
+        description="Manage the agent-facing directory: keep resource types covered, vendor categories consistent, and cleanup signals lightweight."
         eyebrow="Office admin"
         summary={
           <>
-            <SummaryChip label="Resources" value={snapshot.summary.resourceCount} />
+            <SummaryChip
+              label="Resources"
+              value={snapshot.summary.resourceCount}
+            />
             <SummaryChip
               label="Published"
               tone="accent"

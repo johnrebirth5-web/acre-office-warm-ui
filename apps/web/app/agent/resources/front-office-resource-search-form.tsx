@@ -64,15 +64,12 @@ export function FrontOfficeResourceSearchForm(props: {
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
-          placeholder="Search playbooks, templates, vendors, or tags"
+          placeholder="Search titles, summaries, tags, or vendor names"
           type="search"
         />
       </FilterField>
       <FilterField label="Type">
-        <SelectInput
-          defaultValue={props.initialType ?? ""}
-          name="type"
-        >
+        <SelectInput defaultValue={props.initialType ?? ""} name="type">
           <option value="">All resources</option>
           {props.typeOptions.map((option) => (
             <option key={option.value} value={option.value}>

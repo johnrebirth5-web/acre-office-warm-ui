@@ -119,6 +119,31 @@ const actionRowStyle: CSSProperties = {
   gap: "8px 12px",
 };
 
+const quickSearchRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px",
+  marginTop: "1rem",
+};
+
+const groupedDirectoryStyle: CSSProperties = {
+  display: "grid",
+  gap: "1.15rem",
+};
+
+const groupedSectionStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.85rem",
+};
+
+const groupedSectionHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  flexWrap: "wrap",
+};
+
 function getSearchParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0]?.trim() || "";
@@ -285,7 +310,9 @@ function VendorCard(props: { vendor: VendorRecord }) {
           </div>
           <p style={helperTextStyle}>{vendor.headline}</p>
         </div>
-        <StatusBadge tone={vendor.categoryTone}>{vendor.categoryLabel}</StatusBadge>
+        <StatusBadge tone={vendor.categoryTone}>
+          {vendor.categoryLabel}
+        </StatusBadge>
       </div>
 
       <div style={metaRowStyle}>
@@ -355,16 +382,32 @@ export default async function AgentResourcesPage(props: {
   const trainingCount = baseResources.filter(
     (resource) => resource.typeKey === "training_video",
   ).length;
+  const groupedResources = resourceTypeOptions
+    .map((option) => ({
+      ...option,
+      resources: baseResources.filter(
+        (resource) => resource.typeKey === option.value,
+      ),
+    }))
+    .filter((group) => group.resources.length > 0);
+  const showGroupedResourceBrowse = !normalizedSearchQuery && !effectiveType;
+  const searchExamples = [
+    "buyer consultation",
+    "listing presentation",
+    "offer checklist",
+    "training",
+    "lender",
+  ];
 
   return (
     <FrontOfficePageTemplate
-      description="Search first, then browse the simple directory of published resources and vendor contacts."
+      description="Search the published office directory for shared materials and vendor contacts."
       eyebrow="Resources"
       main={
         <div style={stackStyle}>
           <SectionCard
             className="office-list-card"
-            subtitle="Most of the time the agent already knows what material they need. Search the title, summary, tags, or vendor name first."
+            subtitle="Most agents come here with a file or contact in mind. Search the title, summary, tags, or vendor name first."
             title="Search"
           >
             <FrontOfficeResourceSearchForm
@@ -401,7 +444,15 @@ export default async function AgentResourcesPage(props: {
                       ))
                     ) : (
                       <EmptyState
-                        description="Try a different keyword, remove the type filter, or browse the full directory below."
+                        action={
+                          <a
+                            className="office-button-secondary"
+                            href="/agent/resources"
+                          >
+                            Clear filters
+                          </a>
+                        }
+                        description="Try a different keyword, remove the type filter, or browse the directory by type below."
                         title="No matching resources"
                       />
                     )}
@@ -415,6 +466,14 @@ export default async function AgentResourcesPage(props: {
                       ))
                     ) : (
                       <EmptyState
+                        action={
+                          <a
+                            className="office-button-secondary"
+                            href="/agent/resources"
+                          >
+                            Clear filters
+                          </a>
+                        }
                         description="Try a broader query or browse the vendor pool below."
                         title="No matching vendors"
                       />
@@ -423,17 +482,33 @@ export default async function AgentResourcesPage(props: {
                 </div>
               </div>
             ) : (
-              <p className="office-form-helper" style={{ margin: "0.9rem 0 0" }}>
-                Search is the fastest path. If you do not know the exact file yet,
-                use the resource type filters below.
-              </p>
+              <div
+                style={{ marginTop: "0.9rem", display: "grid", gap: "0.7rem" }}
+              >
+                <p className="office-form-helper" style={{ margin: 0 }}>
+                  Search is the fastest path. If you do not know the exact file
+                  yet, use the type filters below or start with one of these
+                  common searches.
+                </p>
+                <div style={quickSearchRowStyle}>
+                  {searchExamples.map((example) => (
+                    <a
+                      href={buildResourcesUrl({ q: example })}
+                      key={example}
+                      style={filterPillStyle}
+                    >
+                      {example}
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="This is the full published directory for agents. Use type filters when you want to browse instead of search."
-            title="All resources"
+            subtitle="This is the full published directory of office-approved materials for agents. Browse by type when you do not want to search yet."
+            title="Browse directory"
           >
             <div style={filterRowStyle}>
               <a
@@ -464,23 +539,76 @@ export default async function AgentResourcesPage(props: {
               ))}
             </div>
 
-            {filteredResources.length ? (
-              <div style={cardGridStyle}>
-                {filteredResources.map((resource) => (
-                  <ResourceRecordCard key={resource.id} resource={resource} />
-                ))}
-              </div>
+            {showGroupedResourceBrowse ? (
+              groupedResources.length ? (
+                <div style={groupedDirectoryStyle}>
+                  {groupedResources.map((group) => (
+                    <section key={group.value} style={groupedSectionStyle}>
+                      <div style={groupedSectionHeaderStyle}>
+                        <div style={{ display: "grid", gap: "0.24rem" }}>
+                          <strong>{group.label}</strong>
+                          <p
+                            className="office-form-helper"
+                            style={{ margin: 0 }}
+                          >
+                            {group.resources.length} published{" "}
+                            {group.resources.length === 1 ? "item" : "items"}
+                          </p>
+                        </div>
+                        <StatusBadge tone="neutral">
+                          {group.resources.length}
+                        </StatusBadge>
+                      </div>
+
+                      <div style={cardGridStyle}>
+                        {group.resources.map((resource) => (
+                          <ResourceRecordCard
+                            key={resource.id}
+                            resource={resource}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  description="This office has not published any agent-facing materials yet."
+                  title="No resources yet"
+                />
+              )
             ) : (
-              <EmptyState
-                description="No published resource matches the current filter yet."
-                title="No resources in this view"
-              />
+              <>
+                {filteredResources.length ? (
+                  <div style={cardGridStyle}>
+                    {filteredResources.map((resource) => (
+                      <ResourceRecordCard
+                        key={resource.id}
+                        resource={resource}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    action={
+                      <a
+                        className="office-button-secondary"
+                        href="/agent/resources"
+                      >
+                        Clear filters
+                      </a>
+                    }
+                    description="No published resource matches the current search or type filter."
+                    title="No resources in this view"
+                  />
+                )}
+              </>
             )}
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="A simple partner directory. Search or browse by category when an agent needs contact info or coverage."
+            subtitle="A simple partner directory. Search or browse by category when an agent needs contact details or coverage."
             title="Vendor pool"
           >
             <div style={filterRowStyle}>
@@ -490,7 +618,9 @@ export default async function AgentResourcesPage(props: {
                   type: effectiveType || null,
                 })}
                 style={
-                  selectedVendorCategory ? filterPillStyle : activeFilterPillStyle
+                  selectedVendorCategory
+                    ? filterPillStyle
+                    : activeFilterPillStyle
                 }
               >
                 All vendors
@@ -523,8 +653,26 @@ export default async function AgentResourcesPage(props: {
               </div>
             ) : (
               <EmptyState
-                description="No vendor matches the current search or category filter."
-                title="No vendors in this view"
+                action={
+                  selectedVendorCategory || normalizedSearchQuery ? (
+                    <a
+                      className="office-button-secondary"
+                      href="/agent/resources"
+                    >
+                      Clear filters
+                    </a>
+                  ) : undefined
+                }
+                description={
+                  snapshot.summary.vendorCount
+                    ? "No vendor matches the current search or category filter."
+                    : "This office has not published any vendor contacts yet."
+                }
+                title={
+                  snapshot.summary.vendorCount
+                    ? "No vendors in this view"
+                    : "No vendors yet"
+                }
               />
             )}
           </SectionCard>
