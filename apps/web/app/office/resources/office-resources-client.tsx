@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
 import { useState } from "react";
 import {
@@ -124,6 +124,29 @@ const actionRowStyle: CSSProperties = {
   gap: "8px",
 };
 
+const paginationRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "1rem",
+  flexWrap: "wrap",
+  marginTop: "1rem",
+};
+
+const pageMetaStyle: CSSProperties = {
+  color: "#5a718d",
+  fontSize: "0.84rem",
+  fontWeight: 600,
+};
+
+const paginationButtonsStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
 const helperTextStyle: CSSProperties = {
   margin: 0,
   color: "#556a83",
@@ -134,6 +157,8 @@ const sectionIntroStyle: CSSProperties = {
   display: "grid",
   gap: "0.28rem",
 };
+
+const resourcesPerPage = 12;
 
 function parseCsv(value: FormDataEntryValue | null) {
   return `${value ?? ""}`
@@ -161,11 +186,78 @@ function formatFileSize(fileSizeBytes: number) {
   return `${Math.max(1, Math.round(fileSizeBytes / 1024))} KB`;
 }
 
+function parsePageNumber(value: string | null) {
+  const parsedValue = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 1) {
+    return 1;
+  }
+
+  return parsedValue;
+}
+
+function buildPageNumbers(pageCount: number, activePage: number) {
+  if (pageCount <= 8) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  if (activePage <= 4) {
+    return [1, 2, 3, 4, 5, pageCount];
+  }
+
+  if (activePage >= pageCount - 3) {
+    return [
+      1,
+      pageCount - 4,
+      pageCount - 3,
+      pageCount - 2,
+      pageCount - 1,
+      pageCount,
+    ];
+  }
+
+  return [
+    1,
+    activePage - 1,
+    activePage,
+    activePage + 1,
+    activePage + 2,
+    pageCount,
+  ];
+}
+
+function paginateItems<T>(items: T[], requestedPage: number) {
+  const pageCount = Math.max(1, Math.ceil(items.length / resourcesPerPage));
+  const currentPage = Math.min(requestedPage, pageCount);
+  const startIndex = (currentPage - 1) * resourcesPerPage;
+
+  return {
+    currentPage,
+    pageCount,
+    visibleItems: items.slice(startIndex, startIndex + resourcesPerPage),
+  };
+}
+
+function buildResourcesUrl(params: {
+  tab: "documents" | "vendors" | "training";
+  page?: number | null;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("tab", params.tab);
+
+  if ((params.page ?? 1) > 1) {
+    searchParams.set("page", String(params.page));
+  }
+
+  return `/office/resources?${searchParams.toString()}`;
+}
+
 export function OfficeResourcesClient({
   activeTab,
   snapshot,
 }: OfficeResourcesClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(
@@ -181,10 +273,128 @@ export function OfficeResourcesClient({
     (resource) => resource.type === trainingType,
   );
   const vendors = snapshot.vendors;
+  const requestedPage = parsePageNumber(searchParams.get("page"));
+  const paginatedDocuments = paginateItems(documents, requestedPage);
+  const paginatedTraining = paginateItems(trainingResources, requestedPage);
+  const paginatedVendors = paginateItems(vendors, requestedPage);
 
   async function refreshWithFeedback(nextFeedback: FeedbackState) {
     setFeedback(nextFeedback);
     router.refresh();
+  }
+
+  function renderPagination(params: {
+    currentPage: number;
+    pageCount: number;
+    totalCount: number;
+    noun: string;
+  }) {
+    if (params.pageCount <= 1) {
+      return null;
+    }
+
+    const paginationLinks = buildPageNumbers(
+      params.pageCount,
+      params.currentPage,
+    );
+
+    return (
+      <div style={paginationRowStyle}>
+        <span style={pageMetaStyle}>
+          Page {params.currentPage} of {params.pageCount} · {params.totalCount}{" "}
+          {params.noun}
+        </span>
+        <div style={paginationButtonsStyle}>
+          <a
+            aria-disabled={params.currentPage === 1}
+            className="office-button-secondary office-button-sm"
+            href={
+              params.currentPage === 1
+                ? undefined
+                : buildResourcesUrl({
+                    tab: activeTab,
+                    page: params.currentPage - 1,
+                  })
+            }
+            style={
+              params.currentPage === 1
+                ? {
+                    pointerEvents: "none",
+                    opacity: 0.45,
+                  }
+                : undefined
+            }
+          >
+            Previous
+          </a>
+          {paginationLinks.map((pageNumber, index) => {
+            const previousPage = paginationLinks[index - 1];
+            const showGap = previousPage && pageNumber - previousPage > 1;
+
+            return (
+              <span
+                key={pageNumber}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                {showGap ? (
+                  <span
+                    style={{
+                      color: "#7a8ea6",
+                      fontSize: "0.86rem",
+                      fontWeight: 700,
+                    }}
+                  >
+                    ...
+                  </span>
+                ) : null}
+                <a
+                  aria-current={
+                    pageNumber === params.currentPage ? "page" : undefined
+                  }
+                  className={
+                    pageNumber === params.currentPage
+                      ? "office-button office-button-sm"
+                      : "office-button-secondary office-button-sm"
+                  }
+                  href={buildResourcesUrl({
+                    tab: activeTab,
+                    page: pageNumber,
+                  })}
+                >
+                  {pageNumber}
+                </a>
+              </span>
+            );
+          })}
+          <a
+            aria-disabled={params.currentPage === params.pageCount}
+            className="office-button-secondary office-button-sm"
+            href={
+              params.currentPage === params.pageCount
+                ? undefined
+                : buildResourcesUrl({
+                    tab: activeTab,
+                    page: params.currentPage + 1,
+                  })
+            }
+            style={
+              params.currentPage === params.pageCount
+                ? {
+                    pointerEvents: "none",
+                    opacity: 0.45,
+                  }
+                : undefined
+            }
+          >
+            Next
+          </a>
+        </div>
+      </div>
+    );
   }
 
   async function handleCreateDocument(event: FormEvent<HTMLFormElement>) {
@@ -534,7 +744,7 @@ export function OfficeResourcesClient({
 
     return (
       <div style={gridStyle}>
-        {documents.map((resource) => {
+        {paginatedDocuments.visibleItems.map((resource) => {
           const isEditing = editingResourceId === resource.id;
           const isBusy =
             pendingAction === `update-resource:${resource.id}` ||
@@ -680,6 +890,12 @@ export function OfficeResourcesClient({
             </article>
           );
         })}
+        {renderPagination({
+          currentPage: paginatedDocuments.currentPage,
+          pageCount: paginatedDocuments.pageCount,
+          totalCount: documents.length,
+          noun: "documents",
+        })}
       </div>
     );
   }
@@ -696,7 +912,7 @@ export function OfficeResourcesClient({
 
     return (
       <div style={gridStyle}>
-        {trainingResources.map((resource) => {
+        {paginatedTraining.visibleItems.map((resource) => {
           const isEditing = editingResourceId === resource.id;
           const isBusy =
             pendingAction === `update-resource:${resource.id}` ||
@@ -826,6 +1042,12 @@ export function OfficeResourcesClient({
             </article>
           );
         })}
+        {renderPagination({
+          currentPage: paginatedTraining.currentPage,
+          pageCount: paginatedTraining.pageCount,
+          totalCount: trainingResources.length,
+          noun: "training videos",
+        })}
       </div>
     );
   }
@@ -842,7 +1064,7 @@ export function OfficeResourcesClient({
 
     return (
       <div style={gridStyle}>
-        {vendors.map((vendor) => {
+        {paginatedVendors.visibleItems.map((vendor) => {
           const isEditing = editingVendorId === vendor.id;
           const isBusy =
             pendingAction === `update-vendor:${vendor.id}` ||
@@ -983,6 +1205,12 @@ export function OfficeResourcesClient({
             </article>
           );
         })}
+        {renderPagination({
+          currentPage: paginatedVendors.currentPage,
+          pageCount: paginatedVendors.pageCount,
+          totalCount: vendors.length,
+          noun: "vendors",
+        })}
       </div>
     );
   }
@@ -1018,7 +1246,7 @@ export function OfficeResourcesClient({
           {tabDefinitions.map((tab) => (
             <a
               aria-current={activeTab === tab.key ? "page" : undefined}
-              href={`/office/resources?tab=${tab.key}`}
+              href={buildResourcesUrl({ tab: tab.key })}
               key={tab.key}
               style={activeTab === tab.key ? activeTabLinkStyle : tabLinkStyle}
             >
