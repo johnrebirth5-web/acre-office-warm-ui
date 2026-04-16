@@ -46,9 +46,12 @@ async function createReleaseZip() {
   const version = await getManifestVersion();
   const zipName = `acre-listing-studio-extension-v${version}.zip`;
   const zipPath = path.join(releaseDir, zipName);
+  const unpackedDir = path.join(releaseDir, `acre-listing-studio-extension-v${version}`);
 
   await mkdir(releaseDir, { recursive: true });
   await rm(zipPath, { force: true });
+  await rm(unpackedDir, { recursive: true, force: true });
+  await cp(distDir, unpackedDir, { recursive: true });
 
   try {
     await runCommand("zip", ["-qr", zipPath, "."], { cwd: distDir });
@@ -62,6 +65,7 @@ async function createReleaseZip() {
     }
   }
 
+  console.log(`Created unpacked Chrome extension: ${unpackedDir}`);
   console.log(`Created Chrome Web Store package: ${zipPath}`);
 }
 
