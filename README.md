@@ -1021,9 +1021,16 @@ npm run docker:dev:keepalive
 
 这条命令会循环确保三件事：
 
-- `DO -> localhost:15432` 的 SSH 隧道还活着
+- `DO -> 0.0.0.0:15432` 的 SSH 隧道还活着；Docker 容器经 `host.lima.internal:15432` 访问，宿主机工具仍可经 `127.0.0.1:15432` 访问
 - `docker compose` 的 `web + db` 仍在运行
 - `http://localhost:3105/login` 还能正常响应；如果不行就自动重启 `web`
+
+当前 `macOS + Colima` 基线说明：
+
+- `ssh -L` 默认只绑定 `localhost` 时，Docker 容器经 `host.lima.internal` 访问不到这条隧道
+- `scripts/docker-dev-keepalive.sh` 现在默认把 DO 数据库隧道绑定到 `0.0.0.0:15432`
+- 这个脚本还会从 `db` 容器内探测 `host.lima.internal:15432`；如果容器侧探测失败，会自动重建隧道
+- 如需覆盖默认值，可设置 `ACRE_DO_DB_TUNNEL_BIND_HOST`、`ACRE_DO_DB_TUNNEL_CONTAINER_HOST`、`ACRE_DO_DB_TUNNEL_PROBE_SERVICE`
 
 如果你需要把 `DigitalOcean` 线上最新数据库拉到本地，但又不希望本地操作回写线上，现在可以使用：
 

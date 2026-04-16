@@ -620,9 +620,16 @@ npm run docker:dev:keepalive
 
 这条 watchdog 会循环确保：
 
-- `root@45.55.247.137 -> localhost:15432` 的 SSH 隧道仍然在线
+- `root@45.55.247.137 -> 0.0.0.0:15432` 的 SSH 隧道仍然在线；Docker 容器经 `host.lima.internal:15432` 访问，宿主机工具仍可经 `127.0.0.1:15432` 访问
 - `docker compose up -d` 的 `web + db` 服务维持运行
 - `http://localhost:3105/login` 可响应；如果检测失败，会自动 `docker compose restart web`
+
+当前 `macOS + Colima` 基线说明：
+
+- `ssh -L` 默认只绑定 `localhost` 时，Docker 容器经 `host.lima.internal` 访问不到这条隧道
+- `scripts/docker-dev-keepalive.sh` 现在默认把 DO 数据库隧道绑定到 `0.0.0.0:15432`
+- 脚本会从 `db` 容器内探测 `host.lima.internal:15432`；如果容器侧探测失败，会自动重建隧道
+- 如需覆盖默认值，可设置 `ACRE_DO_DB_TUNNEL_BIND_HOST`、`ACRE_DO_DB_TUNNEL_CONTAINER_HOST`、`ACRE_DO_DB_TUNNEL_PROBE_SERVICE`
 
 ### 生产数据到本地的单向同步
 

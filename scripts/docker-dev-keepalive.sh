@@ -10,9 +10,12 @@ TUNNEL_ENABLED="${ACRE_DO_DB_TUNNEL_ENABLED:-1}"
 TUNNEL_SOCKET="${ACRE_DO_DB_TUNNEL_SOCKET:-$HOME/.ssh/acre-do-db-tunnel.sock}"
 TUNNEL_TARGET="${ACRE_DO_DB_TUNNEL_TARGET:-root@45.55.247.137}"
 TUNNEL_KEY="${ACRE_DO_DB_TUNNEL_KEY:-$HOME/.ssh/acre_do_ed25519}"
+TUNNEL_BIND_HOST="${ACRE_DO_DB_TUNNEL_BIND_HOST:-0.0.0.0}"
 TUNNEL_LOCAL_PORT="${ACRE_DO_DB_TUNNEL_LOCAL_PORT:-15432}"
 TUNNEL_REMOTE_HOST="${ACRE_DO_DB_TUNNEL_REMOTE_HOST:-127.0.0.1}"
 TUNNEL_REMOTE_PORT="${ACRE_DO_DB_TUNNEL_REMOTE_PORT:-5432}"
+TUNNEL_CONTAINER_HOST="${ACRE_DO_DB_TUNNEL_CONTAINER_HOST:-host.lima.internal}"
+TUNNEL_PROBE_SERVICE="${ACRE_DO_DB_TUNNEL_PROBE_SERVICE:-db}"
 SSH_ARGS=()
 
 if [ -n "${TUNNEL_KEY:-}" ] && [ -f "$TUNNEL_KEY" ]; then
@@ -21,6 +24,26 @@ fi
 
 log() {
   printf '[docker-dev-keepalive] %s\n' "$*"
+}
+
+start_tunnel() {
+  mkdir -p "$(dirname "$TUNNEL_SOCKET")"
+  log "Starting DO database tunnel on ${TUNNEL_BIND_HOST}:${TUNNEL_LOCAL_PORT}..."
+  ssh "${SSH_ARGS[@]}" -M -S "$TUNNEL_SOCKET" -fnNT \
+    -o BatchMode=yes \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -L "${TUNNEL_BIND_HOST}:${TUNNEL_LOCAL_PORT}:${TUNNEL_REMOTE_HOST}:${TUNNEL_REMOTE_PORT}" \
+    "$TUNNEL_TARGET"
+}
+
+stop_tunnel() {
+  if ssh "${SSH_ARGS[@]}" -S "$TUNNEL_SOCKET" -O check "$TUNNEL_TARGET" >/dev/null 2>&1; then
+    ssh "${SSH_ARGS[@]}" -S "$TUNNEL_SOCKET" -O exit "$TUNNEL_TARGET" >/dev/null 2>&1 || true
+  fi
+
+  rm -f "$TUNNEL_SOCKET"
 }
 
 ensure_tunnel() {
@@ -32,19 +55,30 @@ ensure_tunnel() {
     return
   fi
 
-  mkdir -p "$(dirname "$TUNNEL_SOCKET")"
-  log "Starting DO database tunnel on localhost:${TUNNEL_LOCAL_PORT}..."
-  ssh "${SSH_ARGS[@]}" -M -S "$TUNNEL_SOCKET" -fnNT \
-    -o BatchMode=yes \
-    -o ExitOnForwardFailure=yes \
-    -o ServerAliveInterval=30 \
-    -o ServerAliveCountMax=3 \
-    -L "${TUNNEL_LOCAL_PORT}:${TUNNEL_REMOTE_HOST}:${TUNNEL_REMOTE_PORT}" \
-    "$TUNNEL_TARGET"
+  start_tunnel
 }
 
 ensure_compose_running() {
   docker compose up -d >/dev/null
+}
+
+ensure_tunnel_reachable_from_compose() {
+  if [ "$TUNNEL_ENABLED" != "1" ]; then
+    return
+  fi
+
+  if ! docker compose ps -q "$TUNNEL_PROBE_SERVICE" >/dev/null 2>&1; then
+    return
+  fi
+
+  if docker compose exec -T "$TUNNEL_PROBE_SERVICE" sh -lc \
+    "pg_isready -h '$TUNNEL_CONTAINER_HOST' -p '$TUNNEL_LOCAL_PORT'" >/dev/null 2>&1; then
+    return
+  fi
+
+  log "DO database tunnel is not reachable from Docker via ${TUNNEL_CONTAINER_HOST}:${TUNNEL_LOCAL_PORT}; recreating tunnel..."
+  stop_tunnel
+  start_tunnel
 }
 
 ensure_web_responding() {
@@ -60,8 +94,9 @@ ensure_web_responding() {
 }
 
 run_once() {
-  ensure_tunnel
   ensure_compose_running
+  ensure_tunnel
+  ensure_tunnel_reachable_from_compose
   ensure_web_responding
 }
 
