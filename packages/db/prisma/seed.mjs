@@ -9,18 +9,32 @@ if (!process.env.DATABASE_URL) {
 }
 
 function getSeedDocumentsRoot() {
-  return process.env.ACRE_DOCUMENTS_STORAGE_DIR?.trim() || path.join(process.cwd(), "..", "..", ".local-storage", "documents");
+  return (
+    process.env.ACRE_DOCUMENTS_STORAGE_DIR?.trim() ||
+    path.join(process.cwd(), "..", "..", ".local-storage", "documents")
+  );
 }
 
 function sanitizeStorageSegment(value) {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 120) || "file";
+  return (
+    value
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 120) || "file"
+  );
 }
 
-async function writeSeedStoredFile({ organizationId, scopeSegments, fileName, content }) {
+async function writeSeedStoredFile({
+  organizationId,
+  scopeSegments,
+  fileName,
+  content,
+}) {
   const directory = path.join(
     getSeedDocumentsRoot(),
     sanitizeStorageSegment(organizationId),
-    ...scopeSegments.map((segment) => sanitizeStorageSegment(segment))
+    ...scopeSegments.map((segment) => sanitizeStorageSegment(segment)),
   );
   await mkdir(directory, { recursive: true });
 
@@ -38,34 +52,53 @@ async function writeSeedStoredFile({ organizationId, scopeSegments, fileName, co
   return {
     fileName: normalizedFileName,
     storageKey: absolutePath,
-    fileSizeBytes: fileBody.byteLength
+    fileSizeBytes: fileBody.byteLength,
   };
 }
 
-async function writeSeedStoredDocument({ organizationId, transactionId, fileName, content }) {
+async function writeSeedStoredDocument({
+  organizationId,
+  transactionId,
+  fileName,
+  content,
+}) {
   return writeSeedStoredFile({
     organizationId,
     scopeSegments: [transactionId],
     fileName,
-    content
+    content,
   });
 }
 
-async function writeSeedStoredLibraryDocument({ organizationId, officeId, fileName, content }) {
+async function writeSeedStoredLibraryDocument({
+  organizationId,
+  officeId,
+  fileName,
+  content,
+}) {
   return writeSeedStoredFile({
     organizationId,
     scopeSegments: ["library", officeId ? `office-${officeId}` : "company"],
     fileName,
-    content
+    content,
   });
 }
 
 function escapePdfText(value) {
-  return String(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 }
 
 function buildMinimalPdf({ title, lines }) {
-  const commands = ["BT", "/F1 16 Tf", "50 760 Td", `(${escapePdfText(title)}) Tj`, "/F1 10 Tf"];
+  const commands = [
+    "BT",
+    "/F1 16 Tf",
+    "50 760 Td",
+    `(${escapePdfText(title)}) Tj`,
+    "/F1 10 Tf",
+  ];
 
   for (const line of lines) {
     commands.push("0 -20 Td", `(${escapePdfText(line)}) Tj`);
@@ -79,7 +112,7 @@ function buildMinimalPdf({ title, lines }) {
     "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
     "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n",
     `4 0 obj\n<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}endstream\nendobj\n`,
-    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
   ];
 
   let pdf = "%PDF-1.4\n";
@@ -109,7 +142,7 @@ async function upsertUser({ email, firstName, lastName }) {
     update: {
       firstName,
       lastName,
-      isActive: true
+      isActive: true,
     },
     create: {
       email,
@@ -117,25 +150,33 @@ async function upsertUser({ email, firstName, lastName }) {
       lastName,
       timezone: "America/New_York",
       locale: "en-US",
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 }
 
-async function upsertLedgerAccount({ organizationId, officeId, code, name, accountType, isSystem = true, isActive = true }) {
+async function upsertLedgerAccount({
+  organizationId,
+  officeId,
+  code,
+  name,
+  accountType,
+  isSystem = true,
+  isActive = true,
+}) {
   return prisma.ledgerAccount.upsert({
     where: {
       organizationId_code: {
         organizationId,
-        code
-      }
+        code,
+      },
     },
     update: {
       officeId,
       name,
       accountType,
       isSystem,
-      isActive
+      isActive,
     },
     create: {
       organizationId,
@@ -144,8 +185,8 @@ async function upsertLedgerAccount({ organizationId, officeId, code, name, accou
       name,
       accountType,
       isSystem,
-      isActive
-    }
+      isActive,
+    },
   });
 }
 
@@ -171,7 +212,7 @@ async function upsertAccountingTransactionWithPostings({
   createdByMembershipId,
   postedAt,
   lineItems,
-  ledgerEntries
+  ledgerEntries,
 }) {
   const transaction = await prisma.accountingTransaction.upsert({
     where: { id },
@@ -194,7 +235,7 @@ async function upsertAccountingTransactionWithPostings({
       notes,
       totalAmount,
       createdByMembershipId,
-      postedAt
+      postedAt,
     },
     create: {
       id,
@@ -216,20 +257,20 @@ async function upsertAccountingTransactionWithPostings({
       notes,
       totalAmount,
       createdByMembershipId,
-      postedAt
-    }
+      postedAt,
+    },
   });
 
   await prisma.accountingTransactionLineItem.deleteMany({
     where: {
-      accountingTransactionId: id
-    }
+      accountingTransactionId: id,
+    },
   });
 
   await prisma.generalLedgerEntry.deleteMany({
     where: {
-      accountingTransactionId: id
-    }
+      accountingTransactionId: id,
+    },
   });
 
   if (lineItems.length) {
@@ -244,8 +285,8 @@ async function upsertAccountingTransactionWithPostings({
         description: lineItem.description ?? null,
         entrySide: lineItem.entrySide,
         amount: lineItem.amount,
-        sortOrder: lineItem.sortOrder ?? index
-      }))
+        sortOrder: lineItem.sortOrder ?? index,
+      })),
     });
   }
 
@@ -261,8 +302,8 @@ async function upsertAccountingTransactionWithPostings({
         entryDate: entry.entryDate,
         debitAmount: entry.debitAmount,
         creditAmount: entry.creditAmount,
-        memo: entry.memo ?? null
-      }))
+        memo: entry.memo ?? null,
+      })),
     });
   }
 
@@ -274,46 +315,54 @@ async function main() {
     where: { slug: "acre" },
     update: {
       name: "Acre",
-      timezone: "America/New_York"
+      timezone: "America/New_York",
     },
     create: {
       name: "Acre",
       slug: "acre",
-      timezone: "America/New_York"
-    }
+      timezone: "America/New_York",
+    },
   });
 
   const office = await prisma.office.upsert({
     where: {
       organizationId_slug: {
         organizationId: organization.id,
-        slug: "acre-ny"
-      }
+        slug: "acre-ny",
+      },
     },
     update: {
       name: "Acre NY Realty Inc",
       market: "New York Sales",
-      isPrimary: true
+      isPrimary: true,
     },
     create: {
       organizationId: organization.id,
       name: "Acre NY Realty Inc",
       slug: "acre-ny",
       market: "New York Sales",
-      isPrimary: true
-    }
+      isPrimary: true,
+    },
   });
 
   const users = await Promise.all([
     upsertUser({ email: "jane@acre.com", firstName: "Jane", lastName: "Wu" }),
-    upsertUser({ email: "simon@acre.com", firstName: "Simon", lastName: "Park" }),
-    upsertUser({ email: "naomi@acre.com", firstName: "Naomi", lastName: "Chen" })
+    upsertUser({
+      email: "simon@acre.com",
+      firstName: "Simon",
+      lastName: "Park",
+    }),
+    upsertUser({
+      email: "naomi@acre.com",
+      firstName: "Naomi",
+      lastName: "Chen",
+    }),
   ]);
 
   const memberships = [
     { user: users[0], role: "agent", title: "Senior Agent" },
     { user: users[1], role: "office_manager", title: "Office Manager" },
-    { user: users[2], role: "office_admin", title: "Office Admin" }
+    { user: users[2], role: "office_admin", title: "Office Admin" },
   ];
 
   const membershipByEmail = new Map();
@@ -323,15 +372,15 @@ async function main() {
       where: {
         organizationId_userId: {
           organizationId: organization.id,
-          userId: membership.user.id
-        }
+          userId: membership.user.id,
+        },
       },
       update: {
         officeId: office.id,
         role: membership.role,
         status: "active",
         title: membership.title,
-        permissions: null
+        permissions: null,
       },
       create: {
         organizationId: organization.id,
@@ -340,8 +389,8 @@ async function main() {
         role: membership.role,
         status: "active",
         title: membership.title,
-        permissions: null
-      }
+        permissions: null,
+      },
     });
 
     membershipByEmail.set(membership.user.email, savedMembership);
@@ -359,7 +408,7 @@ async function main() {
       onboardingStatus: "in_progress",
       commissionPlanName: "Senior agent split",
       avatarUrl: "",
-      internalExtension: "201"
+      internalExtension: "201",
     },
     {
       membershipEmail: "simon@acre.com",
@@ -372,7 +421,7 @@ async function main() {
       onboardingStatus: "complete",
       commissionPlanName: "",
       avatarUrl: "",
-      internalExtension: "102"
+      internalExtension: "102",
     },
     {
       membershipEmail: "naomi@acre.com",
@@ -385,8 +434,8 @@ async function main() {
       onboardingStatus: "complete",
       commissionPlanName: "",
       avatarUrl: "",
-      internalExtension: "101"
-    }
+      internalExtension: "101",
+    },
   ];
 
   for (const profile of seededAgentProfiles) {
@@ -398,7 +447,7 @@ async function main() {
 
     await prisma.agentProfile.upsert({
       where: {
-        membershipId: membership.id
+        membershipId: membership.id,
       },
       update: {
         organizationId: organization.id,
@@ -412,7 +461,7 @@ async function main() {
         onboardingStatus: profile.onboardingStatus,
         commissionPlanName: profile.commissionPlanName || null,
         avatarUrl: profile.avatarUrl || null,
-        internalExtension: profile.internalExtension || null
+        internalExtension: profile.internalExtension || null,
       },
       create: {
         organizationId: organization.id,
@@ -427,8 +476,8 @@ async function main() {
         onboardingStatus: profile.onboardingStatus,
         commissionPlanName: profile.commissionPlanName || null,
         avatarUrl: profile.avatarUrl || null,
-        internalExtension: profile.internalExtension || null
-      }
+        internalExtension: profile.internalExtension || null,
+      },
     });
   }
 
@@ -437,14 +486,14 @@ async function main() {
       id: "seed-team-east-river",
       name: "East River Team",
       slug: "east-river-team",
-      isActive: true
+      isActive: true,
     },
     {
       id: "seed-team-operations",
       name: "Operations",
       slug: "operations",
-      isActive: true
-    }
+      isActive: true,
+    },
   ];
 
   for (const team of seededTeams) {
@@ -452,13 +501,13 @@ async function main() {
       where: {
         organizationId_slug: {
           organizationId: organization.id,
-          slug: team.slug
-        }
+          slug: team.slug,
+        },
       },
       update: {
         officeId: office.id,
         name: team.name,
-        isActive: team.isActive
+        isActive: team.isActive,
       },
       create: {
         id: team.id,
@@ -466,8 +515,8 @@ async function main() {
         officeId: office.id,
         name: team.name,
         slug: team.slug,
-        isActive: team.isActive
-      }
+        isActive: team.isActive,
+      },
     });
   }
 
@@ -476,25 +525,26 @@ async function main() {
       id: "seed-team-membership-jane",
       teamId: "seed-team-east-river",
       membershipEmail: "jane@acre.com",
-      role: "team_leader"
+      role: "team_leader",
     },
     {
       id: "seed-team-membership-simon",
       teamId: "seed-team-operations",
       membershipEmail: "simon@acre.com",
-      role: "team_leader"
+      role: "team_leader",
     },
     {
       id: "seed-team-membership-naomi",
       teamId: "seed-team-operations",
       membershipEmail: "naomi@acre.com",
       role: "member",
-      reportsToTeamMembershipId: "seed-team-membership-simon"
-    }
+      reportsToTeamMembershipId: "seed-team-membership-simon",
+    },
   ];
 
   for (const teamMembership of seededTeamMemberships) {
-    const membership = membershipByEmail.get(teamMembership.membershipEmail) ?? null;
+    const membership =
+      membershipByEmail.get(teamMembership.membershipEmail) ?? null;
 
     if (!membership) {
       continue;
@@ -504,14 +554,15 @@ async function main() {
       where: {
         teamId_membershipId: {
           teamId: teamMembership.teamId,
-          membershipId: membership.id
-        }
+          membershipId: membership.id,
+        },
       },
       update: {
         organizationId: organization.id,
         officeId: office.id,
         role: teamMembership.role,
-        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId ?? null
+        reportsToTeamMembershipId:
+          teamMembership.reportsToTeamMembershipId ?? null,
       },
       create: {
         id: teamMembership.id,
@@ -520,8 +571,9 @@ async function main() {
         teamId: teamMembership.teamId,
         membershipId: membership.id,
         role: teamMembership.role,
-        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId ?? null
-      }
+        reportsToTeamMembershipId:
+          teamMembership.reportsToTeamMembershipId ?? null,
+      },
     });
   }
 
@@ -529,7 +581,7 @@ async function main() {
     { id: "seed-required-role-buyer", role: "buyer", isRequired: true },
     { id: "seed-required-role-seller", role: "seller", isRequired: true },
     { id: "seed-required-role-tenant", role: "tenant", isRequired: false },
-    { id: "seed-required-role-landlord", role: "landlord", isRequired: false }
+    { id: "seed-required-role-landlord", role: "landlord", isRequired: false },
   ];
 
   for (const roleSetting of seededRequiredContactRoleSettings) {
@@ -538,40 +590,125 @@ async function main() {
         organizationId_officeId_role: {
           organizationId: organization.id,
           officeId: office.id,
-          role: roleSetting.role
-        }
+          role: roleSetting.role,
+        },
       },
       update: {
-        isRequired: roleSetting.isRequired
+        isRequired: roleSetting.isRequired,
       },
       create: {
         id: roleSetting.id,
         organizationId: organization.id,
         officeId: office.id,
         role: roleSetting.role,
-        isRequired: roleSetting.isRequired
-      }
+        isRequired: roleSetting.isRequired,
+      },
     });
   }
 
   const seededTransactionFieldSettings = [
-    { id: "seed-field-transaction-type", fieldKey: "transaction_type", isRequired: false, isVisible: true },
-    { id: "seed-field-transaction-status", fieldKey: "transaction_status", isRequired: false, isVisible: true },
-    { id: "seed-field-representing", fieldKey: "representing", isRequired: false, isVisible: true },
-    { id: "seed-field-address", fieldKey: "address", isRequired: false, isVisible: true },
-    { id: "seed-field-city", fieldKey: "city", isRequired: false, isVisible: true },
-    { id: "seed-field-state", fieldKey: "state", isRequired: false, isVisible: true },
-    { id: "seed-field-zip-code", fieldKey: "zip_code", isRequired: false, isVisible: true },
-    { id: "seed-field-transaction-name", fieldKey: "transaction_name", isRequired: false, isVisible: true },
-    { id: "seed-field-asking-price", fieldKey: "asking_price", isRequired: false, isVisible: true },
-    { id: "seed-field-purchased-price", fieldKey: "purchased_price", isRequired: false, isVisible: true },
-    { id: "seed-field-buyer-agreement", fieldKey: "buyer_agreement_date", isRequired: false, isVisible: true },
-    { id: "seed-field-buyer-expiration", fieldKey: "buyer_expiration_date", isRequired: false, isVisible: true },
-    { id: "seed-field-acceptance-date", fieldKey: "acceptance_date", isRequired: false, isVisible: true },
-    { id: "seed-field-listing-date", fieldKey: "listing_date", isRequired: false, isVisible: true },
-    { id: "seed-field-listing-expiration", fieldKey: "listing_expiration_date", isRequired: false, isVisible: true },
-    { id: "seed-field-closing-date", fieldKey: "closing_date", isRequired: false, isVisible: true },
-    { id: "seed-field-move-in-date", fieldKey: "move_in_date", isRequired: false, isVisible: true }
+    {
+      id: "seed-field-transaction-type",
+      fieldKey: "transaction_type",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-transaction-status",
+      fieldKey: "transaction_status",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-representing",
+      fieldKey: "representing",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-address",
+      fieldKey: "address",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-city",
+      fieldKey: "city",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-state",
+      fieldKey: "state",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-zip-code",
+      fieldKey: "zip_code",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-transaction-name",
+      fieldKey: "transaction_name",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-asking-price",
+      fieldKey: "asking_price",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-purchased-price",
+      fieldKey: "purchased_price",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-buyer-agreement",
+      fieldKey: "buyer_agreement_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-buyer-expiration",
+      fieldKey: "buyer_expiration_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-acceptance-date",
+      fieldKey: "acceptance_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-listing-date",
+      fieldKey: "listing_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-listing-expiration",
+      fieldKey: "listing_expiration_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-closing-date",
+      fieldKey: "closing_date",
+      isRequired: false,
+      isVisible: true,
+    },
+    {
+      id: "seed-field-move-in-date",
+      fieldKey: "move_in_date",
+      isRequired: false,
+      isVisible: true,
+    },
   ];
 
   for (const fieldSetting of seededTransactionFieldSettings) {
@@ -580,12 +717,12 @@ async function main() {
         organizationId_officeId_fieldKey: {
           organizationId: organization.id,
           officeId: office.id,
-          fieldKey: fieldSetting.fieldKey
-        }
+          fieldKey: fieldSetting.fieldKey,
+        },
       },
       update: {
         isRequired: fieldSetting.isRequired,
-        isVisible: fieldSetting.isVisible
+        isVisible: fieldSetting.isVisible,
       },
       create: {
         id: fieldSetting.id,
@@ -593,45 +730,278 @@ async function main() {
         officeId: office.id,
         fieldKey: fieldSetting.fieldKey,
         isRequired: fieldSetting.isRequired,
-        isVisible: fieldSetting.isVisible
-      }
+        isVisible: fieldSetting.isVisible,
+      },
     });
   }
 
   const seededTransactionCustomFieldDefinitions = [
-    { id: "seed-custom-field-agent-name", fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 0, options: [], isDeletionLocked: true },
-    { id: "seed-custom-field-team-leader", fieldKey: "teamLeader", label: "Team Leader", type: "select", sortOrder: 1, options: ["Simon Park", "Naomi Chen", "Alice Tang"] },
-    { id: "seed-custom-field-licensed-agent-name", fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 2, options: [] },
-    { id: "seed-custom-field-invoice-number", fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 3, options: [] },
-    { id: "seed-custom-field-buyer-tenant", fieldKey: "buyerTenant", label: "Buyer/Tenant", type: "text", sortOrder: 4, options: [] },
-    { id: "seed-custom-field-building-name", fieldKey: "buildingName", label: "Building Name", type: "text", sortOrder: 5, options: [] },
-    { id: "seed-custom-field-additional-address", fieldKey: "additionalAddress", label: "Address", type: "text", sortOrder: 6, options: [] },
-    { id: "seed-custom-field-unit-number", fieldKey: "unitNumber", label: "Unit # (If it's a house, fill out \"house\")", type: "text", sortOrder: 7, options: [] },
-    { id: "seed-custom-field-layout", fieldKey: "layout", label: "Layout", type: "text", sortOrder: 8, options: [] },
-    { id: "seed-custom-field-additional-city", fieldKey: "additionalCity", label: "City", type: "text", sortOrder: 9, options: [] },
-    { id: "seed-custom-field-additional-state", fieldKey: "additionalState", label: "State", type: "text", sortOrder: 10, options: [] },
-    { id: "seed-custom-field-additional-zip", fieldKey: "additionalZipCode", label: "Zip Code", type: "text", sortOrder: 11, options: [] },
-    { id: "seed-custom-field-move-in", fieldKey: "moveInDateClosingDate", label: "Move-In Date/Closing Date", type: "text", sortOrder: 12, options: [] },
-    { id: "seed-custom-field-commission-type", fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 13, options: ["Gross", "Net", "Custom"] },
-    { id: "seed-custom-field-leasing-contact", fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 14, options: [] },
-    { id: "seed-custom-field-invoice-bill-to", fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 15, options: [] },
-    { id: "seed-custom-field-currency-type", fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD"] },
-    { id: "seed-custom-field-commission-amount", fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 17, options: [] },
-    { id: "seed-custom-field-your-rate", fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 18, options: [] },
-    { id: "seed-custom-field-rebate", fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 19, options: [] },
-    { id: "seed-custom-field-reimbursement", fieldKey: "reimbursement", label: "Reimbursement", type: "text", sortOrder: 20, options: [] },
-    { id: "seed-custom-field-co-agent", fieldKey: "coAgentLegalName", label: "Co-Agent Legal Name", type: "text", sortOrder: 21, options: [] },
-    { id: "seed-custom-field-breakdown", fieldKey: "commissionBreakdown", label: "Commission Breakdown", type: "text", sortOrder: 22, options: [] },
-    { id: "seed-custom-field-company-referral", fieldKey: "companyReferral", label: "Company Referral", type: "select", sortOrder: 23, options: ["Yes", "No"] },
-    { id: "seed-custom-field-outside-referral", fieldKey: "outsideReferral", label: "Outside Referral", type: "select", sortOrder: 24, options: ["Yes", "No"] },
-    { id: "seed-custom-field-referral-fee", fieldKey: "referralFee", label: "Referral Fee", type: "text", sortOrder: 25, options: [] },
-    { id: "seed-custom-field-external-partners", fieldKey: "externalPartners", label: "External Partners", type: "text", sortOrder: 26, options: [] },
-    { id: "seed-custom-field-company-referral-employee", fieldKey: "companyReferralEmployeeName", label: "Company Referral Employee's Name", type: "text", sortOrder: 27, options: [] },
-    { id: "seed-custom-field-client-email", fieldKey: "clientEmail", label: "Client's Email", type: "text", sortOrder: 28, options: [] },
-    { id: "seed-custom-field-vendor-cafe", fieldKey: "uploadInvoiceToVendorCafe", label: "Upload Invoice to VendorCafe", type: "select", sortOrder: 29, options: ["Yes", "No"] },
-    { id: "seed-custom-field-note", fieldKey: "note", label: "Note(Rebate, Referral, Others)", type: "text", sortOrder: 30, options: [] },
-    { id: "seed-custom-field-commission-received", fieldKey: "commissionReceivedStatus", label: "Status of Commission Received(For Admin)", type: "select", sortOrder: 31, options: ["No", "Yes", "Partial"] },
-    { id: "seed-custom-field-commission-confirmation", fieldKey: "commissionConfirmation", label: "Commission Confirmation(For Agent, we'll process the payment once you select yes)", type: "select", sortOrder: 32, options: ["Yes", "No"] }
+    {
+      id: "seed-custom-field-agent-name",
+      fieldKey: "agentName",
+      label: "Agent Name",
+      type: "text",
+      sortOrder: 0,
+      options: [],
+      isDeletionLocked: true,
+    },
+    {
+      id: "seed-custom-field-team-leader",
+      fieldKey: "teamLeader",
+      label: "Team Leader",
+      type: "select",
+      sortOrder: 1,
+      options: ["Simon Park", "Naomi Chen", "Alice Tang"],
+    },
+    {
+      id: "seed-custom-field-licensed-agent-name",
+      fieldKey: "licensedAgentName",
+      label: "Licensed Agent Name",
+      type: "text",
+      sortOrder: 2,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-invoice-number",
+      fieldKey: "invoiceNumber",
+      label: "Invoice Number",
+      type: "text",
+      sortOrder: 3,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-buyer-tenant",
+      fieldKey: "buyerTenant",
+      label: "Buyer/Tenant",
+      type: "text",
+      sortOrder: 4,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-building-name",
+      fieldKey: "buildingName",
+      label: "Building Name",
+      type: "text",
+      sortOrder: 5,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-additional-address",
+      fieldKey: "additionalAddress",
+      label: "Address",
+      type: "text",
+      sortOrder: 6,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-unit-number",
+      fieldKey: "unitNumber",
+      label: 'Unit # (If it\'s a house, fill out "house")',
+      type: "text",
+      sortOrder: 7,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-layout",
+      fieldKey: "layout",
+      label: "Layout",
+      type: "text",
+      sortOrder: 8,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-additional-city",
+      fieldKey: "additionalCity",
+      label: "City",
+      type: "text",
+      sortOrder: 9,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-additional-state",
+      fieldKey: "additionalState",
+      label: "State",
+      type: "text",
+      sortOrder: 10,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-additional-zip",
+      fieldKey: "additionalZipCode",
+      label: "Zip Code",
+      type: "text",
+      sortOrder: 11,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-move-in",
+      fieldKey: "moveInDateClosingDate",
+      label: "Move-In Date/Closing Date",
+      type: "text",
+      sortOrder: 12,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-commission-type",
+      fieldKey: "commissionType",
+      label: "Commission Type",
+      type: "select",
+      sortOrder: 13,
+      options: ["Gross", "Net", "Custom"],
+    },
+    {
+      id: "seed-custom-field-leasing-contact",
+      fieldKey: "leasingContact",
+      label: "Leasing Contact",
+      type: "text",
+      sortOrder: 14,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-invoice-bill-to",
+      fieldKey: "invoiceBillTo",
+      label: "Invoice Bill To",
+      type: "text",
+      sortOrder: 15,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-currency-type",
+      fieldKey: "currencyType",
+      label: "Currency Type",
+      type: "select",
+      sortOrder: 16,
+      options: ["USD"],
+    },
+    {
+      id: "seed-custom-field-commission-amount",
+      fieldKey: "commissionAmount",
+      label: "Commission($)",
+      type: "text",
+      sortOrder: 17,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-your-rate",
+      fieldKey: "yourCommissionRate",
+      label: "Your Commission Rate",
+      type: "text",
+      sortOrder: 18,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-rebate",
+      fieldKey: "rebate",
+      label: "Rebate",
+      type: "text",
+      sortOrder: 19,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-reimbursement",
+      fieldKey: "reimbursement",
+      label: "Reimbursement",
+      type: "text",
+      sortOrder: 20,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-co-agent",
+      fieldKey: "coAgentLegalName",
+      label: "Co-Agent Legal Name",
+      type: "text",
+      sortOrder: 21,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-breakdown",
+      fieldKey: "commissionBreakdown",
+      label: "Commission Breakdown",
+      type: "text",
+      sortOrder: 22,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-company-referral",
+      fieldKey: "companyReferral",
+      label: "Company Referral",
+      type: "select",
+      sortOrder: 23,
+      options: ["Yes", "No"],
+    },
+    {
+      id: "seed-custom-field-outside-referral",
+      fieldKey: "outsideReferral",
+      label: "Outside Referral",
+      type: "select",
+      sortOrder: 24,
+      options: ["Yes", "No"],
+    },
+    {
+      id: "seed-custom-field-referral-fee",
+      fieldKey: "referralFee",
+      label: "Referral Fee",
+      type: "text",
+      sortOrder: 25,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-external-partners",
+      fieldKey: "externalPartners",
+      label: "External Partners",
+      type: "text",
+      sortOrder: 26,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-company-referral-employee",
+      fieldKey: "companyReferralEmployeeName",
+      label: "Company Referral Employee's Name",
+      type: "text",
+      sortOrder: 27,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-client-email",
+      fieldKey: "clientEmail",
+      label: "Client's Email",
+      type: "text",
+      sortOrder: 28,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-vendor-cafe",
+      fieldKey: "uploadInvoiceToVendorCafe",
+      label: "Upload Invoice to VendorCafe",
+      type: "select",
+      sortOrder: 29,
+      options: ["Yes", "No"],
+    },
+    {
+      id: "seed-custom-field-note",
+      fieldKey: "note",
+      label: "Note(Rebate, Referral, Others)",
+      type: "text",
+      sortOrder: 30,
+      options: [],
+    },
+    {
+      id: "seed-custom-field-commission-received",
+      fieldKey: "commissionReceivedStatus",
+      label: "Status of Commission Received(For Admin)",
+      type: "select",
+      sortOrder: 31,
+      options: ["No", "Yes", "Partial"],
+    },
+    {
+      id: "seed-custom-field-commission-confirmation",
+      fieldKey: "commissionConfirmation",
+      label:
+        "Commission Confirmation(For Agent, we'll process the payment once you select yes)",
+      type: "select",
+      sortOrder: 32,
+      options: ["Yes", "No"],
+    },
   ];
 
   for (const fieldDefinition of seededTransactionCustomFieldDefinitions) {
@@ -640,8 +1010,8 @@ async function main() {
         organizationId_officeId_fieldKey: {
           organizationId: organization.id,
           officeId: office.id,
-          fieldKey: fieldDefinition.fieldKey
-        }
+          fieldKey: fieldDefinition.fieldKey,
+        },
       },
       update: {
         label: fieldDefinition.label,
@@ -650,7 +1020,7 @@ async function main() {
         isVisible: true,
         isDeletionLocked: Boolean(fieldDefinition.isDeletionLocked),
         sortOrder: fieldDefinition.sortOrder,
-        options: fieldDefinition.options
+        options: fieldDefinition.options,
       },
       create: {
         id: fieldDefinition.id,
@@ -663,8 +1033,8 @@ async function main() {
         isVisible: true,
         isDeletionLocked: Boolean(fieldDefinition.isDeletionLocked),
         sortOrder: fieldDefinition.sortOrder,
-        options: fieldDefinition.options
-      }
+        options: fieldDefinition.options,
+      },
     });
   }
 
@@ -672,7 +1042,8 @@ async function main() {
     {
       id: "seed-checklist-template-office-default",
       name: "Office default transaction checklist",
-      description: "Core office-wide transaction operations checklist for every deal.",
+      description:
+        "Core office-wide transaction operations checklist for every deal.",
       transactionType: null,
       isActive: true,
       items: [
@@ -680,41 +1051,45 @@ async function main() {
           id: "seed-checklist-template-office-default-0",
           checklistGroup: "Intake",
           title: "Confirm transaction data and contact roster",
-          description: "Validate address, price, key dates, and required contact roles before processing.",
+          description:
+            "Validate address, price, key dates, and required contact roles before processing.",
           dueDaysOffset: 0,
           sortOrder: 0,
           requiresDocument: false,
           requiresDocumentApproval: false,
-          requiresSecondaryApproval: false
+          requiresSecondaryApproval: false,
         },
         {
           id: "seed-checklist-template-office-default-1",
           checklistGroup: "Compliance",
           title: "Upload contract package",
-          description: "Collect and upload the executed contract package into Back Office.",
+          description:
+            "Collect and upload the executed contract package into Back Office.",
           dueDaysOffset: 1,
           sortOrder: 1,
           requiresDocument: true,
           requiresDocumentApproval: true,
-          requiresSecondaryApproval: false
+          requiresSecondaryApproval: false,
         },
         {
           id: "seed-checklist-template-office-default-2",
           checklistGroup: "Finance",
           title: "Review finance and commission inputs",
-          description: "Confirm referral, finance values, and commission readiness for accounting.",
+          description:
+            "Confirm referral, finance values, and commission readiness for accounting.",
           dueDaysOffset: 3,
           sortOrder: 2,
           requiresDocument: false,
           requiresDocumentApproval: false,
-          requiresSecondaryApproval: false
-        }
-      ]
+          requiresSecondaryApproval: false,
+        },
+      ],
     },
     {
       id: "seed-checklist-template-sales",
       name: "Sales transaction checklist",
-      description: "Extra sales-side milestones for offer acceptance, contract, and closing prep.",
+      description:
+        "Extra sales-side milestones for offer acceptance, contract, and closing prep.",
       transactionType: "sales",
       isActive: true,
       items: [
@@ -722,30 +1097,33 @@ async function main() {
           id: "seed-checklist-template-sales-0",
           checklistGroup: "Offer",
           title: "Review accepted offer terms",
-          description: "Confirm accepted price, closing date, and buyer contact alignment.",
+          description:
+            "Confirm accepted price, closing date, and buyer contact alignment.",
           dueDaysOffset: 0,
           sortOrder: 0,
           requiresDocument: false,
           requiresDocumentApproval: false,
-          requiresSecondaryApproval: false
+          requiresSecondaryApproval: false,
         },
         {
           id: "seed-checklist-template-sales-1",
           checklistGroup: "Compliance",
           title: "Submit signed disclosures for approval",
-          description: "Upload disclosures and route them for office review before completion.",
+          description:
+            "Upload disclosures and route them for office review before completion.",
           dueDaysOffset: 2,
           sortOrder: 1,
           requiresDocument: true,
           requiresDocumentApproval: true,
-          requiresSecondaryApproval: true
-        }
-      ]
+          requiresSecondaryApproval: true,
+        },
+      ],
     },
     {
       id: "seed-checklist-template-rental",
       name: "Rental leasing checklist",
-      description: "Standard rental-side checklist for tenant package, approvals, and move-in readiness.",
+      description:
+        "Standard rental-side checklist for tenant package, approvals, and move-in readiness.",
       transactionType: "rental_leasing",
       isActive: true,
       items: [
@@ -753,29 +1131,34 @@ async function main() {
           id: "seed-checklist-template-rental-0",
           checklistGroup: "Documents",
           title: "Collect rental application package",
-          description: "Upload pay stubs, ID, and tenant application documents.",
+          description:
+            "Upload pay stubs, ID, and tenant application documents.",
           dueDaysOffset: 0,
           sortOrder: 0,
           requiresDocument: true,
           requiresDocumentApproval: true,
-          requiresSecondaryApproval: false
+          requiresSecondaryApproval: false,
         },
         {
           id: "seed-checklist-template-rental-1",
           checklistGroup: "Move-in",
           title: "Confirm move-in logistics",
-          description: "Coordinate lease signing and move-in checklist after approval.",
+          description:
+            "Coordinate lease signing and move-in checklist after approval.",
           dueDaysOffset: 5,
           sortOrder: 1,
           requiresDocument: false,
           requiresDocumentApproval: false,
-          requiresSecondaryApproval: false
-        }
-      ]
-    }
+          requiresSecondaryApproval: false,
+        },
+      ],
+    },
   ];
 
-  const checklistEditorMembershipId = membershipByEmail.get("naomi@acre.com")?.id ?? membershipByEmail.get("simon@acre.com")?.id ?? null;
+  const checklistEditorMembershipId =
+    membershipByEmail.get("naomi@acre.com")?.id ??
+    membershipByEmail.get("simon@acre.com")?.id ??
+    null;
 
   for (const template of seededChecklistTemplates) {
     if (!checklistEditorMembershipId) {
@@ -792,7 +1175,7 @@ async function main() {
         transactionType: template.transactionType,
         isActive: template.isActive,
         createdByMembershipId: checklistEditorMembershipId,
-        updatedByMembershipId: checklistEditorMembershipId
+        updatedByMembershipId: checklistEditorMembershipId,
       },
       create: {
         id: template.id,
@@ -803,14 +1186,14 @@ async function main() {
         transactionType: template.transactionType,
         isActive: template.isActive,
         createdByMembershipId: checklistEditorMembershipId,
-        updatedByMembershipId: checklistEditorMembershipId
-      }
+        updatedByMembershipId: checklistEditorMembershipId,
+      },
     });
 
     await prisma.checklistTemplateItem.deleteMany({
       where: {
-        checklistTemplateId: template.id
-      }
+        checklistTemplateId: template.id,
+      },
     });
 
     await prisma.checklistTemplateItem.createMany({
@@ -826,8 +1209,8 @@ async function main() {
         sortOrder: item.sortOrder,
         requiresDocument: item.requiresDocument,
         requiresDocumentApproval: item.requiresDocumentApproval,
-        requiresSecondaryApproval: item.requiresSecondaryApproval
-      }))
+        requiresSecondaryApproval: item.requiresSecondaryApproval,
+      })),
     });
   }
 
@@ -835,27 +1218,30 @@ async function main() {
     {
       id: "seed-agent-template-license",
       title: "Upload license and state ID",
-      description: "Provide the current NY license and state ID for compliance review.",
+      description:
+        "Provide the current NY license and state ID for compliance review.",
       category: "Compliance",
       dueDaysOffset: 3,
-      sortOrder: 0
+      sortOrder: 0,
     },
     {
       id: "seed-agent-template-packet",
       title: "Complete brokerage onboarding packet",
-      description: "Review commission setup, office policies, and required agreements.",
+      description:
+        "Review commission setup, office policies, and required agreements.",
       category: "Operations",
       dueDaysOffset: 5,
-      sortOrder: 1
+      sortOrder: 1,
     },
     {
       id: "seed-agent-template-training",
       title: "Review transaction workflow basics",
-      description: "Walk through tasks, documents, approvals, and finance checkpoints before going live.",
+      description:
+        "Walk through tasks, documents, approvals, and finance checkpoints before going live.",
       category: "Training",
       dueDaysOffset: 7,
-      sortOrder: 2
-    }
+      sortOrder: 2,
+    },
   ];
 
   for (const template of seededAgentOnboardingTemplates) {
@@ -869,7 +1255,7 @@ async function main() {
         category: template.category,
         dueDaysOffset: template.dueDaysOffset,
         sortOrder: template.sortOrder,
-        isActive: true
+        isActive: true,
       },
       create: {
         id: template.id,
@@ -880,8 +1266,8 @@ async function main() {
         category: template.category,
         dueDaysOffset: template.dueDaysOffset,
         sortOrder: template.sortOrder,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
   }
 
@@ -893,40 +1279,44 @@ async function main() {
           membershipId: janeMembership.id,
           templateItemId: "seed-agent-template-license",
           title: "Upload license and state ID",
-          description: "Provide the current NY license and state ID for compliance review.",
+          description:
+            "Provide the current NY license and state ID for compliance review.",
           category: "Compliance",
           dueAt: new Date("2026-03-18T00:00:00.000Z"),
           status: "completed",
           sortOrder: 0,
           completedAt: new Date("2026-03-07T15:00:00.000Z"),
-          completedByMembershipId: membershipByEmail.get("naomi@acre.com")?.id ?? null
+          completedByMembershipId:
+            membershipByEmail.get("naomi@acre.com")?.id ?? null,
         },
         {
           id: "seed-agent-onboarding-packet",
           membershipId: janeMembership.id,
           templateItemId: "seed-agent-template-packet",
           title: "Complete brokerage onboarding packet",
-          description: "Review commission setup, office policies, and required agreements.",
+          description:
+            "Review commission setup, office policies, and required agreements.",
           category: "Operations",
           dueAt: new Date("2026-03-20T00:00:00.000Z"),
           status: "in_progress",
           sortOrder: 1,
           completedAt: null,
-          completedByMembershipId: null
+          completedByMembershipId: null,
         },
         {
           id: "seed-agent-onboarding-training",
           membershipId: janeMembership.id,
           templateItemId: "seed-agent-template-training",
           title: "Review transaction workflow basics",
-          description: "Walk through tasks, documents, approvals, and finance checkpoints before going live.",
+          description:
+            "Walk through tasks, documents, approvals, and finance checkpoints before going live.",
           category: "Training",
           dueAt: new Date("2026-03-24T00:00:00.000Z"),
           status: "pending",
           sortOrder: 2,
           completedAt: null,
-          completedByMembershipId: null
-        }
+          completedByMembershipId: null,
+        },
       ]
     : [];
 
@@ -945,7 +1335,7 @@ async function main() {
         status: item.status,
         sortOrder: item.sortOrder,
         completedAt: item.completedAt,
-        completedByMembershipId: item.completedByMembershipId
+        completedByMembershipId: item.completedByMembershipId,
       },
       create: {
         id: item.id,
@@ -960,8 +1350,8 @@ async function main() {
         status: item.status,
         sortOrder: item.sortOrder,
         completedAt: item.completedAt,
-        completedByMembershipId: item.completedByMembershipId
-      }
+        completedByMembershipId: item.completedByMembershipId,
+      },
     });
   }
 
@@ -976,7 +1366,7 @@ async function main() {
       targetClosedVolume: "6000000",
       targetOfficeNet: "90000",
       targetAgentNet: "55000",
-      notes: "Focus on buyer-side production and clean task compliance."
+      notes: "Focus on buyer-side production and clean task compliance.",
     },
     {
       id: "seed-agent-goal-simon-quarterly",
@@ -988,8 +1378,8 @@ async function main() {
       targetClosedVolume: "3000000",
       targetOfficeNet: "45000",
       targetAgentNet: "20000",
-      notes: "Balance office operations leadership with direct production."
-    }
+      notes: "Balance office operations leadership with direct production.",
+    },
   ];
 
   for (const goal of seededAgentGoals) {
@@ -1012,7 +1402,7 @@ async function main() {
         targetClosedVolume: goal.targetClosedVolume,
         targetOfficeNet: goal.targetOfficeNet,
         targetAgentNet: goal.targetAgentNet,
-        notes: goal.notes
+        notes: goal.notes,
       },
       create: {
         id: goal.id,
@@ -1026,8 +1416,8 @@ async function main() {
         targetClosedVolume: goal.targetClosedVolume,
         targetOfficeNet: goal.targetOfficeNet,
         targetAgentNet: goal.targetAgentNet,
-        notes: goal.notes
-      }
+        notes: goal.notes,
+      },
     });
   }
 
@@ -1049,7 +1439,7 @@ async function main() {
       referralFee: "0",
       officeNet: "1800",
       agentNet: "670",
-      financeNotes: "Seeded lease-side commission snapshot."
+      financeNotes: "Seeded lease-side commission snapshot.",
     },
     {
       id: "seed-tx-70-christopher",
@@ -1069,7 +1459,7 @@ async function main() {
       referralFee: "0",
       officeNet: "2500",
       agentNet: "1085",
-      financeNotes: "Seeded rental commission snapshot."
+      financeNotes: "Seeded rental commission snapshot.",
     },
     {
       id: "seed-tx-3820-parson",
@@ -1088,7 +1478,7 @@ async function main() {
       referralFee: "2500",
       officeNet: "10000",
       agentNet: "6250",
-      financeNotes: "Referral split pending final settlement."
+      financeNotes: "Referral split pending final settlement.",
     },
     {
       id: "seed-tx-graham-court",
@@ -1107,7 +1497,7 @@ async function main() {
       referralFee: null,
       officeNet: null,
       agentNet: null,
-      financeNotes: null
+      financeNotes: null,
     },
     {
       id: "seed-tx-45-10-court-square",
@@ -1128,12 +1518,13 @@ async function main() {
       referralFee: "3200",
       officeNet: "18000",
       agentNet: "10800",
-      financeNotes: "Company referral 10% applied in seed data."
-    }
+      financeNotes: "Company referral 10% applied in seed data.",
+    },
   ];
 
   for (const transaction of seededTransactions) {
-    const ownerMembership = membershipByEmail.get(transaction.ownerEmail) ?? null;
+    const ownerMembership =
+      membershipByEmail.get(transaction.ownerEmail) ?? null;
 
     await prisma.transaction.upsert({
       where: { id: transaction.id },
@@ -1160,8 +1551,9 @@ async function main() {
         agentNet: transaction.agentNet,
         financeNotes: transaction.financeNotes ?? null,
         companyReferral: transaction.companyReferral ?? false,
-        companyReferralEmployeeName: transaction.companyReferralEmployeeName ?? null,
-        additionalFields: { seeded: true }
+        companyReferralEmployeeName:
+          transaction.companyReferralEmployeeName ?? null,
+        additionalFields: { seeded: true },
       },
       create: {
         id: transaction.id,
@@ -1187,9 +1579,10 @@ async function main() {
         agentNet: transaction.agentNet,
         financeNotes: transaction.financeNotes ?? null,
         companyReferral: transaction.companyReferral ?? false,
-        companyReferralEmployeeName: transaction.companyReferralEmployeeName ?? null,
-        additionalFields: { seeded: true }
-      }
+        companyReferralEmployeeName:
+          transaction.companyReferralEmployeeName ?? null,
+        additionalFields: { seeded: true },
+      },
     });
   }
 
@@ -1209,7 +1602,7 @@ async function main() {
       preferredAreas: ["Long Island City", "Astoria"],
       notes: "Interested in LIC investor inventory.",
       lastContactAt: new Date("2026-03-06T15:00:00.000Z"),
-      nextFollowUpAt: new Date("2026-03-10T22:00:00.000Z")
+      nextFollowUpAt: new Date("2026-03-10T22:00:00.000Z"),
     },
     {
       id: "seed-client-daniel",
@@ -1226,7 +1619,7 @@ async function main() {
       preferredAreas: ["Brooklyn Heights", "Downtown Brooklyn"],
       notes: "Saturday tour booked for Downtown Brooklyn.",
       lastContactAt: new Date("2026-03-08T18:30:00.000Z"),
-      nextFollowUpAt: new Date("2026-03-15T14:00:00.000Z")
+      nextFollowUpAt: new Date("2026-03-15T14:00:00.000Z"),
     },
     {
       id: "seed-client-iris",
@@ -1243,8 +1636,8 @@ async function main() {
       preferredAreas: ["Midtown", "Long Island City"],
       notes: "Wants a spring rental move-in.",
       lastContactAt: new Date("2026-03-03T16:00:00.000Z"),
-      nextFollowUpAt: new Date("2026-03-12T15:00:00.000Z")
-    }
+      nextFollowUpAt: new Date("2026-03-12T15:00:00.000Z"),
+    },
   ];
 
   const clientById = new Map();
@@ -1269,7 +1662,7 @@ async function main() {
         preferredAreas: client.preferredAreas,
         notes: client.notes,
         lastContactAt: client.lastContactAt,
-        nextFollowUpAt: client.nextFollowUpAt
+        nextFollowUpAt: client.nextFollowUpAt,
       },
       create: {
         id: client.id,
@@ -1287,8 +1680,8 @@ async function main() {
         preferredAreas: client.preferredAreas,
         notes: client.notes,
         lastContactAt: client.lastContactAt,
-        nextFollowUpAt: client.nextFollowUpAt
-      }
+        nextFollowUpAt: client.nextFollowUpAt,
+      },
     });
 
     clientById.set(client.id, savedClient);
@@ -1301,7 +1694,7 @@ async function main() {
       assigneeEmail: "jane@acre.com",
       title: "Follow up on LIC investor inventory",
       status: "queued",
-      dueAt: new Date("2026-03-09T22:00:00.000Z")
+      dueAt: new Date("2026-03-09T22:00:00.000Z"),
     },
     {
       id: "seed-task-daniel",
@@ -1309,12 +1702,13 @@ async function main() {
       assigneeEmail: "simon@acre.com",
       title: "Confirm Saturday tour logistics",
       status: "in_progress",
-      dueAt: new Date("2026-03-12T16:00:00.000Z")
-    }
+      dueAt: new Date("2026-03-12T16:00:00.000Z"),
+    },
   ];
 
   for (const task of seededTasks) {
-    const assigneeMembership = membershipByEmail.get(task.assigneeEmail) ?? null;
+    const assigneeMembership =
+      membershipByEmail.get(task.assigneeEmail) ?? null;
     const client = clientById.get(task.clientId) ?? null;
 
     await prisma.followUpTask.upsert({
@@ -1326,7 +1720,7 @@ async function main() {
         title: task.title,
         status: task.status,
         dueAt: task.dueAt,
-        metadata: null
+        metadata: null,
       },
       create: {
         id: task.id,
@@ -1336,8 +1730,8 @@ async function main() {
         title: task.title,
         status: task.status,
         dueAt: task.dueAt,
-        metadata: null
-      }
+        metadata: null,
+      },
     });
   }
 
@@ -1346,30 +1740,33 @@ async function main() {
       id: "seed-event-weekly-meeting",
       createdByEmail: "simon@acre.com",
       title: "Acre Weekly Meeting",
-      description: "Weekly office ops sync covering pending transactions and marketing priorities.",
+      description:
+        "Weekly office ops sync covering pending transactions and marketing priorities.",
       visibility: "office_only",
       startsAt: new Date("2026-03-12T15:00:00.000Z"),
       endsAt: new Date("2026-03-12T15:30:00.000Z"),
       location: "Zoom",
       meetingUrl: "https://us06web.zoom.us/j/88901672776",
-      officeScoped: true
+      officeScoped: true,
     },
     {
       id: "seed-event-contract-workshop",
       createdByEmail: "naomi@acre.com",
       title: "Contract review workshop",
-      description: "Walk through current pending deals and contract pain points with the office team.",
+      description:
+        "Walk through current pending deals and contract pain points with the office team.",
       visibility: "all_agents",
       startsAt: new Date("2026-03-14T18:00:00.000Z"),
       endsAt: new Date("2026-03-14T19:00:00.000Z"),
       location: "45-10 Court Square W, LIC",
       meetingUrl: null,
-      officeScoped: false
-    }
+      officeScoped: false,
+    },
   ];
 
   for (const event of seededEvents) {
-    const createdByMembership = membershipByEmail.get(event.createdByEmail) ?? null;
+    const createdByMembership =
+      membershipByEmail.get(event.createdByEmail) ?? null;
 
     await prisma.event.upsert({
       where: { id: event.id },
@@ -1383,7 +1780,7 @@ async function main() {
         startsAt: event.startsAt,
         endsAt: event.endsAt,
         location: event.location,
-        meetingUrl: event.meetingUrl
+        meetingUrl: event.meetingUrl,
       },
       create: {
         id: event.id,
@@ -1396,8 +1793,8 @@ async function main() {
         startsAt: event.startsAt,
         endsAt: event.endsAt,
         location: event.location,
-        meetingUrl: event.meetingUrl
-      }
+        meetingUrl: event.meetingUrl,
+      },
     });
   }
 
@@ -1405,18 +1802,18 @@ async function main() {
     {
       eventId: "seed-event-weekly-meeting",
       membershipEmail: "jane@acre.com",
-      status: "going"
+      status: "going",
     },
     {
       eventId: "seed-event-weekly-meeting",
       membershipEmail: "naomi@acre.com",
-      status: "going"
+      status: "going",
     },
     {
       eventId: "seed-event-contract-workshop",
       membershipEmail: "simon@acre.com",
-      status: "maybe"
-    }
+      status: "maybe",
+    },
   ];
 
   for (const rsvp of seededEventRsvps) {
@@ -1430,17 +1827,17 @@ async function main() {
       where: {
         eventId_membershipId: {
           eventId: rsvp.eventId,
-          membershipId: membership.id
-        }
+          membershipId: membership.id,
+        },
       },
       update: {
-        status: rsvp.status
+        status: rsvp.status,
       },
       create: {
         eventId: rsvp.eventId,
         membershipId: membership.id,
-        status: rsvp.status
-      }
+        status: rsvp.status,
+      },
     });
   }
 
@@ -1454,7 +1851,7 @@ async function main() {
       title: "Follow up due for Evelyn Zhao",
       body: "LIC investor follow-up is due today. Review the contact note before calling.",
       actionUrl: "/office/contacts/seed-client-evelyn",
-      readAt: null
+      readAt: null,
     },
     {
       id: "seed-notification-weekly-meeting",
@@ -1465,7 +1862,7 @@ async function main() {
       title: "Weekly office meeting this Thursday",
       body: "Acre Weekly Meeting starts at 10:00 AM. Review pending transaction blockers before joining.",
       actionUrl: "/office/activity",
-      readAt: null
+      readAt: null,
     },
     {
       id: "seed-notification-contract-workshop",
@@ -1476,12 +1873,14 @@ async function main() {
       title: "Contract review workshop reminder",
       body: "Bring open pending deals and current finance questions to the workshop.",
       actionUrl: "/office/reports",
-      readAt: new Date("2026-03-09T18:00:00.000Z")
-    }
+      readAt: new Date("2026-03-09T18:00:00.000Z"),
+    },
   ];
 
   for (const notification of seededNotifications) {
-    const membership = notification.membershipEmail ? membershipByEmail.get(notification.membershipEmail) ?? null : null;
+    const membership = notification.membershipEmail
+      ? (membershipByEmail.get(notification.membershipEmail) ?? null)
+      : null;
 
     await prisma.notification.upsert({
       where: { id: notification.id },
@@ -1494,7 +1893,7 @@ async function main() {
         title: notification.title,
         body: notification.body,
         actionUrl: notification.actionUrl,
-        readAt: notification.readAt
+        readAt: notification.readAt,
       },
       create: {
         id: notification.id,
@@ -1506,61 +1905,61 @@ async function main() {
         title: notification.title,
         body: notification.body,
         actionUrl: notification.actionUrl,
-        readAt: notification.readAt
-      }
+        readAt: notification.readAt,
+      },
     });
   }
 
   await prisma.transaction.update({
     where: { id: "seed-tx-graham-court" },
     data: {
-      primaryClientId: "seed-client-evelyn"
-    }
+      primaryClientId: "seed-client-evelyn",
+    },
   });
 
   await prisma.transactionContact.updateMany({
     where: {
       transactionId: "seed-tx-graham-court",
       NOT: {
-        clientId: "seed-client-evelyn"
-      }
+        clientId: "seed-client-evelyn",
+      },
     },
     data: {
-      isPrimary: false
-    }
+      isPrimary: false,
+    },
   });
 
   await prisma.transaction.update({
     where: { id: "seed-tx-45-10-court-square" },
     data: {
-      primaryClientId: "seed-client-daniel"
-    }
+      primaryClientId: "seed-client-daniel",
+    },
   });
 
   await prisma.transactionContact.updateMany({
     where: {
       transactionId: "seed-tx-45-10-court-square",
       NOT: {
-        clientId: "seed-client-daniel"
-      }
+        clientId: "seed-client-daniel",
+      },
     },
     data: {
-      isPrimary: false
-    }
+      isPrimary: false,
+    },
   });
 
   await prisma.transactionContact.upsert({
     where: {
       transactionId_clientId: {
         transactionId: "seed-tx-graham-court",
-        clientId: "seed-client-evelyn"
-      }
+        clientId: "seed-client-evelyn",
+      },
     },
     update: {
       organizationId: organization.id,
       role: "buyer",
       isPrimary: true,
-      notes: "Seeded primary client link"
+      notes: "Seeded primary client link",
     },
     create: {
       id: "seed-transaction-contact-evelyn",
@@ -1569,22 +1968,22 @@ async function main() {
       clientId: "seed-client-evelyn",
       role: "buyer",
       isPrimary: true,
-      notes: "Seeded primary client link"
-    }
+      notes: "Seeded primary client link",
+    },
   });
 
   await prisma.transactionContact.upsert({
     where: {
       transactionId_clientId: {
         transactionId: "seed-tx-45-10-court-square",
-        clientId: "seed-client-daniel"
-      }
+        clientId: "seed-client-daniel",
+      },
     },
     update: {
       organizationId: organization.id,
       role: "tenant",
       isPrimary: true,
-      notes: "Seeded primary client link"
+      notes: "Seeded primary client link",
     },
     create: {
       id: "seed-transaction-contact-daniel",
@@ -1593,8 +1992,8 @@ async function main() {
       clientId: "seed-client-daniel",
       role: "tenant",
       isPrimary: true,
-      notes: "Seeded primary client link"
-    }
+      notes: "Seeded primary client link",
+    },
   });
 
   const seededTransactionTasks = [
@@ -1603,7 +2002,8 @@ async function main() {
       transactionId: "seed-tx-graham-court",
       checklistGroup: "Contract",
       title: "Collect signed buyer agreement",
-      description: "Confirm executed contract PDF is available from the buyer side.",
+      description:
+        "Confirm executed contract PDF is available from the buyer side.",
       assigneeEmail: "jane@acre.com",
       dueAt: new Date("2026-03-08T16:00:00.000Z"),
       status: "review_requested",
@@ -1622,14 +2022,15 @@ async function main() {
       rejectedAt: null,
       rejectedByEmail: null,
       reopenedAt: null,
-      sortOrder: 0
+      sortOrder: 0,
     },
     {
       id: "seed-transaction-task-graham-intro",
       transactionId: "seed-tx-graham-court",
       checklistGroup: "Client care",
       title: "Send attorney introduction",
-      description: "Email the standard attorney introduction once offer terms are confirmed.",
+      description:
+        "Email the standard attorney introduction once offer terms are confirmed.",
       assigneeEmail: "jane@acre.com",
       dueAt: new Date("2026-03-16T15:00:00.000Z"),
       status: "in_progress",
@@ -1648,7 +2049,7 @@ async function main() {
       rejectedAt: null,
       rejectedByEmail: null,
       reopenedAt: null,
-      sortOrder: 1
+      sortOrder: 1,
     },
     {
       id: "seed-transaction-task-court-square-invoice",
@@ -1674,16 +2075,25 @@ async function main() {
       rejectedAt: null,
       rejectedByEmail: null,
       reopenedAt: null,
-      sortOrder: 0
-    }
+      sortOrder: 0,
+    },
   ];
 
   for (const task of seededTransactionTasks) {
-    const assigneeMembership = membershipByEmail.get(task.assigneeEmail) ?? null;
-    const completedByMembership = task.completedByEmail ? membershipByEmail.get(task.completedByEmail) ?? null : null;
-    const firstApprovedByMembership = task.firstApprovedByEmail ? membershipByEmail.get(task.firstApprovedByEmail) ?? null : null;
-    const secondApprovedByMembership = task.secondApprovedByEmail ? membershipByEmail.get(task.secondApprovedByEmail) ?? null : null;
-    const rejectedByMembership = task.rejectedByEmail ? membershipByEmail.get(task.rejectedByEmail) ?? null : null;
+    const assigneeMembership =
+      membershipByEmail.get(task.assigneeEmail) ?? null;
+    const completedByMembership = task.completedByEmail
+      ? (membershipByEmail.get(task.completedByEmail) ?? null)
+      : null;
+    const firstApprovedByMembership = task.firstApprovedByEmail
+      ? (membershipByEmail.get(task.firstApprovedByEmail) ?? null)
+      : null;
+    const secondApprovedByMembership = task.secondApprovedByEmail
+      ? (membershipByEmail.get(task.secondApprovedByEmail) ?? null)
+      : null;
+    const rejectedByMembership = task.rejectedByEmail
+      ? (membershipByEmail.get(task.rejectedByEmail) ?? null)
+      : null;
 
     await prisma.transactionTask.upsert({
       where: { id: task.id },
@@ -1711,7 +2121,7 @@ async function main() {
         rejectedAt: task.rejectedAt,
         rejectedByMembershipId: rejectedByMembership?.id ?? null,
         reopenedAt: task.reopenedAt,
-        sortOrder: task.sortOrder
+        sortOrder: task.sortOrder,
       },
       create: {
         id: task.id,
@@ -1738,8 +2148,8 @@ async function main() {
         rejectedAt: task.rejectedAt,
         rejectedByMembershipId: rejectedByMembership?.id ?? null,
         reopenedAt: task.reopenedAt,
-        sortOrder: task.sortOrder
-      }
+        sortOrder: task.sortOrder,
+      },
     });
   }
 
@@ -1762,7 +2172,7 @@ async function main() {
       submittedAt: new Date("2026-03-11T13:30:00.000Z"),
       acceptedAt: null,
       rejectedAt: null,
-      withdrawnAt: null
+      withdrawnAt: null,
     },
     {
       id: "seed-offer-graham-countered",
@@ -1782,12 +2192,13 @@ async function main() {
       submittedAt: new Date("2026-03-11T16:00:00.000Z"),
       acceptedAt: null,
       rejectedAt: null,
-      withdrawnAt: null
-    }
+      withdrawnAt: null,
+    },
   ];
 
   for (const offer of seededOffers) {
-    const createdByMembership = membershipByEmail.get(offer.createdByEmail) ?? null;
+    const createdByMembership =
+      membershipByEmail.get(offer.createdByEmail) ?? null;
 
     await prisma.offer.upsert({
       where: { id: offer.id },
@@ -1795,7 +2206,9 @@ async function main() {
         organizationId: organization.id,
         officeId: office.id,
         transactionId: offer.transactionId,
-        createdByMembershipId: createdByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        createdByMembershipId:
+          createdByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
         title: offer.title,
         offeringPartyName: offer.offeringPartyName,
         buyerName: offer.buyerName,
@@ -1810,14 +2223,16 @@ async function main() {
         submittedAt: offer.submittedAt,
         acceptedAt: offer.acceptedAt,
         rejectedAt: offer.rejectedAt,
-        withdrawnAt: offer.withdrawnAt
+        withdrawnAt: offer.withdrawnAt,
       },
       create: {
         id: offer.id,
         organizationId: organization.id,
         officeId: office.id,
         transactionId: offer.transactionId,
-        createdByMembershipId: createdByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        createdByMembershipId:
+          createdByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
         title: offer.title,
         offeringPartyName: offer.offeringPartyName,
         buyerName: offer.buyerName,
@@ -1832,8 +2247,8 @@ async function main() {
         submittedAt: offer.submittedAt,
         acceptedAt: offer.acceptedAt,
         rejectedAt: offer.rejectedAt,
-        withdrawnAt: offer.withdrawnAt
-      }
+        withdrawnAt: offer.withdrawnAt,
+      },
     });
   }
 
@@ -1843,15 +2258,15 @@ async function main() {
       offerId: "seed-offer-graham-countered",
       membershipEmail: "jane@acre.com",
       body: "Counter package is strongest on price, but seller wants a faster close.",
-      createdAt: new Date("2026-03-11T16:30:00.000Z")
+      createdAt: new Date("2026-03-11T16:30:00.000Z"),
     },
     {
       id: "seed-offer-comment-graham-2",
       offerId: "seed-offer-graham-countered",
       membershipEmail: "simon@acre.com",
       body: "Keep an eye on expiration. Ask for proof of funds before accepting.",
-      createdAt: new Date("2026-03-11T17:00:00.000Z")
-    }
+      createdAt: new Date("2026-03-11T17:00:00.000Z"),
+    },
   ];
 
   for (const comment of seededOfferComments) {
@@ -1863,19 +2278,21 @@ async function main() {
         organizationId: organization.id,
         officeId: office.id,
         offerId: comment.offerId,
-        membershipId: membership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        membershipId:
+          membership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
         body: comment.body,
-        createdAt: comment.createdAt
+        createdAt: comment.createdAt,
       },
       create: {
         id: comment.id,
         organizationId: organization.id,
         officeId: office.id,
         offerId: comment.offerId,
-        membershipId: membership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        membershipId:
+          membership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
         body: comment.body,
-        createdAt: comment.createdAt
-      }
+        createdAt: comment.createdAt,
+      },
     });
   }
 
@@ -1884,7 +2301,8 @@ async function main() {
       id: "seed-form-template-buyer-agreement",
       key: "buyer-agreement-packet",
       name: "Buyer agreement packet",
-      description: "Basic buyer-side agreement packet merged from transaction and contact data.",
+      description:
+        "Basic buyer-side agreement packet merged from transaction and contact data.",
       documentType: "Buyer agreement",
       mergeFields: [
         "transaction_title",
@@ -1900,23 +2318,24 @@ async function main() {
         "primary_contact_email",
         "primary_contact_phone",
         "finance_gross_commission",
-        "finance_office_net"
-      ]
+        "finance_office_net",
+      ],
     },
     {
       id: "seed-form-template-emd-receipt",
       key: "emd-receipt",
       name: "Earnest money receipt",
-      description: "Internal receipt used to document EMD expectations and receipt details.",
+      description:
+        "Internal receipt used to document EMD expectations and receipt details.",
       documentType: "Earnest money receipt",
       mergeFields: [
         "transaction_title",
         "transaction_address",
         "transaction_status",
         "finance_office_net",
-        "closing_date"
-      ]
-    }
+        "closing_date",
+      ],
+    },
   ];
 
   for (const template of seededFormTemplates) {
@@ -1930,7 +2349,7 @@ async function main() {
         documentType: template.documentType,
         mergeFields: template.mergeFields,
         isSystem: true,
-        isActive: true
+        isActive: true,
       },
       create: {
         id: template.id,
@@ -1942,8 +2361,8 @@ async function main() {
         documentType: template.documentType,
         mergeFields: template.mergeFields,
         isSystem: true,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
   }
 
@@ -1955,8 +2374,8 @@ async function main() {
       content: [
         "Graham Court 4F buyer agreement upload",
         "Uploaded by Jane Wu for contract review.",
-        "Linked task: Collect signed buyer agreement."
-      ].join("\n")
+        "Linked task: Collect signed buyer agreement.",
+      ].join("\n"),
     }),
     grahamUnsortedEmail: await writeSeedStoredDocument({
       organizationId: organization.id,
@@ -1964,8 +2383,8 @@ async function main() {
       fileName: "graham-court-unsorted-email-pdf.txt",
       content: [
         "Loose PDF from email import.",
-        "This file is intentionally unsorted so the transaction workflow has something to classify."
-      ].join("\n")
+        "This file is intentionally unsorted so the transaction workflow has something to classify.",
+      ].join("\n"),
     }),
     grahamGeneratedPacket: await writeSeedStoredDocument({
       organizationId: organization.id,
@@ -1975,8 +2394,8 @@ async function main() {
         template: "Buyer agreement packet",
         transaction: "Graham Court 4F",
         primaryContact: "Evelyn Zhao",
-        owner: "Jane Wu"
-      }
+        owner: "Jane Wu",
+      },
     }),
     courtSquareInvoicePackage: await writeSeedStoredDocument({
       organizationId: organization.id,
@@ -1984,9 +2403,9 @@ async function main() {
       fileName: "court-square-vendor-invoice-package.txt",
       content: [
         "Vendor invoice package",
-        "Prepared for secondary approval in the finance checklist."
-      ].join("\n")
-    })
+        "Prepared for secondary approval in the finance checklist.",
+      ].join("\n"),
+    }),
   };
 
   const storedSeedLibraryFiles = {
@@ -1999,9 +2418,9 @@ async function main() {
         lines: [
           "Internal reference for the Office / Back Office workspace.",
           "Covers navigation, daily operating flows, and audit expectations.",
-          "Use this as the first-stop guide for new office users."
-        ]
-      })
+          "Use this as the first-stop guide for new office users.",
+        ],
+      }),
     }),
     financialGuide: await writeSeedStoredLibraryDocument({
       organizationId: organization.id,
@@ -2012,9 +2431,9 @@ async function main() {
         lines: [
           "Checklist for invoices, brokerage receipts, and reimbursement packets.",
           "Store statement-ready PDFs with clean naming and office scoping.",
-          "Accounting review remains manager-driven in the MVP."
-        ]
-      })
+          "Accounting review remains manager-driven in the MVP.",
+        ],
+      }),
     }),
     legalGuide: await writeSeedStoredLibraryDocument({
       organizationId: organization.id,
@@ -2025,9 +2444,9 @@ async function main() {
         lines: [
           "Quick handbook for disclosures, fair housing reminders, and audit prep.",
           "Pair this library copy with transaction-level compliance tasks.",
-          "Update whenever office policy or state guidance changes."
-        ]
-      })
+          "Update whenever office policy or state guidance changes.",
+        ],
+      }),
     }),
     onboardingGuide: await writeSeedStoredLibraryDocument({
       organizationId: organization.id,
@@ -2038,9 +2457,9 @@ async function main() {
         lines: [
           "Day 1 through Day 14 checklist for office onboarding.",
           "Includes account setup, compliance reading, and training milestones.",
-          "Managers should assign related onboarding items separately."
-        ]
-      })
+          "Managers should assign related onboarding items separately.",
+        ],
+      }),
     }),
     offerPlaybook: await writeSeedStoredLibraryDocument({
       organizationId: organization.id,
@@ -2051,9 +2470,9 @@ async function main() {
         lines: [
           "Office-only playbook for structuring and comparing offer packages.",
           "Use with transaction offers, supporting documents, and approval queues.",
-          "Keep office-specific negotiation notes here, not in the public site."
-        ]
-      })
+          "Keep office-specific negotiation notes here, not in the public site.",
+        ],
+      }),
     }),
     benefitsReference: await writeSeedStoredLibraryDocument({
       organizationId: organization.id,
@@ -2064,10 +2483,10 @@ async function main() {
         lines: [
           "Unfiled sample document for root-level library behavior.",
           "Useful for testing search, preview, and download flows.",
-          "Move into a folder once the final category is agreed."
-        ]
-      })
-    })
+          "Move into a folder once the final category is agreed.",
+        ],
+      }),
+    }),
   };
 
   const seededLibraryFolders = [
@@ -2077,8 +2496,9 @@ async function main() {
       parentFolderId: null,
       createdByEmail: "naomi@acre.com",
       name: "User Manual Documents",
-      description: "Core company manuals and how-to PDFs for office operations.",
-      sortOrder: 0
+      description:
+        "Core company manuals and how-to PDFs for office operations.",
+      sortOrder: 0,
     },
     {
       id: "seed-library-folder-financial",
@@ -2086,8 +2506,9 @@ async function main() {
       parentFolderId: null,
       createdByEmail: "simon@acre.com",
       name: "Financial Documents",
-      description: "Accounting policies, internal financial references, and support packets.",
-      sortOrder: 1
+      description:
+        "Accounting policies, internal financial references, and support packets.",
+      sortOrder: 1,
     },
     {
       id: "seed-library-folder-legal",
@@ -2096,7 +2517,7 @@ async function main() {
       createdByEmail: "naomi@acre.com",
       name: "Legal Documents",
       description: "Compliance and legal guidance used by the back office.",
-      sortOrder: 2
+      sortOrder: 2,
     },
     {
       id: "seed-library-folder-onboarding",
@@ -2105,7 +2526,7 @@ async function main() {
       createdByEmail: "naomi@acre.com",
       name: "Onboarding Documents",
       description: "Internal onboarding references and training packets.",
-      sortOrder: 3
+      sortOrder: 3,
     },
     {
       id: "seed-library-folder-onboarding-packets",
@@ -2113,8 +2534,9 @@ async function main() {
       parentFolderId: "seed-library-folder-onboarding",
       createdByEmail: "naomi@acre.com",
       name: "Starter Packets",
-      description: "Nested onboarding packet examples for new hires and transfers.",
-      sortOrder: 0
+      description:
+        "Nested onboarding packet examples for new hires and transfers.",
+      sortOrder: 0,
     },
     {
       id: "seed-library-folder-playbooks",
@@ -2122,13 +2544,16 @@ async function main() {
       parentFolderId: null,
       createdByEmail: "simon@acre.com",
       name: "Templates and Playbooks",
-      description: "Office-only playbooks, quick-start packets, and reusable internal guides.",
-      sortOrder: 4
-    }
+      description:
+        "Office-only playbooks, quick-start packets, and reusable internal guides.",
+      sortOrder: 4,
+    },
   ];
 
   for (const folder of seededLibraryFolders) {
-    const createdByMembership = folder.createdByEmail ? membershipByEmail.get(folder.createdByEmail) ?? null : null;
+    const createdByMembership = folder.createdByEmail
+      ? (membershipByEmail.get(folder.createdByEmail) ?? null)
+      : null;
 
     await prisma.libraryFolder.upsert({
       where: { id: folder.id },
@@ -2140,7 +2565,7 @@ async function main() {
         name: folder.name,
         description: folder.description,
         sortOrder: folder.sortOrder,
-        isActive: true
+        isActive: true,
       },
       create: {
         id: folder.id,
@@ -2151,8 +2576,8 @@ async function main() {
         name: folder.name,
         description: folder.description,
         sortOrder: folder.sortOrder,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
   }
 
@@ -2168,11 +2593,12 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.userManual.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.userManual.storageKey,
       pageCount: 1,
-      summary: "Primary internal user manual for the company back-office workspace.",
+      summary:
+        "Primary internal user manual for the company back-office workspace.",
       tags: ["manual", "office", "training"],
       category: "User Manual Documents",
       visibility: "company_wide",
-      sortOrder: 0
+      sortOrder: 0,
     },
     {
       id: "seed-library-doc-financial-guide",
@@ -2185,11 +2611,12 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.financialGuide.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.financialGuide.storageKey,
       pageCount: 1,
-      summary: "Reference guide for internal accounting and finance document handling.",
+      summary:
+        "Reference guide for internal accounting and finance document handling.",
       tags: ["finance", "accounting", "policy"],
       category: "Financial Documents",
       visibility: "company_wide",
-      sortOrder: 1
+      sortOrder: 1,
     },
     {
       id: "seed-library-doc-legal-guide",
@@ -2202,11 +2629,12 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.legalGuide.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.legalGuide.storageKey,
       pageCount: 1,
-      summary: "Internal legal and compliance quick-reference used by office operations.",
+      summary:
+        "Internal legal and compliance quick-reference used by office operations.",
       tags: ["legal", "compliance", "policy"],
       category: "Legal Documents",
       visibility: "company_wide",
-      sortOrder: 2
+      sortOrder: 2,
     },
     {
       id: "seed-library-doc-onboarding-packet",
@@ -2219,11 +2647,12 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.onboardingGuide.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.onboardingGuide.storageKey,
       pageCount: 1,
-      summary: "Starter onboarding packet for first-week office setup and training.",
+      summary:
+        "Starter onboarding packet for first-week office setup and training.",
       tags: ["onboarding", "training", "packet"],
       category: "Onboarding Documents",
       visibility: "company_wide",
-      sortOrder: 3
+      sortOrder: 3,
     },
     {
       id: "seed-library-doc-offer-playbook",
@@ -2236,11 +2665,12 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.offerPlaybook.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.offerPlaybook.storageKey,
       pageCount: 1,
-      summary: "Office-only playbook for document-heavy offer review and negotiation prep.",
+      summary:
+        "Office-only playbook for document-heavy offer review and negotiation prep.",
       tags: ["playbook", "offers", "office-only"],
       category: "Templates and Playbooks",
       visibility: "office_only",
-      sortOrder: 4
+      sortOrder: 4,
     },
     {
       id: "seed-library-doc-benefits-reference",
@@ -2253,16 +2683,19 @@ async function main() {
       fileSizeBytes: storedSeedLibraryFiles.benefitsReference.fileSizeBytes,
       storageKey: storedSeedLibraryFiles.benefitsReference.storageKey,
       pageCount: 1,
-      summary: "Unfiled sample reference used to verify root-level library document behavior.",
+      summary:
+        "Unfiled sample reference used to verify root-level library document behavior.",
       tags: ["reference", "benefits", "unfiled"],
       category: "General",
       visibility: "company_wide",
-      sortOrder: 5
-    }
+      sortOrder: 5,
+    },
   ];
 
   for (const document of seededLibraryDocuments) {
-    const uploadedByMembership = document.uploadedByEmail ? membershipByEmail.get(document.uploadedByEmail) ?? null : null;
+    const uploadedByMembership = document.uploadedByEmail
+      ? (membershipByEmail.get(document.uploadedByEmail) ?? null)
+      : null;
 
     await prisma.libraryDocument.upsert({
       where: { id: document.id },
@@ -2281,7 +2714,7 @@ async function main() {
         tags: document.tags,
         category: document.category,
         visibility: document.visibility,
-        sortOrder: document.sortOrder
+        sortOrder: document.sortOrder,
       },
       create: {
         id: document.id,
@@ -2299,10 +2732,27 @@ async function main() {
         tags: document.tags,
         category: document.category,
         visibility: document.visibility,
-        sortOrder: document.sortOrder
-      }
+        sortOrder: document.sortOrder,
+      },
     });
   }
+
+  const acreTrainingPlaylist = JSON.parse(
+    String.raw`[{"videoId":"UsWXoZerYEk","title":"房屋不查收入贷款 - 主讲人：Jing"},{"videoId":"Dbk0dVONnX8","title":"如何与客户建立第一次电话沟通 - 主讲人：Cathy"},{"videoId":"DrZMJnDSzxk","title":"新泽西买卖房市场 - 主讲人：Brittani"},{"videoId":"DkJyySIfCyU","title":"如何利用地推和校园大使拓展客户 - 主讲人：Marketing小简"},{"videoId":"EcbbxeBK_yI","title":"与客户沟通技巧 - 主讲人：yueyue"},{"videoId":"tIW4gzS2WnM","title":"购房财务策略之税务规划 - 主讲人：向京"},{"videoId":"clJvDB-R9mY","title":"新泽西学区房介绍 - 主讲人：Brittani"},{"videoId":"NQqya-0KLmY","title":"外国人买卖的税务 - 主讲人：向京"},{"videoId":"qMOZb7Hhpnw","title":"Bulk Sale 培训 - 主讲人：Maggie"},{"videoId":"S51EXRkEmCA","title":"社交媒体运营-如何生成内容 - 主讲人：小简"},{"videoId":"00TOyQ5lwCQ","title":"新泽西买卖房流程及考证分享 - 主讲人：Brittani"},{"videoId":"nzPUD94qors","title":"如何close deal，房产成交中的注意事项 - 主讲人：Cathy"},{"videoId":"Rwxf2biKTNQ","title":"买卖房基础知识 - 买卖房流程 主讲人：Lynn"},{"videoId":"riw3zzd6Izs","title":"暑期如何获取房源 - 主讲人：Lee"},{"videoId":"ziVTaN9JVRk","title":"新泽西如何下offer和如何写offer - 主讲人：Brittani"},{"videoId":"jFXtkKoHdSE","title":"新人如何做单以及如何登单 - 主讲人：Jacyco"},{"videoId":"EwXOnFYKB9M","title":"社交媒体运营培训 - 主讲人：小简"},{"videoId":"FMIhns2Brvs","title":"如何从租赁转型到买卖房 - 主讲人：Joseph"},{"videoId":"SUUN4WUrjYM","title":"NYC Zoning Workshop - 主讲人：Wilson"},{"videoId":"YR10924809s","title":"新泽西暑期学区房培训 - 主讲人：Brittani"},{"videoId":"C8teiicYNFY","title":"关于房产法，信托法和移民法的问题 - 主讲人：Alina Sun"},{"videoId":"BfeYKsw75mU","title":"如何和大楼Listing Office 沟通 - 主讲人：Kun"},{"videoId":"qAmLVWaafFU","title":"如何使用olr等平台查找简单数据了解/分析市场信息和趋势 - 主讲人：Mario"},{"videoId":"chWbvKBJGtE","title":"RMB的交易流程以及方法 - 主讲人：Maggie"},{"videoId":"iCdopJIEJoc","title":"纽约学区房介绍 - 主讲人：Marketing小简"},{"videoId":"CD-i5a0ktpc","title":"如何在新泽西的竞价中脱颖而出 - 主讲人：Emma"},{"videoId":"NcqBe_EZgs0","title":"贷款基础知识了解，以及重新贷款 - 主讲人：Ron"},{"videoId":"Q92Z77afueU","title":"新泽西挂证以及MLS培训 - 主讲人：Brittani"},{"videoId":"-Q98IHLVKoc","title":"新泽西买卖房流程 - 主讲人：Brittani"},{"videoId":"ljcyp5M8iMY","title":"新泽西的房地产法律和法规 - 主讲人: Maggie"},{"videoId":"xAsMrEORJvo","title":"探索宜居之道 揭秘买房风水智慧 - 主讲人：张柳阳"},{"videoId":"LiUgGvmuPL4","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"Yrgt8gxY1pQ","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"6xSUsIyuRAQ","title":"投资房产培训- 主讲人: Cathy X Huihe"},{"videoId":"LDAk4qM_6YM","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"6V5ZBHzgBnw","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"krCXpLa2Oo4","title":"赢得客户尊重的“必杀技” - 主讲人：李老师"},{"videoId":"clNM6VqqG18","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"DY1-FOhfQac","title":"社交媒体运营培训 视频拍摄+剪辑滤镜+社群運營培訓 - 主讲人 : 惠和Marketing"},{"videoId":"ISd2W_8e0XE","title":"买卖培训一：如何获客与初步沟通"},{"videoId":"FjHLhTabA_E","title":"哥大地区培训"},{"videoId":"5uOQz9iGFdM","title":"家族信托知识培训 - 褚楚律师"},{"videoId":"UrlRBk9d42Y","title":"布鲁克林地区培训"},{"videoId":"EZ8nxpZzzkY","title":"Rental 101 - 入职后第一次新人培训"},{"videoId":"f8czN8dT-wg","title":"Social Media Workshop - 口播/房源文案写作技巧 + 近期“聚光”内容更新"},{"videoId":"rn9VTu7VsmU","title":"Mortgage 101 基础知识: 查收入&不查收入 贷款基础培训 - Yusheng(Ron) Liu"},{"videoId":"-tDdNDrWxvI","title":"Rental 102 - 如何找房源以及使用好网络搜索工具"},{"videoId":"nmx5CHGvsAs","title":"Rental 103 - 入职后的第三次培训 - 如何带看房"},{"videoId":"RUPzosUUQU4","title":"华美银行：海外买家如何远程开户以及资金如何转账合规 - Stanley Lau"},{"videoId":"tJ7e7qiEdyc","title":"商业地产培训：如何转化买卖和租赁客人到商业地产 - Ivan Shao"},{"videoId":"pn5LjvpE4ME","title":"租赁104 - 入职后的第四次培训 - 入住申请以及保险流程"},{"videoId":"CqRJTjsi_VI","title":"商业买卖法律相关知识 - Maggie律师"},{"videoId":"U07Qjcvi2Vo","title":"Rental 105 - LIC地区与租赁楼盘介绍"},{"videoId":"Q-dc4BgbONM","title":"Forten at Columbia信息更新与答疑 - Joey"},{"videoId":"xu1hyR1m5Dw","title":"人民币买卖房流程 - Maggie律师"},{"videoId":"ZhqYpQYBOl4","title":"How to Protect Your Assets and Ensure Wealth Transfer with Trusts - Lin Wang"},{"videoId":"KDgiLw3NUHQ","title":"商业地产培训 - Ivan"},{"videoId":"uVaXZUYoaSc","title":"Social Media Workshop - Xiaohongshu Training & AI in Video Creation"},{"videoId":"S5_UYa_gQwY","title":"Rental 106 - NJ 地区与租赁楼盘介绍"},{"videoId":"E04i0bnNF2M","title":"Social Media Workshop - 美国本地热门社交媒体获客内容 Workshop — TikTok / Reddit / Threads"},{"videoId":"B3wxPXw4cOk","title":"NJ下 Offer 实操培训——详解 NJ offer 填写流程、HCMLS/NJMLS CMA 制作与进阶功能使用技巧"},{"videoId":"vU4AnYvg37E","title":"House和 Condo 的区别与不同的销售技巧"},{"videoId":"XJfI3mmpgUU","title":"Rental 108 - 哥大地区房源介绍"},{"videoId":"-XOsExyknxg","title":"纽约学区介绍 - Stella"},{"videoId":"RF-jH5j-_Ew","title":"Rental 107 - 曼哈顿热门十大租赁楼"},{"videoId":"ZIKswuanWyk","title":"Acre Orientation"},{"videoId":"4hV4vRKZQes","title":"Rental法案更新培训"},{"videoId":"tzVdQlLl_AM","title":"Social Media Workshop - 拍摄技巧×剪辑方法×精准投流×热点趋势全掌握！"},{"videoId":"Re9lRqrRLt8","title":"Social Media Workshop - 美网案例分析"},{"videoId":"aXCmatK_tJg","title":"Mortgage 101 English Training - Ron Liu"},{"videoId":"6sZqfJprdW0","title":"旺季租赁交流会 - Ding & Chelsea"},{"videoId":"pwI6Mpa2pGg","title":"Social Media Workshop - Huihe"},{"videoId":"ebe8JQ6DpBs","title":"买卖案例答疑分享会 - Yueyue"},{"videoId":"RMBaE3d1kU0","title":"Acre July Orientation - NYS MLS Blank Listing User Guide"},{"videoId":"SFBtE_orpTk","title":"Social Media Workshop - Krystal"},{"videoId":"8pblYoyAYvs","title":"Social Media Workshop - Xinyao"},{"videoId":"y85odv_uX64","title":"Rental 101 入职后的第一次培训 - Ollie"},{"videoId":"CKHfQJTvhFA","title":"Rental 102 - 沟通话术 & LIC房源下集"},{"videoId":"qYkUmCYm3-I","title":"Social Media Workshop - Yinglin Wang"},{"videoId":"A8sA11QaWyQ","title":"Commercial Workshop 1 - Ivan"},{"videoId":"las4vkdyA0k","title":"Commercial Workshop 2 - Ivan"},{"videoId":"nFCqGk72Xgg","title":"Acre September Orientation - Ollie"},{"videoId":"o5Mcsajp4q0","title":"Commercial Workshop 3 - Ivan"},{"videoId":"l60JrGMjxGI","title":"Commercial Workshop 4 - Ivan"},{"videoId":"PABmL5_BKPM","title":"Social Media Workshop - Jiake"},{"videoId":"lk698QkkTCQ","title":"October Onboarding Training 2 - Ollie"},{"videoId":"CHGBjQVYBuA","title":"October Onboarding Training 1 - Ollie"},{"videoId":"VWxbwD_LpuU","title":"Commercial Workshop 6 - Ivan"},{"videoId":"qzvlsADTEzo","title":"Commercial Workshop 5 - Ivan"},{"videoId":"C4rgmyt6_V0","title":"Social Media Workshop - Yueqi"},{"videoId":"VqpLHfNYIlQ","title":"Acre November Orientation - Ollie"},{"videoId":"c_POirbRsDY","title":"Commercial Workshop 8 - Ivan"},{"videoId":"XGtBWUUX6R0","title":"Acre Sales Masterclass - Yueyue"},{"videoId":"dcZ7IoV6dog","title":"Social Media Workshop - Ivy"},{"videoId":"j-GuiFOlQnE","title":"2026 Commercial Workshop 01 - Ivan"},{"videoId":"7vuhF-h8RLE","title":"Social Media Workshop - Cris"},{"videoId":"hJIjvpf7Z3M","title":"Social Media Workshop - Xinfei"},{"videoId":"L1Vrlr9EYYs","title":"How to Get New Jersey Listings - Brittani"},{"videoId":"SelSjiYjqOk","title":"Commercial Workshop - Ivan"},{"videoId":"MgsfqxH5O90","title":"NJ Real Estate Legal Seminar - Maggie"}]`,
+  );
+  const seededFrontOfficeTrainingResources = acreTrainingPlaylist.map(
+    ({ videoId, title }) => ({
+      slug: `acre-training-${videoId.toLowerCase()}`,
+      officeId: office.id,
+      type: "training_video",
+      title,
+      summary:
+        "Acre 培训视频（YouTube）回放，适合 agent 在 Training 标签里按主题搜索后直接观看。",
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      tags: ["培训", "视频", "YouTube", "Acre"],
+      isPublished: true,
+    }),
+  );
 
   const seededFrontOfficeResources = [
     {
@@ -2330,15 +2780,21 @@ async function main() {
       officeId: office.id,
       type: "document",
       title: "ACRE｜纽约投资十问",
-      summary: "面向纽约投资客户的十问十答 PDF，用于解释投资常见问题与基础判断。",
+      summary:
+        "面向纽约投资客户的十问十答 PDF，用于解释投资常见问题与基础判断。",
       url: "/resources/acre-nyc-investment-top-10.pdf",
       tags: ["纽约", "投资", "十问", "客户材料", "investment"],
       isPublished: true,
     },
+    ...seededFrontOfficeTrainingResources,
   ];
 
   for (const resource of seededFrontOfficeResources) {
-    const searchText = [resource.title, resource.summary, ...resource.tags].join(" ");
+    const searchText = [
+      resource.title,
+      resource.summary,
+      ...resource.tags,
+    ].join(" ");
 
     await prisma.resource.upsert({
       where: {
@@ -2390,7 +2846,7 @@ async function main() {
       isRequired: true,
       isSigned: false,
       isUnsorted: false,
-      signedAt: null
+      signedAt: null,
     },
     {
       id: "seed-doc-graham-unsorted-email",
@@ -2409,7 +2865,7 @@ async function main() {
       isRequired: false,
       isSigned: false,
       isUnsorted: true,
-      signedAt: null
+      signedAt: null,
     },
     {
       id: "seed-doc-graham-generated-packet",
@@ -2428,7 +2884,7 @@ async function main() {
       isRequired: true,
       isSigned: true,
       isUnsorted: false,
-      signedAt: new Date("2026-03-10T18:00:00.000Z")
+      signedAt: new Date("2026-03-10T18:00:00.000Z"),
     },
     {
       id: "seed-doc-court-square-invoice-package",
@@ -2447,12 +2903,14 @@ async function main() {
       isRequired: true,
       isSigned: false,
       isUnsorted: false,
-      signedAt: null
-    }
+      signedAt: null,
+    },
   ];
 
   for (const document of seededTransactionDocuments) {
-    const uploadedByMembership = document.uploadedByEmail ? membershipByEmail.get(document.uploadedByEmail) ?? null : null;
+    const uploadedByMembership = document.uploadedByEmail
+      ? (membershipByEmail.get(document.uploadedByEmail) ?? null)
+      : null;
 
     await prisma.transactionDocument.upsert({
       where: { id: document.id },
@@ -2475,7 +2933,7 @@ async function main() {
         isRequired: document.isRequired,
         isSigned: document.isSigned,
         isUnsorted: document.isUnsorted,
-        signedAt: document.signedAt
+        signedAt: document.signedAt,
       },
       create: {
         id: document.id,
@@ -2497,8 +2955,8 @@ async function main() {
         isRequired: document.isRequired,
         isSigned: document.isSigned,
         isUnsorted: document.isUnsorted,
-        signedAt: document.signedAt
-      }
+        signedAt: document.signedAt,
+      },
     });
   }
 
@@ -2526,8 +2984,8 @@ async function main() {
         primary_contact_name: "Evelyn Zhao",
         primary_contact_email: "evelyn@example.com",
         finance_gross_commission: "",
-        finance_office_net: ""
-      }
+        finance_office_net: "",
+      },
     },
     {
       id: "seed-form-court-square-emd-receipt",
@@ -2544,14 +3002,17 @@ async function main() {
         transaction_address: "45-10 Court Square W",
         transaction_status: "Pending",
         finance_office_net: "18000",
-        closing_date: ""
-      }
-    }
+        closing_date: "",
+      },
+    },
   ];
 
   for (const form of seededTransactionForms) {
-    const createdByMembership = membershipByEmail.get(form.createdByEmail) ?? null;
-    const template = seededFormTemplates.find((template) => template.key === form.templateKey);
+    const createdByMembership =
+      membershipByEmail.get(form.createdByEmail) ?? null;
+    const template = seededFormTemplates.find(
+      (template) => template.key === form.templateKey,
+    );
 
     await prisma.transactionForm.upsert({
       where: { id: form.id },
@@ -2566,7 +3027,9 @@ async function main() {
         name: form.name,
         status: form.status,
         generatedPayload: form.generatedPayload,
-        createdByMembershipId: createdByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id
+        createdByMembershipId:
+          createdByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
       },
       create: {
         id: form.id,
@@ -2580,8 +3043,10 @@ async function main() {
         name: form.name,
         status: form.status,
         generatedPayload: form.generatedPayload,
-        createdByMembershipId: createdByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id
-      }
+        createdByMembershipId:
+          createdByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
+      },
     });
   }
 
@@ -2601,7 +3066,7 @@ async function main() {
       sentAt: new Date("2026-03-10T15:00:00.000Z"),
       viewedAt: new Date("2026-03-10T16:00:00.000Z"),
       completedAt: new Date("2026-03-10T18:00:00.000Z"),
-      declinedAt: null
+      declinedAt: null,
     },
     {
       id: "seed-signature-court-square-manager",
@@ -2618,12 +3083,13 @@ async function main() {
       sentAt: new Date("2026-03-11T14:00:00.000Z"),
       viewedAt: null,
       completedAt: null,
-      declinedAt: null
-    }
+      declinedAt: null,
+    },
   ];
 
   for (const request of seededSignatureRequests) {
-    const requestedByMembership = membershipByEmail.get(request.requestedByEmail) ?? null;
+    const requestedByMembership =
+      membershipByEmail.get(request.requestedByEmail) ?? null;
 
     await prisma.signatureRequest.upsert({
       where: { id: request.id },
@@ -2634,7 +3100,9 @@ async function main() {
         offerId: request.offerId,
         formId: request.formId,
         documentId: request.documentId,
-        requestedByMembershipId: requestedByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        requestedByMembershipId:
+          requestedByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
         recipientName: request.recipientName,
         recipientEmail: request.recipientEmail,
         recipientRole: request.recipientRole,
@@ -2643,7 +3111,7 @@ async function main() {
         sentAt: request.sentAt,
         viewedAt: request.viewedAt,
         completedAt: request.completedAt,
-        declinedAt: request.declinedAt
+        declinedAt: request.declinedAt,
       },
       create: {
         id: request.id,
@@ -2653,7 +3121,9 @@ async function main() {
         offerId: request.offerId,
         formId: request.formId,
         documentId: request.documentId,
-        requestedByMembershipId: requestedByMembership?.id ?? membershipByEmail.get("naomi@acre.com")?.id,
+        requestedByMembershipId:
+          requestedByMembership?.id ??
+          membershipByEmail.get("naomi@acre.com")?.id,
         recipientName: request.recipientName,
         recipientEmail: request.recipientEmail,
         recipientRole: request.recipientRole,
@@ -2662,8 +3132,8 @@ async function main() {
         sentAt: request.sentAt,
         viewedAt: request.viewedAt,
         completedAt: request.completedAt,
-        declinedAt: request.declinedAt
-      }
+        declinedAt: request.declinedAt,
+      },
     });
   }
 
@@ -2678,12 +3148,12 @@ async function main() {
       payload: {
         closingDate: "2026-03-28",
         importantDate: "2026-03-22",
-        status: "pending"
+        status: "pending",
       },
       reviewedAt: null,
       reviewedByEmail: null,
       acceptedAt: null,
-      rejectedAt: null
+      rejectedAt: null,
     },
     {
       id: "seed-incoming-graham-price-rejected",
@@ -2694,18 +3164,18 @@ async function main() {
       summary: "Unsupported outside price revision was rejected",
       payload: {
         price: "950000",
-        summary: "Price update from external intake"
+        summary: "Price update from external intake",
       },
       reviewedAt: new Date("2026-03-10T13:15:00.000Z"),
       reviewedByEmail: "simon@acre.com",
       acceptedAt: null,
-      rejectedAt: new Date("2026-03-10T13:15:00.000Z")
-    }
+      rejectedAt: new Date("2026-03-10T13:15:00.000Z"),
+    },
   ];
 
   for (const incomingUpdate of seededIncomingUpdates) {
     const reviewedByMembership = incomingUpdate.reviewedByEmail
-      ? membershipByEmail.get(incomingUpdate.reviewedByEmail) ?? null
+      ? (membershipByEmail.get(incomingUpdate.reviewedByEmail) ?? null)
       : null;
 
     await prisma.incomingUpdate.upsert({
@@ -2713,8 +3183,8 @@ async function main() {
         organizationId_sourceSystem_sourceReference: {
           organizationId: organization.id,
           sourceSystem: incomingUpdate.sourceSystem,
-          sourceReference: incomingUpdate.sourceReference
-        }
+          sourceReference: incomingUpdate.sourceReference,
+        },
       },
       update: {
         officeId: office.id,
@@ -2726,7 +3196,7 @@ async function main() {
         reviewedAt: incomingUpdate.reviewedAt,
         reviewedByMembershipId: reviewedByMembership?.id ?? null,
         acceptedAt: incomingUpdate.acceptedAt,
-        rejectedAt: incomingUpdate.rejectedAt
+        rejectedAt: incomingUpdate.rejectedAt,
       },
       create: {
         id: incomingUpdate.id,
@@ -2742,8 +3212,8 @@ async function main() {
         reviewedAt: incomingUpdate.reviewedAt,
         reviewedByMembershipId: reviewedByMembership?.id ?? null,
         acceptedAt: incomingUpdate.acceptedAt,
-        rejectedAt: incomingUpdate.rejectedAt
-      }
+        rejectedAt: incomingUpdate.rejectedAt,
+      },
     });
   }
 
@@ -2755,9 +3225,13 @@ async function main() {
     { code: "2100", name: "Earnest Money Liability", accountType: "liability" },
     { code: "4000", name: "Commission Income", accountType: "income" },
     { code: "4010", name: "Agent Billing Income", accountType: "income" },
-    { code: "4050", name: "Refund / Contra Revenue", accountType: "contra_income" },
+    {
+      code: "4050",
+      name: "Refund / Contra Revenue",
+      accountType: "contra_income",
+    },
     { code: "5000", name: "Agent Commission Expense", accountType: "expense" },
-    { code: "5100", name: "Referral Expense", accountType: "expense" }
+    { code: "5100", name: "Referral Expense", accountType: "expense" },
   ];
 
   const ledgerAccountByCode = new Map();
@@ -2770,7 +3244,7 @@ async function main() {
       name: account.name,
       accountType: account.accountType,
       isSystem: true,
-      isActive: true
+      isActive: true,
     });
 
     ledgerAccountByCode.set(account.code, savedAccount);
@@ -2798,8 +3272,8 @@ async function main() {
           ledgerAccountCode: "4000",
           description: "Listing commission income",
           entrySide: "credit",
-          amount: "18750"
-        }
+          amount: "18750",
+        },
       ],
       ledgerEntries: [
         {
@@ -2808,7 +3282,7 @@ async function main() {
           entryDate: new Date("2026-03-01T00:00:00.000Z"),
           debitAmount: "18750",
           creditAmount: "0",
-          memo: "Invoice INV-3820-01"
+          memo: "Invoice INV-3820-01",
         },
         {
           id: "seed-gl-invoice-parson-income",
@@ -2816,9 +3290,9 @@ async function main() {
           entryDate: new Date("2026-03-01T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "18750",
-          memo: "Invoice INV-3820-01"
-        }
-      ]
+          memo: "Invoice INV-3820-01",
+        },
+      ],
     },
     {
       id: "seed-acct-payment-parson",
@@ -2843,7 +3317,7 @@ async function main() {
           entryDate: new Date("2026-03-05T00:00:00.000Z"),
           debitAmount: "18750",
           creditAmount: "0",
-          memo: "Received payment PAY-3820-01"
+          memo: "Received payment PAY-3820-01",
         },
         {
           id: "seed-gl-payment-parson-ar",
@@ -2851,9 +3325,9 @@ async function main() {
           entryDate: new Date("2026-03-05T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "18750",
-          memo: "Received payment PAY-3820-01"
-        }
-      ]
+          memo: "Received payment PAY-3820-01",
+        },
+      ],
     },
     {
       id: "seed-acct-bill-referral",
@@ -2876,8 +3350,8 @@ async function main() {
           ledgerAccountCode: "5100",
           description: "Referral expense",
           entrySide: "debit",
-          amount: "2500"
-        }
+          amount: "2500",
+        },
       ],
       ledgerEntries: [
         {
@@ -2886,7 +3360,7 @@ async function main() {
           entryDate: new Date("2026-03-04T00:00:00.000Z"),
           debitAmount: "2500",
           creditAmount: "0",
-          memo: "Bill BILL-3820-REF"
+          memo: "Bill BILL-3820-REF",
         },
         {
           id: "seed-gl-bill-referral-ap",
@@ -2894,9 +3368,9 @@ async function main() {
           entryDate: new Date("2026-03-04T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "2500",
-          memo: "Bill BILL-3820-REF"
-        }
-      ]
+          memo: "Bill BILL-3820-REF",
+        },
+      ],
     },
     {
       id: "seed-acct-payment-referral",
@@ -2921,7 +3395,7 @@ async function main() {
           entryDate: new Date("2026-03-09T00:00:00.000Z"),
           debitAmount: "2500",
           creditAmount: "0",
-          memo: "Made payment CHK-3820-REF"
+          memo: "Made payment CHK-3820-REF",
         },
         {
           id: "seed-gl-payment-referral-bank",
@@ -2929,9 +3403,9 @@ async function main() {
           entryDate: new Date("2026-03-09T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "2500",
-          memo: "Made payment CHK-3820-REF"
-        }
-      ]
+          memo: "Made payment CHK-3820-REF",
+        },
+      ],
     },
     {
       id: "seed-acct-deposit-emd-70",
@@ -2954,8 +3428,8 @@ async function main() {
           ledgerAccountCode: "2100",
           description: "Earnest money liability",
           entrySide: "credit",
-          amount: "5000"
-        }
+          amount: "5000",
+        },
       ],
       ledgerEntries: [
         {
@@ -2964,7 +3438,7 @@ async function main() {
           entryDate: new Date("2026-03-04T00:00:00.000Z"),
           debitAmount: "5000",
           creditAmount: "0",
-          memo: "Deposit EMD-70-DEP"
+          memo: "Deposit EMD-70-DEP",
         },
         {
           id: "seed-gl-deposit-emd-70-liability",
@@ -2972,9 +3446,9 @@ async function main() {
           entryDate: new Date("2026-03-04T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "5000",
-          memo: "Deposit EMD-70-DEP"
-        }
-      ]
+          memo: "Deposit EMD-70-DEP",
+        },
+      ],
     },
     {
       id: "seed-acct-refund-broker-credit",
@@ -2997,8 +3471,8 @@ async function main() {
           ledgerAccountCode: "4050",
           description: "Contra revenue refund",
           entrySide: "debit",
-          amount: "500"
-        }
+          amount: "500",
+        },
       ],
       ledgerEntries: [
         {
@@ -3007,7 +3481,7 @@ async function main() {
           entryDate: new Date("2026-03-10T00:00:00.000Z"),
           debitAmount: "500",
           creditAmount: "0",
-          memo: "Refund RFND-70-001"
+          memo: "Refund RFND-70-001",
         },
         {
           id: "seed-gl-refund-70-bank",
@@ -3015,9 +3489,9 @@ async function main() {
           entryDate: new Date("2026-03-10T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "500",
-          memo: "Refund RFND-70-001"
-        }
-      ]
+          memo: "Refund RFND-70-001",
+        },
+      ],
     },
     {
       id: "seed-acct-journal-adjustment",
@@ -3040,15 +3514,15 @@ async function main() {
           ledgerAccountCode: "5100",
           description: "Manual adjustment debit",
           entrySide: "debit",
-          amount: "300"
+          amount: "300",
         },
         {
           id: "seed-acct-li-je-credit",
           ledgerAccountCode: "4050",
           description: "Manual adjustment credit",
           entrySide: "credit",
-          amount: "300"
-        }
+          amount: "300",
+        },
       ],
       ledgerEntries: [
         {
@@ -3057,7 +3531,7 @@ async function main() {
           entryDate: new Date("2026-03-06T00:00:00.000Z"),
           debitAmount: "300",
           creditAmount: "0",
-          memo: "Journal entry JE-2026-03-01"
+          memo: "Journal entry JE-2026-03-01",
         },
         {
           id: "seed-gl-je-credit",
@@ -3065,9 +3539,9 @@ async function main() {
           entryDate: new Date("2026-03-06T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "300",
-          memo: "Journal entry JE-2026-03-01"
-        }
-      ]
+          memo: "Journal entry JE-2026-03-01",
+        },
+      ],
     },
     {
       id: "seed-acct-transfer-liquidity",
@@ -3090,15 +3564,15 @@ async function main() {
           ledgerAccountCode: "1000",
           description: "Operating bank increase",
           entrySide: "debit",
-          amount: "1000"
+          amount: "1000",
         },
         {
           id: "seed-acct-li-transfer-credit",
           ledgerAccountCode: "1010",
           description: "Earnest money bank decrease",
           entrySide: "credit",
-          amount: "1000"
-        }
+          amount: "1000",
+        },
       ],
       ledgerEntries: [
         {
@@ -3107,7 +3581,7 @@ async function main() {
           entryDate: new Date("2026-03-11T00:00:00.000Z"),
           debitAmount: "1000",
           creditAmount: "0",
-          memo: "Transfer XFER-2026-03"
+          memo: "Transfer XFER-2026-03",
         },
         {
           id: "seed-gl-transfer-credit",
@@ -3115,17 +3589,19 @@ async function main() {
           entryDate: new Date("2026-03-11T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "1000",
-          memo: "Transfer XFER-2026-03"
-        }
-      ]
-    }
+          memo: "Transfer XFER-2026-03",
+        },
+      ],
+    },
   ];
 
   for (const accountingTransaction of seededAccountingTransactions) {
     const relatedMembership = accountingTransaction.relatedMembershipEmail
-      ? membershipByEmail.get(accountingTransaction.relatedMembershipEmail) ?? null
+      ? (membershipByEmail.get(accountingTransaction.relatedMembershipEmail) ??
+        null)
       : null;
-    const createdByMembership = membershipByEmail.get(accountingTransaction.createdByEmail) ?? null;
+    const createdByMembership =
+      membershipByEmail.get(accountingTransaction.createdByEmail) ?? null;
 
     await upsertAccountingTransactionWithPostings({
       id: accountingTransaction.id,
@@ -3144,15 +3620,17 @@ async function main() {
       notes: accountingTransaction.notes,
       totalAmount: accountingTransaction.totalAmount,
       createdByMembershipId: createdByMembership.id,
-      postedAt: ["draft", "void"].includes(accountingTransaction.status) ? null : accountingTransaction.accountingDate,
+      postedAt: ["draft", "void"].includes(accountingTransaction.status)
+        ? null
+        : accountingTransaction.accountingDate,
       lineItems: accountingTransaction.lineItems.map((lineItem) => ({
         ...lineItem,
-        ledgerAccountId: ledgerAccountByCode.get(lineItem.ledgerAccountCode).id
+        ledgerAccountId: ledgerAccountByCode.get(lineItem.ledgerAccountCode).id,
       })),
       ledgerEntries: accountingTransaction.ledgerEntries.map((entry) => ({
         ...entry,
-        accountId: ledgerAccountByCode.get(entry.accountCode).id
-      }))
+        accountId: ledgerAccountByCode.get(entry.accountCode).id,
+      })),
     });
   }
 
@@ -3180,8 +3658,8 @@ async function main() {
           ledgerAccountCode: "4010",
           description: "Monthly desk fee",
           entrySide: "credit",
-          amount: "350"
-        }
+          amount: "350",
+        },
       ],
       ledgerEntries: [
         {
@@ -3190,7 +3668,7 @@ async function main() {
           entryDate: new Date("2026-03-01T00:00:00.000Z"),
           debitAmount: "350",
           creditAmount: "0",
-          memo: "Agent invoice AGINV-2026-03-001"
+          memo: "Agent invoice AGINV-2026-03-001",
         },
         {
           id: "seed-agent-gl-jane-desk-fee-income",
@@ -3198,9 +3676,9 @@ async function main() {
           entryDate: new Date("2026-03-01T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "350",
-          memo: "Agent invoice AGINV-2026-03-001"
-        }
-      ]
+          memo: "Agent invoice AGINV-2026-03-001",
+        },
+      ],
     },
     {
       id: "seed-agent-invoice-jane-marketing-fee",
@@ -3225,8 +3703,8 @@ async function main() {
           ledgerAccountCode: "4010",
           description: "Marketing package",
           entrySide: "credit",
-          amount: "125"
-        }
+          amount: "125",
+        },
       ],
       ledgerEntries: [
         {
@@ -3235,7 +3713,7 @@ async function main() {
           entryDate: new Date("2026-04-01T00:00:00.000Z"),
           debitAmount: "125",
           creditAmount: "0",
-          memo: "Agent invoice AGINV-2026-04-001"
+          memo: "Agent invoice AGINV-2026-04-001",
         },
         {
           id: "seed-agent-gl-jane-marketing-fee-income",
@@ -3243,9 +3721,9 @@ async function main() {
           entryDate: new Date("2026-04-01T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "125",
-          memo: "Agent invoice AGINV-2026-04-001"
-        }
-      ]
+          memo: "Agent invoice AGINV-2026-04-001",
+        },
+      ],
     },
     {
       id: "seed-agent-invoice-simon-office-fee",
@@ -3270,8 +3748,8 @@ async function main() {
           ledgerAccountCode: "4010",
           description: "Office support fee",
           entrySide: "credit",
-          amount: "400"
-        }
+          amount: "400",
+        },
       ],
       ledgerEntries: [
         {
@@ -3280,7 +3758,7 @@ async function main() {
           entryDate: new Date("2026-03-03T00:00:00.000Z"),
           debitAmount: "400",
           creditAmount: "0",
-          memo: "Agent invoice AGINV-2026-03-002"
+          memo: "Agent invoice AGINV-2026-03-002",
         },
         {
           id: "seed-agent-gl-simon-office-fee-income",
@@ -3288,9 +3766,9 @@ async function main() {
           entryDate: new Date("2026-03-03T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "400",
-          memo: "Agent invoice AGINV-2026-03-002"
-        }
-      ]
+          memo: "Agent invoice AGINV-2026-03-002",
+        },
+      ],
     },
     {
       id: "seed-agent-payment-jane-march",
@@ -3317,7 +3795,7 @@ async function main() {
           entryDate: new Date("2026-03-06T00:00:00.000Z"),
           debitAmount: "200",
           creditAmount: "0",
-          memo: "Agent payment AGPAY-2026-03-001"
+          memo: "Agent payment AGPAY-2026-03-001",
         },
         {
           id: "seed-agent-gl-payment-jane-ar",
@@ -3325,9 +3803,9 @@ async function main() {
           entryDate: new Date("2026-03-06T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "200",
-          memo: "Agent payment AGPAY-2026-03-001"
-        }
-      ]
+          memo: "Agent payment AGPAY-2026-03-001",
+        },
+      ],
     },
     {
       id: "seed-agent-credit-jane-courtesy",
@@ -3352,15 +3830,15 @@ async function main() {
           ledgerAccountCode: "4050",
           description: "Courtesy credit",
           entrySide: "debit",
-          amount: "50"
+          amount: "50",
         },
         {
           id: "seed-agent-li-credit-jane-ar",
           ledgerAccountCode: "1100",
           description: "Accounts receivable reduction",
           entrySide: "credit",
-          amount: "50"
-        }
+          amount: "50",
+        },
       ],
       ledgerEntries: [
         {
@@ -3369,7 +3847,7 @@ async function main() {
           entryDate: new Date("2026-03-07T00:00:00.000Z"),
           debitAmount: "50",
           creditAmount: "0",
-          memo: "Agent credit AGCR-2026-03-001"
+          memo: "Agent credit AGCR-2026-03-001",
         },
         {
           id: "seed-agent-gl-credit-jane-ar",
@@ -3377,17 +3855,19 @@ async function main() {
           entryDate: new Date("2026-03-07T00:00:00.000Z"),
           debitAmount: "0",
           creditAmount: "50",
-          memo: "Agent credit AGCR-2026-03-001"
-        }
-      ]
-    }
+          memo: "Agent credit AGCR-2026-03-001",
+        },
+      ],
+    },
   ];
 
   for (const accountingTransaction of seededAgentBillingTransactions) {
     const relatedMembership = accountingTransaction.relatedMembershipEmail
-      ? membershipByEmail.get(accountingTransaction.relatedMembershipEmail) ?? null
+      ? (membershipByEmail.get(accountingTransaction.relatedMembershipEmail) ??
+        null)
       : null;
-    const createdByMembership = membershipByEmail.get(accountingTransaction.createdByEmail) ?? null;
+    const createdByMembership =
+      membershipByEmail.get(accountingTransaction.createdByEmail) ?? null;
 
     await upsertAccountingTransactionWithPostings({
       id: accountingTransaction.id,
@@ -3408,15 +3888,17 @@ async function main() {
       notes: accountingTransaction.notes,
       totalAmount: accountingTransaction.totalAmount,
       createdByMembershipId: createdByMembership.id,
-      postedAt: ["draft", "void"].includes(accountingTransaction.status) ? null : accountingTransaction.accountingDate,
+      postedAt: ["draft", "void"].includes(accountingTransaction.status)
+        ? null
+        : accountingTransaction.accountingDate,
       lineItems: accountingTransaction.lineItems.map((lineItem) => ({
         ...lineItem,
-        ledgerAccountId: ledgerAccountByCode.get(lineItem.ledgerAccountCode).id
+        ledgerAccountId: ledgerAccountByCode.get(lineItem.ledgerAccountCode).id,
       })),
       ledgerEntries: accountingTransaction.ledgerEntries.map((entry) => ({
         ...entry,
-        accountId: ledgerAccountByCode.get(entry.accountCode).id
-      }))
+        accountId: ledgerAccountByCode.get(entry.accountCode).id,
+      })),
     });
   }
 
@@ -3426,43 +3908,49 @@ async function main() {
       sourceAccountingTransactionId: "seed-agent-payment-jane-march",
       targetAccountingTransactionId: "seed-agent-invoice-jane-desk-fee",
       amount: "200",
-      memo: "Applied payment to March desk fee"
+      memo: "Applied payment to March desk fee",
     },
     {
       id: "seed-agent-application-credit-jane-desk-fee",
       sourceAccountingTransactionId: "seed-agent-credit-jane-courtesy",
       targetAccountingTransactionId: "seed-agent-invoice-jane-desk-fee",
       amount: "50",
-      memo: "Applied courtesy credit"
-    }
+      memo: "Applied courtesy credit",
+    },
   ];
 
   for (const application of seededAgentBillingApplications) {
     await prisma.accountingTransactionApplication.upsert({
       where: {
-        id: application.id
+        id: application.id,
       },
       update: {
         organizationId: organization.id,
         officeId: office.id,
-        sourceAccountingTransactionId: application.sourceAccountingTransactionId,
-        targetAccountingTransactionId: application.targetAccountingTransactionId,
-        createdByMembershipId: membershipByEmail.get("naomi@acre.com")?.id ?? null,
+        sourceAccountingTransactionId:
+          application.sourceAccountingTransactionId,
+        targetAccountingTransactionId:
+          application.targetAccountingTransactionId,
+        createdByMembershipId:
+          membershipByEmail.get("naomi@acre.com")?.id ?? null,
         amount: application.amount,
         memo: application.memo,
-        appliedAt: new Date("2026-03-08T00:00:00.000Z")
+        appliedAt: new Date("2026-03-08T00:00:00.000Z"),
       },
       create: {
         id: application.id,
         organizationId: organization.id,
         officeId: office.id,
-        sourceAccountingTransactionId: application.sourceAccountingTransactionId,
-        targetAccountingTransactionId: application.targetAccountingTransactionId,
-        createdByMembershipId: membershipByEmail.get("naomi@acre.com")?.id ?? null,
+        sourceAccountingTransactionId:
+          application.sourceAccountingTransactionId,
+        targetAccountingTransactionId:
+          application.targetAccountingTransactionId,
+        createdByMembershipId:
+          membershipByEmail.get("naomi@acre.com")?.id ?? null,
         amount: application.amount,
         memo: application.memo,
-        appliedAt: new Date("2026-03-08T00:00:00.000Z")
-      }
+        appliedAt: new Date("2026-03-08T00:00:00.000Z"),
+      },
     });
   }
 
@@ -3481,8 +3969,8 @@ async function main() {
       endDate: null,
       lastGeneratedAt: new Date("2026-03-01T00:00:00.000Z"),
       autoGenerateInvoice: true,
-      isActive: true
-    }
+      isActive: true,
+    },
   ];
 
   for (const rule of seededAgentRecurringRules) {
@@ -3494,7 +3982,7 @@ async function main() {
 
     await prisma.agentRecurringChargeRule.upsert({
       where: {
-        id: rule.id
+        id: rule.id,
       },
       update: {
         organizationId: organization.id,
@@ -3511,7 +3999,7 @@ async function main() {
         endDate: rule.endDate,
         lastGeneratedAt: rule.lastGeneratedAt,
         autoGenerateInvoice: rule.autoGenerateInvoice,
-        isActive: rule.isActive
+        isActive: rule.isActive,
       },
       create: {
         id: rule.id,
@@ -3529,8 +4017,8 @@ async function main() {
         endDate: rule.endDate,
         lastGeneratedAt: rule.lastGeneratedAt,
         autoGenerateInvoice: rule.autoGenerateInvoice,
-        isActive: rule.isActive
-      }
+        isActive: rule.isActive,
+      },
     });
   }
 
@@ -3545,7 +4033,7 @@ async function main() {
       isDefault: true,
       autoPayEnabled: false,
       externalReferenceId: "pm_jane_demo",
-      status: "active"
+      status: "active",
     },
     {
       id: "seed-agent-payment-method-simon-invalid",
@@ -3557,12 +4045,13 @@ async function main() {
       isDefault: true,
       autoPayEnabled: false,
       externalReferenceId: "pm_simon_demo",
-      status: "invalid"
-    }
+      status: "invalid",
+    },
   ];
 
   for (const paymentMethod of seededAgentPaymentMethods) {
-    const membership = membershipByEmail.get(paymentMethod.membershipEmail) ?? null;
+    const membership =
+      membershipByEmail.get(paymentMethod.membershipEmail) ?? null;
 
     if (!membership) {
       continue;
@@ -3570,7 +4059,7 @@ async function main() {
 
     await prisma.agentPaymentMethod.upsert({
       where: {
-        id: paymentMethod.id
+        id: paymentMethod.id,
       },
       update: {
         organizationId: organization.id,
@@ -3583,7 +4072,7 @@ async function main() {
         isDefault: paymentMethod.isDefault,
         autoPayEnabled: paymentMethod.autoPayEnabled,
         externalReferenceId: paymentMethod.externalReferenceId,
-        status: paymentMethod.status
+        status: paymentMethod.status,
       },
       create: {
         id: paymentMethod.id,
@@ -3597,8 +4086,8 @@ async function main() {
         isDefault: paymentMethod.isDefault,
         autoPayEnabled: paymentMethod.autoPayEnabled,
         externalReferenceId: paymentMethod.externalReferenceId,
-        status: paymentMethod.status
-      }
+        status: paymentMethod.status,
+      },
     });
   }
 
@@ -3606,7 +4095,8 @@ async function main() {
     {
       id: "seed-commission-plan-senior",
       name: "Senior agent split",
-      description: "Senior split with referral deduction, flat brokerage fee, and a higher tier above $25k gross after referral.",
+      description:
+        "Senior split with referral deduction, flat brokerage fee, and a higher tier above $25k gross after referral.",
       isActive: true,
       calculationMode: "split_and_fees",
       defaultCurrency: "USD",
@@ -3624,7 +4114,7 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "agent",
           recipientType: "agent",
-          isActive: true
+          isActive: true,
         },
         {
           id: "seed-commission-rule-senior-referral",
@@ -3639,7 +4129,7 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "referral",
           recipientType: "referral",
-          isActive: true
+          isActive: true,
         },
         {
           id: "seed-commission-rule-senior-brokerage-fee",
@@ -3654,7 +4144,7 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "agent",
           recipientType: "brokerage",
-          isActive: true
+          isActive: true,
         },
         {
           id: "seed-commission-rule-senior-sliding",
@@ -3669,14 +4159,15 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "agent",
           recipientType: "agent",
-          isActive: true
-        }
-      ]
+          isActive: true,
+        },
+      ],
     },
     {
       id: "seed-commission-plan-ops",
       name: "Operations manager split",
-      description: "Operational split for manager-owned transactions with a lighter brokerage deduction.",
+      description:
+        "Operational split for manager-owned transactions with a lighter brokerage deduction.",
       isActive: true,
       calculationMode: "split_and_fees",
       defaultCurrency: "USD",
@@ -3694,7 +4185,7 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "office_manager",
           recipientType: "agent",
-          isActive: true
+          isActive: true,
         },
         {
           id: "seed-commission-rule-ops-flat",
@@ -3709,10 +4200,10 @@ async function main() {
           thresholdEnd: null,
           appliesToRole: "office_manager",
           recipientType: "brokerage",
-          isActive: true
-        }
-      ]
-    }
+          isActive: true,
+        },
+      ],
+    },
   ];
 
   for (const plan of seededCommissionPlans) {
@@ -3725,7 +4216,7 @@ async function main() {
         description: plan.description,
         isActive: plan.isActive,
         calculationMode: plan.calculationMode,
-        defaultCurrency: plan.defaultCurrency
+        defaultCurrency: plan.defaultCurrency,
       },
       create: {
         id: plan.id,
@@ -3735,14 +4226,14 @@ async function main() {
         description: plan.description,
         isActive: plan.isActive,
         calculationMode: plan.calculationMode,
-        defaultCurrency: plan.defaultCurrency
-      }
+        defaultCurrency: plan.defaultCurrency,
+      },
     });
 
     await prisma.commissionPlanRule.deleteMany({
       where: {
-        commissionPlanId: plan.id
-      }
+        commissionPlanId: plan.id,
+      },
     });
 
     await prisma.commissionPlanRule.createMany({
@@ -3761,8 +4252,8 @@ async function main() {
         thresholdEnd: rule.thresholdEnd,
         appliesToRole: rule.appliesToRole,
         recipientType: rule.recipientType,
-        isActive: rule.isActive
-      }))
+        isActive: rule.isActive,
+      })),
     });
   }
 
@@ -3772,26 +4263,28 @@ async function main() {
       membershipEmail: "jane@acre.com",
       commissionPlanId: "seed-commission-plan-senior",
       effectiveFrom: new Date("2025-09-01T00:00:00.000Z"),
-      effectiveTo: null
+      effectiveTo: null,
     },
     {
       id: "seed-commission-assignment-simon",
       membershipEmail: "simon@acre.com",
       commissionPlanId: "seed-commission-plan-ops",
       effectiveFrom: new Date("2025-01-01T00:00:00.000Z"),
-      effectiveTo: null
+      effectiveTo: null,
     },
     {
       id: "seed-commission-assignment-ops-team",
       teamId: "seed-team-operations",
       commissionPlanId: "seed-commission-plan-senior",
       effectiveFrom: new Date("2025-01-01T00:00:00.000Z"),
-      effectiveTo: null
-    }
+      effectiveTo: null,
+    },
   ];
 
   for (const assignment of seededCommissionAssignments) {
-    const membership = assignment.membershipEmail ? membershipByEmail.get(assignment.membershipEmail) ?? null : null;
+    const membership = assignment.membershipEmail
+      ? (membershipByEmail.get(assignment.membershipEmail) ?? null)
+      : null;
     const teamId = assignment.teamId ?? null;
 
     if (!membership && !teamId) {
@@ -3807,7 +4300,7 @@ async function main() {
         teamId,
         commissionPlanId: assignment.commissionPlanId,
         effectiveFrom: assignment.effectiveFrom,
-        effectiveTo: assignment.effectiveTo
+        effectiveTo: assignment.effectiveTo,
       },
       create: {
         id: assignment.id,
@@ -3817,8 +4310,8 @@ async function main() {
         teamId,
         commissionPlanId: assignment.commissionPlanId,
         effectiveFrom: assignment.effectiveFrom,
-        effectiveTo: assignment.effectiveTo
-      }
+        effectiveTo: assignment.effectiveTo,
+      },
     });
   }
 
@@ -3840,7 +4333,7 @@ async function main() {
       status: "calculated",
       notes: "Seeded commission snapshot for active rental-side transaction.",
       calculatedAt: new Date("2026-03-08T18:00:00.000Z"),
-      calculatedByEmail: "naomi@acre.com"
+      calculatedByEmail: "naomi@acre.com",
     },
     {
       id: "seed-commission-calc-70-brokerage",
@@ -3859,7 +4352,7 @@ async function main() {
       status: "reviewed",
       notes: "Brokerage side of seeded commission calculation.",
       calculatedAt: new Date("2026-03-08T18:00:00.000Z"),
-      calculatedByEmail: "naomi@acre.com"
+      calculatedByEmail: "naomi@acre.com",
     },
     {
       id: "seed-commission-calc-3820-agent",
@@ -3878,7 +4371,7 @@ async function main() {
       status: "payable",
       notes: "Seeded listing-side payable commission row.",
       calculatedAt: new Date("2026-03-09T15:00:00.000Z"),
-      calculatedByEmail: "naomi@acre.com"
+      calculatedByEmail: "naomi@acre.com",
     },
     {
       id: "seed-commission-calc-3820-brokerage",
@@ -3897,7 +4390,7 @@ async function main() {
       status: "reviewed",
       notes: "Brokerage side of listing commission.",
       calculatedAt: new Date("2026-03-09T15:00:00.000Z"),
-      calculatedByEmail: "naomi@acre.com"
+      calculatedByEmail: "naomi@acre.com",
     },
     {
       id: "seed-commission-calc-3820-referral",
@@ -3916,7 +4409,7 @@ async function main() {
       status: "paid",
       notes: "Referral side already cleared.",
       calculatedAt: new Date("2026-03-09T15:00:00.000Z"),
-      calculatedByEmail: "naomi@acre.com"
+      calculatedByEmail: "naomi@acre.com",
     },
     {
       id: "seed-commission-calc-45-agent",
@@ -3935,7 +4428,7 @@ async function main() {
       status: "statement_ready",
       notes: "Seeded company referral commission ready for statement.",
       calculatedAt: new Date("2026-03-10T09:30:00.000Z"),
-      calculatedByEmail: "simon@acre.com"
+      calculatedByEmail: "simon@acre.com",
     },
     {
       id: "seed-commission-calc-45-brokerage",
@@ -3954,7 +4447,7 @@ async function main() {
       status: "reviewed",
       notes: "Brokerage net retained after referral and agent share.",
       calculatedAt: new Date("2026-03-10T09:30:00.000Z"),
-      calculatedByEmail: "simon@acre.com"
+      calculatedByEmail: "simon@acre.com",
     },
     {
       id: "seed-commission-calc-45-referral",
@@ -3973,13 +4466,16 @@ async function main() {
       status: "reviewed",
       notes: "Seeded referral side for company referral scenario.",
       calculatedAt: new Date("2026-03-10T09:30:00.000Z"),
-      calculatedByEmail: "simon@acre.com"
-    }
+      calculatedByEmail: "simon@acre.com",
+    },
   ];
 
   for (const calculation of seededCommissionCalculations) {
-    const membership = calculation.membershipEmail ? membershipByEmail.get(calculation.membershipEmail) ?? null : null;
-    const calculatedByMembership = membershipByEmail.get(calculation.calculatedByEmail) ?? null;
+    const membership = calculation.membershipEmail
+      ? (membershipByEmail.get(calculation.membershipEmail) ?? null)
+      : null;
+    const calculatedByMembership =
+      membershipByEmail.get(calculation.calculatedByEmail) ?? null;
 
     await prisma.commissionCalculation.upsert({
       where: { id: calculation.id },
@@ -4002,7 +4498,7 @@ async function main() {
         status: calculation.status,
         notes: calculation.notes,
         calculatedAt: calculation.calculatedAt,
-        calculatedByMembershipId: calculatedByMembership?.id ?? null
+        calculatedByMembershipId: calculatedByMembership?.id ?? null,
       },
       create: {
         id: calculation.id,
@@ -4024,8 +4520,8 @@ async function main() {
         status: calculation.status,
         notes: calculation.notes,
         calculatedAt: calculation.calculatedAt,
-        calculatedByMembershipId: calculatedByMembership?.id ?? null
-      }
+        calculatedByMembershipId: calculatedByMembership?.id ?? null,
+      },
     });
   }
 
@@ -4043,7 +4539,7 @@ async function main() {
       heldExternally: false,
       trackInLedger: true,
       status: "overdue",
-      notes: "Buyer still owes earnest money."
+      notes: "Buyer still owes earnest money.",
     },
     {
       id: "seed-emd-70-christopher",
@@ -4058,8 +4554,8 @@ async function main() {
       heldExternally: false,
       trackInLedger: true,
       status: "fully_deposited",
-      notes: "Earnest money received and deposited."
-    }
+      notes: "Earnest money received and deposited.",
+    },
   ];
 
   for (const record of seededEarnestMoneyRecords) {
@@ -4080,7 +4576,8 @@ async function main() {
         trackInLedger: record.trackInLedger,
         status: record.status,
         notes: record.notes,
-        createdByMembershipId: membershipByEmail.get("naomi@acre.com")?.id ?? null
+        createdByMembershipId:
+          membershipByEmail.get("naomi@acre.com")?.id ?? null,
       },
       create: {
         id: record.id,
@@ -4098,8 +4595,9 @@ async function main() {
         trackInLedger: record.trackInLedger,
         status: record.status,
         notes: record.notes,
-        createdByMembershipId: membershipByEmail.get("naomi@acre.com")?.id ?? null
-      }
+        createdByMembershipId:
+          membershipByEmail.get("naomi@acre.com")?.id ?? null,
+      },
     });
   }
 
@@ -4115,8 +4613,12 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
-        details: ["Status: Opportunity", "Representing: buyer", "Owner: Jane Wu"]
-      }
+        details: [
+          "Status: Opportunity",
+          "Representing: buyer",
+          "Owner: Jane Wu",
+        ],
+      },
     },
     {
       id: "seed-audit-transaction-status-court-square",
@@ -4127,10 +4629,12 @@ async function main() {
       payload: {
         officeId: office.id,
         transactionId: "seed-tx-45-10-court-square",
-        transactionLabel: "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
-        objectLabel: "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
-        details: ["Status: Active -> Pending"]
-      }
+        transactionLabel:
+          "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
+        objectLabel:
+          "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
+        details: ["Status: Active -> Pending"],
+      },
     },
     {
       id: "seed-audit-transaction-contact-linked-graham",
@@ -4145,8 +4649,12 @@ async function main() {
         contactName: "Evelyn Zhao",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
-        details: ["Contact: Evelyn Zhao", "Role: Buyer", "Primary contact: Yes"]
-      }
+        details: [
+          "Contact: Evelyn Zhao",
+          "Role: Buyer",
+          "Primary contact: Yes",
+        ],
+      },
     },
     {
       id: "seed-audit-transaction-primary-graham",
@@ -4161,8 +4669,8 @@ async function main() {
         contactName: "Evelyn Zhao",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
-        details: ["Previous primary: None", "New primary: Evelyn Zhao"]
-      }
+        details: ["Previous primary: None", "New primary: Evelyn Zhao"],
+      },
     },
     {
       id: "seed-audit-transaction-finance-parson",
@@ -4179,9 +4687,9 @@ async function main() {
           "Gross commission: $18,750",
           "Referral fee: $2,500",
           "Office net: $10,000",
-          "Agent net: $6,250"
-        ]
-      }
+          "Agent net: $6,250",
+        ],
+      },
     },
     {
       id: "seed-audit-task-created-graham",
@@ -4194,9 +4702,10 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         taskId: "seed-transaction-task-graham-contract",
         taskTitle: "Collect signed buyer agreement",
-        objectLabel: "Collect signed buyer agreement · Graham Court 4F · Graham Court 4F, Brooklyn, NY",
-        details: ["Group: Contract", "Status: Todo", "Due: 2026-03-14"]
-      }
+        objectLabel:
+          "Collect signed buyer agreement · Graham Court 4F · Graham Court 4F, Brooklyn, NY",
+        details: ["Group: Contract", "Status: Todo", "Due: 2026-03-14"],
+      },
     },
     {
       id: "seed-audit-task-updated-graham",
@@ -4209,9 +4718,10 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         taskId: "seed-transaction-task-graham-intro",
         taskTitle: "Send attorney introduction",
-        objectLabel: "Send attorney introduction · Graham Court 4F · Graham Court 4F, Brooklyn, NY",
-        details: ["Status: Todo -> In progress"]
-      }
+        objectLabel:
+          "Send attorney introduction · Graham Court 4F · Graham Court 4F, Brooklyn, NY",
+        details: ["Status: Todo -> In progress"],
+      },
     },
     {
       id: "seed-audit-task-completed-court-square",
@@ -4224,9 +4734,10 @@ async function main() {
         transactionId: "seed-tx-45-10-court-square",
         taskId: "seed-transaction-task-court-square-invoice",
         taskTitle: "Upload vendor invoice package",
-        objectLabel: "Upload vendor invoice package · 45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
-        details: ["Status: In progress -> Completed"]
-      }
+        objectLabel:
+          "Upload vendor invoice package · 45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
+        details: ["Status: In progress -> Completed"],
+      },
     },
     {
       id: "seed-audit-contact-created-evelyn",
@@ -4239,8 +4750,8 @@ async function main() {
         contactId: "seed-client-evelyn",
         contactName: "Evelyn Zhao",
         objectLabel: "Evelyn Zhao · evelyn@example.com",
-        details: ["Stage: Warm", "Intent: Investor"]
-      }
+        details: ["Stage: Warm", "Intent: Investor"],
+      },
     },
     {
       id: "seed-audit-contact-updated-iris",
@@ -4253,8 +4764,8 @@ async function main() {
         contactId: "seed-client-iris",
         contactName: "Iris Chen",
         objectLabel: "Iris Chen · iris@example.com",
-        details: ["Stage: New -> Nurture", "Notes: rental timing updated"]
-      }
+        details: ["Stage: New -> Nurture", "Notes: rental timing updated"],
+      },
     },
     {
       id: "seed-audit-document-uploaded-graham-contract",
@@ -4267,8 +4778,12 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Buyer agreement upload",
-        details: ["Document type: Buyer agreement", "Status: Submitted", "Linked task: Collect signed buyer agreement"]
-      }
+        details: [
+          "Document type: Buyer agreement",
+          "Status: Submitted",
+          "Linked task: Collect signed buyer agreement",
+        ],
+      },
     },
     {
       id: "seed-audit-form-created-graham",
@@ -4281,8 +4796,8 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Graham Court buyer agreement packet",
-        details: ["Template: Buyer agreement packet", "Status: Fully signed"]
-      }
+        details: ["Template: Buyer agreement packet", "Status: Fully signed"],
+      },
     },
     {
       id: "seed-audit-signature-completed-graham",
@@ -4295,8 +4810,12 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Signature request · Evelyn Zhao",
-        details: ["Recipient: Evelyn Zhao", "Status: Signed", "Completed: Mar 10, 2026"]
-      }
+        details: [
+          "Recipient: Evelyn Zhao",
+          "Status: Signed",
+          "Completed: Mar 10, 2026",
+        ],
+      },
     },
     {
       id: "seed-audit-incoming-update-received-graham",
@@ -4309,8 +4828,8 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Closing date revision requires review",
-        details: ["Source: Manual test feed", "Status: Pending review"]
-      }
+        details: ["Source: Manual test feed", "Status: Pending review"],
+      },
     },
     {
       id: "seed-audit-incoming-update-rejected-graham",
@@ -4323,8 +4842,8 @@ async function main() {
         transactionId: "seed-tx-graham-court",
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Unsupported outside price revision was rejected",
-        details: ["Source: Manual test feed", "Decision: Rejected"]
-      }
+        details: ["Source: Manual test feed", "Decision: Rejected"],
+      },
     },
     {
       id: "seed-audit-accounting-invoice-parson",
@@ -4337,8 +4856,8 @@ async function main() {
         transactionId: "seed-tx-3820-parson",
         transactionLabel: "3820 Parson Blvd · 3820 Parson Blvd, Flushing, NY",
         objectLabel: "Invoice INV-3820-01",
-        details: ["Type: Invoice", "Status: Open", "Amount: $18,750"]
-      }
+        details: ["Type: Invoice", "Status: Open", "Amount: $18,750"],
+      },
     },
     {
       id: "seed-audit-accounting-payment-parson",
@@ -4351,8 +4870,12 @@ async function main() {
         transactionId: "seed-tx-3820-parson",
         transactionLabel: "3820 Parson Blvd · 3820 Parson Blvd, Flushing, NY",
         objectLabel: "Received payment PAY-3820-01",
-        details: ["Type: Received payment", "Status: Completed", "Amount: $18,750"]
-      }
+        details: [
+          "Type: Received payment",
+          "Status: Completed",
+          "Amount: $18,750",
+        ],
+      },
     },
     {
       id: "seed-audit-accounting-bill-referral",
@@ -4365,8 +4888,8 @@ async function main() {
         transactionId: "seed-tx-3820-parson",
         transactionLabel: "3820 Parson Blvd · 3820 Parson Blvd, Flushing, NY",
         objectLabel: "Bill BILL-3820-REF",
-        details: ["Type: Bill", "Status: Open", "Amount: $2,500"]
-      }
+        details: ["Type: Bill", "Status: Open", "Amount: $2,500"],
+      },
     },
     {
       id: "seed-audit-accounting-payment-made-referral",
@@ -4379,8 +4902,8 @@ async function main() {
         transactionId: "seed-tx-3820-parson",
         transactionLabel: "3820 Parson Blvd · 3820 Parson Blvd, Flushing, NY",
         objectLabel: "Made payment CHK-3820-REF",
-        details: ["Type: Made payment", "Status: Completed", "Amount: $2,500"]
-      }
+        details: ["Type: Made payment", "Status: Completed", "Amount: $2,500"],
+      },
     },
     {
       id: "seed-audit-emd-expected-graham",
@@ -4394,8 +4917,8 @@ async function main() {
         transactionLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         objectLabel: "Graham Court 4F · Graham Court 4F, Brooklyn, NY",
         contextHref: "/office/accounting#earnest-money",
-        details: ["Expected amount: $15,000", "Due: Mar 5, 2026"]
-      }
+        details: ["Expected amount: $15,000", "Due: Mar 5, 2026"],
+      },
     },
     {
       id: "seed-audit-emd-received-70",
@@ -4406,11 +4929,13 @@ async function main() {
       payload: {
         officeId: office.id,
         transactionId: "seed-tx-70-christopher",
-        transactionLabel: "70 Christopher Columbus Dr · 70 Christopher Columbus Dr, Jersey City, NJ",
-        objectLabel: "70 Christopher Columbus Dr · 70 Christopher Columbus Dr, Jersey City, NJ",
+        transactionLabel:
+          "70 Christopher Columbus Dr · 70 Christopher Columbus Dr, Jersey City, NJ",
+        objectLabel:
+          "70 Christopher Columbus Dr · 70 Christopher Columbus Dr, Jersey City, NJ",
         contextHref: "/office/accounting#earnest-money",
-        details: ["Received amount: $5,000", "Status: Fully deposited"]
-      }
+        details: ["Received amount: $5,000", "Status: Fully deposited"],
+      },
     },
     {
       id: "seed-audit-commission-plan-created-senior",
@@ -4422,8 +4947,8 @@ async function main() {
         officeId: office.id,
         objectLabel: "Senior agent split",
         contextHref: "/office/accounting#commissions",
-        details: ["Mode: Split & fees", "Active rules: 4"]
-      }
+        details: ["Mode: Split & fees", "Active rules: 4"],
+      },
     },
     {
       id: "seed-audit-commission-plan-assigned-jane",
@@ -4435,8 +4960,12 @@ async function main() {
         officeId: office.id,
         objectLabel: "Senior agent split · Jane Wu",
         contextHref: `/office/agents/${membershipByEmail.get("jane@acre.com")?.id ?? ""}`,
-        details: ["Plan: Senior agent split", "Agent: Jane Wu", "Effective from: 2025-09-01"]
-      }
+        details: [
+          "Plan: Senior agent split",
+          "Agent: Jane Wu",
+          "Effective from: 2025-09-01",
+        ],
+      },
     },
     {
       id: "seed-audit-commission-calculated-court-square",
@@ -4447,11 +4976,18 @@ async function main() {
       payload: {
         officeId: office.id,
         transactionId: "seed-tx-45-10-court-square",
-        transactionLabel: "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
-        objectLabel: "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
-        contextHref: "/office/transactions/seed-tx-45-10-court-square#commission",
-        details: ["Plan: Operations manager split", "Agent net: $10,800", "Office net: $18,000"]
-      }
+        transactionLabel:
+          "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
+        objectLabel:
+          "45-10 Court Square W · 45-10 Court Square W, Long Island City, NY",
+        contextHref:
+          "/office/transactions/seed-tx-45-10-court-square#commission",
+        details: [
+          "Plan: Operations manager split",
+          "Agent net: $10,800",
+          "Office net: $18,000",
+        ],
+      },
     },
     {
       id: "seed-audit-commission-statement-naomi",
@@ -4463,13 +4999,19 @@ async function main() {
         officeId: office.id,
         objectLabel: "Naomi Chen commission statement",
         contextHref: "/office/accounting#commissions",
-        details: ["Agent: Naomi Chen", "Statement-ready: $0", "Payable: $6,250"]
-      }
-    }
+        details: [
+          "Agent: Naomi Chen",
+          "Statement-ready: $0",
+          "Payable: $6,250",
+        ],
+      },
+    },
   ];
 
   for (const auditLog of seededAuditLogs) {
-    const membership = auditLog.membershipEmail ? membershipByEmail.get(auditLog.membershipEmail) ?? null : null;
+    const membership = auditLog.membershipEmail
+      ? (membershipByEmail.get(auditLog.membershipEmail) ?? null)
+      : null;
 
     await prisma.auditLog.upsert({
       where: { id: auditLog.id },
@@ -4479,7 +5021,7 @@ async function main() {
         entityType: auditLog.entityType,
         entityId: auditLog.entityId,
         action: auditLog.action,
-        payload: auditLog.payload
+        payload: auditLog.payload,
       },
       create: {
         id: auditLog.id,
@@ -4488,13 +5030,13 @@ async function main() {
         entityType: auditLog.entityType,
         entityId: auditLog.entityId,
         action: auditLog.action,
-        payload: auditLog.payload
-      }
+        payload: auditLog.payload,
+      },
     });
   }
 
   console.log(
-    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${seededFrontOfficeResources.length} front-office resources, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`
+    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${seededFrontOfficeResources.length} front-office resources, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`,
   );
 }
 
