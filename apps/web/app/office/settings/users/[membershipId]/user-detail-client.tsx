@@ -618,6 +618,27 @@ export function OfficeSettingsUserDetailClient({
                   const canChooseDefault = hasAccess;
                   const canOpenCompanyPermissions =
                     !accountAccessChanged && hasAccess;
+                  const accessSummary = hasImplicitAllCompanyAccess
+                    ? "Access is inherited from the current role for every company."
+                    : accessDraftChanged && hasAccess
+                      ? "Access will be granted after you save this draft."
+                      : accessDraftChanged && !hasAccess
+                        ? "Access will be removed after you save this draft."
+                        : hasAccess
+                          ? "This user can sign in and switch into this company."
+                          : "Enable access if this user should be able to switch into this company.";
+                  const defaultSummary = !canChooseDefault
+                    ? "Grant access before choosing this company as the default sign-in location."
+                    : isDefault
+                      ? "This company is the first destination after sign-in."
+                      : `Selecting Default company also keeps this company in the access list.${overrideCount > 0 ? ` ${effectivePermissionCount} effective permissions are already saved for this scope.` : ""}`;
+                  const permissionsSummary = canOpenCompanyPermissions
+                    ? overrideCount > 0
+                      ? `${overrideCount} saved override${overrideCount === 1 ? " is" : "s are"} available for this company.`
+                      : "Open the dedicated page only if this company needs permission exceptions."
+                    : accountAccessChanged
+                      ? "Save access first so the permission page reflects this draft."
+                      : "Grant access first, then choose a default company or open company permissions.";
 
                   return (
                     <article
@@ -665,98 +686,90 @@ export function OfficeSettingsUserDetailClient({
                           ) : null}
                         </div>
                         <div className="office-settings-user-company-access-meta">
-                          <span>
-                            {hasImplicitAllCompanyAccess
-                              ? "This role automatically inherits every company."
-                              : accessDraftChanged && hasAccess
-                                ? "This company will be added after you save access."
-                                : accessDraftChanged && !hasAccess
-                                  ? "This company will be removed after you save access."
-                                  : hasAccess
-                                ? "This user can sign in and switch into this company."
-                                : "Enable access if this user should be able to switch into this company."}
-                          </span>
-                          <span>
-                            {!canChooseDefault
-                              ? "Grant access before choosing this company as the default sign-in location."
-                              : isDefault
-                              ? "This is the first company they land in after sign-in."
-                              : `Selecting Default company also keeps this company in the access list.${overrideCount > 0 ? ` ${effectivePermissionCount} effective permissions already exist for this saved scope.` : ""}`}
-                          </span>
+                          <div className="office-settings-user-company-access-meta-card">
+                            <span className="office-settings-user-company-access-meta-label">
+                              Access
+                            </span>
+                            <p>{accessSummary}</p>
+                          </div>
+                          <div className="office-settings-user-company-access-meta-card">
+                            <span className="office-settings-user-company-access-meta-label">
+                              Default sign-in
+                            </span>
+                            <p>{defaultSummary}</p>
+                          </div>
                         </div>
                       </div>
 
                       <div className="office-settings-user-company-access-actions">
-                        <div className="office-settings-user-company-access-toggle">
-                          <button
-                            aria-checked={hasAccess}
-                            aria-label={
-                              hasAccess
-                                ? `Remove access for ${option.label}`
-                                : `Grant access to ${option.label}`
-                            }
-                            disabled={
-                              !canManageAccountAccess ||
-                              hasImplicitAllCompanyAccess ||
-                              !canClearAccess
-                            }
-                            onClick={() => toggleOfficeAccess(option.id, !hasAccess)}
-                            role="checkbox"
-                            type="button"
-                          >
-                            <span />
-                          </button>
-                          <span>
-                            {hasImplicitAllCompanyAccess
-                              ? "Inherited access"
-                              : hasAccess
-                                ? "Has access"
-                                : "Grant access"}
-                          </span>
+                        <div className="office-settings-user-company-access-action-row">
+                          <div className="office-settings-user-company-access-toggle">
+                            <button
+                              aria-checked={hasAccess}
+                              aria-label={
+                                hasAccess
+                                  ? `Remove access for ${option.label}`
+                                  : `Grant access to ${option.label}`
+                              }
+                              disabled={
+                                !canManageAccountAccess ||
+                                hasImplicitAllCompanyAccess ||
+                                !canClearAccess
+                              }
+                              onClick={() =>
+                                toggleOfficeAccess(option.id, !hasAccess)
+                              }
+                              role="checkbox"
+                              type="button"
+                            >
+                              <span />
+                            </button>
+                            <span>Has access</span>
+                          </div>
+
+                          <div className="office-settings-user-company-access-toggle">
+                            <button
+                              aria-checked={isDefault}
+                              aria-label={
+                                isDefault
+                                  ? `${option.label} is the default company`
+                                  : `Make ${option.label} the default company`
+                              }
+                              disabled={
+                                !canManageAccountAccess || !canChooseDefault
+                              }
+                              onClick={() => setDefaultOffice(option.id)}
+                              role="radio"
+                              type="button"
+                            >
+                              <span />
+                            </button>
+                            <span>Make default</span>
+                          </div>
+
+                          {canOpenCompanyPermissions ? (
+                            <Link
+                              className="office-button-secondary office-button-sm office-settings-user-company-access-action-link"
+                              href={`${permissionEditorHref}?scope=company&officeId=${option.id}`}
+                            >
+                              Company permissions
+                            </Link>
+                          ) : (
+                            <Button
+                              className="office-settings-user-company-access-action-link"
+                              disabled
+                              size="sm"
+                              type="button"
+                              variant="secondary"
+                            >
+                              Company permissions
+                            </Button>
+                          )}
                         </div>
 
-                        <div className="office-settings-user-company-access-toggle">
-                          <button
-                            aria-checked={isDefault}
-                            aria-label={
-                              isDefault
-                                ? `${option.label} is the default company`
-                                : `Make ${option.label} the default company`
-                            }
-                            disabled={
-                              !canManageAccountAccess || !canChooseDefault
-                            }
-                            onClick={() => setDefaultOffice(option.id)}
-                            role="radio"
-                            type="button"
-                          >
-                            <span />
-                          </button>
-                          <span>
-                            {!canChooseDefault
-                              ? "Grant access before default"
-                              : isDefault
-                                ? "Default company"
-                                : "Make default"}
-                          </span>
-                        </div>
-
-                        {canOpenCompanyPermissions ? (
-                          <Link
-                            className="office-button-secondary office-button-sm"
-                            href={`${permissionEditorHref}?scope=company&officeId=${option.id}`}
-                          >
-                            {overrideCount > 0
-                              ? "Edit company permissions"
-                              : "Review company permissions"}
-                          </Link>
-                        ) : (
-                          <Button disabled type="button" variant="secondary">
-                            {accountAccessChanged
-                              ? "Save access first"
-                              : "Grant access first"}
-                          </Button>
-                        )}
+                        <p className="office-settings-user-company-access-action-note">
+                          {permissionsSummary}
+                        </p>
                       </div>
                     </article>
                   );
