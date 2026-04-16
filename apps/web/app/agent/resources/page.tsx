@@ -105,12 +105,6 @@ const actionRowStyle: CSSProperties = {
   gap: "8px 12px",
 };
 
-const quickSearchRowStyle: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "8px",
-};
-
 const segmentedTabsShellStyle: CSSProperties = {
   display: "grid",
   width: "100%",
@@ -475,21 +469,6 @@ export default async function AgentResourcesPage(props: {
     { key: "vendors", label: "Vendors" },
     { key: "training", label: "Video Academy" },
   ];
-  const quickSearchExamples: Record<FrontOfficeResourceSearchTab, string[]> = {
-    documents: [
-      "buyer consultation",
-      "listing presentation",
-      "offer checklist",
-      "租房",
-    ],
-    vendors: ["lender", "attorney", "insurance", "moving"],
-    training: [
-      "buyer script",
-      "objection handling",
-      "showing prep",
-      "crm walkthrough",
-    ],
-  };
   const tabSubtitle: Record<FrontOfficeResourceSearchTab, string> = {
     documents:
       "Published PDFs, playbooks, templates, and other office-approved documents for agents.",
@@ -676,23 +655,6 @@ export default async function AgentResourcesPage(props: {
               placeholder="Search vendors, videos, documents..."
               tab={activeTab}
             />
-
-            <div style={{ marginTop: "1rem", display: "grid", gap: "0.9rem" }}>
-              <div style={quickSearchRowStyle}>
-                {quickSearchExamples[activeTab].map((example) => (
-                  <a
-                    href={buildResourcesUrl({
-                      tab: activeTab,
-                      q: example,
-                    })}
-                    key={example}
-                    style={segmentedTabStyle}
-                  >
-                    {example}
-                  </a>
-                ))}
-              </div>
-            </div>
           </SectionCard>
 
           <SectionCard
