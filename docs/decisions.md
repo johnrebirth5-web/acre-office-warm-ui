@@ -117,6 +117,31 @@ Trade-off：
 - 模型明显比早期 `role -> fixed permission map` 更复杂
 - 但这比继续把真实权限需求硬塞进角色白名单更安全，也更接近 `BoldTrail / Brokermint` 的后台管理方式
 
+## 关键决策 5.1：三家公司共用同一套系统，只在 company scope 上切换
+
+原因：
+
+- `Acre NY Realty`、`Acre NY Rental`、`Acre NJ LLC` 需要共享同一套产品、模块和后续 bugfix / feature rollout
+- 如果拆成三套系统，后续每次改动都会放大维护成本、验证成本和配置漂移风险
+- 当前真实需求更像“同一 organization 下的多个公司作用域”，而不是三套彼此独立的软件
+
+影响：
+
+- 继续保留一个 `Acre` organization
+- 三家公司作为 organization 下的 company scope / office entity 存在
+- 顶部壳层新增 `Company` 下拉，并固定排在 `Active workspace` 和 `Language` 之上
+- session cookie 现在保存 `activeOfficeId`，从而决定当前 company scope
+- organization 级角色模板、SMTP、Signature Drive 等设置继续共享
+- 业务数据读写继续按当前 company scope 过滤
+- `owner / office_admin / office_manager` 默认拥有全部公司访问权
+- 其他用户由管理员在 `Settings > Users` 中配置可访问公司与默认公司
+- 权限模型保持“全局角色模板 + 全局 user override + 公司级 override”三层
+
+Trade-off：
+
+- 数据作用域和 session / settings / permissions 逻辑比单公司模型更复杂
+- 但换来的是一次开发、三家公司同步受益的维护方式，也更符合当前业务组织结构
+
 ## 关键决策 6：Listings 是数据中轴
 
 原因：

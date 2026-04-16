@@ -28,7 +28,8 @@ type CreateUserDraft = {
   lastName: string;
   email: string;
   role: string;
-  officeId: string;
+  defaultOfficeId: string;
+  accessibleOfficeIds: string[];
   title: string;
   splitTemplateId: string;
   customAgentPercent: string;
@@ -92,13 +93,30 @@ function getDefaultOfficeId(snapshot: OfficeAdminUsersSnapshot) {
   return snapshot.filters.officeOptions.find((option) => option.id !== "__all__")?.id ?? "__all__";
 }
 
+function getActualOfficeOptions(snapshot: OfficeAdminUsersSnapshot) {
+  return snapshot.filters.officeOptions.filter((option) => option.id !== "__all__");
+}
+
+function roleHasImplicitAllCompanyAccess(role: string) {
+  return role === "owner" || role === "office_admin" || role === "office_manager";
+}
+
 function buildCreateUserDraft(snapshot: OfficeAdminUsersSnapshot): CreateUserDraft {
+  const defaultOfficeId = getDefaultOfficeId(snapshot);
+  const actualOfficeOptions = getActualOfficeOptions(snapshot);
+
   return {
     firstName: "",
     lastName: "",
     email: "",
     role: "agent",
-    officeId: getDefaultOfficeId(snapshot),
+    defaultOfficeId,
+    accessibleOfficeIds:
+      defaultOfficeId !== "__all__"
+        ? [defaultOfficeId]
+        : actualOfficeOptions[0]
+          ? [actualOfficeOptions[0].id]
+          : [],
     title: "",
     splitTemplateId: "",
     customAgentPercent: "",
@@ -144,9 +162,11 @@ export function OfficeSettingsUsersClient({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createUserDraft, setCreateUserDraft] = useState<CreateUserDraft>(() => buildCreateUserDraft(snapshot));
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
+  const actualOfficeOptions = getActualOfficeOptions(snapshot);
+  const hasImplicitAllCompanyAccess = roleHasImplicitAllCompanyAccess(createUserDraft.role);
   const canAssignTeamOnCreate = canManageTeams && roleSupportsTeamAssignment(createUserDraft.role);
   const assignableCreateRoleOptions = getCreateRoleOptions(canManageAdminRoles);
-  const createAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.officeId);
+  const createAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.defaultOfficeId);
   const selectedCreateTeam = createAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
 
   useEffect(() => {
@@ -155,17 +175,18 @@ export function OfficeSettingsUsersClient({
     setStatusFilter(snapshot.filters.status);
     setOfficeFilter(snapshot.filters.officeId);
     setCreateUserDraft((current) =>
-      snapshot.filters.officeOptions.some((option) => option.id === current.officeId)
+      actualOfficeOptions.some((option) => option.id === current.defaultOfficeId)
         ? current
         : {
             ...current,
-            officeId: getDefaultOfficeId(snapshot)
+            defaultOfficeId: getDefaultOfficeId(snapshot),
+            accessibleOfficeIds: getDefaultOfficeId(snapshot) !== "__all__" ? [getDefaultOfficeId(snapshot)] : []
           }
     );
-  }, [snapshot]);
+  }, [actualOfficeOptions, snapshot]);
 
   useEffect(() => {
-    const nextAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.officeId);
+    const nextAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.defaultOfficeId);
     const nextSelectedTeam = nextAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
 
     if (!canAssignTeamOnCreate) {
@@ -208,10 +229,58 @@ export function OfficeSettingsUsersClient({
     }
   }, [
     canAssignTeamOnCreate,
-    createUserDraft.officeId,
+    createUserDraft.defaultOfficeId,
     createUserDraft.reportsToTeamMembershipId,
     createUserDraft.teamId,
     snapshot
+  ]);
+
+  useEffect(() => {
+    if (hasImplicitAllCompanyAccess) {
+      const allOfficeIds = actualOfficeOptions.map((option) => option.id);
+      const nextDefaultOfficeId =
+        allOfficeIds.includes(createUserDraft.defaultOfficeId)
+          ? createUserDraft.defaultOfficeId
+          : allOfficeIds[0] ?? "__all__";
+      const currentSerialized = JSON.stringify([...createUserDraft.accessibleOfficeIds].sort());
+      const nextSerialized = JSON.stringify([...allOfficeIds].sort());
+
+      if (currentSerialized !== nextSerialized || createUserDraft.defaultOfficeId !== nextDefaultOfficeId) {
+        setCreateUserDraft((current) => ({
+          ...current,
+          defaultOfficeId: nextDefaultOfficeId,
+          accessibleOfficeIds: allOfficeIds
+        }));
+      }
+      return;
+    }
+
+    if (
+      createUserDraft.accessibleOfficeIds.length === 0 &&
+      actualOfficeOptions[0]
+    ) {
+      setCreateUserDraft((current) => ({
+        ...current,
+        defaultOfficeId: current.defaultOfficeId !== "__all__" ? current.defaultOfficeId : actualOfficeOptions[0]?.id ?? "__all__",
+        accessibleOfficeIds: [actualOfficeOptions[0]?.id ?? ""].filter(Boolean)
+      }));
+      return;
+    }
+
+    if (
+      createUserDraft.defaultOfficeId &&
+      !createUserDraft.accessibleOfficeIds.includes(createUserDraft.defaultOfficeId)
+    ) {
+      setCreateUserDraft((current) => ({
+        ...current,
+        defaultOfficeId: current.accessibleOfficeIds[0] ?? "__all__"
+      }));
+    }
+  }, [
+    actualOfficeOptions,
+    createUserDraft.accessibleOfficeIds,
+    createUserDraft.defaultOfficeId,
+    hasImplicitAllCompanyAccess
   ]);
 
   function refreshCurrentPage() {
@@ -277,8 +346,19 @@ export function OfficeSettingsUsersClient({
         throw new Error("Choose a default split template or enter a custom agent split.");
       }
 
+      if (!createUserDraft.defaultOfficeId || createUserDraft.defaultOfficeId === "__all__") {
+        throw new Error("Choose a default company.");
+      }
+
+      if (!hasImplicitAllCompanyAccess && createUserDraft.accessibleOfficeIds.length === 0) {
+        throw new Error("Choose at least one company for this user.");
+      }
+
       const createPayload = {
         ...createUserDraft,
+        accessibleOfficeIds: hasImplicitAllCompanyAccess
+          ? actualOfficeOptions.map((option) => option.id)
+          : createUserDraft.accessibleOfficeIds,
         teamId: canAssignTeamOnCreate ? createUserDraft.teamId : "",
         reportsToTeamMembershipId: canAssignTeamOnCreate ? createUserDraft.reportsToTeamMembershipId : ""
       };
@@ -342,7 +422,7 @@ export function OfficeSettingsUsersClient({
         <header className="office-section-head office-settings-users-roster-head">
           <div className="office-section-copy">
             <h3>Internal accounts</h3>
-            <p>Search by name, email, role, or office, then open a user to manage access, invitation state, and activity.</p>
+            <p>Search by name, email, role, or company, then open a user to manage access, invitation state, and activity.</p>
           </div>
           {canManageUsers ? (
             <Button className="office-settings-users-create-button" onClick={openCreateModal} type="button">
@@ -354,7 +434,7 @@ export function OfficeSettingsUsersClient({
         <div className="office-section-body">
           <form className="office-filter-bar office-settings-users-filter-bar" onSubmit={handleFilterSubmit}>
             <FilterField className="office-settings-users-search-field" label="Search">
-              <TextInput onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search name, email, title, office..." value={searchQuery} />
+              <TextInput onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search name, email, title, company..." value={searchQuery} />
             </FilterField>
 
             <FilterField label="Role">
@@ -379,7 +459,7 @@ export function OfficeSettingsUsersClient({
               </SelectInput>
             </FilterField>
 
-            <FilterField label="Office access">
+            <FilterField label="Company access">
               <SelectInput onChange={(event) => setOfficeFilter(event.target.value)} value={officeFilter}>
                 <option value="">All assignments</option>
                 {snapshot.filters.officeOptions.map((option) => (
@@ -479,7 +559,7 @@ export function OfficeSettingsUsersClient({
                 <section className="office-create-modal-section office-settings-users-create-section">
                   <div className="office-create-modal-section-head office-settings-users-create-section-head">
                     <h4>Account details</h4>
-                    <p>Capture the invited user identity, office assignment, and role before sending the setup link.</p>
+                    <p>Capture the invited user identity, company assignment, and role before sending the setup link.</p>
                   </div>
 
                   <div className="office-form-grid office-form-grid-3 office-settings-users-create-grid">
@@ -511,9 +591,9 @@ export function OfficeSettingsUsersClient({
                       </SelectInput>
                     </FormField>
 
-                    <FormField label="Office access">
-                      <SelectInput onChange={(event) => setCreateField("officeId", event.target.value)} value={createUserDraft.officeId}>
-                        {snapshot.filters.officeOptions.map((option) => (
+                    <FormField label="Default company">
+                      <SelectInput onChange={(event) => setCreateField("defaultOfficeId", event.target.value)} value={createUserDraft.defaultOfficeId}>
+                        {actualOfficeOptions.map((option) => (
                           <option key={option.id} value={option.id}>
                             {option.label}
                           </option>
@@ -521,11 +601,46 @@ export function OfficeSettingsUsersClient({
                       </SelectInput>
                     </FormField>
 
+                    <FormField className="office-form-grid-span-3" label="Company access">
+                      <select
+                        className="office-select"
+                        disabled={hasImplicitAllCompanyAccess}
+                        multiple
+                        onChange={(event) =>
+                          setCreateUserDraft((current) => {
+                            const accessibleOfficeIds = Array.from(event.target.selectedOptions, (option) => option.value);
+                            const defaultOfficeId = accessibleOfficeIds.includes(current.defaultOfficeId)
+                              ? current.defaultOfficeId
+                              : accessibleOfficeIds[0] ?? current.defaultOfficeId;
+
+                            return {
+                              ...current,
+                              defaultOfficeId,
+                              accessibleOfficeIds
+                            };
+                          })
+                        }
+                        size={Math.min(4, Math.max(actualOfficeOptions.length, 3))}
+                        value={hasImplicitAllCompanyAccess ? actualOfficeOptions.map((option) => option.id) : createUserDraft.accessibleOfficeIds}
+                      >
+                        {actualOfficeOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+
                     <FormField label="Title">
                       <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
                     </FormField>
 
                     <p className="office-form-grid-span-3 office-settings-users-modal-note">{getRoleConfigurationHint(createUserDraft.role)}</p>
+                    <p className="office-form-grid-span-3 office-form-helper">
+                      {hasImplicitAllCompanyAccess
+                        ? "This role automatically receives access to all companies. You only need to pick the default company above."
+                        : "Hold Command/Ctrl to select multiple companies. The default company must stay inside the selected access list."}
+                    </p>
                     {!canManageAdminRoles ? (
                       <p className="office-form-grid-span-3 office-form-helper">
                         Owner and Office Admin assignments are limited to current Owner / Office Admin users.

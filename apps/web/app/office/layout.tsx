@@ -16,7 +16,15 @@ export default async function OfficeLayout({ children }: { children: ReactNode }
   return (
     <main className="app-shell acre-app-shell office-dashboard-shell office-backoffice-shell">
       <div className="app-grid acre-app-grid office-dashboard-grid-shell">
-        <OfficeNav currentAccess={context.currentMembership} currentOfficeName={context.currentOffice?.name ?? "Acre"} />
+        <OfficeNav
+          companies={context.accessibleOffices.map((office) => ({
+            id: office.id,
+            name: office.name,
+          }))}
+          currentAccess={context.currentMembership}
+          currentCompanyId={context.currentOffice?.id ?? null}
+          currentOfficeName={context.currentOffice?.name ?? "Acre"}
+        />
         <div className="main-area acre-main-area office-dashboard-main">
           <OfficeTableLayoutRuntime
             canManageTableLayouts={canManageOfficeSettings(context.currentMembership)}

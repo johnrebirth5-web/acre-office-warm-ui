@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { requireSessionContext } from "../../lib/auth-session";
 import { AgentNav } from "./agent-nav";
 
-export default function AgentLayout({ children }: { children: ReactNode }) {
+export default async function AgentLayout({ children }: { children: ReactNode }) {
+  const context = await requireSessionContext();
+
   return (
     <main
       aria-label="Front Office workspace shell"
@@ -10,7 +13,14 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
       data-workspace-role="daily-execution"
     >
       <div className="app-grid acre-app-grid">
-        <AgentNav />
+        <AgentNav
+          companies={context.accessibleOffices.map((office) => ({
+            id: office.id,
+            name: office.name,
+          }))}
+          currentCompanyId={context.currentOffice?.id ?? null}
+          homeHref="/agent/dashboard"
+        />
         <div className="main-area acre-main-area office-dashboard-main">{children}</div>
       </div>
     </main>

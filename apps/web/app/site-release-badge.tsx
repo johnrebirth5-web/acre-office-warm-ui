@@ -2,7 +2,7 @@
 
 const siteVersionLabel = "v1.0";
 const siteReleaseStageLabel = "Official";
-const siteCopyrightLabel = "© 2021-2026 Acre NY Realty Inc.";
+const siteCopyrightLabel = "© 2021-2026 Acre";
 
 type SiteReleaseBadgeProps = {
   className?: string;

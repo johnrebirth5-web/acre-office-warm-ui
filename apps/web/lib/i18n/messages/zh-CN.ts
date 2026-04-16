@@ -100,6 +100,10 @@ export const zhCNMessages = {
     label: "语言",
     ariaLabel: "选择语言",
   },
+  companySwitcher: {
+    label: "公司",
+    ariaLabel: "选择公司",
+  },
   workspaceNav: {
     mobileMenu: "打开导航",
     workspaceSwitcher: "切换工作区",

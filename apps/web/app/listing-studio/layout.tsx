@@ -23,7 +23,14 @@ export default async function ListingStudioLayout({
       data-workspace-role="listing-studio"
     >
       <div className="app-grid acre-app-grid">
-        <AgentNav />
+        <AgentNav
+          companies={context.accessibleOffices.map((office) => ({
+            id: office.id,
+            name: office.name,
+          }))}
+          currentCompanyId={context.currentOffice?.id ?? null}
+          homeHref="/listing-studio/dashboard"
+        />
         <div className="main-area acre-main-area office-dashboard-main">
           {children}
         </div>

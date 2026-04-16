@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHmac } from "node:crypto";
 import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config.ts";
-import { createSessionCookieValue, decodeSessionCookieValue } from "./auth-session.ts";
+import {
+  createSessionCookieValue,
+  createSessionCookieValueWithOfficeSelection,
+  decodeSessionCookieValue,
+} from "./auth-session.ts";
 
 function withEnv(
   nextEnv: Partial<
@@ -38,10 +42,16 @@ function withEnv(
   }
 }
 
-function signSessionPayload(membershipId: string, secret: string, issuedAt = Date.now()) {
+function signSessionPayload(
+  membershipId: string,
+  secret: string,
+  issuedAt = Date.now(),
+  activeOfficeId: string | null = null,
+) {
   const serializedPayload = Buffer.from(
     JSON.stringify({
       membershipId,
+      activeOfficeId,
       issuedAt
     })
   ).toString("base64url");
@@ -106,11 +116,13 @@ test("session cookies sign with the primary secret and verify with a secondary s
       const primaryPayload = decodeSessionCookieValue(primaryCookieValue);
 
       assert.equal(primaryPayload?.membershipId, "membership-primary");
+      assert.equal(primaryPayload?.activeOfficeId, null);
 
       const secondaryCookieValue = signSessionPayload("membership-secondary", "fedcba9876543210fedcba9876543210");
       const secondaryPayload = decodeSessionCookieValue(secondaryCookieValue);
 
       assert.equal(secondaryPayload?.membershipId, "membership-secondary");
+      assert.equal(secondaryPayload?.activeOfficeId, null);
     }
   );
 });
@@ -130,6 +142,7 @@ test("session decoding rejects cookies older than the configured max age", () =>
     const expiredPayload = Buffer.from(
       JSON.stringify({
         membershipId: "membership-1",
+        activeOfficeId: null,
         issuedAt: Date.now() - getSessionMaxAgeMs() - 1000
       })
     ).toString("base64url");
@@ -145,6 +158,17 @@ test("session decoding accepts fresh signed cookies", () => {
     const payload = decodeSessionCookieValue(cookieValue);
 
     assert.equal(payload?.membershipId, "membership-1");
+    assert.equal(payload?.activeOfficeId, null);
     assert.equal(typeof payload?.issuedAt, "number");
+  });
+});
+
+test("session cookies can persist the current company selection", () => {
+  withEnv({ NODE_ENV: "development", ACRE_SESSION_SECRET: "test-secret" }, () => {
+    const cookieValue = createSessionCookieValueWithOfficeSelection("membership-1", "office-2");
+    const payload = decodeSessionCookieValue(cookieValue);
+
+    assert.equal(payload?.membershipId, "membership-1");
+    assert.equal(payload?.activeOfficeId, "office-2");
   });
 });

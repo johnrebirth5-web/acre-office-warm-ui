@@ -15,6 +15,15 @@ import { resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
+import {
+  normalizeSelectedOfficeIds,
+  resolveCurrentOfficeSelection,
+  resolveMembershipAccessibleOffices,
+  resolveMembershipOfficeAssignment,
+  roleHasImplicitAllOfficeAccess,
+  type MembershipOfficeAccessRecord,
+  type OfficeScopeRecord,
+} from "./membership-office-access";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
 import {
   getMembershipEffectivePermissionKeys,
@@ -269,6 +278,11 @@ export type OfficeAdminUserRow = {
   roleEditorValue: string;
   officeAccessLabel: string;
   officeAccessValue: string;
+  defaultOfficeId: string | null;
+  defaultOfficeName: string;
+  accessibleOfficeIds: string[];
+  accessibleOfficeNames: string[];
+  hasAllOfficeAccess: boolean;
   status: string;
   statusValue: MembershipStatus;
   title: string;
@@ -352,6 +366,11 @@ export type OfficeAdminUserDetailSnapshot = {
     officeAccessLabel: string;
     officeAccessValue: string;
     officeName: string;
+    defaultOfficeId: string | null;
+    defaultOfficeName: string;
+    accessibleOfficeIds: string[];
+    accessibleOfficeNames: string[];
+    hasAllOfficeAccess: boolean;
     authStatusLabel: string;
     invitationStatusLabel: string;
     invitationExpiresAtLabel: string;
@@ -405,6 +424,11 @@ export type OfficeAdminUserDetailSnapshot = {
   };
   commission: OfficeAgentCommissionSummary;
   permissions: MembershipEffectivePermissionsSnapshot;
+  companyPermissions: Array<{
+    officeId: string;
+    officeName: string;
+    permissions: MembershipEffectivePermissionsSnapshot;
+  }>;
   recentActivity: OfficeAdminUserDetailActivityItem[];
 };
 
@@ -531,6 +555,8 @@ export type UpdateOfficeAdminUserInput = {
   membershipId: string;
   role?: string;
   status?: string;
+  defaultOfficeId?: string | null;
+  accessibleOfficeIds?: string[];
   officeId?: string | null;
 };
 
@@ -652,8 +678,70 @@ function formatUserRoleLabel(role: UserRole) {
       : userRoleLabelMap[role];
 }
 
-function formatOfficeAccessLabel(office: { name: string } | null) {
-  return office?.name ?? "All offices";
+function formatOfficeAccessLabel(input: {
+  allOffices: readonly OfficeScopeRecord[];
+  role: UserRole;
+  defaultOfficeId: string | null;
+  officeAccesses?: readonly MembershipOfficeAccessRecord[];
+}) {
+  const accessibleOffices = resolveMembershipAccessibleOffices({
+    role: input.role,
+    allOffices: input.allOffices,
+    defaultOfficeId: input.defaultOfficeId,
+    officeAccesses: input.officeAccesses,
+  });
+
+  if (accessibleOffices.length === 0) {
+    return "No companies";
+  }
+
+  if (accessibleOffices.length === input.allOffices.length) {
+    return "All companies";
+  }
+
+  const defaultOffice = resolveCurrentOfficeSelection({
+    defaultOfficeId: input.defaultOfficeId,
+    accessibleOffices,
+  });
+
+  if (accessibleOffices.length === 1) {
+    return accessibleOffices[0]?.name ?? "No companies";
+  }
+
+  return `${defaultOffice?.name ?? accessibleOffices[0]?.name ?? "Company"} +${accessibleOffices.length - 1} more`;
+}
+
+function buildMembershipOfficeScope(input: {
+  allOffices: readonly OfficeScopeRecord[];
+  role: UserRole;
+  defaultOfficeId: string | null;
+  officeAccesses?: readonly MembershipOfficeAccessRecord[];
+}) {
+  const accessibleOffices = resolveMembershipAccessibleOffices({
+    role: input.role,
+    allOffices: input.allOffices,
+    defaultOfficeId: input.defaultOfficeId,
+    officeAccesses: input.officeAccesses,
+  });
+  const defaultOffice = resolveCurrentOfficeSelection({
+    defaultOfficeId: input.defaultOfficeId,
+    accessibleOffices,
+  });
+
+  return {
+    accessibleOffices,
+    accessibleOfficeIds: accessibleOffices.map((office) => office.id),
+    accessibleOfficeNames: accessibleOffices.map((office) => office.name),
+    defaultOffice,
+    defaultOfficeId: defaultOffice?.id ?? null,
+    defaultOfficeName: defaultOffice?.name ?? "No companies",
+    hasAllOfficeAccess: accessibleOffices.length > 0 && accessibleOffices.length === input.allOffices.length,
+    officeAccessLabel: formatOfficeAccessLabel(input),
+    officeAccessValue: accessibleOffices.length > 0 && accessibleOffices.length === input.allOffices.length
+      ? "__all__"
+      : defaultOffice?.id ?? accessibleOffices[0]?.id ?? "__none__",
+    hasImplicitAllOfficeAccess: roleHasImplicitAllOfficeAccess(input.role),
+  };
 }
 
 function formatDateLabel(value: Date | null | undefined) {
@@ -795,6 +883,8 @@ function mapOfficeAdminUserRow(membership: {
   }>;
   officeId: string | null;
   office: { name: string } | null;
+  officeAccesses?: MembershipOfficeAccessRecord[];
+  allOffices: OfficeScopeRecord[];
   user: {
     email: string;
     firstName: string;
@@ -816,6 +906,12 @@ function mapOfficeAdminUserRow(membership: {
   const hasCredential = Boolean(membership.user.credential);
   const name = `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email;
   const mustChangePassword = membership.user.credential?.mustChangePassword ?? false;
+  const officeScope = buildMembershipOfficeScope({
+    allOffices: membership.allOffices,
+    role: membership.role,
+    defaultOfficeId: membership.officeId,
+    officeAccesses: membership.officeAccesses,
+  });
 
   let authStatusLabel = "Setup required";
   if (mustChangePassword) {
@@ -845,8 +941,13 @@ function mapOfficeAdminUserRow(membership: {
     role: formatUserRoleLabel(membership.role),
     roleValue: membership.role,
     roleEditorValue: membership.role,
-    officeAccessLabel: formatOfficeAccessLabel(membership.office),
-    officeAccessValue: membership.officeId ?? "__all__",
+    officeAccessLabel: officeScope.officeAccessLabel,
+    officeAccessValue: officeScope.officeAccessValue,
+    defaultOfficeId: officeScope.defaultOfficeId,
+    defaultOfficeName: officeScope.defaultOfficeName,
+    accessibleOfficeIds: officeScope.accessibleOfficeIds,
+    accessibleOfficeNames: officeScope.accessibleOfficeNames,
+    hasAllOfficeAccess: officeScope.hasAllOfficeAccess,
     status: formatMembershipStatusLabel(membership.status),
     statusValue: membership.status,
     title: resolveMembershipDisplayTitle({
@@ -1408,12 +1509,6 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     }
   };
 
-  if (officeFilterId === "__all__") {
-    where.officeId = null;
-  } else if (officeFilterId) {
-    where.officeId = officeFilterId;
-  }
-
   if (roleFilter) {
     where.role = roleFilter;
   }
@@ -1459,6 +1554,19 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
           }
         },
         office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
+          }
+        },
         teamMemberships: {
           select: {
             id: true,
@@ -1496,7 +1604,10 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       orderBy: [{ name: "asc" }],
       select: {
         id: true,
-        name: true
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true
       }
     }),
     prisma.team.findMany({
@@ -1530,6 +1641,19 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         office: {
           select: {
             name: true
+          }
+        },
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
           }
         },
         agentProfile: {
@@ -1600,11 +1724,36 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       teamPathLabel: teamMembership.team.id ? buildTeamPathLabel(teamHierarchyIndex, teamMembership.team.id) || teamMembership.team.name : teamMembership.team.name
     }))
   });
+  const matchesOfficeFilter = (
+    membership: {
+      role: UserRole;
+      officeId: string | null;
+      officeAccesses?: MembershipOfficeAccessRecord[];
+    },
+  ) => {
+    if (!officeFilterId) {
+      return true;
+    }
+
+    const officeScope = buildMembershipOfficeScope({
+      allOffices: offices,
+      role: membership.role,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses,
+    });
+
+    if (officeFilterId === "__all__") {
+      return officeScope.hasAllOfficeAccess;
+    }
+
+    return officeScope.accessibleOfficeIds.includes(officeFilterId);
+  };
 
   const summaryRows = summary.map((membership) =>
     mapOfficeAdminUserRow({
       ...withTeamPathLabels(membership),
-      title: membership.title ?? null
+      title: membership.title ?? null,
+      allOffices: offices
     })
   );
   const totalUsers = summaryRows.length;
@@ -1632,6 +1781,8 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     roleOptions.push({ value: "office_user", label: "Office User (Legacy)" });
   }
 
+  const filteredMemberships = memberships.filter((membership) => matchesOfficeFilter(membership));
+
   return {
     summary: {
       totalUsers,
@@ -1655,15 +1806,16 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         { value: "disabled", label: "Disabled" },
         { value: "locked", label: "Locked" }
       ],
-      officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
+      officeOptions: [{ id: "__all__", label: "All companies" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
     },
     createOptions: {
       assignableTeams
     },
-    rows: memberships.map((membership) =>
+    rows: filteredMemberships.map((membership) =>
       mapOfficeAdminUserRow({
         ...withTeamPathLabels(membership),
-        title: membership.title ?? null
+        title: membership.title ?? null,
+        allOffices: offices
       })
     )
   };
@@ -1788,7 +1940,7 @@ async function listOfficeAdminAssignableTeams(input: {
     return {
       id: team.id,
       officeId: team.officeId ?? null,
-      officeName: team.office?.name ?? "All offices",
+      officeName: team.office?.name ?? "All companies",
       label: formatAssignableTeamLabel(teamPathLabel, managerOptions.map((manager) => manager.label)),
       managerOptions,
       defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
@@ -1830,6 +1982,19 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       },
       include: {
         office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
+          }
+        },
         user: {
           include: {
             credential: true
@@ -1864,7 +2029,10 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       orderBy: [{ name: "asc" }],
       select: {
         id: true,
-        name: true
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true
       }
     })
   ]);
@@ -1873,10 +2041,21 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     return null;
   }
 
+  const membershipOfficeScope = buildMembershipOfficeScope({
+    allOffices: offices,
+    role: membership.role,
+    defaultOfficeId: membership.officeId,
+    officeAccesses: membership.officeAccesses
+  });
+
   const scopedTeams = await prisma.team.findMany({
     where: {
       organizationId: input.organizationId,
-      ...(membership.officeId ? { OR: [{ officeId: membership.officeId }, { officeId: null }] } : {})
+      ...(membershipOfficeScope.hasAllOfficeAccess
+        ? {}
+        : {
+            OR: [{ officeId: null }, { officeId: { in: membershipOfficeScope.accessibleOfficeIds } }]
+          })
     },
     select: {
       id: true,
@@ -1923,7 +2102,8 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
   const row = mapOfficeAdminUserRow({
     ...membership,
     title: membership.title ?? null,
-    invitations: activeInvitation ? [{ expiresAt: activeInvitation.expiresAt }] : []
+    invitations: activeInvitation ? [{ expiresAt: activeInvitation.expiresAt }] : [],
+    allOffices: offices
   });
 
   const activityEntityIds = [
@@ -1932,7 +2112,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     ...membership.invitations.map((invitation) => invitation.id)
   ].filter((value): value is string => Boolean(value));
 
-  const [onboardingItems, recentActivity, commission, permissions] = await Promise.all([
+  const [onboardingItems, recentActivity, commission, permissions, companyPermissions] = await Promise.all([
     prisma.agentOnboardingItem.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1964,7 +2144,18 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     getMembershipEffectivePermissions({
       organizationId: input.organizationId,
       membershipId: input.membershipId
-    })
+    }),
+    Promise.all(
+      membershipOfficeScope.accessibleOffices.map(async (office) => ({
+        officeId: office.id,
+        officeName: office.name,
+        permissions: await getMembershipEffectivePermissions({
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          officeId: office.id
+        })
+      }))
+    )
   ]);
   const availableTeams = input.viewerMembershipId
     ? (await listOfficeAdminAssignableTeams({
@@ -2003,9 +2194,14 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
           teamPathLabel: teamPathLabelMap.get(teamMembership.team.id) ?? teamMembership.team.name
         }))
       }),
-      officeAccessLabel: formatOfficeAccessLabel(membership.office),
-      officeAccessValue: membership.officeId ?? "__all__",
-      officeName: membership.office?.name ?? "All offices",
+      officeAccessLabel: row.officeAccessLabel,
+      officeAccessValue: row.officeAccessValue,
+      officeName: row.defaultOfficeName,
+      defaultOfficeId: row.defaultOfficeId,
+      defaultOfficeName: row.defaultOfficeName,
+      accessibleOfficeIds: row.accessibleOfficeIds,
+      accessibleOfficeNames: row.accessibleOfficeNames,
+      hasAllOfficeAccess: row.hasAllOfficeAccess,
       authStatusLabel: row.authStatusLabel,
       invitationStatusLabel: row.invitationStatusLabel,
       invitationExpiresAtLabel: row.invitationExpiresAtLabel,
@@ -2027,7 +2223,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       agentProfileHref: membership.agentProfile ? `/office/agents/${membership.id}` : null
     },
     editors: {
-      officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
+      officeOptions: [{ id: "__all__", label: "All companies" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
     },
     teams: membership.teamMemberships.map((teamMembership) => ({
       id: teamMembership.team.id,
@@ -2064,6 +2260,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     },
     commission,
     permissions,
+    companyPermissions,
     recentActivity: recentActivity.map((item) => ({
       id: item.id,
       actionLabel: formatActionLabel(item.action),
@@ -2102,6 +2299,19 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
           }
         },
         office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
+          }
+        },
         teamMemberships: {
           select: {
             role: true,
@@ -2127,7 +2337,6 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
 
     const nextRole = normalizeUserRole(input.role) ?? membership.role;
     const nextStatus = normalizeMembershipStatus(input.status) ?? membership.status;
-    let nextOfficeId = typeof input.officeId === "string" ? input.officeId : input.officeId === null ? null : membership.officeId;
 
     assertActorCanAssignPrivilegedRole(actorPermissionKeys, nextRole);
 
@@ -2163,35 +2372,58 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       );
     }
 
-    if (nextOfficeId === "__all__") {
-      nextOfficeId = null;
-    }
-
-    let nextOfficeName = "All offices";
-    if (nextOfficeId) {
-      const office = await tx.office.findFirst({
-        where: {
-          id: nextOfficeId,
-          organizationId: input.organizationId
-        },
-        select: {
-          id: true,
-          name: true
-        }
-      });
-
-      if (!office) {
-        throw new Error("Selected office was not found.");
+    const organizationOffices = await tx.office.findMany({
+      where: {
+        organizationId: input.organizationId
+      },
+      orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true
       }
+    });
+    const previousOfficeScope = buildMembershipOfficeScope({
+      allOffices: organizationOffices,
+      role: membership.role,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses
+    });
+    const selectedOfficeIds =
+      input.accessibleOfficeIds ??
+      previousOfficeScope.accessibleOfficeIds;
+    const normalizedOfficeAssignment = resolveMembershipOfficeAssignment({
+      role: nextRole,
+      allOffices: organizationOffices,
+      defaultOfficeId: input.defaultOfficeId ?? input.officeId ?? membership.officeId,
+      selectedOfficeIds
+    });
+    const nextOfficeScope = buildMembershipOfficeScope({
+      allOffices: organizationOffices,
+      role: nextRole,
+      defaultOfficeId: normalizedOfficeAssignment.defaultOfficeId,
+      officeAccesses: normalizedOfficeAssignment.explicitOfficeIds.map((officeId) => {
+        const office = organizationOffices.find((entry) => entry.id === officeId);
 
-      nextOfficeName = office.name;
-    }
+        if (!office) {
+          throw new Error("Selected company was not found.");
+        }
+
+        return {
+          officeId,
+          office
+        };
+      })
+    });
+    const nextOfficeId = normalizedOfficeAssignment.defaultOfficeId;
 
     const previousRoleLabel = userRoleLabelMap[membership.role];
     const nextRoleLabel = userRoleLabelMap[nextRole];
     const previousStatusLabel = formatMembershipStatusLabel(membership.status);
     const nextStatusLabel = formatMembershipStatusLabel(nextStatus);
-    const previousOfficeLabel = formatOfficeAccessLabel(membership.office);
+    const previousOfficeLabel = previousOfficeScope.officeAccessLabel;
 
     const updatedMembership = await tx.membership.update({
       where: {
@@ -2200,10 +2432,29 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       data: {
         role: nextRole,
         status: nextStatus,
-        officeId: nextOfficeId
+        officeId: nextOfficeId,
+        officeAccesses: {
+          deleteMany: {},
+          ...(normalizedOfficeAssignment.explicitOfficeIds.length > 0
+            ? {
+                createMany: {
+                  data: normalizedOfficeAssignment.explicitOfficeIds.map((officeId) => ({
+                    organizationId: input.organizationId,
+                    officeId,
+                    createdByMembershipId: input.actorMembershipId
+                  }))
+                }
+              }
+            : {})
+        }
       },
       include: {
-        office: true
+        office: true,
+        officeAccesses: {
+          include: {
+            office: true
+          }
+        }
       }
     });
 
@@ -2242,7 +2493,16 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       });
     }
 
-    if ((membership.officeId ?? null) !== (nextOfficeId ?? null)) {
+    const previousOfficeAccessSignature = JSON.stringify({
+      defaultOfficeId: previousOfficeScope.defaultOfficeId,
+      accessibleOfficeIds: normalizeSelectedOfficeIds(previousOfficeScope.accessibleOfficeIds)
+    });
+    const nextOfficeAccessSignature = JSON.stringify({
+      defaultOfficeId: nextOfficeScope.defaultOfficeId,
+      accessibleOfficeIds: normalizeSelectedOfficeIds(nextOfficeScope.accessibleOfficeIds)
+    });
+
+    if (previousOfficeAccessSignature !== nextOfficeAccessSignature) {
       await recordActivityLogEvent(tx, {
         organizationId: input.organizationId,
         membershipId: input.actorMembershipId,
@@ -2253,7 +2513,7 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
           objectLabel: userLabel,
           contextHref,
           details: [],
-          changes: [buildChange("Office access", previousOfficeLabel, nextOfficeName)].filter(Boolean) as ActivityLogChange[]
+          changes: [buildChange("Company access", previousOfficeLabel, nextOfficeScope.officeAccessLabel)].filter(Boolean) as ActivityLogChange[]
         }
       });
     }

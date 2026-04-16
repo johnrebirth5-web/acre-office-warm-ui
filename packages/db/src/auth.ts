@@ -6,6 +6,13 @@ import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { assignMembershipToTeamTx, materializeImplicitJuniorTeamsForManagementAction } from "./agents";
 import { prisma } from "./client";
 import { saveMembershipCommissionSetting } from "./commission-defaults";
+import {
+  resolveMembershipOfficeAssignment,
+  resolveCurrentOfficeSelection,
+  resolveMembershipAccessibleOffices,
+  type MembershipOfficeAccessRecord,
+  type OfficeScopeRecord,
+} from "./membership-office-access";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
 import { isTeamHierarchyAssignableUserRole } from "./team-hierarchy";
 
@@ -101,6 +108,7 @@ type MembershipSessionRecord = {
     slug: string;
     market: string;
   } | null;
+  officeAccesses: MembershipOfficeAccessRecord[];
 };
 
 export type SessionMembershipContext = {
@@ -140,6 +148,12 @@ export type SessionMembershipContext = {
     slug: string;
     market: string;
   } | null;
+  accessibleOffices: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    market: string;
+  }>;
 };
 
 export type PasswordLoginResult =
@@ -204,6 +218,8 @@ export type CreateInvitedUserInput = {
   firstName: string;
   lastName: string;
   role: UserRole;
+  defaultOfficeId?: string | null;
+  accessibleOfficeIds?: string[];
   officeId?: string | null;
   title?: string | null;
   splitTemplateId?: string;
@@ -278,7 +294,14 @@ function getInvitationExpiry() {
   return new Date(Date.now() + INVITATION_EXPIRY_MS);
 }
 
-function mapMembershipContext(membership: MembershipSessionRecord, permissions: PermissionKey[]): SessionMembershipContext {
+function mapMembershipContext(
+  membership: MembershipSessionRecord,
+  permissions: PermissionKey[],
+  options: {
+    currentOffice: OfficeScopeRecord | null;
+    accessibleOffices: OfficeScopeRecord[];
+  },
+): SessionMembershipContext {
   return {
     currentUser: {
       id: membership.user.id,
@@ -312,30 +335,67 @@ function mapMembershipContext(membership: MembershipSessionRecord, permissions: 
       slug: membership.organization.slug,
       timezone: membership.organization.timezone
     },
-    currentOffice: membership.office
+    currentOffice: options.currentOffice
       ? {
-          id: membership.office.id,
-          name: membership.office.name,
-          slug: membership.office.slug,
-          market: membership.office.market
+          id: options.currentOffice.id,
+          name: options.currentOffice.name,
+          slug: options.currentOffice.slug,
+          market: options.currentOffice.market
         }
-      : null
+      : null,
+    accessibleOffices: options.accessibleOffices.map((office) => ({
+      id: office.id,
+      name: office.name,
+      slug: office.slug,
+      market: office.market,
+    })),
   };
 }
 
 async function buildMembershipContext(
   membership: MembershipSessionRecord,
-  db: PrismaClient | Prisma.TransactionClient = prisma
+  db: PrismaClient | Prisma.TransactionClient = prisma,
+  options?: {
+    activeOfficeId?: string | null;
+  },
 ): Promise<SessionMembershipContext> {
+  const allOffices = await db.office.findMany({
+    where: {
+      organizationId: membership.organizationId,
+    },
+    orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      market: true,
+      isPrimary: true,
+    },
+  });
+  const accessibleOffices = resolveMembershipAccessibleOffices({
+    role: membership.role,
+    allOffices,
+    defaultOfficeId: membership.officeId,
+    officeAccesses: membership.officeAccesses,
+  });
+  const currentOffice = resolveCurrentOfficeSelection({
+    activeOfficeId: options?.activeOfficeId ?? null,
+    defaultOfficeId: membership.officeId,
+    accessibleOffices,
+  });
   const permissions = await getMembershipEffectivePermissionKeys(
     {
       organizationId: membership.organizationId,
-      membershipId: membership.id
+      membershipId: membership.id,
+      officeId: currentOffice?.id ?? null,
     },
     db
   );
 
-  return mapMembershipContext(membership, permissions);
+  return mapMembershipContext(membership, permissions, {
+    currentOffice,
+    accessibleOffices,
+  });
 }
 
 async function getPrimaryOrganization() {
@@ -413,7 +473,20 @@ async function getActiveMembershipByEmail(email: string) {
         }
       },
       organization: true,
-      office: true
+      office: true,
+      officeAccesses: {
+        include: {
+          office: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              market: true,
+              isPrimary: true,
+            },
+          },
+        },
+      },
     },
     orderBy: [{ createdAt: "asc" }]
   });
@@ -431,7 +504,20 @@ async function getMembershipSessionRecord(membershipId: string): Promise<Members
         }
       },
       organization: true,
-      office: true
+      office: true,
+      officeAccesses: {
+        include: {
+          office: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              market: true,
+              isPrimary: true,
+            },
+          },
+        },
+      },
     }
   });
 
@@ -766,7 +852,20 @@ export async function authenticatePasswordUser(email: string, password: string):
           }
         },
         organization: true,
-        office: true
+        office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
       }
     });
   });
@@ -1006,7 +1105,20 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
           }
         },
         organization: true,
-        office: true
+        office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
       }
     });
   });
@@ -1160,15 +1272,46 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
         }
       }));
 
+    const organizationOffices = await tx.office.findMany({
+      where: {
+        organizationId: input.organizationId,
+      },
+      orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true,
+      },
+    });
+    const normalizedOfficeAssignment = resolveMembershipOfficeAssignment({
+      role: input.role,
+      allOffices: organizationOffices,
+      defaultOfficeId: input.defaultOfficeId ?? input.officeId ?? null,
+      selectedOfficeIds: input.accessibleOfficeIds ?? undefined,
+    });
+
     const membership = await tx.membership.create({
       data: {
         organizationId: input.organizationId,
-        officeId: input.officeId ?? null,
+        officeId: normalizedOfficeAssignment.defaultOfficeId,
         userId: user.id,
         role: input.role,
         status: "invited",
         title: input.title?.trim() ? input.title.trim() : null,
-        permissions: Prisma.JsonNull
+        permissions: Prisma.JsonNull,
+        officeAccesses: normalizedOfficeAssignment.explicitOfficeIds.length
+          ? {
+              createMany: {
+                data: normalizedOfficeAssignment.explicitOfficeIds.map((officeId) => ({
+                  organizationId: input.organizationId,
+                  officeId,
+                  createdByMembershipId: input.actorMembershipId,
+                })),
+              },
+            }
+          : undefined,
       },
       include: {
         office: true
@@ -1179,7 +1322,7 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
       await saveMembershipCommissionSetting(
         {
           organizationId: input.organizationId,
-          officeId: input.officeId ?? membership.officeId ?? null,
+          officeId: normalizedOfficeAssignment.defaultOfficeId ?? membership.officeId ?? null,
           membershipId: membership.id,
           splitTemplateId: input.splitTemplateId,
           customAgentPercent: input.customAgentPercent,
@@ -1195,12 +1338,12 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
     if (teamId) {
       await materializeImplicitJuniorTeamsForManagementAction(tx, {
         organizationId: input.organizationId,
-        officeId: input.officeId ?? membership.officeId ?? null,
+        officeId: normalizedOfficeAssignment.defaultOfficeId ?? membership.officeId ?? null,
         actorMembershipId: input.actorMembershipId
       });
       await assignMembershipToTeamTx(tx, {
         organizationId: input.organizationId,
-        officeId: input.officeId ?? membership.officeId ?? null,
+        officeId: normalizedOfficeAssignment.defaultOfficeId ?? membership.officeId ?? null,
         actorMembershipId: input.actorMembershipId,
         teamId,
         membershipId: membership.id,
@@ -1489,7 +1632,12 @@ export async function findActiveMembershipContextByEmail(email: string): Promise
   return buildMembershipContext(membership satisfies MembershipSessionRecord);
 }
 
-export async function getSessionMembershipContext(membershipId: string): Promise<SessionMembershipContext | null> {
+export async function getSessionMembershipContext(
+  membershipId: string,
+  options?: {
+    activeOfficeId?: string | null;
+  },
+): Promise<SessionMembershipContext | null> {
   if (!membershipId) {
     return null;
   }
@@ -1500,5 +1648,5 @@ export async function getSessionMembershipContext(membershipId: string): Promise
     return null;
   }
 
-  return buildMembershipContext(membership);
+  return buildMembershipContext(membership, prisma, options);
 }

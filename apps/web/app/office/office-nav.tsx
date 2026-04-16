@@ -30,6 +30,7 @@ import {
   WorkspaceNav,
   type WorkspaceNavGroup,
 } from "../_components/workspace-nav";
+import { CompanySwitcher } from "../_components/company-switcher";
 import { useI18n } from "../../lib/i18n/client";
 
 function canViewUnifiedUsers(subject: PermissionSubject) {
@@ -222,11 +223,15 @@ function getNavGroups(
 type OfficeNavProps = {
   currentOfficeName: string;
   currentAccess: PermissionSubject;
+  currentCompanyId: string | null;
+  companies: Array<{ id: string; name: string }>;
 };
 
 export function OfficeNav({
   currentOfficeName,
   currentAccess,
+  currentCompanyId,
+  companies,
 }: OfficeNavProps) {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -289,8 +294,23 @@ export function OfficeNav({
 
   return (
     <WorkspaceNav
+      companySwitcher={
+        <CompanySwitcher
+          companies={companies}
+          currentCompanyId={currentCompanyId}
+          homeHref="/office/dashboard"
+        />
+      }
       currentWorkspaceName={t((messages) => messages.officeNav.workspaceName)}
       homeHref="/office/dashboard"
+      mobileCompanySwitcher={
+        <CompanySwitcher
+          className="office-mobile-workspace-secondary-switcher"
+          companies={companies}
+          currentCompanyId={currentCompanyId}
+          homeHref="/office/dashboard"
+        />
+      }
       navGroups={getNavGroups(currentAccess, mailUnreadCount, t)}
       navigationLabel={t((messages) => messages.officeNav.navigationLabel)}
       switcherLabel={t((messages) => messages.officeNav.switcherShortLabel)}

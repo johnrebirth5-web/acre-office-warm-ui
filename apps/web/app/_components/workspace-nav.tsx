@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,6 +59,8 @@ type WorkspaceNavProps = {
   switcherClassName?: string;
   switcherShortcut?: WorkspaceSwitchShortcut;
   switcherShortcuts?: WorkspaceSwitchShortcut[];
+  companySwitcher?: ReactNode;
+  mobileCompanySwitcher?: ReactNode;
 };
 
 type WorkspaceLocation = {
@@ -115,6 +118,8 @@ export function WorkspaceNav({
   switcherClassName,
   switcherShortcut,
   switcherShortcuts,
+  companySwitcher,
+  mobileCompanySwitcher,
 }: WorkspaceNavProps) {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -354,7 +359,7 @@ export function WorkspaceNav({
       >
         <div className={cx("office-logo-panel", brandPanelClassName)}>
           <Image
-            alt="Acre New York Realty logo"
+            alt="Acre logo"
             className="office-logo-image"
             height={1404}
             priority
@@ -366,6 +371,10 @@ export function WorkspaceNav({
         <SiteReleaseBadge
           className={cx("site-release-badge-office", releaseBadgeClassName)}
         />
+
+        {companySwitcher ? (
+          <div className="office-company-switcher-shell">{companySwitcher}</div>
+        ) : null}
 
         <div
           className={cx("office-company-switcher-shell", switcherClassName)}
@@ -571,7 +580,7 @@ export function WorkspaceNav({
             onClick={() => setIsMobileMenuOpen(false)}
           >
             <Image
-              alt="Acre New York Realty logo"
+              alt="Acre logo"
               className="office-mobile-rail-logo-image"
               height={1404}
               priority
@@ -630,6 +639,8 @@ export function WorkspaceNav({
                   </div>
                 </div>
               ) : null}
+
+              {mobileCompanySwitcher ? mobileCompanySwitcher : null}
 
               <LocaleSwitcher
                 authenticated

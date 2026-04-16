@@ -4,9 +4,16 @@ import {
   WorkspaceNav,
   type WorkspaceNavGroup,
 } from "../_components/workspace-nav";
+import { CompanySwitcher } from "../_components/company-switcher";
 import { useI18n } from "../../lib/i18n/client";
 
-export function AgentNav() {
+type AgentNavProps = {
+  currentCompanyId: string | null;
+  companies: Array<{ id: string; name: string }>;
+  homeHref: string;
+};
+
+export function AgentNav({ currentCompanyId, companies, homeHref }: AgentNavProps) {
   const { t } = useI18n();
   const frontOfficeNavGroups: WorkspaceNavGroup[] = [
     {
@@ -66,8 +73,23 @@ export function AgentNav() {
   return (
     <WorkspaceNav
       brandPanelClassName="agent-brand-panel"
+      companySwitcher={
+        <CompanySwitcher
+          companies={companies}
+          currentCompanyId={currentCompanyId}
+          homeHref={homeHref}
+        />
+      }
       currentWorkspaceName={t((messages) => messages.agentNav.workspaceName)}
-      homeHref="/agent/dashboard"
+      homeHref={homeHref}
+      mobileCompanySwitcher={
+        <CompanySwitcher
+          className="office-mobile-workspace-secondary-switcher"
+          companies={companies}
+          currentCompanyId={currentCompanyId}
+          homeHref={homeHref}
+        />
+      }
       navGroups={frontOfficeNavGroups}
       navigationLabel={t((messages) => messages.agentNav.navigationLabel)}
       releaseBadgeClassName="site-release-badge-agent-panel"

@@ -90,7 +90,7 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
                 HR signatures
               </Link>
             ) : null}
-            <SummaryChip label={accessSnapshot ? "Office access" : "Office"} value={officeLabel} />
+            <SummaryChip label={accessSnapshot ? "Company access" : "Company"} value={officeLabel} />
             <SummaryChip label="Role" value={roleLabel} />
             {accessSnapshot ? (
               <>

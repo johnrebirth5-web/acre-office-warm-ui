@@ -90,6 +90,9 @@ test("handleLoginPost preserves the successful redirect flow after csrf and rate
             lastName: "Agent",
             locale: "en-US",
           },
+          currentOffice: {
+            id: "office_1",
+          },
         },
       }) as never,
   });

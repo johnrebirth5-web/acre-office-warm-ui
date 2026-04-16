@@ -65,6 +65,7 @@
   - saved listing 卡片会优先显示单行地址、独立的 building / location 层级，并在可推导时补出 `sqft`
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航
+  - 顶部现在支持 `Company -> Active workspace -> Language` 三层切换
   - `Dashboard`
   - `Pipeline`
   - `Transactions`
@@ -88,6 +89,15 @@
   - `Settings > Teams`
   - `Settings > Fields`
   - `Settings > Checklists`
+  - 当前默认公司模型已经升级为：
+    - 一个 `Acre` organization
+    - 三个共享同一套代码的 company scope：
+      - `Acre NY Realty`
+      - `Acre NY Rental`
+      - `Acre NJ LLC`
+    - `owner / office_admin / office_manager` 默认可切全部公司
+    - 其他用户的 company access 由管理员在 `Settings > Users` 里配置
+    - 业务数据继续按当前 company scope 读写，organization 级角色模板 / SMTP / Signature Drive 等配置仍共享
 - `Dashboard` 当前保留原有高保真布局，但业务指标已改为真实数据库查询：
   - `Goal Tracking`
   - 当前登录用户 / 角色 / office access 摘要

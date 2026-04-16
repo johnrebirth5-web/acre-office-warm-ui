@@ -85,6 +85,8 @@ export const databaseModules = [
   "organization_role_templates",
   "organization_role_template_permissions",
   "membership_permission_overrides",
+  "membership_office_accesses",
+  "membership_office_permission_overrides",
   "office_mail_threads",
   "office_mail_participants",
   "office_mail_messages",
@@ -571,7 +573,9 @@ export {
   getMembershipEffectivePermissionKeys,
   getMembershipEffectivePermissions,
   getOrganizationRoleTemplatesSnapshot,
+  resetMembershipOfficePermissionOverrides,
   resetMembershipPermissionOverrides,
+  saveMembershipOfficePermissionOverrides,
   saveMembershipPermissionOverrides,
   saveOrganizationRoleTemplatePermissions,
 } from "./permissions";
@@ -645,12 +649,15 @@ export {
 } from "./transactions";
 export type {
   MembershipEffectivePermissionsSnapshot,
+  MembershipOfficePermissionOverrideRecord,
   MembershipPermissionOverrideRecord,
   OrganizationRoleTemplateSnapshot,
   OrganizationRoleTemplatesSnapshot,
   PermissionOverrideValue,
   PermissionTreeStateNode,
+  ResetMembershipOfficePermissionOverridesInput,
   ResetMembershipPermissionOverridesInput,
+  SaveMembershipOfficePermissionOverridesInput,
   SaveMembershipPermissionOverridesInput,
   SaveOrganizationRoleTemplatePermissionsInput,
 } from "./permissions";

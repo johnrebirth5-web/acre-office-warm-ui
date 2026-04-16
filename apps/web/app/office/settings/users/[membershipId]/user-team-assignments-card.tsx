@@ -227,7 +227,7 @@ export function UserTeamAssignmentsCard({
         ) : null}
 
         {canManageTeams && !assignmentLockedReason && availableTeams.length === 0 ? (
-          <p className="office-form-helper">No additional team assignments are available in the current office scope.</p>
+          <p className="office-form-helper">No additional team assignments are available in the current company scope.</p>
         ) : null}
       </SectionCard>
 

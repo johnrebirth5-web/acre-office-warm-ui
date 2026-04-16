@@ -4,7 +4,7 @@ import type { PermissionKey } from "@acre/auth";
 import type { OfficeAdminUserDetailSnapshot, PermissionOverrideValue, PermissionTreeStateNode } from "@acre/db";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { Button, ConfirmActionDialog, ListPageStatsGrid, SectionCard, StatCard, StatusBadge } from "@acre/ui";
 import {
   buildPermissionOverrideMap,
@@ -17,6 +17,15 @@ import {
 type OfficeSettingsUserPermissionsClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
   canManagePermissions: boolean;
+};
+
+type PermissionScopeOption = {
+  key: string;
+  label: string;
+  description: string;
+  scope: "global" | "company";
+  officeId: string | null;
+  permissions: OfficeAdminUserDetailSnapshot["permissions"];
 };
 
 type ConfirmDialogState = {
@@ -139,21 +148,62 @@ export function OfficeSettingsUserPermissionsClient({
   canManagePermissions
 }: OfficeSettingsUserPermissionsClientProps) {
   const router = useRouter();
-  const [permissionOverrides, setPermissionOverrides] = useState(() => buildPermissionOverrideMap(snapshot.permissions.overrides));
+  const permissionScopes = useMemo<PermissionScopeOption[]>(
+    () => [
+      {
+        key: "global",
+        label: "Global role template",
+        description: "Applies to every company this user can access.",
+        scope: "global",
+        officeId: null,
+        permissions: snapshot.permissions
+      },
+      ...snapshot.companyPermissions.map((entry) => ({
+        key: `company:${entry.officeId}`,
+        label: entry.officeName,
+        description: `Overrides that only apply inside ${entry.officeName}.`,
+        scope: "company" as const,
+        officeId: entry.officeId,
+        permissions: entry.permissions
+      }))
+    ],
+    [snapshot.companyPermissions, snapshot.permissions]
+  );
+  const [selectedScopeKey, setSelectedScopeKey] = useState(permissionScopes[0]?.key ?? "global");
+  const selectedScope = permissionScopes.find((scope) => scope.key === selectedScopeKey) ?? permissionScopes[0];
+  const [permissionOverrides, setPermissionOverrides] = useState(() =>
+    buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? [])
+  );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
+  useEffect(() => {
+    if (!permissionScopes.some((scope) => scope.key === selectedScopeKey) && permissionScopes[0]) {
+      setSelectedScopeKey(permissionScopes[0].key);
+    }
+  }, [permissionScopes, selectedScopeKey]);
+
+  useEffect(() => {
+    if (!selectedScope) {
+      return;
+    }
+
+    setPermissionOverrides(buildPermissionOverrideMap(selectedScope.permissions.overrides));
+    setSubmitError("");
+    setActionNotice("");
+  }, [selectedScope]);
+
   const previewTree = useMemo(
     () =>
       buildPreviewPermissionTree({
-        nodes: snapshot.permissions.tree,
+        nodes: selectedScope?.permissions.tree ?? snapshot.permissions.tree,
         overrides: permissionOverrides,
-        role: snapshot.permissions.role,
-        inheritedPermissions: snapshot.permissions.inheritedPermissions
+        role: selectedScope?.permissions.role ?? snapshot.permissions.role,
+        inheritedPermissions: selectedScope?.permissions.inheritedPermissions ?? snapshot.permissions.inheritedPermissions
       }),
-    [permissionOverrides, snapshot.permissions.inheritedPermissions, snapshot.permissions.role, snapshot.permissions.tree]
+    [permissionOverrides, selectedScope, snapshot.permissions.inheritedPermissions, snapshot.permissions.role, snapshot.permissions.tree]
   );
   const previewMaps = useMemo(() => buildPermissionTreeMaps(previewTree), [previewTree]);
   const previewColumns = useMemo(() => splitPermissionColumns(previewTree), [previewTree]);
@@ -175,8 +225,8 @@ export function OfficeSettingsUserPermissionsClient({
   }, [previewTree]);
 
   const serializedInitialOverrides = useMemo(
-    () => serializePermissionOverrideMap(buildPermissionOverrideMap(snapshot.permissions.overrides)),
-    [snapshot.permissions.overrides]
+    () => serializePermissionOverrideMap(buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? [])),
+    [selectedScope]
   );
   const serializedDraftOverrides = useMemo(() => serializePermissionOverrideMap(permissionOverrides), [permissionOverrides]);
   const isDirty = serializedInitialOverrides !== serializedDraftOverrides;
@@ -234,6 +284,8 @@ export function OfficeSettingsUserPermissionsClient({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          scope: selectedScope?.scope ?? "global",
+          officeId: selectedScope?.officeId ?? undefined,
           overrides: [...permissionOverrides.entries()].map(([permissionKey, effect]) => ({
             permissionKey,
             effect
@@ -246,7 +298,11 @@ export function OfficeSettingsUserPermissionsClient({
         throw new Error(body?.error ?? "Failed to update permission overrides.");
       }
 
-      setActionNotice("User permission overrides updated.");
+      setActionNotice(
+        selectedScope?.scope === "company"
+          ? `${selectedScope.label} permission overrides updated.`
+          : "Global permission overrides updated."
+      );
       refreshCurrentPage();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to update permission overrides.");
@@ -261,7 +317,13 @@ export function OfficeSettingsUserPermissionsClient({
     setActionNotice("");
 
     try {
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions`, {
+      const searchParams = new URLSearchParams();
+      if (selectedScope?.scope === "company" && selectedScope.officeId) {
+        searchParams.set("scope", "company");
+        searchParams.set("officeId", selectedScope.officeId);
+      }
+      const suffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
+      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions${suffix}`, {
         method: "DELETE"
       });
 
@@ -271,7 +333,11 @@ export function OfficeSettingsUserPermissionsClient({
       }
 
       setPermissionOverrides(new Map<PermissionKey, PermissionOverrideValue>());
-      setActionNotice("Permission overrides reset to role defaults.");
+      setActionNotice(
+        selectedScope?.scope === "company"
+          ? `${selectedScope.label} overrides reset to inherited defaults.`
+          : "Global permission overrides reset to role defaults."
+      );
       refreshCurrentPage();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to reset permission overrides.");
@@ -288,7 +354,7 @@ export function OfficeSettingsUserPermissionsClient({
       <SectionCard
         actions={
           <StatusBadge tone={isDirty ? "warning" : "success"}>
-            {isDirty ? "Unsaved changes" : "Role template in sync"}
+            {isDirty ? "Unsaved changes" : "Scope in sync"}
           </StatusBadge>
         }
         className="office-user-permissions-panel"
@@ -296,7 +362,18 @@ export function OfficeSettingsUserPermissionsClient({
         title="Permission overrides"
       >
         <ListPageStatsGrid className="office-user-permissions-stats">
-          <StatCard className="office-user-permissions-stat" label="Role template" tone="accent" value={snapshot.permissions.roleLabel} />
+          <StatCard
+            className="office-user-permissions-stat"
+            label="Scope"
+            tone="accent"
+            value={selectedScope?.scope === "company" ? selectedScope.label : "Global"}
+          />
+          <StatCard
+            className="office-user-permissions-stat"
+            label="Role template"
+            tone="accent"
+            value={selectedScope?.permissions.roleLabel ?? snapshot.permissions.roleLabel}
+          />
           <StatCard className="office-user-permissions-stat" label="Overrides" value={permissionOverrides.size} />
           <StatCard className="office-user-permissions-stat" label="Effective permissions" value={effectivePreviewCount} />
           <StatCard
@@ -310,9 +387,36 @@ export function OfficeSettingsUserPermissionsClient({
           <div className="office-user-permissions-panel-copy">
             <p>
               {canManagePermissions
-                ? `Changes here override the ${snapshot.permissions.roleLabel} template for this user only. Checked items are the permissions this user can use right now.`
-                : `This page shows the effective permissions currently active for this user under the ${snapshot.permissions.roleLabel} template.`}
+                ? selectedScope?.scope === "company"
+                  ? `Changes here only apply inside ${selectedScope.label}. Inherited permissions already include the global role template plus any global user overrides.`
+                  : `Changes here override the ${selectedScope?.permissions.roleLabel ?? snapshot.permissions.roleLabel} template for this user across every company.`
+                : selectedScope?.scope === "company"
+                  ? `This page shows the effective permissions currently active for ${selectedScope.label}.`
+                  : `This page shows the effective permissions currently active for this user under the ${selectedScope?.permissions.roleLabel ?? snapshot.permissions.roleLabel} template.`}
             </p>
+            {permissionScopes.length > 1 ? (
+              <div className="office-form-grid office-form-grid-2">
+                <label className="office-detail-field">
+                  <span>Permission scope</span>
+                  <select
+                    className="office-select"
+                    onChange={(event) => setSelectedScopeKey(event.target.value)}
+                    value={selectedScope?.key ?? "global"}
+                  >
+                    {permissionScopes.map((scope) => (
+                      <option key={scope.key} value={scope.key}>
+                        {scope.scope === "company" ? `Company · ${scope.label}` : scope.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="office-detail-field">
+                  <span>Scope detail</span>
+                  <strong>{selectedScope?.label ?? "Global role template"}</strong>
+                  <p>{selectedScope?.description ?? "Applies to every company this user can access."}</p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -334,9 +438,14 @@ export function OfficeSettingsUserPermissionsClient({
                 disabled={permissionOverrides.size === 0 || pendingAction === "reset"}
                 onClick={() =>
                   setConfirmDialog({
-                    title: "Reset all user permission overrides?",
+                    title:
+                      selectedScope?.scope === "company"
+                        ? `Reset ${selectedScope.label} permission overrides?`
+                        : "Reset all user permission overrides?",
                     description:
-                      "This removes every user-level override and returns this person to the current role-template defaults.",
+                      selectedScope?.scope === "company"
+                        ? `This removes every company-specific override for ${selectedScope.label} and returns this scope to the inherited defaults.`
+                        : "This removes every user-level override and returns this person to the current role-template defaults.",
                     confirmLabel: "Reset overrides",
                     onConfirm: () => {
                       void handleResetPermissions();

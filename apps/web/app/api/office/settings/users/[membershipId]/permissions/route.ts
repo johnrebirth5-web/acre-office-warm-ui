@@ -1,5 +1,11 @@
 import { canManageOfficeSettings } from "@acre/auth";
-import { resetMembershipPermissionOverrides, saveMembershipPermissionOverrides } from "@acre/db";
+import {
+  type PermissionOverrideValue,
+  resetMembershipOfficePermissionOverrides,
+  resetMembershipPermissionOverrides,
+  saveMembershipOfficePermissionOverrides,
+  saveMembershipPermissionOverrides,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
 
@@ -9,12 +15,20 @@ type RouteContext = {
   }>;
 };
 
-function normalizeOverrideEffect(value: string | undefined) {
+function normalizeOverrideEffect(value: string | undefined): PermissionOverrideValue {
   if (value === "allow" || value === "deny") {
     return value;
   }
 
   throw new Error("Permission override effect must be allow or deny.");
+}
+
+function normalizeScope(value: string | undefined) {
+  if (value === "company") {
+    return "company" as const;
+  }
+
+  return "global" as const;
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
@@ -35,20 +49,36 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           permissionKey?: string;
           effect?: string;
         }>;
+        scope?: string;
+        officeId?: string;
       }
     | null;
 
   try {
-    const permissions = await saveMembershipPermissionOverrides({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      membershipId,
-      overrides:
-        body?.overrides?.map((override) => ({
-          permissionKey: override.permissionKey ?? "",
-          effect: normalizeOverrideEffect(override.effect)
-        })) ?? []
-    });
+    const scope = normalizeScope(body?.scope);
+    const overrides: Array<{
+      permissionKey: string;
+      effect: PermissionOverrideValue;
+    }> =
+      body?.overrides?.map((override) => ({
+        permissionKey: override.permissionKey ?? "",
+        effect: normalizeOverrideEffect(override.effect)
+      })) ?? [];
+    const permissions =
+      scope === "company"
+        ? await saveMembershipOfficePermissionOverrides({
+            organizationId: context.currentOrganization.id,
+            actorMembershipId: context.currentMembership.id,
+            membershipId,
+            officeId: typeof body?.officeId === "string" ? body.officeId : "",
+            overrides,
+          })
+        : await saveMembershipPermissionOverrides({
+            organizationId: context.currentOrganization.id,
+            actorMembershipId: context.currentMembership.id,
+            membershipId,
+            overrides,
+          });
 
     return NextResponse.json({ permissions });
   } catch (error) {
@@ -71,13 +101,23 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   }
 
   const { membershipId } = await params;
+  const scope = normalizeScope(request.nextUrl.searchParams.get("scope") ?? undefined);
+  const officeId = request.nextUrl.searchParams.get("officeId") ?? "";
 
   try {
-    const permissions = await resetMembershipPermissionOverrides({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      membershipId
-    });
+    const permissions =
+      scope === "company"
+        ? await resetMembershipOfficePermissionOverrides({
+            organizationId: context.currentOrganization.id,
+            actorMembershipId: context.currentMembership.id,
+            membershipId,
+            officeId,
+          })
+        : await resetMembershipPermissionOverrides({
+            organizationId: context.currentOrganization.id,
+            actorMembershipId: context.currentMembership.id,
+            membershipId
+          });
 
     return NextResponse.json({ permissions });
   } catch (error) {

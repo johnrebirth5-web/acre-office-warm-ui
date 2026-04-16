@@ -724,6 +724,8 @@ model Organization {
   roleTemplates                         OrganizationRoleTemplate[]
   roleTemplatePermissions               OrganizationRoleTemplatePermission[]
   membershipPermissionOverrides         MembershipPermissionOverride[]
+  membershipOfficeAccesses              MembershipOfficeAccess[]
+  membershipOfficePermissionOverrides   MembershipOfficePermissionOverride[]
   officeMailThreads                     OfficeMailThread[]
   officeMailParticipants                OfficeMailParticipant[]
   officeMailMessages                    OfficeMailMessage[]
@@ -814,6 +816,8 @@ model Office {
   checklistTemplateItems                ChecklistTemplateItem[]
   transactionSearchLayouts              TransactionSearchLayout[]
   transactionReportSearchLayouts        TransactionReportSearchLayout[]
+  membershipOfficeAccesses              MembershipOfficeAccess[]                @relation("MembershipOfficeAccessOffice")
+  membershipOfficePermissionOverrides   MembershipOfficePermissionOverride[]    @relation("MembershipOfficePermissionOverrideOffice")
   studioListingImports                  StudioListingImport[]
   studioListingSnapshots                StudioListingSnapshot[]
   studioListingPacks                    StudioListingPack[]
@@ -925,6 +929,10 @@ model Membership {
   updatedRoleTemplates                         OrganizationRoleTemplate[]             @relation("OrganizationRoleTemplateUpdatedBy")
   permissionOverrides                          MembershipPermissionOverride[]         @relation("MembershipPermissionOverrideMembership")
   createdPermissionOverrides                   MembershipPermissionOverride[]         @relation("MembershipPermissionOverrideCreatedBy")
+  officeAccesses                               MembershipOfficeAccess[]               @relation("MembershipOfficeAccessMembership")
+  createdOfficeAccesses                        MembershipOfficeAccess[]               @relation("MembershipOfficeAccessCreatedBy")
+  officePermissionOverrides                    MembershipOfficePermissionOverride[]   @relation("MembershipOfficePermissionOverrideMembership")
+  createdOfficePermissionOverrides             MembershipOfficePermissionOverride[]   @relation("MembershipOfficePermissionOverrideCreatedBy")
   ownedLibraryFolders                          LibraryFolder[]                        @relation("LibraryFolderOwner")
   ownedLibraryDocuments                        LibraryDocument[]                      @relation("LibraryDocumentOwner")
   createdOfficeMailThreads                     OfficeMailThread[]                     @relation("OfficeMailThreadCreatedBy")
@@ -986,6 +994,42 @@ model MembershipPermissionOverride {
 
   @@unique([membershipId, permissionKey])
   @@index([organizationId, permissionKey])
+}
+
+model MembershipOfficeAccess {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  membershipId          String
+  officeId              String
+  createdByMembershipId String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership            Membership   @relation("MembershipOfficeAccessMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  office                Office       @relation("MembershipOfficeAccessOffice", fields: [officeId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership?  @relation("MembershipOfficeAccessCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([membershipId, officeId])
+  @@index([organizationId, officeId])
+}
+
+model MembershipOfficePermissionOverride {
+  id                    String                   @id @default(cuid())
+  organizationId        String
+  membershipId          String
+  officeId              String
+  permissionKey         String
+  effect                PermissionOverrideEffect
+  createdByMembershipId String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership            Membership               @relation("MembershipOfficePermissionOverrideMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  office                Office                   @relation("MembershipOfficePermissionOverrideOffice", fields: [officeId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership?              @relation("MembershipOfficePermissionOverrideCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([membershipId, officeId, permissionKey])
+  @@index([organizationId, officeId, permissionKey])
 }
 
 model OrganizationTableLayout {

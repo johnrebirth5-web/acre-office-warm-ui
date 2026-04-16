@@ -17,6 +17,8 @@
   - `@acre/auth` 中的静态 permission catalog
   - organization-scoped role templates
   - membership-level `allow / deny` overrides
+  - membership-level company access rows
+  - membership-level company permission overrides
   - team hierarchy 驱动的 `self / team / company` scope resolution
 - 数据级 scope 也开始由显式 view permission 驱动，而不是只靠角色白名单
 - `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Performance`、`Mail`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
@@ -169,10 +171,12 @@
   - `/office/settings/checklists`
   - 核心复用：
     - `Membership` 做用户 role / status / office access
+    - `MembershipOfficeAccess` 做 per-user company access list
     - `MembershipCommissionSetting` 做 user default commission split 真源
     - `OrganizationSmtpSetting` 做组织级发件人配置和 SMTP fallback
     - `OrganizationRoleTemplate / OrganizationRoleTemplatePermission` 做 organization-scoped role templates
     - `MembershipPermissionOverride` 做 per-user allow / deny overrides
+    - `MembershipOfficePermissionOverride` 做 per-company permission overrides
     - `Team / TeamMembership` 做 team admin
     - `RequiredContactRoleSetting / TransactionFieldSetting / TransactionCustomFieldDefinition` 做 workflow requirements 和 office-scoped transaction intake schema
     - `ChecklistTemplate / ChecklistTemplateItem` 做 checklist template admin
@@ -186,6 +190,11 @@
     - company-wide (`officeId = null`)
     - current office only (`officeId = currentOfficeId`)
     - private (`ownerMembershipId = current membership`)
+- 当前 session 现在包含：
+  - `currentOrganization`
+  - `accessibleOffices`
+  - `currentOffice`（由 session cookie 里的 `activeOfficeId` 解析）
+  - `currentMembership.permissions`（在当前 company scope 下计算）
   - 当前 preview 仍是 PDF-first；其他文件类型只保证 open / download
 - 当前 `Office Account / My Profile` 也已通过 Prisma service 和 route handlers 落地到：
   - `/office/account`

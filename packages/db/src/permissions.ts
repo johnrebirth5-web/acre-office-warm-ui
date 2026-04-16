@@ -9,8 +9,12 @@ import {
 } from "@acre/auth";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
+import { resolveMembershipAccessibleOffices, type MembershipOfficeAccessRecord } from "./membership-office-access";
 
-type PermissionDbClient = Pick<typeof prisma, "organizationRoleTemplate" | "membershipPermissionOverride" | "membership">;
+type PermissionDbClient = Pick<
+  typeof prisma,
+  "organizationRoleTemplate" | "membershipPermissionOverride" | "membershipOfficePermissionOverride" | "membership" | "office"
+>;
 
 const leaderTeamRoles = ["team_leader", "junior_team_leader"] as const;
 
@@ -45,6 +49,10 @@ export type MembershipPermissionOverrideRecord = {
   effect: PermissionOverrideValue;
 };
 
+export type MembershipOfficePermissionOverrideRecord = MembershipPermissionOverrideRecord & {
+  officeId: string;
+};
+
 export type OrganizationRoleTemplateSnapshot = {
   role: UserRole;
   label: string;
@@ -63,6 +71,9 @@ export type MembershipEffectivePermissionsSnapshot = {
   role: UserRole;
   roleLabel: string;
   roleDescription: string;
+  scope: "global" | "company";
+  officeId: string | null;
+  officeName: string | null;
   inheritedPermissions: PermissionKey[];
   overrides: MembershipPermissionOverrideRecord[];
   effectivePermissions: PermissionKey[];
@@ -90,6 +101,14 @@ export type ResetMembershipPermissionOverridesInput = {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+};
+
+export type SaveMembershipOfficePermissionOverridesInput = SaveMembershipPermissionOverridesInput & {
+  officeId: string;
+};
+
+export type ResetMembershipOfficePermissionOverridesInput = ResetMembershipPermissionOverridesInput & {
+  officeId: string;
 };
 
 function flattenPermissionTree(nodes: PermissionTreeNode[]): PermissionKey[] {
@@ -183,6 +202,15 @@ function buildOverrideDeltaChanges(
       nextValue
     }
   ];
+}
+
+function normalizeMembershipOverrides(
+  overrides: Array<{ permissionKey: string; effect: PermissionOverrideValue }>,
+) {
+  return overrides.map((override) => ({
+    permissionKey: assertPermissionKey(override.permissionKey),
+    effect: override.effect,
+  })) satisfies MembershipPermissionOverrideRecord[];
 }
 
 async function createMissingRoleTemplates(
@@ -288,6 +316,186 @@ function applyOverrides(
   });
 }
 
+async function getMembershipPermissionResolution(
+  input: {
+    organizationId: string;
+    membershipId: string;
+    officeId?: string | null;
+  },
+  db: PermissionDbClient,
+) {
+  const [membership, templates, globalOverrides, officeOverrides, office] = await Promise.all([
+    db.membership.findFirst({
+      where: {
+        id: input.membershipId,
+        organizationId: input.organizationId
+      },
+      select: {
+        id: true,
+        role: true,
+        officeId: true,
+        teamMemberships: {
+          where: {
+            organizationId: input.organizationId,
+            role: {
+              in: [...leaderTeamRoles]
+            },
+            team: {
+              isActive: true
+            }
+          },
+          select: {
+            id: true
+          },
+          take: 1
+        }
+      }
+    }),
+    getRoleTemplatesWithPermissions(input.organizationId, db),
+    db.membershipPermissionOverride.findMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId
+      },
+      orderBy: [{ permissionKey: "asc" }]
+    }),
+    input.officeId
+      ? db.membershipOfficePermissionOverride.findMany({
+          where: {
+            organizationId: input.organizationId,
+            membershipId: input.membershipId,
+            officeId: input.officeId,
+          },
+          orderBy: [{ permissionKey: "asc" }],
+        })
+      : Promise.resolve([]),
+    input.officeId
+      ? db.office.findFirst({
+          where: {
+            id: input.officeId,
+            organizationId: input.organizationId,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  if (!membership) {
+    throw new Error("Membership was not found.");
+  }
+
+  if (input.officeId && !office) {
+    throw new Error("Selected company was not found.");
+  }
+
+  const effectiveRole = resolveEffectiveMembershipRoleForPermissions(membership);
+  const template = templates.find((entry: { role: UserRole }) => entry.role === effectiveRole) ?? null;
+  const rolePermissions = getTemplatePermissionsOrFallback(
+    template?.permissions.map((permission: { permissionKey: string }) => permission.permissionKey) ?? [],
+    effectiveRole
+  );
+  const normalizedGlobalOverrides = normalizeMembershipOverrides(
+    globalOverrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
+      permissionKey: override.permissionKey,
+      effect: override.effect,
+    })),
+  );
+  const inheritedPermissions = input.officeId
+    ? applyOverrides(effectiveRole, rolePermissions, normalizedGlobalOverrides)
+    : rolePermissions;
+  const normalizedScopedOverrides = normalizeMembershipOverrides(
+    (input.officeId ? officeOverrides : globalOverrides).map(
+      (override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
+        permissionKey: override.permissionKey,
+        effect: override.effect,
+      }),
+    ),
+  );
+  const effectivePermissions = applyOverrides(
+    effectiveRole,
+    inheritedPermissions,
+    normalizedScopedOverrides,
+  );
+
+  return {
+    membershipId: membership.id,
+    effectiveRole,
+    roleSummary: getRoleSummary(effectiveRole),
+    officeId: office?.id ?? null,
+    officeName: office?.name ?? null,
+    inheritedPermissions,
+    overrides: normalizedScopedOverrides,
+    effectivePermissions,
+  };
+}
+
+async function assertTargetMembershipCanAccessOfficeScope(
+  input: {
+    organizationId: string;
+    membershipId: string;
+    officeId: string;
+  },
+  db: PermissionDbClient,
+) {
+  const [membership, allOffices] = await Promise.all([
+    db.membership.findFirst({
+      where: {
+        id: input.membershipId,
+        organizationId: input.organizationId,
+      },
+      select: {
+        id: true,
+        role: true,
+        officeId: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    db.office.findMany({
+      where: {
+        organizationId: input.organizationId,
+      },
+      orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true,
+      },
+    }),
+  ]);
+
+  if (!membership) {
+    throw new Error("Membership was not found.");
+  }
+
+  const accessibleOffices = resolveMembershipAccessibleOffices({
+    role: membership.role,
+    allOffices,
+    defaultOfficeId: membership.officeId,
+    officeAccesses: membership.officeAccesses as MembershipOfficeAccessRecord[],
+  });
+
+  if (!accessibleOffices.some((office) => office.id === input.officeId)) {
+    throw new Error("This member does not have access to the selected company.");
+  }
+}
+
 export async function ensureOrganizationRoleTemplates(
   organizationId: string,
   db: PermissionDbClient = prisma,
@@ -300,136 +508,40 @@ export async function getMembershipEffectivePermissionKeys(
   input: {
     organizationId: string;
     membershipId: string;
+    officeId?: string | null;
   },
   db: PermissionDbClient = prisma
 ): Promise<PermissionKey[]> {
-  const [membership, templates, overrides] = await Promise.all([
-    db.membership.findFirst({
-      where: {
-        id: input.membershipId,
-        organizationId: input.organizationId
-      },
-      select: {
-        id: true,
-        role: true,
-        teamMemberships: {
-          where: {
-            organizationId: input.organizationId,
-            role: {
-              in: [...leaderTeamRoles]
-            },
-            team: {
-              isActive: true
-            }
-          },
-          select: {
-            id: true
-          },
-          take: 1
-        }
-      }
-    }),
-    getRoleTemplatesWithPermissions(input.organizationId, db),
-    db.membershipPermissionOverride.findMany({
-      where: {
-        organizationId: input.organizationId,
-        membershipId: input.membershipId
-      },
-      orderBy: [{ permissionKey: "asc" }]
-    })
-  ]);
-
-  if (!membership) {
-    throw new Error("Membership was not found.");
-  }
-
-  const effectiveRole = resolveEffectiveMembershipRoleForPermissions(membership);
-  const template = templates.find((entry: { role: UserRole }) => entry.role === effectiveRole) ?? null;
-  const inheritedPermissions = getTemplatePermissionsOrFallback(
-    template?.permissions.map((permission: { permissionKey: string }) => permission.permissionKey) ?? [],
-    effectiveRole
-  );
-  const normalizedOverrides = overrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
-    permissionKey: assertPermissionKey(override.permissionKey),
-    effect: override.effect
-  })) satisfies MembershipPermissionOverrideRecord[];
-
-  return applyOverrides(effectiveRole, inheritedPermissions, normalizedOverrides);
+  const resolution = await getMembershipPermissionResolution(input, db);
+  return resolution.effectivePermissions;
 }
 
 export async function getMembershipEffectivePermissions(
   input: {
     organizationId: string;
     membershipId: string;
+    officeId?: string | null;
   },
   db: PermissionDbClient = prisma
 ): Promise<MembershipEffectivePermissionsSnapshot> {
-  const [membership, templates, overrides] = await Promise.all([
-    db.membership.findFirst({
-      where: {
-        id: input.membershipId,
-        organizationId: input.organizationId
-      },
-      select: {
-        id: true,
-        role: true,
-        teamMemberships: {
-          where: {
-            organizationId: input.organizationId,
-            role: {
-              in: [...leaderTeamRoles]
-            },
-            team: {
-              isActive: true
-            }
-          },
-          select: {
-            id: true
-          },
-          take: 1
-        }
-      }
-    }),
-    getRoleTemplatesWithPermissions(input.organizationId, db),
-    db.membershipPermissionOverride.findMany({
-      where: {
-        organizationId: input.organizationId,
-        membershipId: input.membershipId
-      },
-      orderBy: [{ permissionKey: "asc" }]
-    })
-  ]);
-
-  if (!membership) {
-    throw new Error("Membership was not found.");
-  }
-
-  const effectiveRole = resolveEffectiveMembershipRoleForPermissions(membership);
-  const template = templates.find((entry: { role: UserRole }) => entry.role === effectiveRole) ?? null;
-  const inheritedPermissions = getTemplatePermissionsOrFallback(
-    template?.permissions.map((permission: { permissionKey: string }) => permission.permissionKey) ?? [],
-    effectiveRole
-  );
-  const normalizedOverrides = overrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
-    permissionKey: assertPermissionKey(override.permissionKey),
-    effect: override.effect
-  })) satisfies MembershipPermissionOverrideRecord[];
-  const effectivePermissions = applyOverrides(effectiveRole, inheritedPermissions, normalizedOverrides);
-  const inheritedSet = new Set(inheritedPermissions);
+  const resolution = await getMembershipPermissionResolution(input, db);
+  const inheritedSet = new Set(resolution.inheritedPermissions);
   const overrideMap = new Map<PermissionKey, PermissionOverrideValue>(
-    normalizedOverrides.map((override) => [override.permissionKey, override.effect])
+    resolution.overrides.map((override) => [override.permissionKey, override.effect])
   );
-  const effectiveSet = new Set(effectivePermissions);
-  const roleSummary = getRoleSummary(effectiveRole);
+  const effectiveSet = new Set(resolution.effectivePermissions);
 
   return {
-    membershipId: membership.id,
-    role: effectiveRole,
-    roleLabel: roleSummary.label,
-    roleDescription: roleSummary.description,
-    inheritedPermissions,
-    overrides: normalizedOverrides,
-    effectivePermissions,
+    membershipId: resolution.membershipId,
+    role: resolution.effectiveRole,
+    roleLabel: resolution.roleSummary.label,
+    roleDescription: resolution.roleSummary.description,
+    scope: input.officeId ? "company" : "global",
+    officeId: resolution.officeId,
+    officeName: resolution.officeName,
+    inheritedPermissions: resolution.inheritedPermissions,
+    overrides: resolution.overrides,
+    effectivePermissions: resolution.effectivePermissions,
     tree: buildEffectivePermissionTree(getPermissionTree(), inheritedSet, overrideMap, effectiveSet)
   };
 }
@@ -735,6 +847,247 @@ export async function resetMembershipPermissionOverrides(input: ResetMembershipP
         membershipId: input.membershipId
       },
       tx
+    );
+  });
+}
+
+export async function saveMembershipOfficePermissionOverrides(input: SaveMembershipOfficePermissionOverridesInput) {
+  const normalizedOverrideMap = new Map<PermissionKey, PermissionOverrideValue>(
+    input.overrides.map((override) => [assertPermissionKey(override.permissionKey), normalizeOverrideEffect(override.effect)])
+  );
+  const normalizedOverrides = [...normalizedOverrideMap.entries()].map(([permissionKey, effect]) => ({
+    permissionKey,
+    effect
+  })) satisfies MembershipPermissionOverrideRecord[];
+
+  return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+      },
+      tx,
+    );
+
+    assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipCanAccessOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId,
+      },
+      tx,
+    );
+
+    const [membership, office, previousOverrides] = await Promise.all([
+      tx.membership.findFirst({
+        where: {
+          id: input.membershipId,
+          organizationId: input.organizationId,
+        },
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      tx.office.findFirst({
+        where: {
+          id: input.officeId,
+          organizationId: input.organizationId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+      tx.membershipOfficePermissionOverride.findMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          officeId: input.officeId,
+        },
+        orderBy: [{ permissionKey: "asc" }],
+      }),
+    ]);
+
+    if (!membership) {
+      throw new Error("Membership was not found.");
+    }
+
+    if (!office) {
+      throw new Error("Selected company was not found.");
+    }
+
+    const previousNormalizedOverrides = normalizeMembershipOverrides(
+      previousOverrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
+        permissionKey: override.permissionKey,
+        effect: override.effect,
+      })),
+    );
+    const incomingPermissionKeys = new Set<PermissionKey>(normalizedOverrides.map((override) => override.permissionKey));
+
+    await tx.membershipOfficePermissionOverride.deleteMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId,
+        ...(incomingPermissionKeys.size > 0
+          ? {
+              permissionKey: {
+                notIn: [...incomingPermissionKeys],
+              },
+            }
+          : {}),
+      },
+    });
+
+    for (const override of normalizedOverrides) {
+      await tx.membershipOfficePermissionOverride.upsert({
+        where: {
+          membershipId_officeId_permissionKey: {
+            membershipId: input.membershipId,
+            officeId: input.officeId,
+            permissionKey: override.permissionKey,
+          },
+        },
+        create: {
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          officeId: input.officeId,
+          permissionKey: override.permissionKey,
+          effect: override.effect,
+          createdByMembershipId: input.actorMembershipId,
+        },
+        update: {
+          effect: override.effect,
+          createdByMembershipId: input.actorMembershipId,
+        },
+      });
+    }
+
+    const changes = buildOverrideDeltaChanges(previousNormalizedOverrides, normalizedOverrides);
+
+    if (changes.length > 0) {
+      const userLabel = `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email;
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "membership_permission_override",
+        entityId: membership.id,
+        action: activityLogActions.settingsUserPermissionsChanged,
+        payload: {
+          objectLabel: userLabel,
+          contextHref: `/office/settings/users/${membership.id}/permissions`,
+          details: [`Company overrides updated for ${office.name}`],
+          changes,
+        },
+      });
+    }
+
+    return getMembershipEffectivePermissions(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId,
+      },
+      tx,
+    );
+  });
+}
+
+export async function resetMembershipOfficePermissionOverrides(input: ResetMembershipOfficePermissionOverridesInput) {
+  return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+      },
+      tx,
+    );
+
+    assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipCanAccessOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId,
+      },
+      tx,
+    );
+
+    const [membership, office, deleted] = await Promise.all([
+      tx.membership.findFirst({
+        where: {
+          id: input.membershipId,
+          organizationId: input.organizationId,
+        },
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      tx.office.findFirst({
+        where: {
+          id: input.officeId,
+          organizationId: input.organizationId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+      tx.membershipOfficePermissionOverride.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          officeId: input.officeId,
+        },
+      }),
+    ]);
+
+    if (!membership) {
+      throw new Error("Membership was not found.");
+    }
+
+    if (!office) {
+      throw new Error("Selected company was not found.");
+    }
+
+    if (deleted.count > 0) {
+      const userLabel = `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email;
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "membership_permission_override",
+        entityId: membership.id,
+        action: activityLogActions.settingsUserPermissionsReset,
+        payload: {
+          objectLabel: userLabel,
+          contextHref: `/office/settings/users/${membership.id}/permissions`,
+          details: [`Company overrides reset for ${office.name}`],
+        },
+      });
+    }
+
+    return getMembershipEffectivePermissions(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId,
+      },
+      tx,
     );
   });
 }

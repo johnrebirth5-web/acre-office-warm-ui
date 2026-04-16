@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
             firstName?: string;
             lastName?: string;
             role?: string;
+            defaultOfficeId?: string | null;
+            accessibleOfficeIds?: string[];
             officeId?: string | null;
             title?: string | null;
             splitTemplateId?: string | null;
@@ -57,6 +59,15 @@ export async function POST(request: NextRequest) {
           firstName: body?.firstName ?? "",
           lastName: body?.lastName ?? "",
           role: body.role,
+          defaultOfficeId:
+            typeof body?.defaultOfficeId === "string" && body.defaultOfficeId !== "__all__"
+              ? body.defaultOfficeId
+              : typeof body?.officeId === "string" && body.officeId !== "__all__"
+                ? body.officeId
+                : null,
+          accessibleOfficeIds: Array.isArray(body?.accessibleOfficeIds)
+            ? body.accessibleOfficeIds.filter((value): value is string => typeof value === "string")
+            : undefined,
           officeId: typeof body?.officeId === "string" && body.officeId !== "__all__" ? body.officeId : null,
           title: typeof body?.title === "string" ? body.title : null,
           splitTemplateId: typeof body?.splitTemplateId === "string" ? body.splitTemplateId : undefined,

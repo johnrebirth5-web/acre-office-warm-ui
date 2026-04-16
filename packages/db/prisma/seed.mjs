@@ -324,26 +324,96 @@ async function main() {
     },
   });
 
-  const office = await prisma.office.upsert({
+  const existingNyRealtyOffice = await prisma.office.findUnique({
     where: {
       organizationId_slug: {
         organizationId: organization.id,
-        slug: "acre-ny",
+        slug: "acre-ny-realty",
       },
     },
-    update: {
-      name: "Acre NY Realty Inc",
-      market: "New York Sales",
-      isPrimary: true,
-    },
-    create: {
-      organizationId: organization.id,
-      name: "Acre NY Realty Inc",
-      slug: "acre-ny",
-      market: "New York Sales",
-      isPrimary: true,
+    select: {
+      id: true,
     },
   });
+
+  if (!existingNyRealtyOffice) {
+    await prisma.office.updateMany({
+      where: {
+        organizationId: organization.id,
+        slug: "acre-ny",
+      },
+      data: {
+        slug: "acre-ny-realty",
+        name: "Acre NY Realty",
+        market: "New York Sales",
+        isPrimary: true,
+      },
+    });
+  }
+
+  const offices = await Promise.all([
+    prisma.office.upsert({
+      where: {
+        organizationId_slug: {
+          organizationId: organization.id,
+          slug: "acre-ny-realty",
+        },
+      },
+      update: {
+        name: "Acre NY Realty",
+        market: "New York Sales",
+        isPrimary: true,
+      },
+      create: {
+        organizationId: organization.id,
+        name: "Acre NY Realty",
+        slug: "acre-ny-realty",
+        market: "New York Sales",
+        isPrimary: true,
+      },
+    }),
+    prisma.office.upsert({
+      where: {
+        organizationId_slug: {
+          organizationId: organization.id,
+          slug: "acre-ny-rental",
+        },
+      },
+      update: {
+        name: "Acre NY Rental",
+        market: "New York Rental",
+        isPrimary: false,
+      },
+      create: {
+        organizationId: organization.id,
+        name: "Acre NY Rental",
+        slug: "acre-ny-rental",
+        market: "New York Rental",
+        isPrimary: false,
+      },
+    }),
+    prisma.office.upsert({
+      where: {
+        organizationId_slug: {
+          organizationId: organization.id,
+          slug: "acre-nj-llc",
+        },
+      },
+      update: {
+        name: "Acre NJ LLC",
+        market: "New Jersey",
+        isPrimary: false,
+      },
+      create: {
+        organizationId: organization.id,
+        name: "Acre NJ LLC",
+        slug: "acre-nj-llc",
+        market: "New Jersey",
+        isPrimary: false,
+      },
+    }),
+  ]);
+  const office = offices[0];
 
   const users = await Promise.all([
     upsertUser({ email: "jane@acre.com", firstName: "Jane", lastName: "Wu" }),

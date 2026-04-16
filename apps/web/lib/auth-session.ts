@@ -10,6 +10,7 @@ const SESSION_COOKIE_NAME = "acre_local_session";
 
 type SessionPayload = {
   membershipId: string;
+  activeOfficeId: string | null;
   issuedAt: number;
 };
 
@@ -80,7 +81,19 @@ function decodeSession(cookieValue: string | undefined): SessionPayload | null {
 export function createSessionCookieValue(membershipId: string) {
   return encodeSession({
     membershipId,
+    activeOfficeId: null,
     issuedAt: Date.now()
+  });
+}
+
+export function createSessionCookieValueWithOfficeSelection(
+  membershipId: string,
+  activeOfficeId: string | null,
+) {
+  return encodeSession({
+    membershipId,
+    activeOfficeId,
+    issuedAt: Date.now(),
   });
 }
 
@@ -104,7 +117,9 @@ export async function getCurrentSessionContext(options?: SessionContextOptions):
     return null;
   }
 
-  const context = await getSessionMembershipContext(session.membershipId);
+  const context = await getSessionMembershipContext(session.membershipId, {
+    activeOfficeId: session.activeOfficeId ?? null,
+  });
   return isPasswordChangeBlocked(context, options) ? null : context;
 }
 
@@ -115,7 +130,9 @@ export async function getRequestSessionContext(request: NextRequest, options?: S
     return null;
   }
 
-  const context = await getSessionMembershipContext(session.membershipId);
+  const context = await getSessionMembershipContext(session.membershipId, {
+    activeOfficeId: session.activeOfficeId ?? null,
+  });
   return isPasswordChangeBlocked(context, options) ? null : context;
 }
 

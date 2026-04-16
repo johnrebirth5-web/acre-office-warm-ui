@@ -1,7 +1,11 @@
 import { getDefaultAppPath } from "@acre/auth";
 import { acceptInvitation } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
-import { createSessionCookieValue, getSessionCookieName, getSessionCookieSettings } from "../../../../../lib/auth-session";
+import {
+  createSessionCookieValueWithOfficeSelection,
+  getSessionCookieName,
+  getSessionCookieSettings,
+} from "../../../../../lib/auth-session";
 import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../../lib/request-origin";
 
@@ -50,7 +54,10 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.redirect(new URL(getDefaultAppPath(result.context.currentMembership), requestOrigin), 303);
   response.cookies.set(
     getSessionCookieName(),
-    createSessionCookieValue(result.context.currentMembership.id),
+    createSessionCookieValueWithOfficeSelection(
+      result.context.currentMembership.id,
+      result.context.currentOffice?.id ?? null,
+    ),
     getSessionCookieSettings()
   );
   response.cookies.set(

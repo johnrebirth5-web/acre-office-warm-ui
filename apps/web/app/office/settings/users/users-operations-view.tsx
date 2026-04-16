@@ -70,9 +70,9 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
             <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Search name, email, title, or team" type="search" />
           </FilterField>
 
-          <FilterField className="office-agents-filter-field" label="Office">
+          <FilterField className="office-agents-filter-field" label="Company">
             <SelectInput defaultValue={snapshot.filters.officeId} name="officeId">
-              <option value="">All offices</option>
+              <option value="">All companies</option>
               {snapshot.filters.officeOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -135,7 +135,7 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
           <DataTable className="office-table office-agents-roster-table">
             <DataTableHeader className="office-agents-roster-head">
               <span>Member</span>
-              <span>Office</span>
+              <span>Company</span>
               <span>Role</span>
               <span>Team</span>
               <span>Membership</span>

@@ -25,6 +25,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     | {
         role?: string;
         status?: string;
+        defaultOfficeId?: string | null;
+        accessibleOfficeIds?: string[];
         officeId?: string | null;
       }
     | null;
@@ -43,6 +45,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       membershipId,
       role: body?.role,
       status: body?.status,
+      defaultOfficeId:
+        typeof body?.defaultOfficeId === "string" && body.defaultOfficeId !== "__all__"
+          ? body.defaultOfficeId
+          : body?.defaultOfficeId === null
+            ? null
+            : undefined,
+      accessibleOfficeIds: Array.isArray(body?.accessibleOfficeIds)
+        ? body.accessibleOfficeIds.filter((value): value is string => typeof value === "string")
+        : undefined,
       officeId: typeof body?.officeId === "string" ? body.officeId : body?.officeId === null ? null : undefined
     });
 

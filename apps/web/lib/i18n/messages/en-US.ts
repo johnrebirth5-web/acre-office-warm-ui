@@ -100,6 +100,10 @@ export const enUSMessages = {
     label: "Language",
     ariaLabel: "Select language",
   },
+  companySwitcher: {
+    label: "Company",
+    ariaLabel: "Select company",
+  },
   workspaceNav: {
     mobileMenu: "Open navigation",
     workspaceSwitcher: "Switch workspace",

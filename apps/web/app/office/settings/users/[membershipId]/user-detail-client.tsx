@@ -41,7 +41,8 @@ type OfficeSettingsUserDetailClientProps = {
 type DetailDraft = {
   role: string;
   status: string;
-  officeId: string;
+  defaultOfficeId: string;
+  accessibleOfficeIds: string[];
 };
 
 type GeneratedInviteState = {
@@ -68,7 +69,8 @@ export function OfficeSettingsUserDetailClient({
   const [draft, setDraft] = useState<DetailDraft>({
     role: snapshot.profile.roleValue,
     status: snapshot.profile.statusValue,
-    officeId: snapshot.profile.officeAccessValue,
+    defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
+    accessibleOfficeIds: snapshot.profile.accessibleOfficeIds,
   });
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
@@ -80,6 +82,13 @@ export function OfficeSettingsUserDetailClient({
     canManageSensitiveUsers ||
     !isPrivilegedRoleValue(snapshot.profile.roleValue);
   const canManageAccountAccess = canManageUsers && canManagePrivilegedAccount;
+  const actualOfficeOptions = snapshot.editors.officeOptions.filter(
+    (option) => option.id !== "__all__",
+  );
+  const hasImplicitAllCompanyAccess =
+    draft.role === "owner" ||
+    draft.role === "office_admin" ||
+    draft.role === "office_manager";
 
   function getCommissionStatusTone(status: string) {
     if (status === "Paid" || status === "Payable") {
@@ -97,12 +106,61 @@ export function OfficeSettingsUserDetailClient({
     setDraft({
       role: snapshot.profile.roleValue,
       status: snapshot.profile.statusValue,
-      officeId: snapshot.profile.officeAccessValue,
+      defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
+      accessibleOfficeIds: snapshot.profile.accessibleOfficeIds,
     });
   }, [
-    snapshot.profile.officeAccessValue,
+    snapshot.profile.accessibleOfficeIds,
+    snapshot.profile.defaultOfficeId,
     snapshot.profile.roleValue,
     snapshot.profile.statusValue,
+  ]);
+
+  useEffect(() => {
+    if (hasImplicitAllCompanyAccess) {
+      const allOfficeIds = actualOfficeOptions.map((option) => option.id);
+      const nextDefaultOfficeId = allOfficeIds.includes(draft.defaultOfficeId)
+        ? draft.defaultOfficeId
+        : allOfficeIds[0] ?? "";
+      const currentSerialized = JSON.stringify([...draft.accessibleOfficeIds].sort());
+      const nextSerialized = JSON.stringify([...allOfficeIds].sort());
+
+      if (
+        currentSerialized !== nextSerialized ||
+        draft.defaultOfficeId !== nextDefaultOfficeId
+      ) {
+        setDraft((current) => ({
+          ...current,
+          defaultOfficeId: nextDefaultOfficeId,
+          accessibleOfficeIds: allOfficeIds,
+        }));
+      }
+      return;
+    }
+
+    if (draft.accessibleOfficeIds.length === 0 && actualOfficeOptions[0]) {
+      setDraft((current) => ({
+        ...current,
+        defaultOfficeId: actualOfficeOptions[0]?.id ?? "",
+        accessibleOfficeIds: [actualOfficeOptions[0]?.id ?? ""].filter(Boolean),
+      }));
+      return;
+    }
+
+    if (
+      draft.defaultOfficeId &&
+      !draft.accessibleOfficeIds.includes(draft.defaultOfficeId)
+    ) {
+      setDraft((current) => ({
+        ...current,
+        defaultOfficeId: current.accessibleOfficeIds[0] ?? "",
+      }));
+    }
+  }, [
+    actualOfficeOptions,
+    draft.accessibleOfficeIds,
+    draft.defaultOfficeId,
+    hasImplicitAllCompanyAccess,
   ]);
 
   function refreshCurrentPage() {
@@ -125,6 +183,14 @@ export function OfficeSettingsUserDetailClient({
     setActionNotice("");
 
     try {
+      if (!draft.defaultOfficeId) {
+        throw new Error("Choose a default company.");
+      }
+
+      if (!hasImplicitAllCompanyAccess && draft.accessibleOfficeIds.length === 0) {
+        throw new Error("Choose at least one company for this user.");
+      }
+
       const response = await fetch(
         `/api/office/settings/users/${snapshot.profile.membershipId}`,
         {
@@ -132,7 +198,12 @@ export function OfficeSettingsUserDetailClient({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(draft),
+          body: JSON.stringify({
+            ...draft,
+            accessibleOfficeIds: hasImplicitAllCompanyAccess
+              ? actualOfficeOptions.map((option) => option.id)
+              : draft.accessibleOfficeIds,
+          }),
         },
       );
 
@@ -337,7 +408,7 @@ export function OfficeSettingsUserDetailClient({
             <strong>{snapshot.profile.email}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Office access</span>
+            <span>Company access</span>
             <strong>{snapshot.profile.officeAccessLabel}</strong>
           </div>
           <div className="office-detail-field">
@@ -382,7 +453,7 @@ export function OfficeSettingsUserDetailClient({
       <div className="office-detail-two-column office-settings-user-detail-grid">
         <SectionCard
           className="office-settings-user-access-card"
-          subtitle="Update role, membership lifecycle, office access, and invitation state from one place."
+          subtitle="Update role, membership lifecycle, company access, and invitation state from one place."
           title="Account access"
         >
           <form
@@ -429,15 +500,15 @@ export function OfficeSettingsUserDetailClient({
                 </SelectInput>
               </FormField>
 
-              <FormField label="Office access">
+              <FormField label="Default company">
                 <SelectInput
                   disabled={!canManageAccountAccess}
                   onChange={(event) =>
-                    setDraftField("officeId", event.target.value)
+                    setDraftField("defaultOfficeId", event.target.value)
                   }
-                  value={draft.officeId}
+                  value={draft.defaultOfficeId}
                 >
-                  {snapshot.editors.officeOptions.map((option) => (
+                  {actualOfficeOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
                     </option>
@@ -446,9 +517,51 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
             </div>
 
+            <FormField label="Company access">
+              <select
+                className="office-select"
+                disabled={!canManageAccountAccess || hasImplicitAllCompanyAccess}
+                multiple
+                onChange={(event) =>
+                  setDraft((current) => {
+                    const accessibleOfficeIds = Array.from(
+                      event.target.selectedOptions,
+                      (option) => option.value,
+                    );
+                    const defaultOfficeId = accessibleOfficeIds.includes(current.defaultOfficeId)
+                      ? current.defaultOfficeId
+                      : accessibleOfficeIds[0] ?? current.defaultOfficeId;
+
+                    return {
+                      ...current,
+                      defaultOfficeId,
+                      accessibleOfficeIds,
+                    };
+                  })
+                }
+                size={Math.min(4, Math.max(actualOfficeOptions.length, 3))}
+                value={
+                  hasImplicitAllCompanyAccess
+                    ? actualOfficeOptions.map((option) => option.id)
+                    : draft.accessibleOfficeIds
+                }
+              >
+                {actualOfficeOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
             <div className="office-settings-user-access-callout">
               <strong>Permissions scope</strong>
               <p>{getRoleConfigurationHint(draft.role)}</p>
+              <p className="office-form-helper">
+                {hasImplicitAllCompanyAccess
+                  ? "This role automatically receives access to all companies. Only the default company is editable here."
+                  : "Hold Command/Ctrl to select multiple companies. The default company must stay inside the selected access list."}
+              </p>
               {snapshot.profile.hasActiveLeaderAssignments &&
               snapshot.profile.roleValue === "agent" ? (
                 <p className="office-form-helper">
@@ -649,13 +762,17 @@ export function OfficeSettingsUserDetailClient({
         <>
           <div className="office-detail-two-column office-settings-user-detail-grid">
             <SectionCard
-              subtitle="Current office, team memberships, and related profile routing."
+              subtitle="Current default company, team memberships, and related profile routing."
               title="Context"
             >
               <div className="office-settings-user-context-list">
                 <div className="office-secondary-meta-row">
-                  <dt>Office</dt>
-                  <dd>{snapshot.profile.officeName}</dd>
+                  <dt>Default company</dt>
+                  <dd>{snapshot.profile.defaultOfficeName}</dd>
+                </div>
+                <div className="office-secondary-meta-row">
+                  <dt>Company access</dt>
+                  <dd>{snapshot.profile.officeAccessLabel}</dd>
                 </div>
                 <div className="office-secondary-meta-row">
                   <dt>Title</dt>

@@ -151,19 +151,19 @@ const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipS
 const salesRoles = ["agent", "team_lead"] satisfies UserRole[];
 const salesRoleSet = new Set<UserRole>(salesRoles);
 const performanceStatuses = ["pending", "closed"] satisfies TransactionStatus[];
-const activePerformanceCompanyIds: OfficePerformanceCompany[] = ["ny"];
+const activePerformanceCompanyIds: OfficePerformanceCompany[] = ["ny", "rental", "nj"];
 const performanceCompanyConfigs: Record<OfficePerformanceCompany, PerformanceCompanyConfig> = {
   ny: {
     id: "ny",
     label: "NY",
     officeNames: ["Acre NY Realty Inc", "Acre NY Realty"],
-    officeSlugs: ["acre-ny-realty-inc", "acre-ny-realty"]
+    officeSlugs: ["acre-ny", "acre-ny-realty-inc", "acre-ny-realty"]
   },
   rental: {
     id: "rental",
     label: "Rental",
-    officeNames: ["Acre NY Rentals LLC", "Acre Rental", "Acre Rentals"],
-    officeSlugs: ["acre-ny-rentals-llc", "acre-ny-rentals", "acre-rental"]
+    officeNames: ["Acre NY Rental", "Acre NY Rentals LLC", "Acre Rental", "Acre Rentals"],
+    officeSlugs: ["acre-ny-rental", "acre-ny-rentals-llc", "acre-ny-rentals", "acre-rental"]
   },
   nj: {
     id: "nj",
