@@ -614,7 +614,7 @@ export function UserOperationsDetailSections({
         </SectionCard>
       </section>
 
-      <div className="office-detail-two-column">
+      <div className="office-detail-two-column office-settings-user-operations-split">
         <UserTeamAssignmentsCard
           assignmentLockedReason={teamAssignmentLockedReason}
           availableTeams={snapshot.availableTeams}
@@ -985,7 +985,7 @@ export function UserOperationsDetailSections({
         </SectionCard>
       </section>
 
-      <div className="office-detail-two-column">
+      <div className="office-detail-two-column office-settings-user-activity-split">
         <SectionCard subtitle="Most recent transaction work currently owned by this member." title="Recent transactions">
           {snapshot.recentTransactions.length ? (
             <div className="office-queue-list">

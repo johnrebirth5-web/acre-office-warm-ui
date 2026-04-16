@@ -789,8 +789,13 @@ select {
 }
 
 .workspace-session-shell {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  z-index: 4;
   display: flex;
   justify-content: flex-end;
+  max-width: calc(100% - 48px);
 }
 
 .workspace-session-inline {
@@ -7894,10 +7899,15 @@ a {
   gap: 12px;
 }
 
+.office-settings-user-operations-split,
+.office-settings-user-activity-split {
+  align-items: start;
+}
+
 .office-agents-profile-secondary-columns {
   margin-top: 16px;
   align-items: start;
-  grid-template-columns: minmax(260px, 0.88fr) minmax(0, 1.12fr);
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
@@ -8040,11 +8050,14 @@ a {
   white-space: nowrap;
 }
 
-@media (max-width: 1500px) {
-  .office-agents-profile-secondary-columns {
+@media (max-width: 1280px) {
+  .office-settings-user-operations-split,
+  .office-settings-user-activity-split {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 1500px) {
   .office-agents-template-item {
     grid-template-columns: 1fr;
   }
@@ -13167,6 +13180,7 @@ body,
 }
 
 .office-dashboard-main {
+  position: relative;
   padding: 22px 24px 96px;
 }
 
@@ -15833,6 +15847,13 @@ body,
 
   .office-dashboard-main {
     padding: 4px 0 88px;
+  }
+
+  .workspace-session-shell {
+    position: static;
+    top: auto;
+    right: auto;
+    max-width: 100%;
   }
 
   .front-office-template-summary,
