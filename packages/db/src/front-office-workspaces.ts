@@ -3920,7 +3920,6 @@ export async function getFrontOfficeResourcesSnapshot(
     prisma.resource.findMany({
       where: resourceWhere,
       orderBy: [{ updatedAt: "desc" }],
-      take: 48,
       select: {
         id: true,
         title: true,
@@ -3934,7 +3933,6 @@ export async function getFrontOfficeResourcesSnapshot(
     prisma.vendor.findMany({
       where: vendorWhere,
       orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
-      take: 48,
       select: {
         id: true,
         category: true,
@@ -4030,8 +4028,7 @@ export async function getFrontOfficeResourcesSnapshot(
       }
 
       return left.title.localeCompare(right.title);
-    })
-    .slice(0, 24);
+    });
   const sortedVendors = vendors
     .slice()
     .sort((left, right) => {
@@ -4069,8 +4066,7 @@ export async function getFrontOfficeResourcesSnapshot(
       }
 
       return left.name.localeCompare(right.name);
-    })
-    .slice(0, 24);
+    });
   const executionPulse = buildFrontOfficeResourcesExecutionPulse({
     resourceTypeGroups,
     vendorCount,

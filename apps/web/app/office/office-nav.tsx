@@ -36,6 +36,12 @@ function canViewUnifiedUsers(subject: PermissionSubject) {
   return canViewOfficeUsers(subject) || canViewOfficeAgents(subject);
 }
 
+function canViewOfficeResourcesWorkspace(subject: PermissionSubject) {
+  return (
+    (typeof subject === "string" ? subject : subject.role) === "office_admin"
+  );
+}
+
 function getNavGroups(
   subject: PermissionSubject,
   mailUnreadCount: number,
@@ -82,6 +88,11 @@ function getNavGroups(
           label: t((messages) => messages.officeNav.items.library),
           href: "/office/library",
           isVisible: canViewOfficeLibrary,
+        },
+        {
+          label: t((messages) => messages.officeNav.items.resources),
+          href: "/office/resources",
+          isVisible: canViewOfficeResourcesWorkspace,
         },
         {
           label: t((messages) => messages.officeNav.items.signatures),

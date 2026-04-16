@@ -130,6 +130,7 @@ export const zhCNMessages = {
       performance: "业绩",
       activity: "活动",
       library: "资料库",
+      resources: "资源",
       signatures: "签署",
       accounting: "财务",
       tracker1099: "1099 跟踪",

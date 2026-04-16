@@ -132,6 +132,7 @@ export const enUSMessages = {
       performance: "Performance",
       activity: "Activity",
       library: "Library",
+      resources: "Resources",
       signatures: "Signatures",
       accounting: "Accounting",
       tracker1099: "1099 Tracker",

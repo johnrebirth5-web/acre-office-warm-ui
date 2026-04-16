@@ -198,6 +198,20 @@ export {
   saveOfficeAccountProfile,
 } from "./account";
 export {
+  createOfficeResource,
+  createOfficeVendor,
+  deleteOfficeResource,
+  deleteOfficeVendor,
+  getOfficeResourcesAdminSnapshot,
+  updateOfficeResource,
+  updateOfficeVendor,
+  type CreateOfficeResourceInput,
+  type CreateOfficeVendorInput,
+  type OfficeResourcesAdminSnapshot,
+  type UpdateOfficeResourceInput,
+  type UpdateOfficeVendorInput,
+} from "./office-resources";
+export {
   createNotificationsForMemberships,
   ensureNotificationForMemberships,
   listOfficeNotificationRecipientIds,

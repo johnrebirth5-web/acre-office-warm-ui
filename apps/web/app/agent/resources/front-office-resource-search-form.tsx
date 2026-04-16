@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { FilterBar, FilterField, TextInput } from "@acre/ui";
+import { FilterBar, FilterField, SelectInput, TextInput } from "@acre/ui";
 
 const interactionEndpoint = "/api/resources/interactions";
 
@@ -39,7 +39,14 @@ function recordSearch(query: string) {
   });
 }
 
-export function FrontOfficeResourceSearchForm(props: { initialQuery: string }) {
+export function FrontOfficeResourceSearchForm(props: {
+  initialQuery: string;
+  initialType?: string;
+  typeOptions: Array<{
+    value: string;
+    label: string;
+  }>;
+}) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const query = `${formData.get("q") ?? ""}`.trim();
@@ -61,11 +68,24 @@ export function FrontOfficeResourceSearchForm(props: { initialQuery: string }) {
           type="search"
         />
       </FilterField>
+      <FilterField label="Type">
+        <SelectInput
+          defaultValue={props.initialType ?? ""}
+          name="type"
+        >
+          <option value="">All resources</option>
+          {props.typeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </SelectInput>
+      </FilterField>
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
           Search
         </button>
-        {props.initialQuery ? (
+        {props.initialQuery || props.initialType ? (
           <a className="office-button-secondary" href="/agent/resources">
             Clear
           </a>
