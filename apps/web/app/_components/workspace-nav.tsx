@@ -222,6 +222,60 @@ export function WorkspaceNav({
     );
   }
 
+  function getLocationMatchScore(href: string) {
+    const [path, hashFragment] = href.split("#");
+    const targetHash = hashFragment ? `#${hashFragment}` : "";
+
+    if (targetHash) {
+      return effectiveLocation.path === path && effectiveLocation.hash === targetHash
+        ? 4_000 + path.length + targetHash.length
+        : null;
+    }
+
+    if (hasHashVariant(path)) {
+      return effectiveLocation.path === path && effectiveLocation.hash.length === 0
+        ? 3_000 + path.length
+        : null;
+    }
+
+    if (effectiveLocation.path === path) {
+      return 2_000 + path.length;
+    }
+
+    if (effectiveLocation.path.startsWith(`${path}/`)) {
+      return 1_000 + path.length;
+    }
+
+    return null;
+  }
+
+  const bestActiveHref = navGroups
+    .flatMap((group) =>
+      group.items.flatMap((item) => {
+        if (!isLinkItem(item)) {
+          return [];
+        }
+
+        return [item.href, ...(item.children ?? []).map((child) => child.href)];
+      }),
+    )
+    .reduce<null | { href: string; score: number }>((best, href) => {
+      const score = getLocationMatchScore(href);
+
+      if (score === null) {
+        return best;
+      }
+
+      if (!best || score > best.score) {
+        return {
+          href: normalizeHref(href),
+          score,
+        };
+      }
+
+      return best;
+    }, null);
+
   function handleNavIntent(href: string) {
     setPendingLocationKey(normalizeHref(href));
   }
@@ -231,30 +285,11 @@ export function WorkspaceNav({
   }
 
   function isSidebarItemActive(href: string) {
-    const [path, hashFragment] = href.split("#");
-    const targetHash = hashFragment ? `#${hashFragment}` : "";
-
-    if (targetHash) {
-      return (
-        effectiveLocation.path === path && effectiveLocation.hash === targetHash
-      );
-    }
-
-    if (hasHashVariant(path)) {
-      return (
-        effectiveLocation.path === path && effectiveLocation.hash.length === 0
-      );
-    }
-
-    return (
-      effectiveLocation.path === path ||
-      effectiveLocation.path.startsWith(`${path}/`)
-    );
+    return normalizeHref(href) === bestActiveHref?.href;
   }
 
   function isMobileSectionActive(href: string) {
-    const path = href.split("#")[0];
-    return pathname === path || pathname.startsWith(`${path}/`);
+    return normalizeHref(href) === bestActiveHref?.href;
   }
 
   function isMobileMenuItemActive(href: string) {
