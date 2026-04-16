@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Acre Listing Studio",
   "description": "Save StreetEasy and Zillow listings into Acre Listing Studio from the page itself.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://streeteasy.com/*",
