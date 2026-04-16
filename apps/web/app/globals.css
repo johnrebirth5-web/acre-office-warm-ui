@@ -8129,6 +8129,15 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .office-settings-user-company-access-item {
+    grid-template-columns: 1fr;
+  }
+
+  .office-settings-user-company-access-actions {
+    grid-template-columns: repeat(2, minmax(0, max-content));
+    justify-items: start;
+  }
+
   .office-permission-node-header {
     grid-template-columns: 1fr;
   }
@@ -9568,6 +9577,91 @@ a {
   color: var(--office-text-muted);
   font-size: 0.88rem;
   line-height: 1.5;
+}
+
+.office-settings-user-company-access-list,
+.office-settings-user-company-access-copy,
+.office-settings-user-company-access-meta,
+.office-settings-user-company-access-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.office-settings-user-company-access-list {
+  gap: 10px;
+}
+
+.office-settings-user-company-access-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 16px 18px;
+  border: 1px solid rgba(177, 188, 204, 0.4);
+  border-radius: 18px;
+  background: var(--office-surface-muted);
+}
+
+.office-settings-user-company-access-item.is-active {
+  border-color: rgba(24, 67, 143, 0.28);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--office-accent-soft) 52%, white 48%) 0%,
+    var(--office-surface) 100%
+  );
+}
+
+.office-settings-user-company-access-item.is-default {
+  box-shadow: inset 0 0 0 1px rgba(24, 67, 143, 0.16);
+}
+
+.office-settings-user-company-access-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-settings-user-company-access-heading strong {
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.office-settings-user-company-access-meta {
+  gap: 4px;
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.office-settings-user-company-access-actions {
+  grid-template-columns: repeat(3, auto);
+  gap: 10px;
+  align-items: center;
+  justify-items: end;
+}
+
+.office-settings-user-company-access-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid rgba(177, 188, 204, 0.4);
+  border-radius: 999px;
+  background: var(--office-surface);
+  color: var(--office-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.office-settings-user-company-access-toggle input {
+  margin: 0;
+  accent-color: var(--office-accent-strong);
+}
+
+.office-settings-user-company-access-toggle:has(input:disabled) {
+  background: var(--office-surface-subtle);
+  color: var(--office-text-muted);
 }
 
 .office-settings-user-security-grid,

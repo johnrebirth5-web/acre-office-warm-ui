@@ -57,6 +57,10 @@ type MutationResponse = {
   expiresAt: string;
 } | null;
 
+function serializeStringList(values: string[]) {
+  return JSON.stringify([...new Set(values)].sort());
+}
+
 export function OfficeSettingsUserDetailClient({
   snapshot,
   canManageUsers,
@@ -89,6 +93,13 @@ export function OfficeSettingsUserDetailClient({
     draft.role === "owner" ||
     draft.role === "office_admin" ||
     draft.role === "office_manager";
+  const effectiveAccessibleOfficeIds = hasImplicitAllCompanyAccess
+    ? actualOfficeOptions.map((option) => option.id)
+    : draft.accessibleOfficeIds;
+  const effectiveAccessibleOfficeIdsSet = new Set(effectiveAccessibleOfficeIds);
+  const companyPermissionsByOfficeId = new Map(
+    snapshot.companyPermissions.map((entry) => [entry.officeId, entry]),
+  );
 
   function getCommissionStatusTone(status: string) {
     if (status === "Paid" || status === "Payable") {
@@ -121,8 +132,10 @@ export function OfficeSettingsUserDetailClient({
       const allOfficeIds = actualOfficeOptions.map((option) => option.id);
       const nextDefaultOfficeId = allOfficeIds.includes(draft.defaultOfficeId)
         ? draft.defaultOfficeId
-        : allOfficeIds[0] ?? "";
-      const currentSerialized = JSON.stringify([...draft.accessibleOfficeIds].sort());
+        : (allOfficeIds[0] ?? "");
+      const currentSerialized = JSON.stringify(
+        [...draft.accessibleOfficeIds].sort(),
+      );
       const nextSerialized = JSON.stringify([...allOfficeIds].sort());
 
       if (
@@ -176,6 +189,43 @@ export function OfficeSettingsUserDetailClient({
     }));
   }
 
+  function toggleOfficeAccess(officeId: string, checked: boolean) {
+    if (hasImplicitAllCompanyAccess) {
+      return;
+    }
+
+    setDraft((current) => {
+      const accessibleOfficeIds = checked
+        ? [...new Set([...current.accessibleOfficeIds, officeId])]
+        : current.accessibleOfficeIds.filter(
+            (currentId) => currentId !== officeId,
+          );
+      const defaultOfficeId = checked
+        ? current.defaultOfficeId || officeId
+        : current.defaultOfficeId === officeId
+          ? (accessibleOfficeIds[0] ?? "")
+          : current.defaultOfficeId;
+
+      return {
+        ...current,
+        defaultOfficeId,
+        accessibleOfficeIds,
+      };
+    });
+  }
+
+  function setDefaultOffice(officeId: string) {
+    setDraft((current) => ({
+      ...current,
+      defaultOfficeId: officeId,
+      accessibleOfficeIds: hasImplicitAllCompanyAccess
+        ? actualOfficeOptions.map((option) => option.id)
+        : current.accessibleOfficeIds.includes(officeId)
+          ? current.accessibleOfficeIds
+          : [...current.accessibleOfficeIds, officeId],
+    }));
+  }
+
   async function handleSaveUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPendingAction("save");
@@ -187,7 +237,10 @@ export function OfficeSettingsUserDetailClient({
         throw new Error("Choose a default company.");
       }
 
-      if (!hasImplicitAllCompanyAccess && draft.accessibleOfficeIds.length === 0) {
+      if (
+        !hasImplicitAllCompanyAccess &&
+        draft.accessibleOfficeIds.length === 0
+      ) {
         throw new Error("Choose at least one company for this user.");
       }
 
@@ -200,9 +253,7 @@ export function OfficeSettingsUserDetailClient({
           },
           body: JSON.stringify({
             ...draft,
-            accessibleOfficeIds: hasImplicitAllCompanyAccess
-              ? actualOfficeOptions.map((option) => option.id)
-              : draft.accessibleOfficeIds,
+            accessibleOfficeIds: effectiveAccessibleOfficeIds,
           }),
         },
       );
@@ -341,6 +392,17 @@ export function OfficeSettingsUserDetailClient({
   }
 
   const roleChanged = draft.role !== snapshot.profile.roleValue;
+  const membershipChanged = draft.status !== snapshot.profile.statusValue;
+  const defaultOfficeChanged =
+    draft.defaultOfficeId !== (snapshot.profile.defaultOfficeId ?? "");
+  const companyAccessChanged =
+    serializeStringList(effectiveAccessibleOfficeIds) !==
+    serializeStringList(snapshot.profile.accessibleOfficeIds);
+  const accountAccessChanged =
+    roleChanged ||
+    membershipChanged ||
+    defaultOfficeChanged ||
+    companyAccessChanged;
   const permissionEditorHref = `/office/settings/users/${snapshot.profile.membershipId}/permissions`;
   const profileLinkHref = operationsHref ?? snapshot.profile.agentProfileHref;
   const showOperationalSections = mode === "full";
@@ -460,7 +522,7 @@ export function OfficeSettingsUserDetailClient({
             className="office-settings-user-access-form"
             onSubmit={handleSaveUser}
           >
-            <div className="office-form-grid office-form-grid-3 office-settings-user-access-controls">
+            <div className="office-form-grid office-form-grid-2 office-settings-user-access-controls">
               <FormField label="Role">
                 <SelectInput
                   disabled={!canManageAccountAccess}
@@ -499,59 +561,128 @@ export function OfficeSettingsUserDetailClient({
                   ))}
                 </SelectInput>
               </FormField>
-
-              <FormField label="Default company">
-                <SelectInput
-                  disabled={!canManageAccountAccess}
-                  onChange={(event) =>
-                    setDraftField("defaultOfficeId", event.target.value)
-                  }
-                  value={draft.defaultOfficeId}
-                >
-                  {actualOfficeOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </SelectInput>
-              </FormField>
             </div>
 
-            <FormField label="Company access">
-              <select
-                className="office-select"
-                disabled={!canManageAccountAccess || hasImplicitAllCompanyAccess}
-                multiple
-                onChange={(event) =>
-                  setDraft((current) => {
-                    const accessibleOfficeIds = Array.from(
-                      event.target.selectedOptions,
-                      (option) => option.value,
-                    );
-                    const defaultOfficeId = accessibleOfficeIds.includes(current.defaultOfficeId)
-                      ? current.defaultOfficeId
-                      : accessibleOfficeIds[0] ?? current.defaultOfficeId;
+            <FormField label="Company access and default company">
+              <div className="office-settings-user-company-access-list">
+                {actualOfficeOptions.map((option) => {
+                  const hasAccess = effectiveAccessibleOfficeIdsSet.has(
+                    option.id,
+                  );
+                  const isDefault = draft.defaultOfficeId === option.id;
+                  const companyPermission = companyPermissionsByOfficeId.get(
+                    option.id,
+                  );
+                  const overrideCount =
+                    companyPermission?.permissions.overrides.length ?? 0;
+                  const effectivePermissionCount =
+                    companyPermission?.permissions.effectivePermissions
+                      .length ?? 0;
+                  const canClearAccess =
+                    hasImplicitAllCompanyAccess ||
+                    !hasAccess ||
+                    effectiveAccessibleOfficeIds.length > 1;
+                  const canOpenCompanyPermissions =
+                    !accountAccessChanged && hasAccess;
 
-                    return {
-                      ...current,
-                      defaultOfficeId,
-                      accessibleOfficeIds,
-                    };
-                  })
-                }
-                size={Math.min(4, Math.max(actualOfficeOptions.length, 3))}
-                value={
-                  hasImplicitAllCompanyAccess
-                    ? actualOfficeOptions.map((option) => option.id)
-                    : draft.accessibleOfficeIds
-                }
-              >
-                {actualOfficeOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                  return (
+                    <article
+                      className={`office-settings-user-company-access-item${
+                        hasAccess ? " is-active" : ""
+                      }${isDefault ? " is-default" : ""}`}
+                      key={option.id}
+                    >
+                      <div className="office-settings-user-company-access-copy">
+                        <div className="office-settings-user-company-access-heading">
+                          <strong>{option.label}</strong>
+                          {isDefault ? (
+                            <Badge tone="accent">Default</Badge>
+                          ) : null}
+                          <StatusBadge tone={hasAccess ? "success" : "neutral"}>
+                            {hasAccess ? "Access granted" : "No access"}
+                          </StatusBadge>
+                          {overrideCount > 0 ? (
+                            <Badge tone="neutral">
+                              {overrideCount} overrides
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div className="office-settings-user-company-access-meta">
+                          <span>
+                            {hasImplicitAllCompanyAccess
+                              ? "This role automatically inherits every company."
+                              : hasAccess
+                                ? "This user can sign in and switch into this company."
+                                : "Enable access if this user should be able to switch into this company."}
+                          </span>
+                          <span>
+                            {isDefault
+                              ? "This is the first company they land in after sign-in."
+                              : `Selecting Default company also keeps this company in the access list.${overrideCount > 0 ? ` ${effectivePermissionCount} effective permissions already exist for this saved scope.` : ""}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="office-settings-user-company-access-actions">
+                        <label className="office-settings-user-company-access-toggle">
+                          <input
+                            checked={hasAccess}
+                            disabled={
+                              !canManageAccountAccess ||
+                              hasImplicitAllCompanyAccess ||
+                              !canClearAccess
+                            }
+                            onChange={(event) =>
+                              toggleOfficeAccess(
+                                option.id,
+                                event.target.checked,
+                              )
+                            }
+                            type="checkbox"
+                          />
+                          <span>
+                            {hasImplicitAllCompanyAccess
+                              ? "Inherited access"
+                              : hasAccess
+                                ? "Has access"
+                                : "Grant access"}
+                          </span>
+                        </label>
+
+                        <label className="office-settings-user-company-access-toggle">
+                          <input
+                            checked={isDefault}
+                            disabled={!canManageAccountAccess}
+                            name="defaultOfficeId"
+                            onChange={() => setDefaultOffice(option.id)}
+                            type="radio"
+                          />
+                          <span>
+                            {isDefault ? "Default company" : "Make default"}
+                          </span>
+                        </label>
+
+                        {canOpenCompanyPermissions ? (
+                          <Link
+                            className="office-button-secondary office-button-sm"
+                            href={`${permissionEditorHref}?scope=company&officeId=${option.id}`}
+                          >
+                            {overrideCount > 0
+                              ? "Edit company permissions"
+                              : "Review company permissions"}
+                          </Link>
+                        ) : (
+                          <Button disabled type="button" variant="secondary">
+                            {accountAccessChanged
+                              ? "Save access first"
+                              : "Grant access first"}
+                          </Button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </FormField>
 
             <div className="office-settings-user-access-callout">
@@ -559,8 +690,12 @@ export function OfficeSettingsUserDetailClient({
               <p>{getRoleConfigurationHint(draft.role)}</p>
               <p className="office-form-helper">
                 {hasImplicitAllCompanyAccess
-                  ? "This role automatically receives access to all companies. Only the default company is editable here."
-                  : "Hold Command/Ctrl to select multiple companies. The default company must stay inside the selected access list."}
+                  ? "This role automatically receives access to every company. Use the per-company links above when one location needs a custom permission override."
+                  : "Choose every company this user can switch into, mark one as the default sign-in company, and then open that company's permission page only if it needs exceptions."}
+              </p>
+              <p className="office-form-helper">
+                At least one company must stay assigned. If you set a different
+                default company, it is automatically kept in the access list.
               </p>
               {snapshot.profile.hasActiveLeaderAssignments &&
               snapshot.profile.roleValue === "agent" ? (
@@ -680,10 +815,10 @@ export function OfficeSettingsUserDetailClient({
           subtitle="Open a dedicated full-page editor to review the permission tree and manage per-user overrides."
           title="Permissions"
         >
-          {roleChanged ? (
+          {accountAccessChanged ? (
             <p className="office-form-helper">
-              Save access first if you want the permission editor to use the
-              newly selected role template.
+              Save access first if you want the permission editor to reflect the
+              current role, company list, and default company.
             </p>
           ) : null}
 
@@ -696,12 +831,13 @@ export function OfficeSettingsUserDetailClient({
               </strong>
               <p>
                 Review role defaults, inherited permissions, and member-level
-                overrides in a focused editor.
+                overrides in a focused editor. Company rows on the left also
+                open directly into each saved company scope.
               </p>
             </div>
-            {roleChanged ? (
+            {accountAccessChanged ? (
               <Button disabled type="button" variant="secondary">
-                Save access to edit permissions
+                Save access to continue
               </Button>
             ) : (
               <Link

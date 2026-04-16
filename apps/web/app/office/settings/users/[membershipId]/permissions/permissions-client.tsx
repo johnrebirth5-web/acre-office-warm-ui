@@ -1,17 +1,28 @@
 "use client";
 
 import type { PermissionKey } from "@acre/auth";
-import type { OfficeAdminUserDetailSnapshot, PermissionOverrideValue, PermissionTreeStateNode } from "@acre/db";
+import type {
+  OfficeAdminUserDetailSnapshot,
+  PermissionOverrideValue,
+  PermissionTreeStateNode,
+} from "@acre/db";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { Button, ConfirmActionDialog, ListPageStatsGrid, SectionCard, StatCard, StatusBadge } from "@acre/ui";
+import {
+  Button,
+  ConfirmActionDialog,
+  ListPageStatsGrid,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+} from "@acre/ui";
 import {
   buildPermissionOverrideMap,
   buildPermissionTreeMaps,
   buildPreviewPermissionTree,
   serializePermissionOverrideMap,
-  type PermissionOverrideMap
+  type PermissionOverrideMap,
 } from "../../../permissions-shared";
 
 type OfficeSettingsUserPermissionsClientProps = {
@@ -36,7 +47,13 @@ type ConfirmDialogState = {
 };
 
 function countPermissionNodes(node: PermissionTreeStateNode): number {
-  return 1 + node.children.reduce((total, child) => total + countPermissionNodes(child), 0);
+  return (
+    1 +
+    node.children.reduce(
+      (total, child) => total + countPermissionNodes(child),
+      0,
+    )
+  );
 }
 
 function splitPermissionColumns(nodes: PermissionTreeStateNode[]) {
@@ -68,7 +85,7 @@ function getPermissionSourceLabel(node: PermissionTreeStateNode) {
 function applyDesiredState(
   overrides: PermissionOverrideMap,
   node: PermissionTreeStateNode,
-  desiredEnabled: boolean
+  desiredEnabled: boolean,
 ) {
   if (desiredEnabled === node.inheritedEnabled) {
     overrides.delete(node.key);
@@ -86,8 +103,16 @@ function PermissionSection(props: {
   return (
     <div className="office-user-permissions-column">
       {props.nodes.map((node, index) => (
-        <article className={`office-user-permissions-section${index === 0 ? " is-first" : ""}`} key={node.key}>
-          <PermissionRow disabled={props.disabled} level={0} node={node} onCheckedChange={props.onCheckedChange} />
+        <article
+          className={`office-user-permissions-section${index === 0 ? " is-first" : ""}`}
+          key={node.key}
+        >
+          <PermissionRow
+            disabled={props.disabled}
+            level={0}
+            node={node}
+            onCheckedChange={props.onCheckedChange}
+          />
         </article>
       ))}
     </div>
@@ -101,13 +126,17 @@ function PermissionRow(props: {
   onCheckedChange: (permissionKey: PermissionKey, checked: boolean) => void;
 }) {
   return (
-    <div className={`office-user-permissions-node${props.level > 0 ? " is-nested" : ""}`}>
+    <div
+      className={`office-user-permissions-node${props.level > 0 ? " is-nested" : ""}`}
+    >
       <label className="office-user-permissions-row">
         <span className="office-permission-checkbox">
           <input
             checked={props.node.effectiveEnabled}
             disabled={props.disabled || !props.node.editable}
-            onChange={(event) => props.onCheckedChange(props.node.key, event.target.checked)}
+            onChange={(event) =>
+              props.onCheckedChange(props.node.key, event.target.checked)
+            }
             type="checkbox"
           />
           <span />
@@ -119,7 +148,9 @@ function PermissionRow(props: {
 
         <span className="office-user-permissions-meta">
           {props.node.overrideEffect ? (
-            <StatusBadge tone={props.node.overrideEffect === "allow" ? "accent" : "danger"}>
+            <StatusBadge
+              tone={props.node.overrideEffect === "allow" ? "accent" : "danger"}
+            >
               {getPermissionSourceLabel(props.node)}
             </StatusBadge>
           ) : null}
@@ -145,9 +176,10 @@ function PermissionRow(props: {
 
 export function OfficeSettingsUserPermissionsClient({
   snapshot,
-  canManagePermissions
+  canManagePermissions,
 }: OfficeSettingsUserPermissionsClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const permissionScopes = useMemo<PermissionScopeOption[]>(
     () => [
       {
@@ -156,7 +188,7 @@ export function OfficeSettingsUserPermissionsClient({
         description: "Applies to every company this user can access.",
         scope: "global",
         officeId: null,
-        permissions: snapshot.permissions
+        permissions: snapshot.permissions,
       },
       ...snapshot.companyPermissions.map((entry) => ({
         key: `company:${entry.officeId}`,
@@ -164,33 +196,60 @@ export function OfficeSettingsUserPermissionsClient({
         description: `Overrides that only apply inside ${entry.officeName}.`,
         scope: "company" as const,
         officeId: entry.officeId,
-        permissions: entry.permissions
-      }))
+        permissions: entry.permissions,
+      })),
     ],
-    [snapshot.companyPermissions, snapshot.permissions]
+    [snapshot.companyPermissions, snapshot.permissions],
   );
-  const [selectedScopeKey, setSelectedScopeKey] = useState(permissionScopes[0]?.key ?? "global");
-  const selectedScope = permissionScopes.find((scope) => scope.key === selectedScopeKey) ?? permissionScopes[0];
+  const requestedScopeKey = useMemo(() => {
+    const scope = searchParams.get("scope");
+    const officeId = searchParams.get("officeId");
+
+    if (scope === "company" && officeId) {
+      const companyScopeKey = `company:${officeId}`;
+
+      if (
+        permissionScopes.some(
+          (permissionScope) => permissionScope.key === companyScopeKey,
+        )
+      ) {
+        return companyScopeKey;
+      }
+    }
+
+    return permissionScopes[0]?.key ?? "global";
+  }, [permissionScopes, searchParams]);
+  const [selectedScopeKey, setSelectedScopeKey] = useState(requestedScopeKey);
+  const selectedScope =
+    permissionScopes.find((scope) => scope.key === selectedScopeKey) ??
+    permissionScopes[0];
   const [permissionOverrides, setPermissionOverrides] = useState(() =>
-    buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? [])
+    buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? []),
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (!permissionScopes.some((scope) => scope.key === selectedScopeKey) && permissionScopes[0]) {
-      setSelectedScopeKey(permissionScopes[0].key);
-    }
-  }, [permissionScopes, selectedScopeKey]);
+    setSelectedScopeKey((current) =>
+      current === requestedScopeKey &&
+      permissionScopes.some((scope) => scope.key === current)
+        ? current
+        : requestedScopeKey,
+    );
+  }, [permissionScopes, requestedScopeKey]);
 
   useEffect(() => {
     if (!selectedScope) {
       return;
     }
 
-    setPermissionOverrides(buildPermissionOverrideMap(selectedScope.permissions.overrides));
+    setPermissionOverrides(
+      buildPermissionOverrideMap(selectedScope.permissions.overrides),
+    );
     setSubmitError("");
     setActionNotice("");
   }, [selectedScope]);
@@ -201,12 +260,26 @@ export function OfficeSettingsUserPermissionsClient({
         nodes: selectedScope?.permissions.tree ?? snapshot.permissions.tree,
         overrides: permissionOverrides,
         role: selectedScope?.permissions.role ?? snapshot.permissions.role,
-        inheritedPermissions: selectedScope?.permissions.inheritedPermissions ?? snapshot.permissions.inheritedPermissions
+        inheritedPermissions:
+          selectedScope?.permissions.inheritedPermissions ??
+          snapshot.permissions.inheritedPermissions,
       }),
-    [permissionOverrides, selectedScope, snapshot.permissions.inheritedPermissions, snapshot.permissions.role, snapshot.permissions.tree]
+    [
+      permissionOverrides,
+      selectedScope,
+      snapshot.permissions.inheritedPermissions,
+      snapshot.permissions.role,
+      snapshot.permissions.tree,
+    ],
   );
-  const previewMaps = useMemo(() => buildPermissionTreeMaps(previewTree), [previewTree]);
-  const previewColumns = useMemo(() => splitPermissionColumns(previewTree), [previewTree]);
+  const previewMaps = useMemo(
+    () => buildPermissionTreeMaps(previewTree),
+    [previewTree],
+  );
+  const previewColumns = useMemo(
+    () => splitPermissionColumns(previewTree),
+    [previewTree],
+  );
   const effectivePreviewCount = useMemo(() => {
     let count = 0;
 
@@ -225,10 +298,16 @@ export function OfficeSettingsUserPermissionsClient({
   }, [previewTree]);
 
   const serializedInitialOverrides = useMemo(
-    () => serializePermissionOverrideMap(buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? [])),
-    [selectedScope]
+    () =>
+      serializePermissionOverrideMap(
+        buildPermissionOverrideMap(selectedScope?.permissions.overrides ?? []),
+      ),
+    [selectedScope],
   );
-  const serializedDraftOverrides = useMemo(() => serializePermissionOverrideMap(permissionOverrides), [permissionOverrides]);
+  const serializedDraftOverrides = useMemo(
+    () => serializePermissionOverrideMap(permissionOverrides),
+    [permissionOverrides],
+  );
   const isDirty = serializedInitialOverrides !== serializedDraftOverrides;
   const detailHref = `/office/settings/users/${snapshot.profile.membershipId}`;
 
@@ -248,7 +327,9 @@ export function OfficeSettingsUserPermissionsClient({
       }
 
       if (checked) {
-        for (const ancestorKey of previewMaps.ancestorKeysByKey.get(permissionKey) ?? []) {
+        for (const ancestorKey of previewMaps.ancestorKeysByKey.get(
+          permissionKey,
+        ) ?? []) {
           const ancestor = previewMaps.nodeByKey.get(ancestorKey);
 
           if (ancestor) {
@@ -260,7 +341,10 @@ export function OfficeSettingsUserPermissionsClient({
         return next;
       }
 
-      for (const key of [permissionKey, ...(previewMaps.descendantKeysByKey.get(permissionKey) ?? [])]) {
+      for (const key of [
+        permissionKey,
+        ...(previewMaps.descendantKeysByKey.get(permissionKey) ?? []),
+      ]) {
         const target = previewMaps.nodeByKey.get(key);
 
         if (target) {
@@ -278,34 +362,47 @@ export function OfficeSettingsUserPermissionsClient({
     setActionNotice("");
 
     try {
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
+      const response = await fetch(
+        `/api/office/settings/users/${snapshot.profile.membershipId}/permissions`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            scope: selectedScope?.scope ?? "global",
+            officeId: selectedScope?.officeId ?? undefined,
+            overrides: [...permissionOverrides.entries()].map(
+              ([permissionKey, effect]) => ({
+                permissionKey,
+                effect,
+              }),
+            ),
+          }),
         },
-        body: JSON.stringify({
-          scope: selectedScope?.scope ?? "global",
-          officeId: selectedScope?.officeId ?? undefined,
-          overrides: [...permissionOverrides.entries()].map(([permissionKey, effect]) => ({
-            permissionKey,
-            effect
-          }))
-        })
-      });
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update permission overrides.");
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          body?.error ?? "Failed to update permission overrides.",
+        );
       }
 
       setActionNotice(
         selectedScope?.scope === "company"
           ? `${selectedScope.label} permission overrides updated.`
-          : "Global permission overrides updated."
+          : "Global permission overrides updated.",
       );
       refreshCurrentPage();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to update permission overrides.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update permission overrides.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -322,13 +419,20 @@ export function OfficeSettingsUserPermissionsClient({
         searchParams.set("scope", "company");
         searchParams.set("officeId", selectedScope.officeId);
       }
-      const suffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions${suffix}`, {
-        method: "DELETE"
-      });
+      const suffix = searchParams.toString()
+        ? `?${searchParams.toString()}`
+        : "";
+      const response = await fetch(
+        `/api/office/settings/users/${snapshot.profile.membershipId}/permissions${suffix}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to reset permission overrides.");
       }
 
@@ -336,11 +440,15 @@ export function OfficeSettingsUserPermissionsClient({
       setActionNotice(
         selectedScope?.scope === "company"
           ? `${selectedScope.label} overrides reset to inherited defaults.`
-          : "Global permission overrides reset to role defaults."
+          : "Global permission overrides reset to role defaults.",
       );
       refreshCurrentPage();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to reset permission overrides.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to reset permission overrides.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -348,8 +456,12 @@ export function OfficeSettingsUserPermissionsClient({
 
   return (
     <div className="office-user-permissions-page">
-      {submitError ? <p className="office-inline-error">{submitError}</p> : null}
-      {actionNotice ? <p className="office-inline-success">{actionNotice}</p> : null}
+      {submitError ? (
+        <p className="office-inline-error">{submitError}</p>
+      ) : null}
+      {actionNotice ? (
+        <p className="office-inline-success">{actionNotice}</p>
+      ) : null}
 
       <SectionCard
         actions={
@@ -366,16 +478,31 @@ export function OfficeSettingsUserPermissionsClient({
             className="office-user-permissions-stat"
             label="Scope"
             tone="accent"
-            value={selectedScope?.scope === "company" ? selectedScope.label : "Global"}
+            value={
+              selectedScope?.scope === "company"
+                ? selectedScope.label
+                : "Global"
+            }
           />
           <StatCard
             className="office-user-permissions-stat"
             label="Role template"
             tone="accent"
-            value={selectedScope?.permissions.roleLabel ?? snapshot.permissions.roleLabel}
+            value={
+              selectedScope?.permissions.roleLabel ??
+              snapshot.permissions.roleLabel
+            }
           />
-          <StatCard className="office-user-permissions-stat" label="Overrides" value={permissionOverrides.size} />
-          <StatCard className="office-user-permissions-stat" label="Effective permissions" value={effectivePreviewCount} />
+          <StatCard
+            className="office-user-permissions-stat"
+            label="Overrides"
+            value={permissionOverrides.size}
+          />
+          <StatCard
+            className="office-user-permissions-stat"
+            label="Effective permissions"
+            value={effectivePreviewCount}
+          />
           <StatCard
             className="office-user-permissions-stat"
             label="Edit access"
@@ -400,20 +527,29 @@ export function OfficeSettingsUserPermissionsClient({
                   <span>Permission scope</span>
                   <select
                     className="office-select"
-                    onChange={(event) => setSelectedScopeKey(event.target.value)}
+                    onChange={(event) =>
+                      setSelectedScopeKey(event.target.value)
+                    }
                     value={selectedScope?.key ?? "global"}
                   >
                     {permissionScopes.map((scope) => (
                       <option key={scope.key} value={scope.key}>
-                        {scope.scope === "company" ? `Company · ${scope.label}` : scope.label}
+                        {scope.scope === "company"
+                          ? `Company · ${scope.label}`
+                          : scope.label}
                       </option>
                     ))}
                   </select>
                 </label>
                 <div className="office-detail-field">
                   <span>Scope detail</span>
-                  <strong>{selectedScope?.label ?? "Global role template"}</strong>
-                  <p>{selectedScope?.description ?? "Applies to every company this user can access."}</p>
+                  <strong>
+                    {selectedScope?.label ?? "Global role template"}
+                  </strong>
+                  <p>
+                    {selectedScope?.description ??
+                      "Applies to every company this user can access."}
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -421,21 +557,34 @@ export function OfficeSettingsUserPermissionsClient({
         </div>
 
         <div className="office-user-permissions-columns">
-          <PermissionSection disabled={!canManagePermissions} nodes={previewColumns[0]} onCheckedChange={togglePermission} />
-          <PermissionSection disabled={!canManagePermissions} nodes={previewColumns[1]} onCheckedChange={togglePermission} />
+          <PermissionSection
+            disabled={!canManagePermissions}
+            nodes={previewColumns[0]}
+            onCheckedChange={togglePermission}
+          />
+          <PermissionSection
+            disabled={!canManagePermissions}
+            nodes={previewColumns[1]}
+            onCheckedChange={togglePermission}
+          />
         </div>
 
         <div className="office-user-permissions-footer">
           {canManagePermissions ? (
             <>
-              <Button disabled={!isDirty || pendingAction === "save"} onClick={handleSavePermissions}>
+              <Button
+                disabled={!isDirty || pendingAction === "save"}
+                onClick={handleSavePermissions}
+              >
                 {pendingAction === "save" ? "Saving..." : "Save permissions"}
               </Button>
               <Link className="office-button-secondary" href={detailHref}>
                 Cancel
               </Link>
               <Button
-                disabled={permissionOverrides.size === 0 || pendingAction === "reset"}
+                disabled={
+                  permissionOverrides.size === 0 || pendingAction === "reset"
+                }
                 onClick={() =>
                   setConfirmDialog({
                     title:
@@ -449,12 +598,14 @@ export function OfficeSettingsUserPermissionsClient({
                     confirmLabel: "Reset overrides",
                     onConfirm: () => {
                       void handleResetPermissions();
-                    }
+                    },
                   })
                 }
                 variant="secondary"
               >
-                {pendingAction === "reset" ? "Resetting..." : "Reset to role defaults"}
+                {pendingAction === "reset"
+                  ? "Resetting..."
+                  : "Reset to role defaults"}
               </Button>
             </>
           ) : (
