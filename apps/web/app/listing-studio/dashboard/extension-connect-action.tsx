@@ -299,6 +299,7 @@ export function ListingStudioExtensionConnectAction(
     browserConnectionState === "checking" ||
     browserConnectionState === "connected" ||
     isConnecting;
+  const isConnected = browserConnectionState === "connected";
 
   return (
     <div className="listing-studio-banner-grid">
@@ -310,7 +311,13 @@ export function ListingStudioExtensionConnectAction(
           <p className="listing-studio-status-message">{statusMessage}</p>
         ) : null}
       </div>
-      <div className="listing-studio-banner-panel">
+      <div
+        className={
+          isConnected
+            ? "listing-studio-banner-panel listing-studio-banner-panel-connected"
+            : "listing-studio-banner-panel"
+        }
+      >
         <div className="listing-studio-banner-status">
           <span className={badgeClassName}>{badgeLabel}</span>
           <span className="listing-studio-banner-source-pill">
@@ -319,13 +326,23 @@ export function ListingStudioExtensionConnectAction(
         </div>
         <p className="listing-studio-banner-meta">{panelMessage}</p>
         <div className="listing-studio-connect-action">
-          <Button
-            disabled={isActionDisabled}
-            onClick={handleClick}
-            variant="primary"
-          >
-            {actionLabel}
-          </Button>
+          {isConnected ? (
+            <div
+              aria-live="polite"
+              className="listing-studio-connect-status"
+              role="status"
+            >
+              {actionLabel}
+            </div>
+          ) : (
+            <Button
+              disabled={isActionDisabled}
+              onClick={handleClick}
+              variant="primary"
+            >
+              {actionLabel}
+            </Button>
+          )}
         </div>
       </div>
     </div>
