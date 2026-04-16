@@ -54,7 +54,7 @@ Product guidance for current use:
 - `Browse by type / section`: roughly `5%`
 - `Library-style browsing of all approved materials`: roughly `5%`
 - `Vendor lookup`: direct, manual lookup when needed
-- `Training`: simple searchable content, not a progress-heavy LMS
+- `Training`: simple searchable content, not a progress-heavy LMS; training video entries can be stored as direct YouTube links
 
 ## Agent Experience
 
@@ -97,6 +97,7 @@ It should be:
 
 - office-admin only
 - simple CRUD for resources
+- training videos managed as normal resources, using direct YouTube links
 - simple CRUD for vendors
 - no approval flow
 - no publishing workflow beyond basic publish/unpublish state

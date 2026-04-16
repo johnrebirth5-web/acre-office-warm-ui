@@ -281,3 +281,41 @@ test("office resource admin snapshot exposes top-opened and stale resources", as
     await context.cleanup();
   }
 });
+
+test("office resources require YouTube links for training videos", async () => {
+  const context = await createOfficeResourcesTestContext();
+
+  try {
+    const trainingVideoId = await createOfficeResource({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      title: "Open house refresher",
+      summary: "Short training video for pre-open-house setup.",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["training", "open house"],
+      type: ResourceType.training_video,
+      isPublished: true,
+      visibilityScope: "office_only",
+    });
+
+    assert.ok(trainingVideoId);
+
+    await assert.rejects(
+      () =>
+        createOfficeResource({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          title: "Invalid video link",
+          summary: "This should fail because it is not YouTube.",
+          url: "https://vimeo.com/123456789",
+          tags: ["training"],
+          type: ResourceType.training_video,
+          isPublished: false,
+          visibilityScope: "office_only",
+        }),
+      /YouTube URL/,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});

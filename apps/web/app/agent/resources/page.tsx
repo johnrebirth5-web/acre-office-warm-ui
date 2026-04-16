@@ -220,6 +220,40 @@ function buildResourcesUrl(updates: Record<string, string | null>) {
   return query ? `/agent/resources?${query}` : "/agent/resources";
 }
 
+function isYouTubeUrl(value: string) {
+  try {
+    const parsedUrl = new URL(value);
+    return (
+      parsedUrl.protocol === "https:" &&
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+      ].includes(parsedUrl.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getResourcePlatformLabel(resource: ResourceRecord) {
+  if (resource.typeKey === "training_video" && isYouTubeUrl(resource.href)) {
+    return "YouTube video";
+  }
+
+  return null;
+}
+
+function getResourceActionText(resource: ResourceRecord) {
+  if (resource.typeKey === "training_video" && isYouTubeUrl(resource.href)) {
+    return "Watch on YouTube";
+  }
+
+  return resource.actionLabel;
+}
+
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -268,6 +302,8 @@ function renderVendorActions(vendor: VendorRecord) {
 
 function ResourceRecordCard(props: { resource: ResourceRecord }) {
   const { resource } = props;
+  const platformLabel = getResourcePlatformLabel(resource);
+  const actionText = getResourceActionText(resource);
 
   return (
     <article style={resourceCardStyle}>
@@ -286,6 +322,7 @@ function ResourceRecordCard(props: { resource: ResourceRecord }) {
       </div>
 
       <div style={metaRowStyle}>
+        {platformLabel ? <span>{platformLabel}</span> : null}
         <span>{resource.detailLabel}</span>
         <span>{resource.freshnessLabel}</span>
       </div>
@@ -309,7 +346,7 @@ function ResourceRecordCard(props: { resource: ResourceRecord }) {
             resourceId: resource.id,
           }}
         >
-          {resource.actionLabel}
+          {actionText}
         </FrontOfficeTrackedLink>
       </div>
     </article>
@@ -416,7 +453,7 @@ export default async function AgentResourcesPage(props: {
     "buyer consultation",
     "listing presentation",
     "offer checklist",
-    "training",
+    "youtube training",
     "lender",
   ];
 

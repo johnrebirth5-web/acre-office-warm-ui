@@ -64,7 +64,7 @@ export function FrontOfficeResourceSearchForm(props: {
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
-          placeholder="Search titles, summaries, tags, or vendor names"
+          placeholder="Search titles, summaries, tags, YouTube trainings, or vendor names"
           type="search"
         />
       </FilterField>

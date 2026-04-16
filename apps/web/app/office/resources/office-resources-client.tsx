@@ -173,11 +173,18 @@ const anchorActionStyle = {
   gap: "0.4rem",
 };
 
+const fieldHintStyle = {
+  margin: "-0.35rem 0 0",
+  color: "#667c93",
+  fontSize: "0.82rem",
+  lineHeight: 1.45,
+};
+
 const resourceStarterShelf = [
   "Playbook: buyer consultation checklist, showing prep, offer process notes",
   "Template: intro email, follow-up text, open-house recap, vendor handoff email",
   "Document: fee sheet, offer checklist PDF, neighborhood explainer, one-page FAQ",
-  "Training: short refresher videos for scripts, tools, or office process changes",
+  "Training video: short YouTube refreshers for scripts, tools, or office process changes",
 ];
 
 const vendorStarterShelf = [
@@ -191,6 +198,24 @@ function parseCsv(value: FormDataEntryValue | null) {
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function isYouTubeUrl(value: string) {
+  try {
+    const parsedUrl = new URL(value);
+    return (
+      parsedUrl.protocol === "https:" &&
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+      ].includes(parsedUrl.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function parseError(response: Response, fallback: string) {
@@ -698,8 +723,20 @@ export function OfficeResourcesClient({
             />
           </FormField>
           <FormField className="office-form-grid-span-2" label="URL">
-            <TextInput name="url" placeholder="https://..." type="url" />
+            <TextInput
+              name="url"
+              placeholder="https://www.youtube.com/watch?v=... or /resources/..."
+              type="url"
+            />
           </FormField>
+          <p
+            className="office-form-helper office-form-grid-span-2"
+            style={fieldHintStyle}
+          >
+            Choose <strong>Training video</strong> for YouTube links. Documents
+            and PDFs can use internal paths like
+            <code> /resources/...</code> or any direct file URL.
+          </p>
           <FormField label="Type">
             <SelectInput defaultValue="playbook" name="type">
               {snapshot.resourceTypeOptions.map((option) => (
@@ -800,9 +837,20 @@ export function OfficeResourcesClient({
                                 <TextInput
                                   defaultValue={resource.url}
                                   name="url"
+                                  placeholder="https://www.youtube.com/watch?v=... or /resources/..."
                                   type="url"
                                 />
                               </FormField>
+                              <p
+                                className="office-form-helper office-form-grid-span-2"
+                                style={fieldHintStyle}
+                              >
+                                Choose <strong>Training video</strong> for
+                                YouTube links. Documents and PDFs can keep using
+                                internal paths like
+                                <code> /resources/...</code> or other direct
+                                file URLs.
+                              </p>
                               <FormField label="Type">
                                 <SelectInput
                                   defaultValue={resource.type}
@@ -896,6 +944,10 @@ export function OfficeResourcesClient({
                                     <Badge tone="neutral">
                                       {resource.typeLabel}
                                     </Badge>
+                                    {resource.type === "training_video" &&
+                                    isYouTubeUrl(resource.url) ? (
+                                      <Badge tone="accent">YouTube</Badge>
+                                    ) : null}
                                     <StatusBadge
                                       tone={
                                         resource.isPublished

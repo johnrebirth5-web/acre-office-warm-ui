@@ -139,7 +139,7 @@ function formatResourceTypeLabel(type: ResourceType) {
     case ResourceType.document:
       return "Document";
     case ResourceType.training_video:
-      return "Training";
+      return "Training video";
     case ResourceType.vendor_card:
       return "Vendor card";
     default:
@@ -211,7 +211,9 @@ async function buildUniqueResourceSlug(
       slug: true,
     },
   });
-  const existingSlugs = new Set(existingResources.map((resource) => resource.slug));
+  const existingSlugs = new Set(
+    existingResources.map((resource) => resource.slug),
+  );
 
   if (!existingSlugs.has(baseSlug)) {
     return baseSlug;
@@ -235,7 +237,9 @@ function buildSearchText(input: {
   summary: string;
   tags: string[];
 }) {
-  return normalizeCsvList([input.title, input.summary, ...input.tags]).join(" ");
+  return normalizeCsvList([input.title, input.summary, ...input.tags]).join(
+    " ",
+  );
 }
 
 function resolveScopeValue(
@@ -264,6 +268,32 @@ function assertResourceType(type: ResourceType) {
 function assertNonEmptyField(value: string, label: string) {
   if (!value.trim()) {
     throw new Error(`${label} is required.`);
+  }
+}
+
+function isYouTubeUrl(value: string) {
+  try {
+    const parsedUrl = new URL(value);
+    const normalizedHost = parsedUrl.hostname.toLowerCase();
+
+    return (
+      parsedUrl.protocol === "https:" &&
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+      ].includes(normalizedHost)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function assertSupportedResourceUrl(type: ResourceType, value: string) {
+  if (type === ResourceType.training_video && !isYouTubeUrl(value.trim())) {
+    throw new Error("Training video resources must use a full YouTube URL.");
   }
 }
 
@@ -451,8 +481,9 @@ export async function getOfficeResourcesAdminSnapshot(input: {
   return {
     summary: {
       resourceCount: resourceRows.length,
-      publishedResourceCount: resourceRows.filter((resource) => resource.isPublished)
-        .length,
+      publishedResourceCount: resourceRows.filter(
+        (resource) => resource.isPublished,
+      ).length,
       vendorCount: vendors.length,
       featuredVendorCount: vendors.filter((vendor) => vendor.isFeatured).length,
       trainingResourceCount: resourceRows.filter(
@@ -462,7 +493,9 @@ export async function getOfficeResourcesAdminSnapshot(input: {
     },
     topOpenedResources,
     staleResources,
-    resources: resourceRows.map(({ lastOpenedAt: _lastOpenedAt, stale: _stale, ...resource }) => resource),
+    resources: resourceRows.map(
+      ({ lastOpenedAt: _lastOpenedAt, stale: _stale, ...resource }) => resource,
+    ),
     vendors: vendors.map((vendor) => ({
       id: vendor.id,
       name: vendor.name,
@@ -494,6 +527,7 @@ export async function createOfficeResource(input: CreateOfficeResourceInput) {
   assertNonEmptyField(input.title, "Title");
   assertNonEmptyField(input.summary, "Summary");
   assertNonEmptyField(input.url, "URL");
+  assertSupportedResourceUrl(input.type, input.url);
 
   const tags = normalizeCsvList(input.tags);
 
@@ -545,6 +579,7 @@ export async function updateOfficeResource(input: UpdateOfficeResourceInput) {
   assertNonEmptyField(input.title, "Title");
   assertNonEmptyField(input.summary, "Summary");
   assertNonEmptyField(input.url, "URL");
+  assertSupportedResourceUrl(input.type, input.url);
 
   const tags = normalizeCsvList(input.tags);
 
