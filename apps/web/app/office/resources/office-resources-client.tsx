@@ -182,34 +182,40 @@ const fieldHintStyle = {
 };
 
 const segmentedTabsShellStyle = {
-  display: "inline-flex",
-  flexWrap: "wrap" as const,
-  gap: "0.35rem",
-  padding: "0.35rem",
-  borderRadius: "16px",
-  border: "1px solid rgba(18, 53, 104, 0.08)",
-  background: "rgba(248, 250, 253, 0.96)",
+  display: "grid",
+  width: "100%",
+  gap: "0.55rem",
+  padding: "0.6rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  borderRadius: "24px",
+  border: "1px solid rgba(18, 53, 104, 0.1)",
+  background: "linear-gradient(180deg, #f7f9fc 0%, #f2f6fb 100%)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
 };
 
 const segmentedTabStyle = {
   display: "inline-flex",
   alignItems: "center",
-  justifyContent: "center",
-  padding: "0.55rem 0.9rem",
-  borderRadius: "12px",
-  color: "#51677f",
-  fontSize: "0.86rem",
-  fontWeight: 700,
+  justifyContent: "flex-start",
+  width: "100%",
+  minHeight: "68px",
+  padding: "0.95rem 1.25rem",
+  borderRadius: "18px",
+  color: "#4d6480",
+  fontSize: "1rem",
+  fontWeight: 800,
   lineHeight: 1,
   textDecoration: "none",
   whiteSpace: "nowrap" as const,
+  letterSpacing: "-0.02em",
 };
 
 const activeSegmentedTabStyle = {
   ...segmentedTabStyle,
   color: "#173153",
   background: "#ffffff",
-  boxShadow: "0 8px 20px rgba(18, 53, 104, 0.08)",
+  boxShadow:
+    "0 14px 28px rgba(18, 53, 104, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.96)",
 };
 
 const resourceStarterShelf = [
