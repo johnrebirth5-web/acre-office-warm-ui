@@ -687,21 +687,24 @@ export function OfficeSettingsUserDetailClient({
 
                       <div className="office-settings-user-company-access-actions">
                         <div className="office-settings-user-company-access-toggle">
-                          <input
-                            checked={hasAccess}
+                          <button
+                            aria-checked={hasAccess}
+                            aria-label={
+                              hasAccess
+                                ? `Remove access for ${option.label}`
+                                : `Grant access to ${option.label}`
+                            }
                             disabled={
                               !canManageAccountAccess ||
                               hasImplicitAllCompanyAccess ||
                               !canClearAccess
                             }
-                            onChange={(event) =>
-                              toggleOfficeAccess(
-                                option.id,
-                                event.target.checked,
-                              )
-                            }
-                            type="checkbox"
-                          />
+                            onClick={() => toggleOfficeAccess(option.id, !hasAccess)}
+                            role="checkbox"
+                            type="button"
+                          >
+                            <span />
+                          </button>
                           <span>
                             {hasImplicitAllCompanyAccess
                               ? "Inherited access"
@@ -712,15 +715,22 @@ export function OfficeSettingsUserDetailClient({
                         </div>
 
                         <div className="office-settings-user-company-access-toggle">
-                          <input
-                            checked={isDefault}
+                          <button
+                            aria-checked={isDefault}
+                            aria-label={
+                              isDefault
+                                ? `${option.label} is the default company`
+                                : `Make ${option.label} the default company`
+                            }
                             disabled={
                               !canManageAccountAccess || !canChooseDefault
                             }
-                            name="defaultOfficeId"
-                            onChange={() => setDefaultOffice(option.id)}
-                            type="radio"
-                          />
+                            onClick={() => setDefaultOffice(option.id)}
+                            role="radio"
+                            type="button"
+                          >
+                            <span />
+                          </button>
                           <span>
                             {!canChooseDefault
                               ? "Grant access before default"

@@ -9670,13 +9670,45 @@ a {
   font-weight: 600;
 }
 
-.office-settings-user-company-access-toggle input {
-  margin: 0;
-  accent-color: var(--office-accent-strong);
+.office-settings-user-company-access-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
 }
 
-.office-settings-user-company-access-toggle:has(input:disabled) {
+.office-settings-user-company-access-toggle button span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--office-border-strong);
+  background: var(--office-surface);
+  box-shadow: inset 0 0 0 2px transparent;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.office-settings-user-company-access-toggle button[role="checkbox"] span {
+  border-radius: 5px;
+}
+
+.office-settings-user-company-access-toggle button[role="radio"] span {
+  border-radius: 999px;
+}
+
+.office-settings-user-company-access-toggle button[aria-checked="true"] span {
+  border-color: var(--office-accent-strong);
+  background: var(--office-accent-strong);
+  box-shadow: inset 0 0 0 3px var(--office-surface);
+}
+
+.office-settings-user-company-access-toggle:has(button:disabled) {
   background: var(--office-surface-subtle);
   color: var(--office-text-muted);
 }
