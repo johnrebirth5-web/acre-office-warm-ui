@@ -580,16 +580,6 @@ export function OfficeSettingsUserDetailClient({
 
             <div className="office-form-field">
               <span>Company access and default company</span>
-              {accountAccessChanged ? (
-                <div className="office-settings-user-access-draft">
-                  <StatusBadge tone="warning">Draft only</StatusBadge>
-                  <p>
-                    These changes are only a local draft right now. Nothing
-                    below takes effect until you click Save access.
-                  </p>
-                </div>
-              ) : null}
-
               <div className="office-settings-user-company-access-list">
                 {actualOfficeOptions.map((option) => {
                   const hasAccess = effectiveAccessibleOfficeIdsSet.has(
