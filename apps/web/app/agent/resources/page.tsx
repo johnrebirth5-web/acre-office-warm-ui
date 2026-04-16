@@ -641,18 +641,8 @@ export default async function AgentResourcesPage(props: {
       eyebrow="Resources"
       main={
         <div style={stackStyle}>
-          <SectionCard
-            className="office-list-card"
-            subtitle="Search vendors, videos, and documents from one place. Results stay inside the tab you're viewing."
-            title="Resources & Training"
-          >
-            <FrontOfficeResourceSearchForm
-              initialQuery={searchQuery}
-              placeholder="Search vendors, videos, documents..."
-              tab={activeTab}
-            />
-
-            <div style={{ marginTop: "1rem", display: "grid", gap: "0.9rem" }}>
+          <SectionCard className="office-list-card">
+            <div style={{ display: "grid", gap: "0.9rem" }}>
               <div style={segmentedTabsShellStyle}>
                 {tabDefinitions.map((tab) => (
                   <a
@@ -673,7 +663,21 @@ export default async function AgentResourcesPage(props: {
               <p className="office-form-helper" style={{ margin: 0 }}>
                 {tabSubtitle[activeTab]}
               </p>
+            </div>
+          </SectionCard>
 
+          <SectionCard
+            className="office-list-card"
+            subtitle="Search vendors, videos, and documents from one place. Results stay inside the tab you're viewing."
+            title="Resources & Training"
+          >
+            <FrontOfficeResourceSearchForm
+              initialQuery={searchQuery}
+              placeholder="Search vendors, videos, documents..."
+              tab={activeTab}
+            />
+
+            <div style={{ marginTop: "1rem", display: "grid", gap: "0.9rem" }}>
               <div style={quickSearchRowStyle}>
                 {quickSearchExamples[activeTab].map((example) => (
                   <a
