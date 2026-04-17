@@ -36,18 +36,18 @@ export default async function ListingStudioListingsPage(
 
   return (
     <div className="office-list-page listing-studio-page">
-      <div className="listing-studio-shell">
-        <header className="listing-studio-shell-header">
-          <div className="listing-studio-shell-header-copy">
-            <span className="listing-studio-shell-eyebrow">Listing Studio</span>
-            <h1>Listings</h1>
-            <p>
-              Review every parsed packet imported from the Chrome extension, then
-              sort them into collections without leaving Listing Studio.
-            </p>
-          </div>
-        </header>
+      <section className="office-page-header listing-studio-header">
+        <div className="office-page-heading">
+          <span className="office-eyebrow">Listing Studio</span>
+          <h2>Listings</h2>
+          <p>
+            Review every parsed packet imported from the Chrome extension, then
+            sort them into collections without leaving Listing Studio.
+          </p>
+        </div>
+      </section>
 
+      <div className="listing-studio-shell">
         {deleted ? (
           <div className="listing-studio-status-message">
             Listing deleted from Listing Studio.
