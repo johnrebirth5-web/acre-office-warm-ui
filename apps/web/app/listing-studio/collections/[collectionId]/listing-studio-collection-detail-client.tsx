@@ -207,10 +207,10 @@ export function ListingStudioCollectionDetailClient({
 
   return (
     <div className="listing-studio-collection-detail-page">
-      <header className="listing-studio-shell-header">
-        <div className="listing-studio-shell-header-copy">
-          <span className="listing-studio-shell-eyebrow">Collections</span>
-          <h1>{detailState.name}</h1>
+      <section className="office-page-header listing-studio-header listing-studio-header-with-actions">
+        <div className="office-page-heading">
+          <span className="office-eyebrow">Collections</span>
+          <h2>{detailState.name}</h2>
           <p>
             {detailState.listingCount} saved listing
             {detailState.listingCount === 1 ? "" : "s"} in this folder. Updated{" "}
@@ -218,7 +218,7 @@ export function ListingStudioCollectionDetailClient({
           </p>
         </div>
 
-        <div className="listing-studio-shell-actions">
+        <div className="office-page-actions listing-studio-header-actions">
           <button
             className="office-button office-button-secondary"
             onClick={openManager}
@@ -227,7 +227,7 @@ export function ListingStudioCollectionDetailClient({
             Add listings
           </button>
         </div>
-      </header>
+      </section>
 
       {statusMessage ? (
         <p className="listing-studio-status-message">{statusMessage}</p>

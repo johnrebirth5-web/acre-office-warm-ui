@@ -1,19 +1,19 @@
 export default function ListingStudioSharesPage() {
   return (
     <div className="office-list-page listing-studio-page">
-      <div className="listing-studio-shell">
-        <header className="listing-studio-shell-header">
-          <div className="listing-studio-shell-header-copy">
-            <span className="listing-studio-shell-eyebrow">Listing Studio</span>
-            <h1>Shares</h1>
-            <p>
-              This section is reserved for the future share management center. The
-              navigation entry is ready, but the live workflow will be added in a
-              later pass.
-            </p>
-          </div>
-        </header>
+      <section className="office-page-header listing-studio-header">
+        <div className="office-page-heading">
+          <span className="office-eyebrow">Listing Studio</span>
+          <h2>Shares</h2>
+          <p>
+            This section is reserved for the future share management center. The
+            navigation entry is ready, but the live workflow will be added in a
+            later pass.
+          </p>
+        </div>
+      </section>
 
+      <div className="listing-studio-shell">
         <section className="listing-studio-toolbar-card listing-studio-placeholder-card">
           <strong>Share management center is coming next.</strong>
           <p>

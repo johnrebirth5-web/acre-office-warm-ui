@@ -25,18 +25,18 @@ export default async function ListingStudioCollectionsPage() {
 
   return (
     <div className="office-list-page listing-studio-page">
-      <div className="listing-studio-shell">
-        <header className="listing-studio-shell-header">
-          <div className="listing-studio-shell-header-copy">
-            <span className="listing-studio-shell-eyebrow">Listing Studio</span>
-            <h1>Collections</h1>
-            <p>
-              Build private client folders from imported listing packets, then use
-              the detail view to study how those homes spread across the map.
-            </p>
-          </div>
-        </header>
+      <section className="office-page-header listing-studio-header">
+        <div className="office-page-heading">
+          <span className="office-eyebrow">Listing Studio</span>
+          <h2>Collections</h2>
+          <p>
+            Build private client folders from imported listing packets, then use
+            the detail view to study how those homes spread across the map.
+          </p>
+        </div>
+      </section>
 
+      <div className="listing-studio-shell">
         <section className="listing-studio-toolbar-card">
           <CreateCollectionForm />
         </section>
