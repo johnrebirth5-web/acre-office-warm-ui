@@ -17858,16 +17858,22 @@ body,
 }
 
 .listing-studio-layout-shell .workspace-session-shell {
-  position: static;
-  top: auto;
-  right: auto;
-  z-index: auto;
-  justify-self: end;
-  max-width: 100%;
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  z-index: 4;
+  display: flex;
+  justify-content: flex-end;
+  max-width: calc(100% - 48px);
 }
 
 .listing-studio-layout-shell .workspace-session-inline {
   justify-content: flex-end;
+}
+
+.listing-studio-page > .office-page-header {
+  padding-top: 34px;
+  padding-right: clamp(0px, 22vw, 248px);
 }
 
 .listing-studio-page > * {
@@ -18221,7 +18227,8 @@ body,
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 18px;
-  padding: 28px 30px;
+  padding: 56px clamp(24px, 3vw, 30px) 28px 30px;
+  padding-right: clamp(30px, 24vw, 264px);
 }
 
 .listing-studio-shell-header-copy {
