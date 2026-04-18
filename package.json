@@ -20,7 +20,7 @@
     "deploy:digitalocean": "bash ./scripts/deploy-digitalocean.sh",
     "hooks:install": "git config core.hooksPath .githooks",
     "scan:secrets": "bash ./scripts/run-gitleaks.sh detect --source . --no-git --config .gitleaks.toml --redact --no-banner",
-    "test:backoffice-hardening": "tsx --test packages/auth/src/index.test.ts packages/db/src/access.test.ts packages/db/src/auth.test.ts packages/db/src/permissions.test.ts packages/db/src/settings.test.ts packages/db/src/transactions.test.ts apps/web/lib/auth-session.test.ts apps/web/lib/request-origin.test.ts apps/web/lib/document-storage.test.ts apps/web/lib/api/parse-body.test.ts apps/web/proxy.test.ts",
+    "test:backoffice-hardening": "tsx --test packages/auth/src/index.test.ts packages/db/src/access.test.ts packages/db/src/auth.test.ts packages/db/src/permissions.test.ts packages/db/src/settings.test.ts packages/db/src/transactions.test.ts apps/web/lib/auth-session.test.ts apps/web/lib/request-origin.test.ts apps/web/lib/document-storage.test.ts apps/web/lib/api/parse-body.test.ts apps/web/lib/rate-limit.test.ts apps/web/proxy.test.ts",
     "db:generate": "npm run db:generate --workspace=@acre/db",
     "db:migrate": "npm run db:migrate --workspace=@acre/db --",
     "db:seed": "npm run db:seed --workspace=@acre/db",

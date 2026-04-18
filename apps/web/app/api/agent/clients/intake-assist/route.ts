@@ -2,7 +2,12 @@ import { canViewOfficeContacts } from "@acre/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import { isSameOriginRequest } from "../../../../../lib/csrf";
-import { buildRateLimitKey, consumeRateLimit, type RateLimitOptions } from "../../../../../lib/rate-limit";
+import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  type RateLimitConsumer,
+  type RateLimitOptions,
+} from "../../../../../lib/rate-limit";
 import {
   handleFrontOfficeLeadIntakeAssistServerRoute,
 } from "../../../../../lib/front-office-intake-assist-server";
@@ -14,7 +19,7 @@ type IntakeAssistRouteDependencies = {
   csrf?: typeof isSameOriginRequest;
   getSessionContext?: typeof getRequestSessionContext;
   handleAssist?: typeof handleFrontOfficeLeadIntakeAssistServerRoute;
-  rateLimit?: typeof consumeRateLimit;
+  rateLimit?: RateLimitConsumer;
   rateLimitOptions?: RateLimitOptions;
 };
 
@@ -65,7 +70,7 @@ export async function handleIntakeAssistPost(
     return buildIntakeAssistErrorResponse("Lead intake review access required.", 403);
   }
 
-  const rateLimitDecision = (dependencies.rateLimit ?? consumeRateLimit)(
+  const rateLimitDecision = await (dependencies.rateLimit ?? consumeRateLimit)(
     getIntakeAssistRateLimitKey(request, context.currentMembership.id),
     dependencies.rateLimitOptions ?? DEFAULT_INTAKE_ASSIST_RATE_LIMIT_OPTIONS,
   );

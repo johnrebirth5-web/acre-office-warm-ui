@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
 import { getAppBaseUrl } from "../../../../../../lib/request-origin";
+import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  hashRateLimitSegment,
+} from "../../../../../../lib/rate-limit";
 import { listSignatureCompletionRecipients } from "../../../../../../lib/signature-completion-recipients";
 import { validateRecipientFieldSubmission } from "../../../../../../lib/public-signature-access";
 import { attemptSignatureDriveSync } from "../../../../../../lib/signature-drive-sync";
@@ -15,6 +20,11 @@ type RouteContext = {
   params: Promise<{
     token: string;
   }>;
+};
+
+const PUBLIC_SIGNATURE_SUBMIT_RATE_LIMIT_OPTIONS = {
+  limit: 15,
+  windowMs: 10 * 60 * 1000,
 };
 
 function buildSignedFileName(fileName: string) {
@@ -47,8 +57,37 @@ function getActiveRecipients(
   return actionable.filter((recipient) => recipient.routingStep === routingStep);
 }
 
+function buildSignatureSubmitRateLimitResponse(retryAfterSeconds: number) {
+  const response = NextResponse.json(
+    { error: "Too many signature submit attempts. Please try again in a moment." },
+    { status: 429 },
+  );
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Retry-After", String(retryAfterSeconds));
+  return response;
+}
+
+function getPublicSignatureSubmitRateLimitKey(request: NextRequest, token: string) {
+  return buildRateLimitKey(
+    "public/signatures/submit",
+    request,
+    hashRateLimitSegment(token),
+  );
+}
+
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const { token } = await params;
+  const rateLimitDecision = await consumeRateLimit(
+    getPublicSignatureSubmitRateLimitKey(request, token),
+    PUBLIC_SIGNATURE_SUBMIT_RATE_LIMIT_OPTIONS,
+  );
+
+  if (!rateLimitDecision.allowed) {
+    return buildSignatureSubmitRateLimitResponse(
+      rateLimitDecision.retryAfterSeconds,
+    );
+  }
+
   const snapshot = await getPublicSignatureRequestSnapshot(token);
   const documentRecord = await getPublicSignatureDocumentStorageRecord(token);
 

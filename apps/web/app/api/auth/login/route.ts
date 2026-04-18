@@ -8,7 +8,13 @@ import {
   mustChangePassword,
 } from "../../../../lib/auth-session";
 import { isSameOriginRequest } from "../../../../lib/csrf";
-import { buildRateLimitKey, consumeRateLimit, type RateLimitOptions } from "../../../../lib/rate-limit";
+import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  hashRateLimitSegment,
+  type RateLimitConsumer,
+  type RateLimitOptions,
+} from "../../../../lib/rate-limit";
 import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../lib/request-origin";
 
@@ -16,7 +22,7 @@ type LoginRouteDependencies = {
   authenticatePasswordUser?: typeof authenticatePasswordUser;
   csrf?: typeof isSameOriginRequest;
   getRequestOrigin?: typeof getRequestOrigin;
-  rateLimit?: typeof consumeRateLimit;
+  rateLimit?: RateLimitConsumer;
   rateLimitOptions?: RateLimitOptions;
 };
 
@@ -41,7 +47,11 @@ function buildLoginRedirect(requestOrigin: string, error: string) {
 }
 
 function getLoginRateLimitKey(request: NextRequest, email: string) {
-  return buildRateLimitKey("auth/login", request, email || "anonymous");
+  return buildRateLimitKey(
+    "auth/login",
+    request,
+    email ? hashRateLimitSegment(email) : "anonymous",
+  );
 }
 
 export async function handleLoginPost(request: NextRequest, dependencies: LoginRouteDependencies = {}) {
@@ -55,7 +65,7 @@ export async function handleLoginPost(request: NextRequest, dependencies: LoginR
   const formData = await request.formData();
   const email = String(formData.get("workEmail") ?? formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("workPassword") ?? formData.get("password") ?? "");
-  const rateLimitDecision = (dependencies.rateLimit ?? consumeRateLimit)(
+  const rateLimitDecision = await (dependencies.rateLimit ?? consumeRateLimit)(
     getLoginRateLimitKey(request, email),
     dependencies.rateLimitOptions ?? DEFAULT_LOGIN_RATE_LIMIT_OPTIONS
   );

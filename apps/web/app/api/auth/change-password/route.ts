@@ -4,10 +4,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseFormData } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext, mustChangePassword } from "../../../../lib/auth-session";
 import { getRequestOrigin } from "../../../../lib/request-origin";
+import { buildRateLimitKey, consumeRateLimit } from "../../../../lib/rate-limit";
 import { changePasswordFormSchema } from "./route.schema";
+
+const CHANGE_PASSWORD_RATE_LIMIT_OPTIONS = {
+  limit: 10,
+  windowMs: 15 * 60 * 1000,
+};
 
 function buildErrorRedirect(requestOrigin: string, error: string) {
   return NextResponse.redirect(new URL(`/change-password?error=${error}`, requestOrigin), 303);
+}
+
+function getChangePasswordRateLimitKey(request: NextRequest, membershipId: string) {
+  return buildRateLimitKey(
+    "auth/change-password",
+    request,
+    membershipId || "anonymous",
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -18,6 +32,15 @@ export async function POST(request: NextRequest) {
 
   if (!context) {
     return NextResponse.redirect(new URL("/login", requestOrigin), 303);
+  }
+
+  const rateLimitDecision = await consumeRateLimit(
+    getChangePasswordRateLimitKey(request, context.currentMembership.id),
+    CHANGE_PASSWORD_RATE_LIMIT_OPTIONS,
+  );
+
+  if (!rateLimitDecision.allowed) {
+    return buildErrorRedirect(requestOrigin, "rate_limited");
   }
 
   const formData = await request.formData();

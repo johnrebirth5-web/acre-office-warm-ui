@@ -19,6 +19,8 @@ function getErrorMessage(error?: string) {
       return "Password is too short.";
     case "missing_password":
       return "Enter a password to continue.";
+    case "rate_limited":
+      return "Too many invitation attempts. Please wait a moment and try again.";
     default:
       return error ? "Unable to complete this invitation." : "";
   }

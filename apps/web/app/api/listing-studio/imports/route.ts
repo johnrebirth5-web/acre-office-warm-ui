@@ -3,11 +3,22 @@ import { createStudioListingImport } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getAppBaseUrl } from "../../../../lib/request-origin";
 import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  hashRateLimitSegment,
+} from "../../../../lib/rate-limit";
+import {
   ensureListingStudioStorageConfigured,
+  getListingStudioBearerToken,
   getListingStudioExtensionContext,
 } from "../../../../lib/listing-studio";
 
 export const runtime = "nodejs";
+
+const LISTING_STUDIO_IMPORT_RATE_LIMIT_OPTIONS = {
+  limit: 20,
+  windowMs: 10 * 60 * 1000,
+};
 
 function parseSourceSite(value: unknown) {
   return value === StudioListingSourceSite.streeteasy ||
@@ -16,7 +27,38 @@ function parseSourceSite(value: unknown) {
     : null;
 }
 
+function buildListingStudioImportRateLimitResponse(retryAfterSeconds: number) {
+  const response = NextResponse.json(
+    { error: "Too many listing import attempts. Please try again in a moment." },
+    { status: 429 },
+  );
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Retry-After", String(retryAfterSeconds));
+  return response;
+}
+
+function getListingStudioImportRateLimitKey(request: NextRequest) {
+  const bearerToken = getListingStudioBearerToken(request);
+
+  return buildRateLimitKey(
+    "listing-studio/imports",
+    request,
+    bearerToken ? hashRateLimitSegment(bearerToken) : "anonymous",
+  );
+}
+
 export async function POST(request: NextRequest) {
+  const rateLimitDecision = await consumeRateLimit(
+    getListingStudioImportRateLimitKey(request),
+    LISTING_STUDIO_IMPORT_RATE_LIMIT_OPTIONS,
+  );
+
+  if (!rateLimitDecision.allowed) {
+    return buildListingStudioImportRateLimitResponse(
+      rateLimitDecision.retryAfterSeconds,
+    );
+  }
+
   const extensionContext = await getListingStudioExtensionContext(request);
 
   if (!extensionContext) {

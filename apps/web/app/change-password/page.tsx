@@ -31,6 +31,8 @@ function getErrorMessage(
       });
     case "missing_password":
       return t((messages) => messages.auth.errorMissingPassword);
+    case "rate_limited":
+      return t((messages) => messages.auth.errorRateLimited);
     default:
       return error ? t((messages) => messages.auth.errorUnknown) : "";
   }

@@ -7,6 +7,7 @@ import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
 import {
   buildRateLimitKey,
   consumeRateLimit,
+  type RateLimitConsumer,
   type RateLimitOptions,
 } from "../../../../../../../lib/rate-limit";
 import {
@@ -48,7 +49,7 @@ type SignatureRequestRouteDependencies = {
   getAppBaseUrl?: typeof getAppBaseUrl;
   getRequestSessionContext?: typeof getRequestSessionContext;
   getSignatureEditorSnapshot?: typeof getSignatureEditorSnapshot;
-  rateLimit?: typeof consumeRateLimit;
+  rateLimit?: RateLimitConsumer;
   rateLimitOptions?: RateLimitOptions;
   sendSignatureRequestEmail?: typeof sendSignatureRequestEmail;
   updateSignatureRequest?: typeof updateSignatureRequest;
@@ -143,7 +144,7 @@ export async function handleSignatureRequestPatch(
       }
 
       if (action === "send" || action === "resend") {
-        const rateLimitDecision = (
+        const rateLimitDecision = await (
           dependencies.rateLimit ?? consumeRateLimit
         )(
           getSignatureSendRateLimitKey(

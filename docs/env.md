@@ -202,6 +202,68 @@ ACRE_BASE_URL="https://acresystem.us"
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
 
+### `ACRE_RATE_LIMIT_BACKEND`
+
+用途：
+
+- 选择写接口 rate limit 的共享后端
+- 当前支持：
+  - `memory`：默认值，单进程内存窗口计数
+  - `upstash`：通过 Upstash Redis REST API 共享计数，适合多实例/容器
+- 当前由 `apps/web/lib/rate-limit.ts` 读取
+
+是否必填：
+
+- 非必填
+- 缺失时默认使用 `memory`
+- 生产如果要跨实例共享限流，应显式改成 `upstash`
+
+示例格式：
+
+```env
+ACRE_RATE_LIMIT_BACKEND="memory"
+```
+
+使用建议：
+
+- 本地开发和单实例测试环境继续用 `memory`
+- 多实例或会横向扩容的环境应改用 `upstash`
+- 如果显式设置为 `upstash`，则必须同时提供 `ACRE_UPSTASH_REDIS_REST_URL` 和 `ACRE_UPSTASH_REDIS_REST_TOKEN`
+
+### `ACRE_UPSTASH_REDIS_REST_URL`
+
+用途：
+
+- Upstash Redis 的 REST API base URL
+- 仅在 `ACRE_RATE_LIMIT_BACKEND="upstash"` 时使用
+
+是否必填：
+
+- 仅在使用 `upstash` 后端时必填
+
+示例格式：
+
+```env
+ACRE_UPSTASH_REDIS_REST_URL="https://example.upstash.io"
+```
+
+### `ACRE_UPSTASH_REDIS_REST_TOKEN`
+
+用途：
+
+- Upstash Redis REST API bearer token
+- 仅在 `ACRE_RATE_LIMIT_BACKEND="upstash"` 时使用
+
+是否必填：
+
+- 仅在使用 `upstash` 后端时必填
+
+示例格式：
+
+```env
+ACRE_UPSTASH_REDIS_REST_TOKEN="replace-with-upstash-rest-token"
+```
+
 ### `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
 
 用途：

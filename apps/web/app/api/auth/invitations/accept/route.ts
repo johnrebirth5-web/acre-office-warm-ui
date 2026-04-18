@@ -9,10 +9,24 @@ import {
 import { parseFormData } from "../../../../../lib/api/parse-body";
 import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../../lib/request-origin";
+import { buildRateLimitKey, consumeRateLimit, hashRateLimitSegment } from "../../../../../lib/rate-limit";
 import { acceptInvitationFormSchema } from "./route.schema";
+
+const INVITATION_ACCEPT_RATE_LIMIT_OPTIONS = {
+  limit: 10,
+  windowMs: 15 * 60 * 1000,
+};
 
 function buildInviteRedirect(requestOrigin: string, token: string, error: string) {
   return NextResponse.redirect(new URL(`/invite/${token}?error=${error}`, requestOrigin), 303);
+}
+
+function getInvitationAcceptRateLimitKey(request: NextRequest, token: string) {
+  return buildRateLimitKey(
+    "auth/invitations/accept",
+    request,
+    hashRateLimitSegment(token),
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -22,6 +36,15 @@ export async function POST(request: NextRequest) {
 
   if (!token) {
     return NextResponse.redirect(new URL("/login", requestOrigin), 303);
+  }
+
+  const rateLimitDecision = await consumeRateLimit(
+    getInvitationAcceptRateLimitKey(request, token),
+    INVITATION_ACCEPT_RATE_LIMIT_OPTIONS,
+  );
+
+  if (!rateLimitDecision.allowed) {
+    return buildInviteRedirect(requestOrigin, token, "rate_limited");
   }
 
   const parsedForm = parseFormData(formData, acceptInvitationFormSchema);

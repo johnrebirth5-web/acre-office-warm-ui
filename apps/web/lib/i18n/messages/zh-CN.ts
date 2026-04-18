@@ -94,6 +94,7 @@ export const zhCNMessages = {
     errorCurrentPassword: "当前密码不正确。",
     errorPasswordLength: "密码长度至少为 {min} 个字符。",
     errorMissingPassword: "请输入新密码后再继续。",
+    errorRateLimited: "修改密码尝试次数过多，请稍后再试。",
     errorUnknown: "无法修改密码，请重试。",
   },
   localeSwitcher: {

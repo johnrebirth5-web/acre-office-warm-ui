@@ -94,6 +94,7 @@ export const enUSMessages = {
     errorCurrentPassword: "Current password is incorrect.",
     errorPasswordLength: "Password must be at least {min} characters.",
     errorMissingPassword: "Enter a new password to continue.",
+    errorRateLimited: "Too many password change attempts. Please wait a moment and try again.",
     errorUnknown: "Unable to change password. Try again.",
   },
   localeSwitcher: {
