@@ -1,7 +1,15 @@
 import { canEditOfficeTransactions, canManageOfficeTransactionStatus } from "@acre/auth";
-import { getOfficeTransactionIntakeSchema, getTransactionById, prepareTransactionIntakeSubmission, updateTransactionIntake } from "@acre/db";
+import {
+  getOfficeTransactionIntakeSchema,
+  getTransactionById,
+  prepareTransactionIntakeSubmission,
+  type SessionMembershipContext,
+  updateTransactionIntake,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { updateOfficeTransactionIntakeBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,20 +17,34 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionIntakeRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  getTransactionById?: typeof getTransactionById;
+  getOfficeTransactionIntakeSchema?: typeof getOfficeTransactionIntakeSchema;
+  prepareTransactionIntakeSubmission?: typeof prepareTransactionIntakeSubmission;
+  updateTransactionIntake?: typeof updateTransactionIntake;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeTransactionIntakePatch(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionIntakeRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeTransactionIntakeBodySchema, {
+    error: "Transaction intake payload is invalid.",
+    invalidJsonError: "Transaction intake request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canEditOfficeTransactions(context.currentMembership)) {
-    return NextResponse.json({ error: "Transaction edit access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-  const existingTransaction = await getTransactionById({
+  const existingTransaction = await (
+    dependencies.getTransactionById ?? getTransactionById
+  )({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     transactionId,
@@ -35,12 +57,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   try {
     const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
-    const schema = await getOfficeTransactionIntakeSchema({
+    const schema = await (
+      dependencies.getOfficeTransactionIntakeSchema ??
+      getOfficeTransactionIntakeSchema
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
-    const requestBody = body ?? {};
-    const submission = prepareTransactionIntakeSubmission({
+    const requestBody = parsedBody.data;
+    const submission = (
+      dependencies.prepareTransactionIntakeSubmission ??
+      prepareTransactionIntakeSubmission
+    )({
       schema,
       payload: {
         ...requestBody,
@@ -51,7 +79,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       },
       existingTransaction
     });
-    const transaction = await updateTransactionIntake({
+    const transaction = await (
+      dependencies.updateTransactionIntake ?? updateTransactionIntake
+    )({
       organizationId: context.currentOrganization.id,
       transactionId,
       actorMembershipId: context.currentMembership.id,
@@ -89,4 +119,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canEditOfficeTransactions(context.currentMembership)) {
+    return NextResponse.json({ error: "Transaction edit access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleUpdateOfficeTransactionIntakePatch(request, transactionId, context);
 }

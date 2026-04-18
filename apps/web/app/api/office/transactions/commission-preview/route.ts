@@ -1,36 +1,48 @@
 import { canCreateOfficeTransactions } from "@acre/auth";
 import {
   getOfficeTransactionOwnerAssignment,
+  type SessionMembershipContext,
   previewCreateTransactionCommissionCalculator
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { createOfficeTransactionCommissionPreviewBodySchema } from "./route.schema";
 
-export async function POST(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionCommissionPreviewRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  getOfficeTransactionOwnerAssignment?: typeof getOfficeTransactionOwnerAssignment;
+  previewCreateTransactionCommissionCalculator?: typeof previewCreateTransactionCommissionCalculator;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleCreateOfficeTransactionCommissionPreviewPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionCommissionPreviewRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeTransactionCommissionPreviewBodySchema, {
+    error: "Commission preview payload is invalid.",
+    invalidJsonError: "Commission preview request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canCreateOfficeTransactions(context.currentMembership)) {
-    return NextResponse.json({ error: "Transaction create access required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-
-  if (!body) {
-    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
-  }
+  const body = parsedBody.data;
 
   try {
-    const ownerAssignment = await getOfficeTransactionOwnerAssignment({
+    const ownerAssignment = await (
+      dependencies.getOfficeTransactionOwnerAssignment ??
+      getOfficeTransactionOwnerAssignment
+    )({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null
     });
-    const requestedOwnerMembershipId =
-      typeof body.ownerMembershipId === "string" ? body.ownerMembershipId.trim() : "";
+    const requestedOwnerMembershipId = body.ownerMembershipId?.trim() ?? "";
     let ownerMembershipId = context.currentMembership.id;
 
     if (ownerAssignment.canSelectDifferentOwner) {
@@ -45,26 +57,23 @@ export async function POST(request: NextRequest) {
       throw new Error("Sales users can only create transactions for themselves.");
     }
 
-    const preview = await previewCreateTransactionCommissionCalculator({
+    const preview = await (
+      dependencies.previewCreateTransactionCommissionCalculator ??
+      previewCreateTransactionCommissionCalculator
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       ownerMembershipId,
-      grossCommission: typeof body.grossCommission === "string" ? body.grossCommission : "",
-      fees: Array.isArray(body.fees)
-        ? body.fees.map((fee) => {
-            const record = fee && typeof fee === "object" ? (fee as Record<string, unknown>) : {};
-
-            return {
-              feeType: typeof record.feeType === "string" ? record.feeType : "",
-              rate: typeof record.rate === "string" ? record.rate : undefined,
-              amount: typeof record.amount === "string" ? record.amount : undefined,
-              selectedCalculationType:
-                typeof record.selectedCalculationType === "string" ? record.selectedCalculationType : undefined,
-              approvalStatus: typeof record.approvalStatus === "string" ? record.approvalStatus : undefined,
-              notes: typeof record.notes === "string" ? record.notes : undefined
-            };
-          })
-        : []
+      grossCommission: body.grossCommission ?? "",
+      fees:
+        body.fees?.map((fee) => ({
+          feeType: fee.feeType ?? "",
+          rate: fee.rate ?? undefined,
+          amount: fee.amount ?? undefined,
+          selectedCalculationType: fee.selectedCalculationType ?? undefined,
+          approvalStatus: fee.approvalStatus ?? undefined,
+          notes: fee.notes ?? undefined
+        })) ?? []
     });
 
     return NextResponse.json({ preview });
@@ -76,4 +85,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canCreateOfficeTransactions(context.currentMembership)) {
+    return NextResponse.json({ error: "Transaction create access required." }, { status: 403 });
+  }
+
+  return handleCreateOfficeTransactionCommissionPreviewPost(request, context);
 }

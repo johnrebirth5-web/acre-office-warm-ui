@@ -1,7 +1,14 @@
 import { canManageOfficeOffers } from "@acre/auth";
-import { createOffer, getOfficeOfferFieldSchema, prepareOfferFieldSubmission } from "@acre/db";
+import {
+  createOffer,
+  getOfficeOfferFieldSchema,
+  prepareOfferFieldSubmission,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { createOfficeOfferBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,30 +16,48 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionOffersRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  getOfficeOfferFieldSchema?: typeof getOfficeOfferFieldSchema;
+  prepareOfferFieldSubmission?: typeof prepareOfferFieldSubmission;
+  createOffer?: typeof createOffer;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleCreateOfficeOfferPost(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionOffersRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeOfferBodySchema, {
+    error: "Offer payload is invalid.",
+    invalidJsonError: "Offer request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
-
-  if (!canManageOfficeOffers(context.currentMembership)) {
-    return NextResponse.json({ error: "Offer management access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   try {
-    const schema = await getOfficeOfferFieldSchema({
+    const schema = await (
+      dependencies.getOfficeOfferFieldSchema ??
+      getOfficeOfferFieldSchema
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
-    const submission = prepareOfferFieldSubmission({
+    const submission = (
+      dependencies.prepareOfferFieldSubmission ??
+      prepareOfferFieldSubmission
+    )({
       schema,
-      payload: body ?? {}
+      payload: parsedBody.data
     });
-    const offer = await createOffer({
+    const offer = await (
+      dependencies.createOffer ?? createOffer
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
@@ -60,4 +85,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeOffers(context.currentMembership)) {
+    return NextResponse.json({ error: "Offer management access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleCreateOfficeOfferPost(request, transactionId, context);
 }
