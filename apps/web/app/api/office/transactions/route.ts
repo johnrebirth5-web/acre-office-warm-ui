@@ -13,15 +13,17 @@ import {
   listTransactions,
   prepareTransactionIntakeSubmission,
   type OfficeTransactionStatus,
+  type SessionMembershipContext,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 import {
   parseAllowedString,
   parsePositiveInteger,
-  readJsonObject,
 } from "../../../../lib/validate";
 import { isCreateTransactionStatusValue } from "../../../office/transactions/transaction-status-rules";
+import { createOfficeTransactionBodySchema } from "./route.schema";
 
 const transactionStatusOptions = [
   "All",
@@ -149,6 +151,17 @@ function applyCreateTransactionStatusRules(
   };
 }
 
+type CreateOfficeTransactionsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  getOfficeTransactionIntakeSchema?: typeof getOfficeTransactionIntakeSchema;
+  getOfficeTransactionOwnerAssignment?: typeof getOfficeTransactionOwnerAssignment;
+  getFrontOfficeHandoffPrefill?: typeof getFrontOfficeHandoffPrefill;
+  commitFrontOfficeHandoffDraft?: typeof commitFrontOfficeHandoffDraft;
+  prepareTransactionIntakeSubmission?: typeof prepareTransactionIntakeSubmission;
+  createTransaction?: typeof createTransaction;
+  linkContactToTransaction?: typeof linkContactToTransaction;
+};
+
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -213,31 +226,23 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result);
 }
 
-export async function POST(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+export async function handleCreateOfficeTransactionsPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: CreateOfficeTransactionsRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeTransactionBodySchema, {
+    error: "Transaction create payload is invalid.",
+    invalidJsonError: "Transaction create request body must be valid JSON.",
+  });
 
-  if (!context) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 },
-    );
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canCreateOfficeTransactions(context.currentMembership)) {
-    return NextResponse.json(
-      { error: "Transaction create access required." },
-      { status: 403 },
-    );
-  }
-
-  const body = await readJsonObject(request);
-
-  if (!body) {
-    return NextResponse.json(
-      { error: invalidTransactionRequestError },
-      { status: 400 },
-    );
-  }
+  const body = parsedBody.data;
 
   const handoffDraftId =
     typeof body.handoffDraftId === "string" ? body.handoffDraftId.trim() : "";
@@ -254,18 +259,27 @@ export async function POST(request: NextRequest) {
       context.currentMembership,
     );
     const schema = applyCreateTransactionStatusRules(
-      await getOfficeTransactionIntakeSchema({
+      await (
+        dependencies.getOfficeTransactionIntakeSchema ??
+        getOfficeTransactionIntakeSchema
+      )({
         organizationId: context.currentOrganization.id,
         officeId: context.currentOffice?.id ?? null,
       }),
     );
-    const ownerAssignment = await getOfficeTransactionOwnerAssignment({
+    const ownerAssignment = await (
+      dependencies.getOfficeTransactionOwnerAssignment ??
+      getOfficeTransactionOwnerAssignment
+    )({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
     });
     if (handoffDraftId) {
-      const handoffPrefill = await getFrontOfficeHandoffPrefill({
+      const handoffPrefill = await (
+        dependencies.getFrontOfficeHandoffPrefill ??
+        getFrontOfficeHandoffPrefill
+      )({
         organizationId: context.currentOrganization.id,
         handoffDraftId,
         officeId: context.currentOffice?.id ?? null,
@@ -300,7 +314,10 @@ export async function POST(request: NextRequest) {
 
       linkedFrontOfficeClientId = handoffPrefill.clientId;
 
-      const claimResult = await commitFrontOfficeHandoffDraft({
+      const claimResult = await (
+        dependencies.commitFrontOfficeHandoffDraft ??
+        commitFrontOfficeHandoffDraft
+      )({
         organizationId: context.currentOrganization.id,
         handoffDraftId,
         actorMembershipId: context.currentMembership.id,
@@ -321,7 +338,10 @@ export async function POST(request: NextRequest) {
 
     const submission = (() => {
       try {
-        return prepareTransactionIntakeSubmission({
+        return (
+          dependencies.prepareTransactionIntakeSubmission ??
+          prepareTransactionIntakeSubmission
+        )({
           schema,
           payload: canManageTransactionStatus
             ? body
@@ -383,7 +403,9 @@ export async function POST(request: NextRequest) {
       transactionStatus = submission.transactionStatus;
     }
 
-    const transaction = await createTransaction({
+    const transaction = await (
+      dependencies.createTransaction ?? createTransaction
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id,
       ownerMembershipId,
@@ -420,36 +442,21 @@ export async function POST(request: NextRequest) {
           : undefined,
       financeNotes:
         typeof body.financeNotes === "string" ? body.financeNotes : undefined,
-      fees: Array.isArray(body.fees)
-        ? body.fees.map((fee) => {
-            const record =
-              fee && typeof fee === "object"
-                ? (fee as Record<string, unknown>)
-                : {};
-
-            return {
-              feeType: typeof record.feeType === "string" ? record.feeType : "",
-              rate: typeof record.rate === "string" ? record.rate : undefined,
-              amount:
-                typeof record.amount === "string" ? record.amount : undefined,
-              selectedCalculationType:
-                typeof record.selectedCalculationType === "string"
-                  ? record.selectedCalculationType
-                  : undefined,
-              approvalStatus:
-                typeof record.approvalStatus === "string"
-                  ? record.approvalStatus
-                  : undefined,
-              notes:
-                typeof record.notes === "string" ? record.notes : undefined,
-            };
-          })
-        : undefined,
+      fees: body.fees?.map((fee) => ({
+        feeType: fee.feeType ?? "",
+        rate: fee.rate ?? undefined,
+        amount: fee.amount ?? undefined,
+        selectedCalculationType: fee.selectedCalculationType ?? undefined,
+        approvalStatus: fee.approvalStatus ?? undefined,
+        notes: fee.notes ?? undefined,
+      })),
       additionalFields: submission.additionalFields,
     });
 
     if (linkedFrontOfficeClientId) {
-      await linkContactToTransaction(
+      await (
+        dependencies.linkContactToTransaction ?? linkContactToTransaction
+      )(
         context.currentOrganization.id,
         linkedFrontOfficeClientId,
         transaction.id,
@@ -461,7 +468,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (handoffDraftId) {
-      const handoffCommitResult = await commitFrontOfficeHandoffDraft({
+      const handoffCommitResult = await (
+        dependencies.commitFrontOfficeHandoffDraft ??
+        commitFrontOfficeHandoffDraft
+      )({
         organizationId: context.currentOrganization.id,
         handoffDraftId,
         transactionId: transaction.id,
@@ -471,7 +481,10 @@ export async function POST(request: NextRequest) {
 
       const handoffCleanupResult =
         !handoffCommitResult.ok && handoffClaimToken
-          ? await commitFrontOfficeHandoffDraft({
+          ? await (
+              dependencies.commitFrontOfficeHandoffDraft ??
+              commitFrontOfficeHandoffDraft
+            )({
               organizationId: context.currentOrganization.id,
               handoffDraftId,
               claimToken: handoffClaimToken,
@@ -513,7 +526,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ transaction }, { status: 201 });
   } catch {
     if (handoffDraftId && handoffClaimToken) {
-      await commitFrontOfficeHandoffDraft({
+      await (
+        dependencies.commitFrontOfficeHandoffDraft ??
+        commitFrontOfficeHandoffDraft
+      )({
         organizationId: context.currentOrganization.id,
         handoffDraftId,
         claimToken: handoffClaimToken,
@@ -528,4 +544,24 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json(
+      { error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+
+  if (!canCreateOfficeTransactions(context.currentMembership)) {
+    return NextResponse.json(
+      { error: "Transaction create access required." },
+      { status: 403 },
+    );
+  }
+
+  return handleCreateOfficeTransactionsPost(request, context);
 }
