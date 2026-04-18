@@ -174,6 +174,7 @@
   - `office/settings/users/[membershipId]/permissions` 已补 PATCH body schema、DELETE query validation 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/settings/users/[membershipId]/invitation` 已补 POST body schema 与 handler-level regression tests，`unlock` 也已补 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/transactions/[transactionId]` 状态更新、`contacts` 绑定、`incoming-updates/[incomingUpdateId]` 审核、`offers/[offerId]/comments` 评论已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
+  - `office/transactions/[transactionId]/incoming-updates` 创建、`forms` 创建、`forms/[formId]` 更新已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office signature send/resend` PATCH 路由已接入统一权限 wrapper，去掉重复 session / 403 分支（2026-04-11，pending）
   - 新增 `withApiGuard` 统一收口 `csrf + auth + permission + prepare + rate limit`，并把 `login`、`FO intake-assist`、`office signature request PATCH` 三条高复用入口迁到共享 guard；对应 route tests 已纳入 `test:backoffice-hardening`（2026-04-17，pending）
   - `change-password`、`invitation accept`、`public signature submit` 已迁到共享 `withApiGuard`，补齐了 redirect/429 级别的 route regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）

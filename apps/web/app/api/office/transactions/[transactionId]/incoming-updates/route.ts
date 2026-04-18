@@ -1,8 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { canReviewOfficeIncomingUpdates } from "@acre/auth";
-import { createIncomingUpdate } from "@acre/db";
+import {
+  createIncomingUpdate,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { createOfficeIncomingUpdateBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -10,41 +15,40 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeIncomingUpdatesRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  createIncomingUpdate?: typeof createIncomingUpdate;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
+export async function handleCreateOfficeIncomingUpdatePost(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeIncomingUpdatesRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeIncomingUpdateBodySchema, {
+    error: "Incoming update payload is invalid.",
+    invalidJsonError: "Incoming update request body must be valid JSON.",
+  });
 
-  if (!canReviewOfficeIncomingUpdates(context.currentMembership)) {
-    return NextResponse.json({ error: "Incoming updates access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        sourceSystem?: string;
-        sourceReference?: string;
-        summary?: string;
-        payload?: Record<string, unknown>;
-      }
-    | null;
-
-  if (!body?.sourceSystem?.trim() || !body.sourceReference?.trim() || !body.summary?.trim()) {
-    return NextResponse.json({ error: "Source system, source reference, and summary are required." }, { status: 400 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
   try {
-    const incomingUpdate = await createIncomingUpdate({
+    const incomingUpdate = await (
+      dependencies.createIncomingUpdate ?? createIncomingUpdate
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
       actorMembershipId: context.currentMembership.id,
-      sourceSystem: body.sourceSystem,
-      sourceReference: body.sourceReference,
-      summary: body.summary,
-      payload: (body.payload ?? {}) as Record<string, Prisma.JsonValue>
+      sourceSystem: parsedBody.data.sourceSystem,
+      sourceReference: parsedBody.data.sourceReference,
+      summary: parsedBody.data.summary,
+      payload: (parsedBody.data.payload ?? {}) as Record<string, Prisma.JsonValue>
     });
 
     if (!incomingUpdate) {
@@ -58,4 +62,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canReviewOfficeIncomingUpdates(context.currentMembership)) {
+    return NextResponse.json({ error: "Incoming updates access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleCreateOfficeIncomingUpdatePost(request, transactionId, context);
 }

@@ -1,7 +1,12 @@
 import { canUseOfficeForms } from "@acre/auth";
-import { updateTransactionForm } from "@acre/db";
+import {
+  updateTransactionForm,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateOfficeTransactionFormBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -10,39 +15,42 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionFormRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateTransactionForm?: typeof updateTransactionForm;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeTransactionFormPatch(
+  request: NextRequest,
+  transactionId: string,
+  formId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionFormRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeTransactionFormBodySchema, {
+    error: "Transaction form update payload is invalid.",
+    invalidJsonError: "Transaction form update request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
-
-  if (!canUseOfficeForms(context.currentMembership)) {
-    return NextResponse.json({ error: "Form access required." }, { status: 403 });
-  }
-
-  const { transactionId, formId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        name?: string;
-        linkedTaskId?: string | null;
-        offerId?: string | null;
-        generatedPayload?: Record<string, string>;
-        status?: string;
-      }
-    | null;
 
   try {
-    const form = await updateTransactionForm({
+    const form = await (
+      dependencies.updateTransactionForm ?? updateTransactionForm
+    )({
       organizationId: context.currentOrganization.id,
       transactionId,
       formId,
       actorMembershipId: context.currentMembership.id,
-      name: body?.name,
-      linkedTaskId: body?.linkedTaskId ?? undefined,
-      offerId: body?.offerId ?? undefined,
-      generatedPayload: body?.generatedPayload,
-      status: body?.status as never
+      name: parsedBody.data.name,
+      linkedTaskId: parsedBody.data.linkedTaskId ?? undefined,
+      offerId: parsedBody.data.offerId ?? undefined,
+      generatedPayload: parsedBody.data.generatedPayload,
+      status: parsedBody.data.status as never
     });
 
     if (!form) {
@@ -56,4 +64,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canUseOfficeForms(context.currentMembership)) {
+    return NextResponse.json({ error: "Form access required." }, { status: 403 });
+  }
+
+  const { transactionId, formId } = await params;
+  return handleUpdateOfficeTransactionFormPatch(request, transactionId, formId, context);
 }
