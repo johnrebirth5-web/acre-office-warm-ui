@@ -1,13 +1,23 @@
 import { canManageOfficeSettings } from "@acre/auth";
 import {
   type PermissionOverrideValue,
+  type SessionMembershipContext,
   resetMembershipOfficePermissionOverrides,
   resetMembershipPermissionOverrides,
   saveMembershipOfficePermissionOverrides,
   saveMembershipPermissionOverrides,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  buildValidationErrorResponse,
+  flattenZodFieldErrors,
+  parseJsonBody,
+} from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import {
+  resetOfficeUserPermissionsQuerySchema,
+  updateOfficeUserPermissionsBodySchema,
+} from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -31,49 +41,79 @@ function normalizeScope(value: string | undefined) {
   return "global" as const;
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeUserPermissionsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveMembershipOfficePermissionOverrides?: typeof saveMembershipOfficePermissionOverrides;
+  saveMembershipPermissionOverrides?: typeof saveMembershipPermissionOverrides;
+  resetMembershipOfficePermissionOverrides?: typeof resetMembershipOfficePermissionOverrides;
+  resetMembershipPermissionOverrides?: typeof resetMembershipPermissionOverrides;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+function parseResetPermissionsQuery(request: NextRequest) {
+  const parsed = resetOfficeUserPermissionsQuerySchema.safeParse({
+    scope: request.nextUrl.searchParams.get("scope") ?? undefined,
+    officeId: request.nextUrl.searchParams.get("officeId") ?? undefined,
+  });
+
+  if (parsed.success) {
+    return {
+      ok: true as const,
+      data: parsed.data,
+    };
   }
 
-  if (!canManageOfficeSettings(context.currentMembership)) {
-    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
-  }
+  const fieldErrors = flattenZodFieldErrors(parsed.error);
+  return {
+    ok: false as const,
+    response: buildValidationErrorResponse(
+      fieldErrors,
+      "Permission reset request is invalid.",
+    ),
+  };
+}
 
-  const { membershipId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        overrides?: Array<{
-          permissionKey?: string;
-          effect?: string;
-        }>;
-        scope?: string;
-        officeId?: string;
-      }
-    | null;
+export async function handleUpdateOfficeUserPermissionsPatch(
+  request: NextRequest,
+  membershipId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeUserPermissionsRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeUserPermissionsBodySchema, {
+    error: "Permission override payload is invalid.",
+    invalidJsonError: "Permission override request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
 
   try {
-    const scope = normalizeScope(body?.scope);
+    const scope = normalizeScope(parsedBody.data.scope);
     const overrides: Array<{
       permissionKey: string;
       effect: PermissionOverrideValue;
-    }> =
-      body?.overrides?.map((override) => ({
+    }> = (parsedBody.data.overrides ?? []).map((override) => ({
         permissionKey: override.permissionKey ?? "",
         effect: normalizeOverrideEffect(override.effect)
-      })) ?? [];
+      }));
     const permissions =
       scope === "company"
-        ? await saveMembershipOfficePermissionOverrides({
+        ? await (
+            dependencies.saveMembershipOfficePermissionOverrides ??
+            saveMembershipOfficePermissionOverrides
+          )({
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
-            officeId: typeof body?.officeId === "string" ? body.officeId : "",
+            officeId: parsedBody.data.officeId ?? "",
             overrides,
           })
-        : await saveMembershipPermissionOverrides({
+        : await (
+            dependencies.saveMembershipPermissionOverrides ??
+            saveMembershipPermissionOverrides
+          )({
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
@@ -89,31 +129,37 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+export async function handleResetOfficeUserPermissionsDelete(
+  request: NextRequest,
+  membershipId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeUserPermissionsRouteDependencies = {},
+) {
+  const parsedQuery = parseResetPermissionsQuery(request);
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!parsedQuery.ok) {
+    return parsedQuery.response;
   }
 
-  if (!canManageOfficeSettings(context.currentMembership)) {
-    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
-  }
-
-  const { membershipId } = await params;
-  const scope = normalizeScope(request.nextUrl.searchParams.get("scope") ?? undefined);
-  const officeId = request.nextUrl.searchParams.get("officeId") ?? "";
+  const scope = normalizeScope(parsedQuery.data.scope);
+  const officeId = parsedQuery.data.officeId ?? "";
 
   try {
     const permissions =
       scope === "company"
-        ? await resetMembershipOfficePermissionOverrides({
+        ? await (
+            dependencies.resetMembershipOfficePermissionOverrides ??
+            resetMembershipOfficePermissionOverrides
+          )({
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
             officeId,
           })
-        : await resetMembershipPermissionOverrides({
+        : await (
+            dependencies.resetMembershipPermissionOverrides ??
+            resetMembershipPermissionOverrides
+          )({
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId
@@ -126,4 +172,34 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeSettings(context.currentMembership)) {
+    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
+  }
+
+  const { membershipId } = await params;
+  return handleUpdateOfficeUserPermissionsPatch(request, membershipId, context);
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeSettings(context.currentMembership)) {
+    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
+  }
+
+  const { membershipId } = await params;
+  return handleResetOfficeUserPermissionsDelete(request, membershipId, context);
 }
