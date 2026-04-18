@@ -1,15 +1,18 @@
 import {
   deleteOfficeResource,
+  type SessionMembershipContext,
   updateOfficeResource,
 } from "@acre/db";
 import { ResourceType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import {
   deleteStoredFile,
   saveStoredResourceFile,
 } from "../../../../../lib/document-storage";
 import { isPdfFileLike } from "../../library/_shared/pdf-metadata";
 import { requireOfficeAdminRequestContext } from "../_helpers";
+import { updateOfficeResourceBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
@@ -68,6 +71,11 @@ function inferDocumentMimeType(file: File) {
 
   return file.type || "application/octet-stream";
 }
+
+type OfficeResourceRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateOfficeResource?: typeof updateOfficeResource;
+};
 
 async function updateDocumentResource(
   request: NextRequest,
@@ -173,25 +181,44 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return updateDocumentResource(request, access.context, resourceId);
   }
 
-  const body = (await request.json().catch(() => null)) as ResourceBody | null;
-  const type = normalizeManagedResourceType(body?.type);
+  return handleUpdateOfficeResourcePatch(
+    request,
+    resourceId,
+    access.context,
+  );
+}
 
-  if (type !== ResourceType.training_video) {
-    return NextResponse.json(
-      { error: "A supported resource type is required." },
-      { status: 400 },
-    );
+export async function handleUpdateOfficeResourcePatch(
+  request: NextRequest,
+  resourceId: string,
+  context: OfficeAdminContext,
+  dependencies: OfficeResourceRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeResourceBodySchema, {
+    error: "A supported resource type is required.",
+    invalidJsonError: "Resource request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
+  const body = parsedBody.data;
+  const type = ResourceType.training_video;
+
   try {
-    const updated = await updateOfficeResource({
-      organizationId: access.context.currentOrganization.id,
-      officeId: access.context.currentOffice?.id ?? null,
+    const updated = await (
+      dependencies.updateOfficeResource ?? updateOfficeResource
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
       resourceId,
-      title: String(body?.title ?? ""),
-      summary: String(body?.summary ?? ""),
-      url: body?.url ?? "",
-      tags: Array.isArray(body?.tags) ? body.tags : [],
+      title: String(body.title ?? ""),
+      summary: String(body.summary ?? ""),
+      url: body.url ?? "",
+      tags: body.tags ?? [],
       type,
       visibilityScope: sharedVisibilityScope,
     });

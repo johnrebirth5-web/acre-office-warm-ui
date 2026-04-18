@@ -1,12 +1,17 @@
-import { createOfficeResource } from "@acre/db";
+import {
+  createOfficeResource,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { ResourceType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../lib/api/parse-body";
 import {
   deleteStoredFile,
   saveStoredResourceFile,
 } from "../../../../lib/document-storage";
 import { isPdfFileLike } from "../library/_shared/pdf-metadata";
 import { requireOfficeAdminRequestContext } from "./_helpers";
+import { createOfficeResourceBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
@@ -59,6 +64,11 @@ function inferDocumentMimeType(file: File) {
 
   return file.type || "application/octet-stream";
 }
+
+type OfficeResourcesRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  createOfficeResource?: typeof createOfficeResource;
+};
 
 async function createDocumentResource(
   request: NextRequest,
@@ -136,24 +146,38 @@ export async function POST(request: NextRequest) {
     return createDocumentResource(request, access.context);
   }
 
-  const body = (await request.json().catch(() => null)) as ResourceBody | null;
-  const type = normalizeManagedResourceType(body?.type);
+  return handleCreateOfficeResourcePost(request, access.context);
+}
 
-  if (type !== ResourceType.training_video) {
-    return NextResponse.json(
-      { error: "A supported resource type is required." },
-      { status: 400 },
-    );
+export async function handleCreateOfficeResourcePost(
+  request: NextRequest,
+  context: OfficeAdminContext,
+  dependencies: OfficeResourcesRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeResourceBodySchema, {
+    error: "A supported resource type is required.",
+    invalidJsonError: "Resource request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
+  const body = parsedBody.data;
+  const type = ResourceType.training_video;
+
   try {
-    const resourceId = await createOfficeResource({
-      organizationId: access.context.currentOrganization.id,
-      officeId: access.context.currentOffice?.id ?? null,
-      title: String(body?.title ?? ""),
-      summary: String(body?.summary ?? ""),
-      url: body?.url ?? "",
-      tags: Array.isArray(body?.tags) ? body.tags : [],
+    const resourceId = await (
+      dependencies.createOfficeResource ?? createOfficeResource
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      title: String(body.title ?? ""),
+      summary: String(body.summary ?? ""),
+      url: body.url ?? "",
+      tags: body.tags ?? [],
       type,
       visibilityScope: sharedVisibilityScope,
     });

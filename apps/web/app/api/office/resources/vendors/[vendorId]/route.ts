@@ -1,6 +1,12 @@
-import { deleteOfficeVendor, updateOfficeVendor } from "@acre/db";
+import {
+  deleteOfficeVendor,
+  type SessionMembershipContext,
+  updateOfficeVendor,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { requireOfficeAdminRequestContext } from "../../_helpers";
+import { updateOfficeVendorBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
@@ -25,6 +31,11 @@ type VendorBody = {
 
 const sharedVisibilityScope = "organization_wide" as const;
 
+type OfficeVendorRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateOfficeVendor?: typeof updateOfficeVendor;
+};
+
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const access = await requireOfficeAdminRequestContext(request);
 
@@ -32,25 +43,49 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return access.response;
   }
 
-  const body = (await request.json().catch(() => null)) as VendorBody | null;
   const { vendorId } = await params;
 
+  return handleUpdateOfficeVendorPatch(
+    request,
+    vendorId,
+    access.context,
+  );
+}
+
+export async function handleUpdateOfficeVendorPatch(
+  request: NextRequest,
+  vendorId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeVendorRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeVendorBodySchema, {
+    error: "Vendor payload is invalid.",
+    invalidJsonError: "Vendor request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+  const body = parsedBody.data;
+
   try {
-    const updatedVendorId = await updateOfficeVendor({
-      organizationId: access.context.currentOrganization.id,
-      officeId: access.context.currentOffice?.id ?? null,
+    const updatedVendorId = await (
+      dependencies.updateOfficeVendor ?? updateOfficeVendor
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
       vendorId,
-      category: String(body?.category ?? ""),
-      name: String(body?.name ?? ""),
-      headline: String(body?.headline ?? ""),
-      phone: body?.phone ?? null,
-      email: body?.email ?? null,
-      website: body?.website ?? null,
-      neighborhoods: Array.isArray(body?.neighborhoods)
-        ? body.neighborhoods
-        : [],
-      notes: body?.notes ?? null,
-      isFeatured: Boolean(body?.isFeatured),
+      category: String(body.category ?? ""),
+      name: String(body.name ?? ""),
+      headline: String(body.headline ?? ""),
+      phone: body.phone ?? null,
+      email: body.email ?? null,
+      website: body.website ?? null,
+      neighborhoods: body.neighborhoods ?? [],
+      notes: body.notes ?? null,
+      isFeatured: Boolean(body.isFeatured),
       visibilityScope: sharedVisibilityScope,
     });
 

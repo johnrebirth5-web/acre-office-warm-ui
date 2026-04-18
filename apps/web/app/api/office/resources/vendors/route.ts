@@ -1,6 +1,11 @@
-import { createOfficeVendor } from "@acre/db";
+import {
+  createOfficeVendor,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { requireOfficeAdminRequestContext } from "../_helpers";
+import { createOfficeVendorBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
@@ -19,6 +24,11 @@ type VendorBody = {
 
 const sharedVisibilityScope = "organization_wide" as const;
 
+type OfficeVendorsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  createOfficeVendor?: typeof createOfficeVendor;
+};
+
 export async function POST(request: NextRequest) {
   const access = await requireOfficeAdminRequestContext(request);
 
@@ -26,23 +36,41 @@ export async function POST(request: NextRequest) {
     return access.response;
   }
 
-  const body = (await request.json().catch(() => null)) as VendorBody | null;
+  return handleCreateOfficeVendorPost(request, access.context);
+}
+
+export async function handleCreateOfficeVendorPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeVendorsRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, createOfficeVendorBodySchema, {
+    error: "Vendor payload is invalid.",
+    invalidJsonError: "Vendor request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+  const body = parsedBody.data;
 
   try {
-    const vendorId = await createOfficeVendor({
-      organizationId: access.context.currentOrganization.id,
-      officeId: access.context.currentOffice?.id ?? null,
-      category: String(body?.category ?? ""),
-      name: String(body?.name ?? ""),
-      headline: String(body?.headline ?? ""),
-      phone: body?.phone ?? null,
-      email: body?.email ?? null,
-      website: body?.website ?? null,
-      neighborhoods: Array.isArray(body?.neighborhoods)
-        ? body.neighborhoods
-        : [],
-      notes: body?.notes ?? null,
-      isFeatured: Boolean(body?.isFeatured),
+    const vendorId = await (
+      dependencies.createOfficeVendor ?? createOfficeVendor
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      category: String(body.category ?? ""),
+      name: String(body.name ?? ""),
+      headline: String(body.headline ?? ""),
+      phone: body.phone ?? null,
+      email: body.email ?? null,
+      website: body.website ?? null,
+      neighborhoods: body.neighborhoods ?? [],
+      notes: body.notes ?? null,
+      isFeatured: Boolean(body.isFeatured),
       visibilityScope: sharedVisibilityScope,
     });
 
