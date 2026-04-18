@@ -1,18 +1,13 @@
 import { canAccessOffice1099Tracker } from "@acre/auth";
-import { getOffice1099TrackerWorkspaceSnapshot, saveAgent1099PaymentRecords } from "@acre/db";
+import {
+  getOffice1099TrackerWorkspaceSnapshot,
+  saveAgent1099PaymentRecords,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
-
-type SaveRecordsRequestBody = {
-  membershipId?: string;
-  taxYear?: number | string;
-  records?: Array<{
-    id?: string;
-    paymentDate?: string;
-    paymentAmount?: string;
-    memo?: string;
-  }>;
-};
+import { saveAgent1099PaymentRecordsBodySchema } from "./route.schema";
 
 function readSearchParamValue(value: string | null) {
   return value?.trim() ? value.trim() : undefined;
@@ -41,29 +36,33 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ snapshot });
 }
 
-export async function PUT(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+type Office1099RecordsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveAgent1099PaymentRecords?: typeof saveAgent1099PaymentRecords;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleSaveOffice1099RecordsPut(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: Office1099RecordsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    saveAgent1099PaymentRecordsBodySchema,
+    {
+      error: "1099 tracker payload is invalid.",
+      invalidJsonError: "1099 tracker request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canAccessOffice1099Tracker(context.currentMembership)) {
-    return NextResponse.json({ error: "1099 Tracker access required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as SaveRecordsRequestBody | null;
-
-  if (!body?.membershipId?.trim()) {
-    return NextResponse.json({ error: "membershipId is required." }, { status: 400 });
-  }
-
-  if (!Array.isArray(body.records)) {
-    return NextResponse.json({ error: "records must be an array." }, { status: 400 });
-  }
+  const body = parsedBody.data;
 
   try {
-    const editor = await saveAgent1099PaymentRecords({
+    const editor = await (dependencies.saveAgent1099PaymentRecords ?? saveAgent1099PaymentRecords)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       membershipId: body.membershipId,
@@ -86,4 +85,18 @@ export async function PUT(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function PUT(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canAccessOffice1099Tracker(context.currentMembership)) {
+    return NextResponse.json({ error: "1099 Tracker access required." }, { status: 403 });
+  }
+
+  return handleSaveOffice1099RecordsPut(request, context);
 }
