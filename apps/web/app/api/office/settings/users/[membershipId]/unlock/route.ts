@@ -1,5 +1,8 @@
 import { canManageOfficeUsers } from "@acre/auth";
-import { unlockInternalAccount } from "@acre/db";
+import {
+  unlockInternalAccount,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
 
@@ -8,6 +11,28 @@ type RouteContext = {
     membershipId: string;
   }>;
 };
+
+type OfficeUserUnlockRouteDependencies = {
+  unlockInternalAccount?: typeof unlockInternalAccount;
+};
+
+export async function handleUnlockOfficeUserPost(
+  membershipId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeUserUnlockRouteDependencies = {},
+) {
+  try {
+    await (dependencies.unlockInternalAccount ?? unlockInternalAccount)({
+      organizationId: context.currentOrganization.id,
+      actorMembershipId: context.currentMembership.id,
+      membershipId
+    });
+
+    return NextResponse.json({ membershipId, unlocked: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to unlock the account." }, { status: 400 });
+  }
+}
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -21,16 +46,5 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { membershipId } = await params;
-
-  try {
-    await unlockInternalAccount({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      membershipId
-    });
-
-    return NextResponse.json({ membershipId, unlocked: true });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to unlock the account." }, { status: 400 });
-  }
+  return handleUnlockOfficeUserPost(membershipId, context);
 }
