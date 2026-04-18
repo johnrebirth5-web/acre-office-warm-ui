@@ -5,9 +5,18 @@ import {
   canReviewOfficeTasks,
   canSecondaryReviewOfficeTasks
 } from "@acre/auth";
-import { approveTransactionTask, completeTransactionTask, rejectTransactionTask, reopenTransactionTask, requestTransactionTaskReview } from "@acre/db";
+import {
+  approveTransactionTask,
+  completeTransactionTask,
+  rejectTransactionTask,
+  reopenTransactionTask,
+  requestTransactionTaskReview,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../../lib/auth-session";
+import { runOfficeTransactionTaskWorkflowBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -16,30 +25,48 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionTaskWorkflowRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  completeTransactionTask?: typeof completeTransactionTask;
+  reopenTransactionTask?: typeof reopenTransactionTask;
+  requestTransactionTaskReview?: typeof requestTransactionTaskReview;
+  approveTransactionTask?: typeof approveTransactionTask;
+  rejectTransactionTask?: typeof rejectTransactionTask;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleRunOfficeTransactionTaskWorkflowPost(
+  request: NextRequest,
+  transactionId: string,
+  taskId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionTaskWorkflowRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    runOfficeTransactionTaskWorkflowBodySchema,
+    {
+      error: "Transaction task workflow payload is invalid.",
+      invalidJsonError:
+        "Transaction task workflow request body must be valid JSON.",
+    },
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const { transactionId, taskId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | { action?: string; rejectionReason?: string; source?: string }
-    | null;
-  const action = body?.action?.trim();
-  const rejectionReason = body?.rejectionReason?.trim();
-  const activitySource = body?.source === "approve_docs_queue" ? body.source : undefined;
+  const action = parsedBody.data.action;
+  const rejectionReason = parsedBody.data.rejectionReason;
+  const activitySource =
+    parsedBody.data.source === "approve_docs_queue"
+      ? parsedBody.data.source
+      : undefined;
   const subject = context.currentMembership;
   const canManageTasks = canManageOfficeTasks(subject);
   const canReviewTasks = canReviewOfficeTasks(subject);
   const canApproveDocuments = canApproveOfficeDocuments(subject);
   const canSecondaryReviewTasks = canSecondaryReviewOfficeTasks(subject);
   const canAccessDocumentApprovals = canAccessOfficeDocumentApprovals(subject);
-
-  if (!action) {
-    return NextResponse.json({ error: "Workflow action is required." }, { status: 400 });
-  }
 
   if (action === "request_review" && !canManageTasks) {
     return NextResponse.json({ error: "Task management permission required." }, { status: 403 });
@@ -56,7 +83,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const task =
       action === "complete"
-        ? await completeTransactionTask({
+        ? await (
+            dependencies.completeTransactionTask ?? completeTransactionTask
+          )({
             organizationId: context.currentOrganization.id,
             transactionId,
             taskId,
@@ -64,7 +93,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             activitySource
           })
         : action === "reopen"
-          ? await reopenTransactionTask({
+          ? await (
+              dependencies.reopenTransactionTask ?? reopenTransactionTask
+            )({
               organizationId: context.currentOrganization.id,
               transactionId,
               taskId,
@@ -72,7 +103,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
               activitySource
             })
           : action === "request_review"
-            ? await requestTransactionTaskReview({
+            ? await (
+                dependencies.requestTransactionTaskReview ??
+                requestTransactionTaskReview
+              )({
                 organizationId: context.currentOrganization.id,
                 transactionId,
                 taskId,
@@ -82,7 +116,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             : action === "approve"
               ? canReviewTasks &&
                 canApproveDocuments
-                ? await approveTransactionTask({
+                ? await (
+                    dependencies.approveTransactionTask ??
+                    approveTransactionTask
+                  )({
                     organizationId: context.currentOrganization.id,
                     transactionId,
                     taskId,
@@ -94,7 +131,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
               : action === "reject"
                 ? canReviewTasks &&
                   canApproveDocuments
-                  ? await rejectTransactionTask({
+                  ? await (
+                      dependencies.rejectTransactionTask ??
+                      rejectTransactionTask
+                    )({
                       organizationId: context.currentOrganization.id,
                       transactionId,
                       taskId,
@@ -116,4 +156,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const { transactionId, taskId } = await params;
+  return handleRunOfficeTransactionTaskWorkflowPost(
+    request,
+    transactionId,
+    taskId,
+    context,
+  );
 }

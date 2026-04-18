@@ -1,7 +1,17 @@
 import { canAcceptOfficeOffers, canManageOfficeOffers, canReviewOfficeOffers } from "@acre/auth";
-import { getOfficeOfferFieldSchema, listTransactionOffersSnapshot, prepareOfferFieldSubmission, transitionOfferStatus, updateOffer } from "@acre/db";
+import {
+  getOfficeOfferFieldSchema,
+  listTransactionOffersSnapshot,
+  prepareOfferFieldSubmission,
+  transitionOfferStatus,
+  type SessionMembershipContext,
+  type TransitionOfferAction,
+  updateOffer,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateOfficeOfferBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -10,18 +20,39 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeOfferRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  transitionOfferStatus?: typeof transitionOfferStatus;
+  getOfficeOfferFieldSchema?: typeof getOfficeOfferFieldSchema;
+  listTransactionOffersSnapshot?: typeof listTransactionOffersSnapshot;
+  prepareOfferFieldSubmission?: typeof prepareOfferFieldSubmission;
+  updateOffer?: typeof updateOffer;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeOfferPatch(
+  request: NextRequest,
+  transactionId: string,
+  offerId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeOfferRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeOfferBodySchema,
+    {
+      error: "Offer update payload is invalid.",
+      invalidJsonError: "Offer update request body must be valid JSON.",
+    },
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const { transactionId, offerId } = await params;
-  const body = (await request.json().catch(() => null)) as (Record<string, unknown> & { action?: string; isPrimaryOffer?: boolean }) | null;
+  const body = parsedBody.data;
 
   try {
-    if (body?.action) {
+    if (body.action) {
       if (body.action === "accept") {
         if (!canAcceptOfficeOffers(context.currentMembership)) {
           return NextResponse.json({ error: "Offer acceptance access required." }, { status: 403 });
@@ -30,20 +61,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         return NextResponse.json({ error: "Offer review access required." }, { status: 403 });
       }
 
-      const offer = await transitionOfferStatus({
+      const offer = await (dependencies.transitionOfferStatus ?? transitionOfferStatus)({
         organizationId: context.currentOrganization.id,
         transactionId,
         offerId,
         actorMembershipId: context.currentMembership.id,
-        action: body.action as
-          | "submit"
-          | "receive"
-          | "review"
-          | "counter"
-          | "accept"
-          | "reject"
-          | "withdraw"
-          | "expire"
+        action: body.action as TransitionOfferAction,
       });
 
       if (!offer) {
@@ -58,11 +81,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     }
 
     const [schema, offersSnapshot] = await Promise.all([
-      getOfficeOfferFieldSchema({
+      (dependencies.getOfficeOfferFieldSchema ?? getOfficeOfferFieldSchema)({
         organizationId: context.currentOrganization.id,
         officeId: context.currentOffice?.id ?? null
       }),
-      listTransactionOffersSnapshot(context.currentOrganization.id, transactionId)
+      (dependencies.listTransactionOffersSnapshot ?? listTransactionOffersSnapshot)(
+        context.currentOrganization.id,
+        transactionId,
+      )
     ]);
     const existingOffer = offersSnapshot.offers.find((offer) => offer.id === offerId) ?? null;
 
@@ -70,13 +96,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Offer not found." }, { status: 404 });
     }
 
-    const submission = prepareOfferFieldSubmission({
+    const submission = (dependencies.prepareOfferFieldSubmission ?? prepareOfferFieldSubmission)({
       schema,
-      payload: body ?? {},
+      payload: body,
       existingOffer
     });
 
-    const offer = await updateOffer({
+    const offer = await (dependencies.updateOffer ?? updateOffer)({
       organizationId: context.currentOrganization.id,
       transactionId,
       offerId,
@@ -105,4 +131,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const { transactionId, offerId } = await params;
+  return handleUpdateOfficeOfferPatch(request, transactionId, offerId, context);
 }

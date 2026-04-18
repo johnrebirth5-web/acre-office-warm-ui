@@ -1,7 +1,12 @@
 import { canManageOfficeTasks } from "@acre/auth";
-import { createTransactionTask } from "@acre/db";
+import {
+  createTransactionTask,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { createOfficeTransactionTaskBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,52 +14,44 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionTasksRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  createTransactionTask?: typeof createTransactionTask;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
+export async function handleCreateOfficeTransactionTaskPost(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionTasksRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    createOfficeTransactionTaskBodySchema,
+    {
+      error: "Transaction task payload is invalid.",
+      invalidJsonError: "Transaction task request body must be valid JSON.",
+    },
+  );
 
-  if (!canManageOfficeTasks(context.currentMembership)) {
-    return NextResponse.json({ error: "Task list access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        checklistGroup?: string;
-        title?: string;
-        description?: string;
-        assigneeMembershipId?: string;
-        dueAt?: string;
-        status?: string;
-        requiresDocument?: boolean;
-        requiresDocumentApproval?: boolean;
-        requiresSecondaryApproval?: boolean;
-      }
-    | null;
-
-  const title = body?.title?.trim();
-
-  if (!title) {
-    return NextResponse.json({ error: "Task title is required." }, { status: 400 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
   try {
-    const task = await createTransactionTask({
+    const task = await (dependencies.createTransactionTask ?? createTransactionTask)({
       organizationId: context.currentOrganization.id,
       transactionId,
       actorMembershipId: context.currentMembership.id,
-      checklistGroup: body?.checklistGroup ?? "",
-      title,
-      description: body?.description ?? "",
-      assigneeMembershipId: body?.assigneeMembershipId ?? "",
-      dueAt: body?.dueAt ?? "",
-      status: body?.status as never,
-      requiresDocument: body?.requiresDocument,
-      requiresDocumentApproval: body?.requiresDocumentApproval,
-      requiresSecondaryApproval: body?.requiresSecondaryApproval
+      checklistGroup: parsedBody.data.checklistGroup ?? "",
+      title: parsedBody.data.title,
+      description: parsedBody.data.description ?? "",
+      assigneeMembershipId: parsedBody.data.assigneeMembershipId ?? "",
+      dueAt: parsedBody.data.dueAt ?? "",
+      status: parsedBody.data.status as never,
+      requiresDocument: parsedBody.data.requiresDocument,
+      requiresDocumentApproval: parsedBody.data.requiresDocumentApproval,
+      requiresSecondaryApproval: parsedBody.data.requiresSecondaryApproval
     });
 
     if (!task) {
@@ -68,4 +65,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeTasks(context.currentMembership)) {
+    return NextResponse.json({ error: "Task list access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleCreateOfficeTransactionTaskPost(request, transactionId, context);
 }
