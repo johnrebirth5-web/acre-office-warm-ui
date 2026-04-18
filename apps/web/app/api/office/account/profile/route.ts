@@ -1,38 +1,38 @@
-import { saveOfficeAccountProfile } from "@acre/db";
+import { saveOfficeAccountProfile, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
 import { assertSupportedLocale } from "../../../../../lib/i18n/config";
+import { updateOfficeAccountProfileBodySchema } from "./route.schema";
 
-export async function PATCH(request: NextRequest) {
-  const context = await requireRequestOfficeSession(request);
+type OfficeAccountProfileRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveOfficeAccountProfile?: typeof saveOfficeAccountProfile;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeAccountProfilePatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeAccountProfileRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeAccountProfileBodySchema,
+    {
+      error: "Profile payload is required.",
+      invalidJsonError: "Profile request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        firstName?: string;
-        lastName?: string;
-        displayName?: string;
-        phone?: string;
-        internalExtension?: string;
-        avatarUrl?: string;
-        bio?: string;
-        licenseNumber?: string;
-        licenseState?: string;
-        timezone?: string;
-        locale?: string;
-      }
-    | null;
-
-  if (!body) {
-    return NextResponse.json({ error: "Profile payload is required." }, { status: 400 });
-  }
+  const body = parsedBody.data;
 
   try {
     const locale = assertSupportedLocale(body.locale ?? "");
-    const saved = await saveOfficeAccountProfile({
+    const saved = await (dependencies.saveOfficeAccountProfile ?? saveOfficeAccountProfile)({
       organizationId: context.currentOrganization.id,
       membershipId: context.currentMembership.id,
       firstName: body.firstName ?? "",
@@ -59,4 +59,14 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest) {
+  const context = await requireRequestOfficeSession(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  return handleUpdateOfficeAccountProfilePatch(request, context);
 }

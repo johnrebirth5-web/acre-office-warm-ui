@@ -4,10 +4,13 @@ import {
   getOfficeMailThreadDetail,
   markOfficeMailThreadRead,
   markOfficeMailThreadUnread,
-  unarchiveOfficeMailThread
+  unarchiveOfficeMailThread,
+  type SessionMembershipContext
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { requireRequestOfficeSession } from "../../../../../../lib/auth-session";
+import { updateOfficeMailThreadBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -49,22 +52,31 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await requireRequestOfficeSession(request);
+type OfficeMailThreadRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  markOfficeMailThreadRead?: typeof markOfficeMailThreadRead;
+  markOfficeMailThreadUnread?: typeof markOfficeMailThreadUnread;
+  archiveOfficeMailThread?: typeof archiveOfficeMailThread;
+  unarchiveOfficeMailThread?: typeof unarchiveOfficeMailThread;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
+export async function handleUpdateOfficeMailThreadPatch(
+  request: NextRequest,
+  threadId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeMailThreadRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeMailThreadBodySchema,
+    {
+      error: "A valid thread action is required.",
+      invalidJsonError: "Mail thread request body must be valid JSON."
+    }
+  );
 
-  if (!canAccessOfficeMail(context.currentMembership)) {
-    return NextResponse.json({ error: "Mail access required." }, { status: 403 });
-  }
-
-  const { threadId } = await params;
-  const body = (await request.json().catch(() => null)) as { action?: string } | null;
-
-  if (!body?.action) {
-    return NextResponse.json({ error: "A valid thread action is required." }, { status: 400 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
   try {
@@ -75,19 +87,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     };
 
     const updated =
-      body.action === "mark_read"
-        ? await markOfficeMailThreadRead(input)
-        : body.action === "mark_unread"
-          ? await markOfficeMailThreadUnread(input)
-          : body.action === "archive"
-            ? await archiveOfficeMailThread(input)
-            : body.action === "unarchive"
-              ? await unarchiveOfficeMailThread(input)
-              : null;
-
-    if (updated == null) {
-      return NextResponse.json({ error: "A valid thread action is required." }, { status: 400 });
-    }
+      parsedBody.data.action === "mark_read"
+        ? await (dependencies.markOfficeMailThreadRead ?? markOfficeMailThreadRead)(input)
+        : parsedBody.data.action === "mark_unread"
+          ? await (dependencies.markOfficeMailThreadUnread ?? markOfficeMailThreadUnread)(input)
+          : parsedBody.data.action === "archive"
+            ? await (dependencies.archiveOfficeMailThread ?? archiveOfficeMailThread)(input)
+            : await (dependencies.unarchiveOfficeMailThread ?? unarchiveOfficeMailThread)(input);
 
     if (!updated) {
       return NextResponse.json({ error: "Mail thread not found." }, { status: 404 });
@@ -100,4 +106,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await requireRequestOfficeSession(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canAccessOfficeMail(context.currentMembership)) {
+    return NextResponse.json({ error: "Mail access required." }, { status: 403 });
+  }
+
+  const { threadId } = await params;
+  return handleUpdateOfficeMailThreadPatch(request, threadId, context);
 }
