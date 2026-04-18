@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NEXT_TELEMETRY_DISABLED: "1"
   ACRE_SESSION_SECRET: "ci-session-secret-0123456789abcdef0123456789abcdef"

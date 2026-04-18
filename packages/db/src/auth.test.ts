@@ -16,6 +16,43 @@ after(async () => {
   await prisma.$disconnect();
 });
 
+async function createBootstrapOrganizationContext() {
+  const organization = await prisma.organization.create({
+    data: {
+      name: "Acre Bootstrap Test",
+      slug: "acre"
+    }
+  });
+
+  const office = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: "Acre Bootstrap Office",
+      slug: `acre-bootstrap-office-${randomUUID().slice(0, 8)}`,
+      market: "New York",
+      isPrimary: true
+    }
+  });
+
+  return {
+    organization,
+    office,
+    async cleanup() {
+      await prisma.organization.delete({
+        where: {
+          id: organization.id
+        }
+      });
+
+      await prisma.user.deleteMany({
+        where: {
+          email: getBootstrapAdminEmail()
+        }
+      });
+    }
+  };
+}
+
 async function createInternalAuthTestContext() {
   const suffix = randomUUID().slice(0, 8);
   const organization = await prisma.organization.create({
@@ -117,32 +154,40 @@ async function createAcceptedUserAccount(password: string) {
 }
 
 test("bootstrap admin exists as an active office_admin account with a stored hash", async () => {
-  const result = await ensureBootstrapAdminAccount();
+  const context = await createBootstrapOrganizationContext();
 
-  assert.ok(result.organizationId);
-  assert.ok(result.membershipId);
-  assert.ok(result.userId);
+  try {
+    const result = await ensureBootstrapAdminAccount();
 
-  const bootstrapUser = await prisma.user.findUnique({
-    where: {
-      email: getBootstrapAdminEmail()
-    },
-    include: {
-      credential: true,
-      memberships: true
+    assert.equal(result.organizationId, context.organization.id);
+    assert.ok(result.membershipId);
+    assert.ok(result.userId);
+
+    const bootstrapUser = await prisma.user.findUnique({
+      where: {
+        email: getBootstrapAdminEmail()
+      },
+      include: {
+        credential: true,
+        memberships: true
+      }
+    });
+
+    assert.ok(bootstrapUser);
+    assert.ok(bootstrapUser?.credential);
+    assert.notEqual(bootstrapUser?.credential?.passwordHash, "Acreny2021");
+
+    const bootstrapMembership = bootstrapUser?.memberships.find((membership) => membership.id === result.membershipId);
+    assert.equal(bootstrapMembership?.role, "office_admin");
+    assert.equal(bootstrapMembership?.status, "active");
+    assert.equal(bootstrapMembership?.organizationId, context.organization.id);
+    assert.equal(bootstrapMembership?.officeId, context.office.id);
+
+    if (result.created) {
+      assert.equal(bootstrapUser?.credential?.mustChangePassword, true);
     }
-  });
-
-  assert.ok(bootstrapUser);
-  assert.ok(bootstrapUser?.credential);
-  assert.notEqual(bootstrapUser?.credential?.passwordHash, "Acreny2021");
-
-  const bootstrapMembership = bootstrapUser?.memberships.find((membership) => membership.id === result.membershipId);
-  assert.equal(bootstrapMembership?.role, "office_admin");
-  assert.equal(bootstrapMembership?.status, "active");
-
-  if (result.created) {
-    assert.equal(bootstrapUser?.credential?.mustChangePassword, true);
+  } finally {
+    await context.cleanup();
   }
 });
 
