@@ -1,13 +1,87 @@
 import { canManageOfficeSettings, canManageOfficeUsers } from "@acre/auth";
-import { updateOfficeAdminUser } from "@acre/db";
+import { updateOfficeAdminUser, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { updateOfficeUserBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
     membershipId: string;
   }>;
 };
+
+type OfficeUserRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateOfficeAdminUser?: typeof updateOfficeAdminUser;
+};
+
+export async function handleUpdateOfficeUserPatch(
+  request: NextRequest,
+  membershipId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeUserRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeUserBodySchema, {
+    error: "User access payload is invalid.",
+    invalidJsonError: "User access request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  try {
+    if (
+      (parsedBody.data.role === "owner" ||
+        parsedBody.data.role === "office_admin") &&
+      !canManageOfficeSettings(context.currentMembership)
+    ) {
+      return NextResponse.json(
+        { error: "Only Owner / Office Admin can assign admin-tier roles." },
+        { status: 403 },
+      );
+    }
+
+    const membership = await (
+      dependencies.updateOfficeAdminUser ?? updateOfficeAdminUser
+    )({
+      organizationId: context.currentOrganization.id,
+      actorMembershipId: context.currentMembership.id,
+      membershipId,
+      role: parsedBody.data.role,
+      status: parsedBody.data.status,
+      defaultOfficeId:
+        typeof parsedBody.data.defaultOfficeId === "string" &&
+        parsedBody.data.defaultOfficeId !== "__all__"
+          ? parsedBody.data.defaultOfficeId
+          : parsedBody.data.defaultOfficeId === null
+            ? null
+            : undefined,
+      accessibleOfficeIds: parsedBody.data.accessibleOfficeIds,
+      officeId:
+        typeof parsedBody.data.officeId === "string"
+          ? parsedBody.data.officeId
+          : parsedBody.data.officeId === null
+            ? null
+            : undefined,
+    });
+
+    return NextResponse.json({ membership });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update user access.",
+      },
+      { status: 400 },
+    );
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -21,44 +95,5 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { membershipId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        role?: string;
-        status?: string;
-        defaultOfficeId?: string | null;
-        accessibleOfficeIds?: string[];
-        officeId?: string | null;
-      }
-    | null;
-
-  try {
-    if (
-      (body?.role === "owner" || body?.role === "office_admin") &&
-      !canManageOfficeSettings(context.currentMembership)
-    ) {
-      return NextResponse.json({ error: "Only Owner / Office Admin can assign admin-tier roles." }, { status: 403 });
-    }
-
-    const membership = await updateOfficeAdminUser({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      membershipId,
-      role: body?.role,
-      status: body?.status,
-      defaultOfficeId:
-        typeof body?.defaultOfficeId === "string" && body.defaultOfficeId !== "__all__"
-          ? body.defaultOfficeId
-          : body?.defaultOfficeId === null
-            ? null
-            : undefined,
-      accessibleOfficeIds: Array.isArray(body?.accessibleOfficeIds)
-        ? body.accessibleOfficeIds.filter((value): value is string => typeof value === "string")
-        : undefined,
-      officeId: typeof body?.officeId === "string" ? body.officeId : body?.officeId === null ? null : undefined
-    });
-
-    return NextResponse.json({ membership });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update user access." }, { status: 400 });
-  }
+  return handleUpdateOfficeUserPatch(request, membershipId, context);
 }
