@@ -6,8 +6,10 @@ import {
   getSessionCookieName,
   getSessionCookieSettings,
 } from "../../../../../lib/auth-session";
+import { parseFormData } from "../../../../../lib/api/parse-body";
 import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../../lib/request-origin";
+import { acceptInvitationFormSchema } from "./route.schema";
 
 function buildInviteRedirect(requestOrigin: string, token: string, error: string) {
   return NextResponse.redirect(new URL(`/invite/${token}?error=${error}`, requestOrigin), 303);
@@ -17,30 +19,32 @@ export async function POST(request: NextRequest) {
   const requestOrigin = getRequestOrigin(request);
   const formData = await request.formData();
   const token = String(formData.get("token") ?? "").trim();
-  const firstName = String(formData.get("firstName") ?? "");
-  const lastName = String(formData.get("lastName") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
   if (!token) {
     return NextResponse.redirect(new URL("/login", requestOrigin), 303);
   }
 
-  if (!password) {
-    return buildInviteRedirect(requestOrigin, token, "missing_password");
-  }
+  const parsedForm = parseFormData(formData, acceptInvitationFormSchema);
 
-  if (password !== confirmPassword) {
-    return buildInviteRedirect(requestOrigin, token, "mismatch");
+  if (!parsedForm.ok) {
+    if (parsedForm.fieldErrors.password === "missing_password") {
+      return buildInviteRedirect(requestOrigin, token, "missing_password");
+    }
+
+    if (parsedForm.fieldErrors.confirmPassword === "mismatch") {
+      return buildInviteRedirect(requestOrigin, token, "mismatch");
+    }
+
+    return buildInviteRedirect(requestOrigin, token, "unknown");
   }
 
   let result;
   try {
     result = await acceptInvitation({
-      token,
-      firstName,
-      lastName,
-      password
+      token: parsedForm.data.token,
+      firstName: parsedForm.data.firstName,
+      lastName: parsedForm.data.lastName,
+      password: parsedForm.data.password
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to accept invitation.";

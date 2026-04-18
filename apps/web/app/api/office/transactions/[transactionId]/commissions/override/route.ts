@@ -1,7 +1,9 @@
 import { canApproveOfficeCommissions, canManageOfficeCommissions } from "@acre/auth";
 import { overrideTransactionCommission } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { overrideTransactionCommissionBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -21,31 +23,26 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        overrideReason?: string;
-        notes?: string;
-        stakeholderRows?: Array<{
-          key?: string;
-          membershipId?: string;
-          amount?: string;
-        }>;
-      }
-    | null;
+  const parsedBody = await parseJsonBody(request, overrideTransactionCommissionBodySchema, {
+    error: "Commission override payload is invalid.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
 
   try {
     const snapshot = await overrideTransactionCommission({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
-      overrideReason: typeof body?.overrideReason === "string" ? body.overrideReason : "",
-      notes: typeof body?.notes === "string" ? body.notes : "",
-      stakeholderRows:
-        body?.stakeholderRows?.map((row) => ({
-          key: typeof row?.key === "string" ? row.key : "",
-          membershipId: typeof row?.membershipId === "string" ? row.membershipId : "",
-          amount: typeof row?.amount === "string" ? row.amount : ""
-        })) ?? [],
+      overrideReason: parsedBody.data.overrideReason,
+      notes: parsedBody.data.notes ?? "",
+      stakeholderRows: parsedBody.data.stakeholderRows.map((row) => ({
+        key: row.key,
+        membershipId: row.membershipId,
+        amount: row.amount
+      })),
       actorMembershipId: context.currentMembership.id
     });
 

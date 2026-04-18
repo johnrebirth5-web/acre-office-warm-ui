@@ -1,7 +1,9 @@
 import { canManageOfficeTransactionFinance } from "@acre/auth";
 import { updateTransactionFinance } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { transactionFinanceBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -21,45 +23,32 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        grossCommission?: string;
-        referralFee?: string;
-        officeNet?: string;
-        agentNet?: string;
-        financeNotes?: string;
-        clientReferralFormApproved?: boolean;
-        rebateAgreementSigned?: boolean;
-        rebateGoogleFormSubmitted?: boolean;
-        fees?: Array<{
-          feeType?: string;
-          rate?: string;
-          amount?: string;
-          selectedCalculationType?: string;
-          approvalStatus?: string;
-          notes?: string;
-        }>;
-      }
-    | null;
+  const parsedBody = await parseJsonBody(request, transactionFinanceBodySchema, {
+    error: "Finance update payload is invalid.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
 
   const transaction = await updateTransactionFinance({
     organizationId: context.currentOrganization.id,
     transactionId,
-    grossCommission: body?.grossCommission,
-    referralFee: body?.referralFee,
-    officeNet: body?.officeNet,
-    agentNet: body?.agentNet,
-    financeNotes: body?.financeNotes,
-    clientReferralFormApproved: body?.clientReferralFormApproved,
-    rebateAgreementSigned: body?.rebateAgreementSigned,
-    rebateGoogleFormSubmitted: body?.rebateGoogleFormSubmitted,
-    fees: body?.fees?.map((fee) => ({
-      feeType: typeof fee?.feeType === "string" ? fee.feeType : "",
-      rate: typeof fee?.rate === "string" ? fee.rate : undefined,
-      amount: typeof fee?.amount === "string" ? fee.amount : undefined,
-      selectedCalculationType: typeof fee?.selectedCalculationType === "string" ? fee.selectedCalculationType : undefined,
-      approvalStatus: typeof fee?.approvalStatus === "string" ? fee.approvalStatus : undefined,
-      notes: typeof fee?.notes === "string" ? fee.notes : undefined
+    grossCommission: parsedBody.data.grossCommission,
+    referralFee: parsedBody.data.referralFee,
+    officeNet: parsedBody.data.officeNet,
+    agentNet: parsedBody.data.agentNet,
+    financeNotes: parsedBody.data.financeNotes,
+    clientReferralFormApproved: parsedBody.data.clientReferralFormApproved,
+    rebateAgreementSigned: parsedBody.data.rebateAgreementSigned,
+    rebateGoogleFormSubmitted: parsedBody.data.rebateGoogleFormSubmitted,
+    fees: parsedBody.data.fees?.map((fee) => ({
+      feeType: fee.feeType,
+      rate: fee.rate,
+      amount: fee.amount,
+      selectedCalculationType: fee.selectedCalculationType,
+      approvalStatus: fee.approvalStatus,
+      notes: fee.notes,
     })),
     actorMembershipId: context.currentMembership.id
   });

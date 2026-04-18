@@ -1,7 +1,9 @@
 import { canCalculateOfficeCommissions } from "@acre/auth";
 import { calculateTransactionCommission } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { calculateTransactionCommissionBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -21,15 +23,21 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const parsedBody = await parseJsonBody(request, calculateTransactionCommissionBodySchema, {
+    error: "Commission calculation payload is invalid.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
 
   try {
     const snapshot = await calculateTransactionCommission({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
-      commissionPlanId: typeof body?.commissionPlanId === "string" ? body.commissionPlanId : "",
-      notes: typeof body?.notes === "string" ? body.notes : "",
+      commissionPlanId: parsedBody.data.commissionPlanId ?? "",
+      notes: parsedBody.data.notes ?? "",
       actorMembershipId: context.currentMembership.id
     });
 

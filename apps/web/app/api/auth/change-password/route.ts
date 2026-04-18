@@ -1,8 +1,10 @@
 import { getDefaultAppPath } from "@acre/auth";
 import { changeInternalPassword } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseFormData } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext, mustChangePassword } from "../../../../lib/auth-session";
 import { getRequestOrigin } from "../../../../lib/request-origin";
+import { changePasswordFormSchema } from "./route.schema";
 
 function buildErrorRedirect(requestOrigin: string, error: string) {
   return NextResponse.redirect(new URL(`/change-password?error=${error}`, requestOrigin), 303);
@@ -19,25 +21,27 @@ export async function POST(request: NextRequest) {
   }
 
   const formData = await request.formData();
-  const currentPassword = String(formData.get("currentPassword") ?? "");
-  const newPassword = String(formData.get("newPassword") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const parsedForm = parseFormData(formData, changePasswordFormSchema);
   const forced = mustChangePassword(context);
 
-  if (!newPassword) {
-    return buildErrorRedirect(requestOrigin, "missing_password");
-  }
+  if (!parsedForm.ok) {
+    if (parsedForm.fieldErrors.newPassword === "missing_password") {
+      return buildErrorRedirect(requestOrigin, "missing_password");
+    }
 
-  if (newPassword !== confirmPassword) {
-    return buildErrorRedirect(requestOrigin, "mismatch");
+    if (parsedForm.fieldErrors.confirmPassword === "mismatch") {
+      return buildErrorRedirect(requestOrigin, "mismatch");
+    }
+
+    return buildErrorRedirect(requestOrigin, "unknown");
   }
 
   try {
     await changeInternalPassword({
       organizationId: context.currentOrganization.id,
       membershipId: context.currentMembership.id,
-      currentPassword: forced ? undefined : currentPassword,
-      newPassword
+      currentPassword: forced ? undefined : parsedForm.data.currentPassword,
+      newPassword: parsedForm.data.newPassword
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to change password.";

@@ -1,13 +1,15 @@
 import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, getPublicSignatureRequestSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
 import { getAppBaseUrl } from "../../../../../../lib/request-origin";
 import { listSignatureCompletionRecipients } from "../../../../../../lib/signature-completion-recipients";
 import { validateRecipientFieldSubmission } from "../../../../../../lib/public-signature-access";
 import { attemptSignatureDriveSync } from "../../../../../../lib/signature-drive-sync";
-import { buildSignedPdf, type SubmittedSignatureFieldValue } from "../../../../../../lib/signature-pdf";
+import { buildSignedPdf } from "../../../../../../lib/signature-pdf";
 import { sendSignatureCompletionEmails, sendSignatureRequestEmail } from "../../../../../../lib/signature-email";
 import { createSignatureToken } from "../../../../../../lib/signature-token";
+import { publicSignatureSubmitBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -65,10 +67,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "This signing step is not active yet." }, { status: 400 });
   }
 
-  const body = (await request.json().catch(() => null)) as { values?: SubmittedSignatureFieldValue[] } | null;
+  const parsedBody = await parseJsonBody(request, publicSignatureSubmitBodySchema, {
+    error: "A values array is required.",
+  });
 
-  if (!body?.values || !Array.isArray(body.values)) {
-    return NextResponse.json({ error: "A values array is required." }, { status: 400 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
   try {
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       fields: snapshot.fields,
       recipients: snapshot.request.recipients,
       currentRecipientId: snapshot.currentRecipient.id,
-      submittedValues: body.values
+      submittedValues: parsedBody.data.values
     });
 
     if (submissionValidation.unauthorizedFieldIds.length > 0) {
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const submittedValues = body.values
+    const submittedValues = parsedBody.data.values
       .filter((value) => submissionValidation.editableFieldIds.has(value.fieldId))
       .map((value) => ({
         ...value,
