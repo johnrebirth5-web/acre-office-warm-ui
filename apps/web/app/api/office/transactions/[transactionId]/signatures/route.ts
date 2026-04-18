@@ -1,7 +1,12 @@
 import { canManageOfficeSignatures } from "@acre/auth";
-import { createSignatureRequest } from "@acre/db";
+import {
+  createSignatureRequest,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { createOfficeSignatureRequestBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -19,43 +24,31 @@ type RecipientRequestBody = {
   sortOrder?: number | null;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeSignatureRequestsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  createSignatureRequest?: typeof createSignatureRequest;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleCreateOfficeSignatureRequestPost(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeSignatureRequestsRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    createOfficeSignatureRequestBodySchema,
+    {
+      error: "Signature request payload is invalid.",
+      invalidJsonError: "Signature request body must be valid JSON.",
+    },
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeSignatures(context.currentMembership)) {
-    return NextResponse.json({ error: "Signature access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        signatureRequestId?: string | null;
-        formId?: string | null;
-        documentId?: string | null;
-        offerId?: string | null;
-        templateId?: string | null;
-        subjectMembershipId?: string | null;
-        contextType?: "transaction" | "membership" | "finance_request" | "admin_request" | "generic";
-        contextId?: string | null;
-        contextLabel?: string | null;
-        recipientName?: string;
-        recipientEmail?: string;
-        recipientRole?: string;
-        recipients?: RecipientRequestBody[];
-        ccRecipients?: RecipientRequestBody[];
-        emailSubject?: string | null;
-        emailBody?: string | null;
-        expiresAt?: string | null;
-        senderDisplayName?: string | null;
-        senderReplyTo?: string | null;
-        signingOrder?: number | null;
-      }
-    | null;
-  const safeBody = body ?? {};
+  const safeBody = parsedBody.data;
 
   const recipients =
     safeBody.recipients?.filter(
@@ -75,7 +68,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const signatureRequest = await createSignatureRequest({
+    const signatureRequest = await (
+      dependencies.createSignatureRequest ?? createSignatureRequest
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
@@ -130,4 +125,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeSignatures(context.currentMembership)) {
+    return NextResponse.json({ error: "Signature access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleCreateOfficeSignatureRequestPost(request, transactionId, context);
 }

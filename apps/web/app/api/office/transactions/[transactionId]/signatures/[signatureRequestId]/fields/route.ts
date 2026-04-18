@@ -1,7 +1,13 @@
 import { canManageOfficeSignatures } from "@acre/auth";
-import { getSignatureEditorSnapshot, replaceSignatureRequestFields } from "@acre/db";
+import {
+  getSignatureEditorSnapshot,
+  replaceSignatureRequestFields,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../../lib/auth-session";
+import { replaceOfficeSignatureFieldsBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,8 +15,6 @@ type RouteContext = {
     signatureRequestId: string;
   }>;
 };
-
-const allowedFieldTypes = new Set(["signature", "date", "name", "text", "initials", "email", "title", "company", "checkbox", "dropdown"]);
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -33,63 +37,43 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   return NextResponse.json({ fields: snapshot.fields });
 }
 
-export async function PUT(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeSignatureFieldsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  replaceSignatureRequestFields?: typeof replaceSignatureRequestFields;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
+export async function handleReplaceOfficeSignatureFieldsPut(
+  request: NextRequest,
+  transactionId: string,
+  signatureRequestId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeSignatureFieldsRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    replaceOfficeSignatureFieldsBodySchema,
+    {
+      error: "Signature fields payload is invalid.",
+      invalidJsonError: "Signature fields request body must be valid JSON.",
+    },
+  );
 
-  if (!canManageOfficeSignatures(context.currentMembership)) {
-    return NextResponse.json({ error: "Signature access required." }, { status: 403 });
-  }
-
-  const { transactionId, signatureRequestId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        fields?: Array<{
-          id?: string;
-          fieldType?: string;
-          label?: string;
-          page?: number;
-          x?: number;
-          y?: number;
-          width?: number;
-          height?: number;
-          required?: boolean;
-          defaultValue?: string | null;
-          fontStyle?: string | null;
-          assignedRecipientId?: string | null;
-          fieldKey?: string | null;
-          isReadOnly?: boolean;
-          isSystemPrefilled?: boolean;
-          visibilityRule?: unknown;
-          mirrorGroup?: string | null;
-          fieldOptions?: unknown;
-          sortOrder?: number;
-        }>;
-      }
-    | null;
-
-  if (!body?.fields || !Array.isArray(body.fields)) {
-    return NextResponse.json({ error: "A fields array is required." }, { status: 400 });
-  }
-
-  const invalidField = body.fields.find((field) => !field.fieldType || !allowedFieldTypes.has(field.fieldType));
-  if (invalidField) {
-    return NextResponse.json({ error: "Every signature field needs a valid field type." }, { status: 400 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
   try {
-    const fields = await replaceSignatureRequestFields({
+    const fields = await (
+      dependencies.replaceSignatureRequestFields ?? replaceSignatureRequestFields
+    )({
       organizationId: context.currentOrganization.id,
       transactionId,
       signatureRequestId,
       actorMembershipId: context.currentMembership.id,
-      fields: body.fields.map((field, index) => ({
+      fields: parsedBody.data.fields.map((field, index) => ({
         id: field.id,
         assignedRecipientId: field.assignedRecipientId?.trim() || null,
-        fieldType: field.fieldType as "signature" | "date" | "name" | "text" | "initials" | "email" | "title" | "company" | "checkbox" | "dropdown",
+        fieldType: field.fieldType,
         label: field.label?.trim() || "",
         page: typeof field.page === "number" ? field.page : 1,
         x: typeof field.x === "number" ? field.x : 0.1,
@@ -120,4 +104,24 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PUT(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeSignatures(context.currentMembership)) {
+    return NextResponse.json({ error: "Signature access required." }, { status: 403 });
+  }
+
+  const { transactionId, signatureRequestId } = await params;
+  return handleReplaceOfficeSignatureFieldsPut(
+    request,
+    transactionId,
+    signatureRequestId,
+    context,
+  );
 }

@@ -1,8 +1,14 @@
 import { canManageOfficeDocuments } from "@acre/auth";
-import { deleteTransactionDocument, updateTransactionDocument } from "@acre/db";
+import {
+  deleteTransactionDocument,
+  type SessionMembershipContext,
+  updateTransactionDocument,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteStoredFile } from "../../../../../../../lib/document-storage";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateOfficeTransactionDocumentBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -11,43 +17,46 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionDocumentRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateTransactionDocument?: typeof updateTransactionDocument;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeTransactionDocumentPatch(
+  request: NextRequest,
+  transactionId: string,
+  documentId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionDocumentRouteDependencies = {},
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeTransactionDocumentBodySchema,
+    {
+      error: "Transaction document payload is invalid.",
+      invalidJsonError: "Transaction document request body must be valid JSON.",
+    },
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
-
-  if (!canManageOfficeDocuments(context.currentMembership)) {
-    return NextResponse.json({ error: "Document access required." }, { status: 403 });
-  }
-
-  const { transactionId, documentId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        title?: string;
-        documentType?: string;
-        status?: string;
-        isRequired?: boolean;
-        isUnsorted?: boolean;
-        linkedTaskId?: string | null;
-        offerId?: string | null;
-      }
-    | null;
 
   try {
-    const document = await updateTransactionDocument({
+    const document = await (
+      dependencies.updateTransactionDocument ?? updateTransactionDocument
+    )({
       organizationId: context.currentOrganization.id,
       transactionId,
       documentId,
       actorMembershipId: context.currentMembership.id,
-      title: body?.title,
-      documentType: body?.documentType,
-      status: body?.status as never,
-      isRequired: body?.isRequired,
-      isUnsorted: body?.isUnsorted,
-      linkedTaskId: body?.linkedTaskId ?? undefined,
-      offerId: body?.offerId ?? undefined
+      title: parsedBody.data.title,
+      documentType: parsedBody.data.documentType,
+      status: parsedBody.data.status as never,
+      isRequired: parsedBody.data.isRequired,
+      isUnsorted: parsedBody.data.isUnsorted,
+      linkedTaskId: parsedBody.data.linkedTaskId ?? undefined,
+      offerId: parsedBody.data.offerId ?? undefined
     });
 
     if (!document) {
@@ -61,6 +70,26 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeDocuments(context.currentMembership)) {
+    return NextResponse.json({ error: "Document access required." }, { status: 403 });
+  }
+
+  const { transactionId, documentId } = await params;
+  return handleUpdateOfficeTransactionDocumentPatch(
+    request,
+    transactionId,
+    documentId,
+    context,
+  );
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
