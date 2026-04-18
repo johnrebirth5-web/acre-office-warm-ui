@@ -179,6 +179,7 @@
   - `office/transactions/[transactionId]/documents/[documentId]`、`signatures` 创建、`signatures/[signatureRequestId]/fields` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/transactions/commission-preview`、`search-layout`、`[transactionId]/intake`、`[transactionId]/offers` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/transactions` 主入口 `POST` 已补统一 Zod body schema 与 create-flow regression tests，保留现有 FO handoff / owner assignment / finance fee 语义不变（2026-04-18，pending）
+  - `office/account/notifications`、`office/notifications`、`office/notifications/[notificationId]` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office signature send/resend` PATCH 路由已接入统一权限 wrapper，去掉重复 session / 403 分支（2026-04-11，pending）
   - 新增 `withApiGuard` 统一收口 `csrf + auth + permission + prepare + rate limit`，并把 `login`、`FO intake-assist`、`office signature request PATCH` 三条高复用入口迁到共享 guard；对应 route tests 已纳入 `test:backoffice-hardening`（2026-04-17，pending）
   - `change-password`、`invitation accept`、`public signature submit` 已迁到共享 `withApiGuard`，补齐了 redirect/429 级别的 route regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）

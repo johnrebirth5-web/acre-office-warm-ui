@@ -1,36 +1,38 @@
-import { saveOfficeAccountNotificationPreferences } from "@acre/db";
+import {
+  saveOfficeAccountNotificationPreferences,
+  type SessionMembershipContext,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
+import { updateOfficeAccountNotificationsBodySchema } from "./route.schema";
 
-export async function PATCH(request: NextRequest) {
-  const context = await requireRequestOfficeSession(request);
+type OfficeAccountNotificationsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveOfficeAccountNotificationPreferences?: typeof saveOfficeAccountNotificationPreferences;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeAccountNotificationsPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeAccountNotificationsRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, updateOfficeAccountNotificationsBodySchema, {
+    error: "Valid notification preferences are required.",
+    invalidJsonError: "Notification preferences request body must be valid JSON.",
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
+  const body = parsedBody.data;
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        inAppEnabled?: boolean;
-        approvalAlertsEnabled?: boolean;
-        taskRemindersEnabled?: boolean;
-        offerAlertsEnabled?: boolean;
-        messageAlertsEnabled?: boolean;
-      }
-    | null;
-
-  if (
-    !body ||
-    typeof body.inAppEnabled !== "boolean" ||
-    typeof body.approvalAlertsEnabled !== "boolean" ||
-    typeof body.taskRemindersEnabled !== "boolean" ||
-    typeof body.offerAlertsEnabled !== "boolean" ||
-    typeof body.messageAlertsEnabled !== "boolean"
-  ) {
-    return NextResponse.json({ error: "Valid notification preferences are required." }, { status: 400 });
-  }
-
-  const saved = await saveOfficeAccountNotificationPreferences({
+  const saved = await (
+    dependencies.saveOfficeAccountNotificationPreferences ??
+    saveOfficeAccountNotificationPreferences
+  )({
     organizationId: context.currentOrganization.id,
     membershipId: context.currentMembership.id,
     inAppEnabled: body.inAppEnabled,
@@ -45,4 +47,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, saved });
+}
+
+export async function PATCH(request: NextRequest) {
+  const context = await requireRequestOfficeSession(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  return handleUpdateOfficeAccountNotificationsPatch(request, context);
 }
