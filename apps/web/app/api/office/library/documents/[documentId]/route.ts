@@ -1,10 +1,17 @@
 import { canManageOfficeLibrary, canViewOfficeLibrary } from "@acre/auth";
-import { deleteLibraryDocument, getLibraryDocumentStorageRecord, updateLibraryDocument } from "@acre/db";
+import {
+  deleteLibraryDocument,
+  getLibraryDocumentStorageRecord,
+  updateLibraryDocument,
+  type SessionMembershipContext
+} from "@acre/db";
 import { LibraryDocumentVisibility } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { deleteStoredFile, readStoredFile } from "../../../../../../lib/document-storage";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import { extractPdfMetadata, isPdfFileLike } from "../../_shared/pdf-metadata";
+import { updateLibraryDocumentBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
@@ -14,13 +21,9 @@ type RouteContext = {
   }>;
 };
 
-type DocumentUpdateBody = {
-  title?: string;
-  folderId?: string | null;
-  summary?: string | null;
-  category?: string | null;
-  tags?: string[];
-  visibility?: string;
+type LibraryDocumentRouteDependencies = {
+  parseJsonBody: typeof parseJsonBody;
+  updateLibraryDocument: typeof updateLibraryDocument;
 };
 
 function parseVisibility(value: string | undefined) {
@@ -87,32 +90,37 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+export async function handleUpdateLibraryDocumentPatch(
+  request: NextRequest,
+  documentId: string,
+  context: SessionMembershipContext,
+  dependencies: Partial<LibraryDocumentRouteDependencies> = {}
+) {
+  const parseBody = dependencies.parseJsonBody ?? parseJsonBody;
+  const updateDocument = dependencies.updateLibraryDocument ?? updateLibraryDocument;
+  const parsedBody = await parseBody(request, updateLibraryDocumentBodySchema, {
+    error: "Document payload is invalid.",
+    invalidJsonError: "Document request body must be valid JSON."
+  });
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeLibrary(context.currentMembership)) {
-    return NextResponse.json({ error: "Library management access required." }, { status: 403 });
-  }
-
-  const { documentId } = await params;
-  const body = (await request.json().catch(() => null)) as DocumentUpdateBody | null;
+  const body = parsedBody.data;
 
   try {
-    const document = await updateLibraryDocument({
+    const document = await updateDocument({
       organizationId: context.currentOrganization.id,
       currentOfficeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
       documentId,
-      title: body?.title,
-      folderId: body?.folderId === undefined ? undefined : body.folderId,
-      summary: body?.summary,
-      category: body?.category,
-      tags: Array.isArray(body?.tags) ? body?.tags : undefined,
-      visibility: parseVisibility(body?.visibility)
+      title: body.title,
+      folderId: body.folderId === undefined ? undefined : body.folderId,
+      summary: body.summary,
+      category: body.category,
+      tags: body.tags,
+      visibility: parseVisibility(body.visibility)
     });
 
     if (!document) {
@@ -126,6 +134,21 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeLibrary(context.currentMembership)) {
+    return NextResponse.json({ error: "Library management access required." }, { status: 403 });
+  }
+
+  const { documentId } = await params;
+  return handleUpdateLibraryDocumentPatch(request, documentId, context);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
