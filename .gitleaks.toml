@@ -1,0 +1,22 @@
+title = "Acre Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Repository examples and test placeholders"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)docs/env\.md$''',
+  '''(^|/)apps/web/lib/auth-session\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Intentional placeholder strings used in docs and tests"
+regexes = [
+  '''<generated-session-secret>''',
+  '''<previous-generated-session-secret>''',
+  '''replace-with-a-[A-Za-z0-9_-]+''',
+  '''0123456789abcdef0123456789abcdef''',
+  '''fedcba9876543210fedcba9876543210'''
+]

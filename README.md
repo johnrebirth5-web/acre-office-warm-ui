@@ -1163,6 +1163,18 @@ npm run build
 npm run test:backoffice-hardening
 ```
 
+安装仓库内的本地 pre-commit hook（可选，但建议开启）：
+
+```bash
+npm run hooks:install
+```
+
+手动运行 secret scan：
+
+```bash
+npm run scan:secrets
+```
+
 校验 Prisma schema：
 
 ```bash
@@ -1186,6 +1198,13 @@ npm run db:migrate -- --name init
 ```bash
 npm run db:seed
 ```
+
+## CI 与 Secret Scan
+
+- `.github/workflows/ci.yml` 现在会在 `pull_request` 和推送到 `main` 时运行 `npm ci -> npm run db:generate -> npm run typecheck -> npm run lint -> npm run build`，并在独立 job 中启动 PostgreSQL 后执行 `npm run test:backoffice-hardening`
+- `.github/workflows/secret-scan.yml` 会运行 `gitleaks` 扫描当前工作树内容
+- 本地可通过 `npm run hooks:install` 启用仓库内 `.githooks/pre-commit`，在提交前跑 staged secret scan
+- GitHub 仓库设置应同步启用 `main` 的 branch protection：require status checks、require pull request review，并勾选 automatically delete head branches
 
 ## 项目目录结构
 

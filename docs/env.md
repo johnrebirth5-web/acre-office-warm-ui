@@ -142,6 +142,40 @@ ACRE_SESSION_SECRET="replace-with-a-long-random-string"
 - 开发环境可用 fallback 启动
 - 生产或共享环境应始终显式配置
 
+轮换建议：
+
+- 如果工作目录、截图、日志、备份或聊天内容暴露了当前值，应视为已泄露并立刻轮换
+- 先确认生产环境是否已经显式配置 `ACRE_SETTINGS_ENCRYPTION_SECRET`
+- 如果系统内 SMTP / Signature Drive 设置仍在回退使用 `ACRE_SESSION_SECRET` 做加密，先补上独立的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，或准备在轮换后重新保存这些设置
+- 先生成新的强随机值作为 `ACRE_SESSION_SECRET`
+- 把旧值临时放到 `ACRE_SESSION_SECRET_SECONDARY`
+- 部署一版后，让现有 cookie 在主/次 key 双验签窗口内自然过渡
+- 等当前 session 最大存活期过去后，再把 `ACRE_SESSION_SECRET_SECONDARY` 从环境源删除
+
+### `ACRE_SESSION_SECRET_SECONDARY`
+
+用途：
+
+- 在 session secret 轮换窗口内继续验签旧 cookie
+- 当前由 `apps/web/lib/auth-session.ts` 在 `decodeSession` 时与主 key 一起参与验签
+
+是否必填：
+
+- 非必填
+- 仅在轮换 `ACRE_SESSION_SECRET` 时临时使用
+
+示例格式：
+
+```env
+ACRE_SESSION_SECRET_SECONDARY="<previous-generated-session-secret>"
+```
+
+使用建议：
+
+- 只在轮换窗口内保留
+- 不要把它长期当作第二个常驻 secret
+- 当前 cookie 最大存活期过去后，应尽快删除
+
 ### `ACRE_BASE_URL`
 
 用途：
@@ -549,6 +583,7 @@ ACRE_SECURE_COOKIES=false
 - 本地开发：通常不需要显式设置
 - 纯 `HTTP` 的临时生产部署：设为 `false`
 - 正式 `HTTPS` 生产部署：不要设为 `false`
+- 当前默认生产基线应显式把它设为 `true`，避免环境缺失时靠隐式默认值判断
 
 缺失后的影响：
 
@@ -729,6 +764,43 @@ npm run db:sync:from-production
 - 服务器应用目录位于 `/opt/acre-ui-rebuild/app`
 - 生产服务名是 `acre-ui-rebuild-web.service`
 - 生产 `DATABASE_URL` 必须指向可用的 PostgreSQL 实例
+- 生产 `ACRE_SECURE_COOKIES` 应显式设为 `true`
+
+### 已暴露本地 secret 的止血 runbook
+
+当 `.env` / `.env.local`、终端输出、截图、聊天记录或备份暴露了真实值时，按以下顺序处理：
+
+1. 先轮换外部系统里的真实凭据，再改代码仓库和本地环境
+2. `Resend`：吊销旧 `ACRE_RESEND_API_KEY`，生成新 key，并同步更新生产 `/etc/acre/acre-ui-rebuild.env`
+3. `PostgreSQL`：为 `acre_app` 执行 `ALTER USER ... WITH PASSWORD ...`，然后同步更新生产 `/etc/acre/acre-ui-rebuild.env`
+4. `Session`：生成新的 `ACRE_SESSION_SECRET`，把旧值临时移到 `ACRE_SESSION_SECRET_SECONDARY`，等待当前 cookie 最大存活期过去后再删除 secondary
+5. 重启生产服务：`systemctl restart acre-ui-rebuild-web.service`
+6. 如果历史上没有单独的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，确认 SMTP / Signature Drive 的已保存密钥仍可解密；必要时在新 secret 生效后重新保存这些设置
+7. 本地环境不要继续保留长期生产或共享环境 secret；优先迁移到 `1Password CLI`、`Doppler` 或其他外部 secret source
+
+### git 历史扫描 checklist
+
+在确认“只是本地工作树暴露”之前，先跑一轮历史扫描：
+
+```bash
+git log --all --full-history -p -- .env .env.local
+git log --all -S 're_J4gNba2j'
+git log --all -S 'f6ca1b16f453'
+git log --all -S 'ACRE_SESSION_SECRET'
+```
+
+如果历史里出现真实 secret：
+
+- 先继续按上面的 runbook 完成轮换
+- 再决定是否需要 `git filter-repo` 重写历史
+- 无论是否重写，都应把这次事件写入内部 incident log / 运维记录
+
+### 本地 secret scan 与 hook
+
+- 仓库现在提供 `.gitleaks.toml`
+- `npm run scan:secrets` 会运行一次工作树 secret scan
+- `npm run hooks:install` 会把 Git hooks 指向仓库内 `.githooks`
+- `.githooks/pre-commit` 当前会对 staged 变更运行 gitleaks；如果本机没有 `gitleaks`，会尝试使用 Docker 镜像
 
 ## 维护要求
 
