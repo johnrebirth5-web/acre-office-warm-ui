@@ -2,37 +2,53 @@ import { canManageOfficeFields } from "@acre/auth";
 import {
   getOfficeTransactionReportSearchLayoutSnapshot,
   saveOfficeTransactionReportSearchLayout,
-  type OfficeTransactionReportSearchFieldKey
+  type OfficeTransactionReportSearchFieldKey,
+  type SessionMembershipContext
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
+import { updateOfficeTransactionReportSearchLayoutBodySchema } from "./route.schema";
 
-export async function PATCH(request: NextRequest) {
-  const context = await requireRequestOfficeSession(request);
+type OfficeTransactionReportSearchLayoutRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveOfficeTransactionReportSearchLayout?: typeof saveOfficeTransactionReportSearchLayout;
+  getOfficeTransactionReportSearchLayoutSnapshot?: typeof getOfficeTransactionReportSearchLayoutSnapshot;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeTransactionReportSearchLayoutPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionReportSearchLayoutRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeTransactionReportSearchLayoutBodySchema,
+    {
+      error: "Report search layout payload is invalid.",
+      invalidJsonError: "Report search layout request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
-
-  if (!canManageOfficeFields(context.currentMembership)) {
-    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as
-    | {
-        fields?: string[];
-      }
-    | null;
 
   try {
-    await saveOfficeTransactionReportSearchLayout({
+    await (
+      dependencies.saveOfficeTransactionReportSearchLayout ??
+      saveOfficeTransactionReportSearchLayout
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
-      fields: (body?.fields ?? []).map((field) => String(field)) as OfficeTransactionReportSearchFieldKey[]
+      fields: (parsedBody.data.fields ?? []).map((field) => String(field)) as OfficeTransactionReportSearchFieldKey[]
     });
 
-    const snapshot = await getOfficeTransactionReportSearchLayoutSnapshot({
+    const snapshot = await (
+      dependencies.getOfficeTransactionReportSearchLayoutSnapshot ??
+      getOfficeTransactionReportSearchLayoutSnapshot
+    )({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null
@@ -50,4 +66,18 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest) {
+  const context = await requireRequestOfficeSession(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeFields(context.currentMembership)) {
+    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
+  }
+
+  return handleUpdateOfficeTransactionReportSearchLayoutPatch(request, context);
 }
