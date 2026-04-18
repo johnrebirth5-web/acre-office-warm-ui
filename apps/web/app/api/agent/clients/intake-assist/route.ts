@@ -1,5 +1,5 @@
 import { canViewOfficeContacts } from "@acre/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import { isSameOriginRequest } from "../../../../../lib/csrf";
 import {
@@ -11,6 +11,7 @@ import {
 import {
   handleFrontOfficeLeadIntakeAssistServerRoute,
 } from "../../../../../lib/front-office-intake-assist-server";
+import { withApiGuard } from "../../../../../lib/with-api-guard";
 
 export const runtime = "nodejs";
 
@@ -21,23 +22,13 @@ type IntakeAssistRouteDependencies = {
   handleAssist?: typeof handleFrontOfficeLeadIntakeAssistServerRoute;
   rateLimit?: RateLimitConsumer;
   rateLimitOptions?: RateLimitOptions;
+  withApiGuard?: typeof withApiGuard;
 };
 
 const DEFAULT_INTAKE_ASSIST_RATE_LIMIT_OPTIONS = {
   limit: 20,
   windowMs: 5 * 60 * 1000
 };
-
-function buildIntakeAssistErrorResponse(error: string, status: 401 | 403 | 429, retryAfterSeconds?: number) {
-  const response = NextResponse.json({ error }, { status });
-  response.headers.set("Cache-Control", "no-store");
-
-  if (retryAfterSeconds) {
-    response.headers.set("Retry-After", String(retryAfterSeconds));
-  }
-
-  return response;
-}
 
 function getIntakeAssistRateLimitKey(request: NextRequest, membershipId: string) {
   return buildRateLimitKey("agent/intake-assist", request, membershipId || "anonymous");
@@ -51,41 +42,38 @@ export async function handleIntakeAssistPost(
   request: NextRequest,
   dependencies: IntakeAssistRouteDependencies = {},
 ) {
-  const csrfCheck = dependencies.csrf ?? isSameOriginRequest;
+  const canViewContacts =
+    dependencies.canViewOfficeContacts ?? canViewOfficeContacts;
+  const handleAssist =
+    dependencies.handleAssist ?? handleFrontOfficeLeadIntakeAssistServerRoute;
 
-  if (!csrfCheck(request)) {
-    return buildIntakeAssistErrorResponse("CSRF validation failed.", 403);
-  }
-
-  const getSessionContext = dependencies.getSessionContext ?? getRequestSessionContext;
-  const context = await getSessionContext(request);
-
-  if (!context) {
-    return buildIntakeAssistErrorResponse("Authentication required.", 401);
-  }
-
-  const canViewContacts = dependencies.canViewOfficeContacts ?? canViewOfficeContacts;
-
-  if (!canViewContacts(context.currentMembership)) {
-    return buildIntakeAssistErrorResponse("Lead intake review access required.", 403);
-  }
-
-  const rateLimitDecision = await (dependencies.rateLimit ?? consumeRateLimit)(
-    getIntakeAssistRateLimitKey(request, context.currentMembership.id),
-    dependencies.rateLimitOptions ?? DEFAULT_INTAKE_ASSIST_RATE_LIMIT_OPTIONS,
+  return (dependencies.withApiGuard ?? withApiGuard)(
+    request,
+    async ({ context }) =>
+      handleAssist(request, context!, {
+        canViewOfficeContacts: canViewContacts,
+      }),
+    {
+      cacheControlNoStore: true,
+      canAccess: canViewContacts,
+      csrf: dependencies.csrf ?? isSameOriginRequest,
+      forbiddenMessage: "Lead intake review access required.",
+      getRequestSessionContext:
+        dependencies.getSessionContext ?? getRequestSessionContext,
+      rateLimit: {
+        consumer: dependencies.rateLimit ?? consumeRateLimit,
+        key: ({ context: guardContext, request: guardedRequest }) =>
+          getIntakeAssistRateLimitKey(
+            guardedRequest,
+            guardContext!.currentMembership.id,
+          ),
+        message: "Too many intake assist requests. Please try again in a moment.",
+        options:
+          dependencies.rateLimitOptions ??
+          DEFAULT_INTAKE_ASSIST_RATE_LIMIT_OPTIONS,
+      },
+      requireAuth: true,
+      unauthorizedMessage: "Authentication required.",
+    },
   );
-
-  if (!rateLimitDecision.allowed) {
-    return buildIntakeAssistErrorResponse(
-      "Too many intake assist requests. Please try again in a moment.",
-      429,
-      rateLimitDecision.retryAfterSeconds,
-    );
-  }
-
-  const handleAssist = dependencies.handleAssist ?? handleFrontOfficeLeadIntakeAssistServerRoute;
-
-  return handleAssist(request, context, {
-    canViewOfficeContacts: canViewContacts,
-  });
 }

@@ -170,6 +170,7 @@
 - **已落地 slice：**
   - `office/settings/email-delivery`、`signature-drive`、`users` 三组设置路由已接入统一 wrapper，并补了 helper test（2026-04-10，`aeca10d`）
   - `office signature send/resend` PATCH 路由已接入统一权限 wrapper，去掉重复 session / 403 分支（2026-04-11，pending）
+  - 新增 `withApiGuard` 统一收口 `csrf + auth + permission + prepare + rate limit`，并把 `login`、`FO intake-assist`、`office signature request PATCH` 三条高复用入口迁到共享 guard；对应 route tests 已纳入 `test:backoffice-hardening`（2026-04-17，pending）
 
 ### R0-4 写操作的基础防护：CSRF + rate limit
 - [ ] **新增：** `apps/web/lib/csrf.ts`

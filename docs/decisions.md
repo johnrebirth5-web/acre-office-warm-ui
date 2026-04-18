@@ -109,6 +109,7 @@ Trade-off：
 
 - 复杂 session 体系
 - 全局 session / auth 页面 proxy / middleware
+- route-level shared API guard 还未覆盖全部高风险写入口
 - 自定义角色创建
 - 全模块最细粒度业务动作都完全补齐
 

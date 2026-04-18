@@ -666,10 +666,11 @@
 
 1. 请求进入 `apps/web`
 2. `/api/*` 写请求先经过 same-origin CSRF proxy，扩展 token 入口按精确路径豁免
-3. 页面 layout / route handler 继续解析当前用户、组织与 office scope
-4. route handler 调用领域 service
-5. 领域 service 通过 `@acre/db` 的 Prisma runtime 访问 PostgreSQL
-6. 返回 DTO 给页面或 API
+3. 高风险 route 继续通过共享 `withApiGuard` 收口 route-level 的 auth / permission / rate limit / body-prepare 逻辑
+4. 页面 layout / route handler 继续解析当前用户、组织与 office scope
+5. route handler 调用领域 service
+6. 领域 service 通过 `@acre/db` 的 Prisma runtime 访问 PostgreSQL
+7. 返回 DTO 给页面或 API
 
 这个链路只完成了最小数据库 probe，主页面和主 API 还没有全部切换。
 

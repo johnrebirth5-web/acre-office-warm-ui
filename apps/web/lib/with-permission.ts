@@ -1,7 +1,7 @@
 import type { SessionMembershipContext } from "@acre/db";
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
 import { getRequestSessionContext } from "./auth-session";
+import { withApiGuard } from "./with-api-guard";
 
 export type WithPermissionOptions = {
   unauthorizedMessage?: string;
@@ -17,21 +17,16 @@ export async function withPermission(
 ) {
   const getSessionContext =
     options.getRequestSessionContext ?? getRequestSessionContext;
-  const context = await getSessionContext(request);
 
-  if (!context) {
-    return NextResponse.json(
-      { error: options.unauthorizedMessage ?? "Authentication required." },
-      { status: 401 },
-    );
-  }
-
-  if (!canAccess(context.currentMembership)) {
-    return NextResponse.json(
-      { error: options.forbiddenMessage },
-      { status: 403 },
-    );
-  }
-
-  return handler(context);
+  return withApiGuard(
+    request,
+    async ({ context }) => handler(context as SessionMembershipContext),
+    {
+      canAccess,
+      forbiddenMessage: options.forbiddenMessage,
+      getRequestSessionContext: getSessionContext,
+      requireAuth: true,
+      unauthorizedMessage: options.unauthorizedMessage,
+    },
+  );
 }

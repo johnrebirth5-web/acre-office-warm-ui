@@ -24,14 +24,6 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
-async function allowSignatureAccess(
-  _request: NextRequest,
-  _canAccess: unknown,
-  handler: (context: ReturnType<typeof createSessionContext>) => Promise<Response> | Response,
-) {
-  return handler(createSessionContext());
-}
-
 function createSessionContext() {
   return {
     currentOrganization: {
@@ -78,7 +70,7 @@ test("handleSignatureRequestPatch returns 400 when the action is invalid", async
     },
     {
       csrf: () => true,
-      withPermission: allowSignatureAccess as never,
+      getRequestSessionContext: async () => createSessionContext(),
     },
   );
 
@@ -97,7 +89,7 @@ test("handleSignatureRequestPatch returns 429 when send is rate limited", async 
     },
     {
       csrf: () => true,
-      withPermission: allowSignatureAccess as never,
+      getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => ({
         allowed: false,
         limit: 10,
@@ -125,7 +117,7 @@ test("handleSignatureRequestPatch bypasses rate limiting for non-send actions", 
     },
     {
       csrf: () => true,
-      withPermission: allowSignatureAccess as never,
+      getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => {
         throw new Error("rate limit should not run");
       },
@@ -155,7 +147,7 @@ test("handleSignatureRequestPatch returns 404 when send cannot load the signatur
     },
     {
       csrf: () => true,
-      withPermission: allowSignatureAccess as never,
+      getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => ({
         allowed: true,
         limit: 10,
