@@ -123,3 +123,62 @@ test("withApiGuard runs prepare once and passes prepared input to the handler", 
     email: "agent@example.com",
   });
 });
+
+test("withApiGuard supports custom unauthorized responses", async () => {
+  const response = await withApiGuard(
+    createRequest(),
+    async () => new Response("ok"),
+    {
+      getRequestSessionContext: async () => null,
+      onUnauthorized: () =>
+        new Response(null, {
+          status: 303,
+          headers: {
+            location: "/login",
+          },
+        }),
+      requireAuth: true,
+    },
+  );
+
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/login");
+});
+
+test("withApiGuard supports custom rate-limit rejection responses", async () => {
+  const response = await withApiGuard(
+    createRequest(),
+    async () => new Response("ok"),
+    {
+      prepare: async () => ({ token: "invite_123" }),
+      rateLimit: {
+        consumer: () => ({
+          allowed: false,
+          limit: 10,
+          remaining: 0,
+          resetAt: Date.now() + 30_000,
+          retryAfterSeconds: 30,
+        }),
+        key: () => "invite_123",
+        message: "Too many attempts.",
+        onRejected: ({ prepared }) =>
+          new Response(null, {
+            status: 303,
+            headers: {
+              location: `/invite/${prepared.token}?error=rate_limited`,
+            },
+          }),
+        options: {
+          limit: 10,
+          windowMs: 15 * 60 * 1000,
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 303);
+  assert.equal(
+    response.headers.get("location"),
+    "/invite/invite_123?error=rate_limited",
+  );
+});

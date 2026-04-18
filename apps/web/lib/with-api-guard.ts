@@ -17,11 +17,18 @@ type ApiGuardRequestContext<Prepared> = {
   request: NextRequest;
 };
 
+type ApiGuardResponseBuilderInput<Prepared> = ApiGuardRequestContext<Prepared>;
+
 export type ApiGuardRateLimitConfig<Prepared> = {
   consumer?: RateLimitConsumer;
   key: (input: ApiGuardRequestContext<Prepared>) => string;
   message: string;
   options: RateLimitOptions;
+  onRejected?: (
+    input: ApiGuardResponseBuilderInput<Prepared> & {
+      decision: Awaited<ReturnType<RateLimitConsumer>>;
+    },
+  ) => Promise<Response> | Response;
 };
 
 export type WithApiGuardOptions<Prepared = undefined> = {
@@ -33,6 +40,14 @@ export type WithApiGuardOptions<Prepared = undefined> = {
   csrfMessage?: string;
   forbiddenMessage?: string;
   getRequestSessionContext?: typeof getRequestSessionContext;
+  onForbidden?: (
+    input: ApiGuardResponseBuilderInput<Prepared> & {
+      context: NonNullable<ApiGuardContext>;
+    },
+  ) => Promise<Response> | Response;
+  onUnauthorized?: (
+    input: ApiGuardResponseBuilderInput<Prepared>,
+  ) => Promise<Response> | Response;
   prepare?: (
     input: Omit<ApiGuardRequestContext<undefined>, "prepared">,
   ) => Promise<Prepared> | Prepared;
@@ -102,6 +117,7 @@ export async function withApiGuard<Prepared = undefined>(
   }
 
   let context: ApiGuardContext = null;
+  let prepared = undefined as Prepared;
 
   if (shouldLoadSessionContext(options)) {
     const getSessionContext =
@@ -110,6 +126,10 @@ export async function withApiGuard<Prepared = undefined>(
   }
 
   if (options.requireAuth && !context) {
+    if (options.onUnauthorized) {
+      return options.onUnauthorized({ request, context, prepared });
+    }
+
     return buildApiGuardErrorResponse(
       options.unauthorizedMessage ?? "Authentication required.",
       401,
@@ -121,6 +141,10 @@ export async function withApiGuard<Prepared = undefined>(
 
   if (options.canAccess) {
     if (!context) {
+      if (options.onUnauthorized) {
+        return options.onUnauthorized({ request, context, prepared });
+      }
+
       return buildApiGuardErrorResponse(
         options.unauthorizedMessage ?? "Authentication required.",
         401,
@@ -130,7 +154,15 @@ export async function withApiGuard<Prepared = undefined>(
       );
     }
 
+    if (options.prepare) {
+      prepared = await options.prepare({ request, context });
+    }
+
     if (!options.canAccess(context.currentMembership)) {
+      if (options.onForbidden) {
+        return options.onForbidden({ request, context, prepared });
+      }
+
       return buildApiGuardErrorResponse(
         options.forbiddenMessage ?? "Permission required.",
         403,
@@ -139,11 +171,9 @@ export async function withApiGuard<Prepared = undefined>(
         },
       );
     }
+  } else if (options.prepare) {
+    prepared = await options.prepare({ request, context });
   }
-
-  const prepared = options.prepare
-    ? await options.prepare({ request, context })
-    : (undefined as Prepared);
 
   if (options.rateLimit) {
     const decision = await (options.rateLimit.consumer ?? consumeRateLimit)(
@@ -152,6 +182,15 @@ export async function withApiGuard<Prepared = undefined>(
     );
 
     if (!decision.allowed) {
+      if (options.rateLimit.onRejected) {
+        return options.rateLimit.onRejected({
+          request,
+          context,
+          prepared,
+          decision,
+        });
+      }
+
       return buildApiGuardErrorResponse(options.rateLimit.message, 429, {
         cacheControlNoStore: options.cacheControlNoStore,
         retryAfterSeconds: decision.retryAfterSeconds,
