@@ -189,6 +189,7 @@
 - **已落地 slice：**
   - 登录与 `FO intake-assist` 已接入 same-origin CSRF 校验和内存型 rate limit，并补了 route tests（2026-04-10，`07d40fc`）
   - `office signature send/resend` PATCH 路由已接入 same-origin CSRF 校验和发送级 rate limit（2026-04-11，pending）
+  - `/api/:path*` 已新增全局 same-origin CSRF proxy，并对白名单收敛到 `listing-studio extension connect/start` 与 `listing-studio imports` 两类 extension-token 写入口（2026-04-17，pending）
 
 ### R0-5 外发邮件发送边界收敛
 - [ ] **整理目标文件：** `apps/web/lib/signature-email.ts` 及相关发送入口
@@ -426,3 +427,6 @@
 
 ### 2026-04-11 · R0-signature-send-slice · pending
 `office signature send/resend` PATCH 路由已接入 `validate`、`withPermission`、same-origin CSRF 和发送级 rate limit，并补了 route regression tests；目标是先把高价值外发入口从“手写校验 + 裸写操作”推进到统一防护链。验证：签名路由 tests、`@acre/web` typecheck 通过。
+
+### 2026-04-17 · R0-4-proxy-slice · pending
+新增 `apps/web/proxy.ts`，把 `/api/*` 的非 `GET/HEAD/OPTIONS` 请求统一纳入 same-origin CSRF 校验，同时仅对白名单中的 extension-token 写入口放行；同步补了 `proxy.test.ts`，并把测试接入 `test:backoffice-hardening`。验证：proxy tests、仓库 `typecheck/lint/build` 通过。遗留：仍需把共享限流和 route-level guard 继续收敛。

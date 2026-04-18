@@ -108,7 +108,7 @@ Trade-off：
 未实现：
 
 - 复杂 session 体系
-- middleware
+- 全局 session / auth 页面 proxy / middleware
 - 自定义角色创建
 - 全模块最细粒度业务动作都完全补齐
 
