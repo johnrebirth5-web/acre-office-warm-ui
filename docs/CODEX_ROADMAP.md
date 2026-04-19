@@ -462,3 +462,9 @@
 
 ### 2026-04-18 · P0-1-secret-rotation · 9b480e4
 补上 `rotate-session-secret.sh` 默认 dry-run 脚本、session/Resend/DB 轮换 runbook、人工执行 checklist，并在 `docs/env.md` 新增带 `last rotated at` 的 secret rotation tracking 表。验证：脚本 dry-run、shell 语法校验、`typecheck/lint/build` 通过；`scan:secrets` 仍依赖真实 secret 完成轮换后再回到绿态。
+
+### 2026-04-18 · P0-2-P1-4-hardening-followups · pending
+补上每周全量 git 历史 secret scan workflow、branch protection checklist、Upstash 切换 runbook，以及共享 `field-validators`、`withApiGuard` prepare 语义测试、`ACRE_TRUSTED_PROXY_TIER` 与 rate-limit 拒绝结构化日志。验证目标：新增单测、`typecheck/lint/build` 通过；历史扫描 workflow 与 branch protection 属于发布后启用项。
+
+### 2026-04-18 · P3-2-ci-matrix-threshold · pending
+当前先不拆 `hardening-tests` matrix，只在路线图中记录触发条件：单次运行超过 8 分钟时，再按 `unit / integration` 两路并行切分。这样避免在问题还没出现前把 CI 复杂度提前拉高。

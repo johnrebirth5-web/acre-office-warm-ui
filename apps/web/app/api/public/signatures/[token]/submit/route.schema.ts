@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { domainId } from "../../../../../../lib/api/field-validators";
 
 const signatureFieldTypeSchema = z.enum([
   "signature",
@@ -14,7 +15,7 @@ const signatureFieldTypeSchema = z.enum([
 ]);
 
 const submittedSignatureFieldValueSchema = z.object({
-  fieldId: z.string().trim().min(1, "Field id is required."),
+  fieldId: domainId("Field id is required."),
   fieldType: signatureFieldTypeSchema,
   textValue: z.string().optional(),
   signatureMode: z.enum(["draw", "type", "upload"]).optional(),

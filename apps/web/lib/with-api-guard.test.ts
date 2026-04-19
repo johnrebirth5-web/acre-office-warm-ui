@@ -69,6 +69,32 @@ test("withApiGuard returns 403 when access is denied", async () => {
   });
 });
 
+test("withApiGuard runs prepare before canAccess denies", async () => {
+  let prepareCalls = 0;
+
+  const response = await withApiGuard(
+    createRequest(),
+    async () => new Response("ok"),
+    {
+      canAccess: () => false,
+      getRequestSessionContext: async () =>
+        ({
+          currentMembership: {
+            id: "member_1",
+          },
+        }) as never,
+      prepare: async () => {
+        prepareCalls += 1;
+        return { email: "agent@example.com" };
+      },
+      requireAuth: true,
+    },
+  );
+
+  assert.equal(prepareCalls, 1);
+  assert.equal(response.status, 403);
+});
+
 test("withApiGuard returns 429 when rate limit is exceeded", async () => {
   const response = await withApiGuard(
     createRequest(),

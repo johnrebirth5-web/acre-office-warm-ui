@@ -264,6 +264,37 @@ ACRE_UPSTASH_REDIS_REST_URL="https://example.upstash.io"
 ACRE_UPSTASH_REDIS_REST_TOKEN="replace-with-upstash-rest-token"
 ```
 
+### `ACRE_TRUSTED_PROXY_TIER`
+
+用途：
+
+- 控制 rate limit client identifier 对代理头的优先级
+- 为将来接入 Cloudflare 或标准反向代理时，显式声明“哪个 header 最可信”
+- 当前由 `apps/web/lib/rate-limit.ts` 读取
+
+可选值：
+
+- `none`：默认值，沿用现有优先级 `x-forwarded-for -> x-real-ip -> cf-connecting-ip`
+- `cloudflare`：优先使用 `cf-connecting-ip`
+- `reverse-proxy`：优先使用 `x-real-ip`
+
+是否必填：
+
+- 非必填
+- 缺失时默认使用 `none`
+
+示例格式：
+
+```env
+ACRE_TRUSTED_PROXY_TIER="none"
+```
+
+使用建议：
+
+- 还没有明确的可信上游代理时，保持 `none`
+- 通过 Cloudflare 进入应用时，改成 `cloudflare`
+- 通过 Nginx / Caddy 这类反向代理进入应用时，改成 `reverse-proxy`
+
 ### `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
 
 用途：

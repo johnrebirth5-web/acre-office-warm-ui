@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { amountString, rateString } from "../../../../../../lib/api/field-validators";
 
 const transactionFinanceFeeSchema = z.object({
   feeType: z.string().trim().min(1, "Fee type is required."),
-  rate: z.string().optional(),
-  amount: z.string().optional(),
+  rate: rateString("Enter a valid rate.").optional(),
+  amount: amountString("Enter a valid amount.").optional(),
   selectedCalculationType: z.string().optional(),
   approvalStatus: z.string().optional(),
   notes: z.string().optional(),
@@ -12,10 +13,10 @@ const transactionFinanceFeeSchema = z.object({
 export const transactionFinanceBodySchema = z.preprocess(
   (value) => value ?? {},
   z.object({
-    grossCommission: z.string().optional(),
-    referralFee: z.string().optional(),
-    officeNet: z.string().optional(),
-    agentNet: z.string().optional(),
+    grossCommission: amountString("Enter a valid amount.").optional(),
+    referralFee: amountString("Enter a valid amount.").optional(),
+    officeNet: amountString("Enter a valid amount.").optional(),
+    agentNet: amountString("Enter a valid amount.").optional(),
     financeNotes: z.string().optional(),
     clientReferralFormApproved: z.boolean().optional(),
     rebateAgreementSigned: z.boolean().optional(),

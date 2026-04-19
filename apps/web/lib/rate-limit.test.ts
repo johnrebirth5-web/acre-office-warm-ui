@@ -4,7 +4,9 @@ import {
   buildRateLimitKey,
   consumeRateLimit,
   createUpstashRateLimitConsumer,
+  getRequestClientIdentifier,
   hashRateLimitSegment,
+  rateLimitTesting,
   resetRateLimitStateForTesting,
   resolveRateLimitBackend,
 } from "./rate-limit";
@@ -33,6 +35,30 @@ test("buildRateLimitKey uses the forwarded client identifier and stable hashed s
   assert.equal(key, `auth/login:203.0.113.7:${hashedEmail}`);
   assert.notEqual(hashedEmail, "agent@example.com");
   assert.equal(hashRateLimitSegment("agent@example.com"), hashedEmail);
+});
+
+test("getRequestClientIdentifier honors trusted proxy header priority modes", () => {
+  const request = createRequest({
+    "cf-connecting-ip": "198.51.100.8",
+    "x-forwarded-for": "203.0.113.7, 10.0.0.4",
+    "x-real-ip": "192.0.2.5",
+    host: "acresystem.us",
+  });
+
+  assert.equal(getRequestClientIdentifier(request), "203.0.113.7");
+  assert.equal(
+    getRequestClientIdentifier(request, {
+      ACRE_TRUSTED_PROXY_TIER: "cloudflare",
+    }),
+    "198.51.100.8",
+  );
+  assert.equal(
+    getRequestClientIdentifier(request, {
+      ACRE_TRUSTED_PROXY_TIER: "reverse-proxy",
+    }),
+    "192.0.2.5",
+  );
+  assert.equal(rateLimitTesting.resolveTrustedProxyTier({}), "none");
 });
 
 test("consumeRateLimit enforces the in-memory fixed window and resets after expiry", async () => {
@@ -136,6 +162,45 @@ test("createUpstashRateLimitConsumer sends the expected pipeline request", async
   );
 });
 
+test("consumeRateLimit routes through the upstash backend when configured", async () => {
+  const requests: string[] = [];
+
+  const decision = await consumeRateLimit(
+    "scope:key",
+    {
+      limit: 1,
+      windowMs: 1_000,
+    },
+    {
+      env: {
+        ACRE_RATE_LIMIT_BACKEND: "upstash",
+        ACRE_UPSTASH_REDIS_REST_URL: "https://upstash.example.com",
+        ACRE_UPSTASH_REDIS_REST_TOKEN: "secret-token",
+      },
+      fetch: async (url) => {
+        requests.push(String(url));
+
+        return new Response(
+          JSON.stringify([
+            { result: 1 },
+            { result: 1 },
+            { result: 1_000 },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      },
+    },
+  );
+
+  assert.equal(decision.allowed, true);
+  assert.equal(requests[0], "https://upstash.example.com/pipeline");
+});
+
 test("createUpstashRateLimitConsumer fails fast when configuration is incomplete", async () => {
   const consumeUpstashRateLimit = createUpstashRateLimitConsumer({
     env: {
@@ -151,4 +216,70 @@ test("createUpstashRateLimitConsumer fails fast when configuration is incomplete
       }),
     /ACRE_RATE_LIMIT_BACKEND=upstash requires/,
   );
+});
+
+test("consumeRateLimit logs a structured rejection only when a request is blocked", async () => {
+  resetRateLimitStateForTesting();
+  const calls: string[] = [];
+  const originalConsoleError = console.error;
+
+  console.error = (value?: unknown) => {
+    calls.push(String(value));
+  };
+
+  try {
+    await consumeRateLimit("auth/login:203.0.113.7:user", {
+      limit: 1,
+      windowMs: 1_000,
+      now: 100,
+    });
+    await consumeRateLimit("auth/login:203.0.113.7:user", {
+      limit: 1,
+      windowMs: 1_000,
+      now: 200,
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0] ?? "", /"event":"rate_limit_rejected"/);
+});
+
+test("consumeRateLimit honors a custom onDecision hook without default logging", async () => {
+  resetRateLimitStateForTesting();
+  const decisions: Array<{ key: string; allowed: boolean }> = [];
+  const originalConsoleError = console.error;
+  let consoleErrorCalls = 0;
+
+  console.error = () => {
+    consoleErrorCalls += 1;
+  };
+
+  try {
+    await consumeRateLimit("auth/login:203.0.113.7:user", {
+      limit: 1,
+      onDecision: ({ key, decision }) => {
+        decisions.push({ key, allowed: decision.allowed });
+      },
+      windowMs: 1_000,
+      now: 100,
+    });
+    await consumeRateLimit("auth/login:203.0.113.7:user", {
+      limit: 1,
+      onDecision: ({ key, decision }) => {
+        decisions.push({ key, allowed: decision.allowed });
+      },
+      windowMs: 1_000,
+      now: 200,
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(decisions, [
+    { key: "auth/login:203.0.113.7:user", allowed: true },
+    { key: "auth/login:203.0.113.7:user", allowed: false },
+  ]);
+  assert.equal(consoleErrorCalls, 0);
 });

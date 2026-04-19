@@ -104,6 +104,13 @@ export async function withApiGuard<Prepared = undefined>(
   ) => Promise<Response> | Response,
   options: WithApiGuardOptions<Prepared> = {},
 ) {
+  /**
+   * `prepare` MUST be idempotent and side-effect free.
+   * It runs after auth but before permission checks and rate-limit consumption,
+   * which means a request rejected at `canAccess` still incurs `prepare`'s cost.
+   * Use `prepare` only to derive values (for example parsing `formData` or query
+   * params) that are needed by `rateLimit.key` or the downstream handler.
+   */
   const csrfCheck = resolveCsrfCheck(options.csrf);
 
   if (csrfCheck && !csrfCheck(request)) {

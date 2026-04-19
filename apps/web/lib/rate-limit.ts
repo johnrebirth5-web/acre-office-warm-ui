@@ -7,6 +7,7 @@ type RateLimitState = {
 
 type RateLimitEnvironment = Record<string, string | undefined> & {
   ACRE_RATE_LIMIT_BACKEND?: string;
+  ACRE_TRUSTED_PROXY_TIER?: string;
   ACRE_UPSTASH_REDIS_REST_URL?: string;
   ACRE_UPSTASH_REDIS_REST_TOKEN?: string;
 };
@@ -18,6 +19,7 @@ type UpstashPipelineResponseItem = {
 
 export type RateLimitOptions = {
   limit: number;
+  onDecision?: (input: { key: string; decision: RateLimitDecision }) => void;
   windowMs: number;
   now?: number;
 };
@@ -34,6 +36,11 @@ export type RateLimitConsumer = (
   key: string,
   options: RateLimitOptions,
 ) => Promise<RateLimitDecision> | RateLimitDecision;
+
+type RateLimitRuntime = {
+  env?: RateLimitEnvironment;
+  fetch?: typeof fetch;
+};
 
 const rateLimitStore = new Map<string, RateLimitState>();
 const MEMORY_RATE_LIMIT_CLEANUP_INTERVAL = 100;
@@ -136,11 +143,46 @@ async function executeUpstashPipeline(
   return payload.map((item) => item?.result);
 }
 
-export function getRequestClientIdentifier(request: { headers: Pick<Headers, "get"> }) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const forwardedIp = request.headers.get("x-real-ip")?.trim();
-  const connectedIp = request.headers.get("cf-connecting-ip")?.trim();
+function getForwardedIp(request: { headers: Pick<Headers, "get"> }) {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+}
+
+function getRealIp(request: { headers: Pick<Headers, "get"> }) {
+  return request.headers.get("x-real-ip")?.trim();
+}
+
+function getCloudflareIp(request: { headers: Pick<Headers, "get"> }) {
+  return request.headers.get("cf-connecting-ip")?.trim();
+}
+
+export function resolveTrustedProxyTier(
+  env: RateLimitEnvironment = process.env,
+) {
+  const normalized = env.ACRE_TRUSTED_PROXY_TIER?.trim().toLowerCase();
+
+  if (normalized === "cloudflare" || normalized === "reverse-proxy") {
+    return normalized;
+  }
+
+  return "none";
+}
+
+export function getRequestClientIdentifier(
+  request: { headers: Pick<Headers, "get"> },
+  env: RateLimitEnvironment = process.env,
+) {
+  const forwardedFor = getForwardedIp(request);
+  const forwardedIp = getRealIp(request);
+  const connectedIp = getCloudflareIp(request);
   const host = request.headers.get("host")?.trim();
+
+  if (resolveTrustedProxyTier(env) === "cloudflare") {
+    return connectedIp || forwardedFor || forwardedIp || host || "unknown";
+  }
+
+  if (resolveTrustedProxyTier(env) === "reverse-proxy") {
+    return forwardedIp || forwardedFor || connectedIp || host || "unknown";
+  }
 
   return forwardedFor || forwardedIp || connectedIp || host || "unknown";
 }
@@ -261,16 +303,49 @@ export function createUpstashRateLimitConsumer(options: {
   };
 }
 
+function logRejectedRateLimitDecision(input: {
+  key: string;
+  decision: RateLimitDecision;
+}) {
+  if (input.decision.allowed) {
+    return;
+  }
+
+  console.error(
+    JSON.stringify({
+      event: "rate_limit_rejected",
+      key: input.key,
+      limit: input.decision.limit,
+      retry_after: input.decision.retryAfterSeconds,
+      ts: new Date().toISOString(),
+    }),
+  );
+}
+
 export async function consumeRateLimit(
   key: string,
   options: RateLimitOptions,
+  runtime: RateLimitRuntime = {},
 ): Promise<RateLimitDecision> {
-  if (resolveRateLimitBackend(process.env) === "upstash") {
-    return createUpstashRateLimitConsumer()(key, options);
-  }
+  const env = runtime.env ?? process.env;
+  const onDecision = options.onDecision ?? logRejectedRateLimitDecision;
+  const decision =
+    resolveRateLimitBackend(env) === "upstash"
+      ? await createUpstashRateLimitConsumer({
+          env,
+          fetch: runtime.fetch,
+        })(key, options)
+      : consumeMemoryRateLimit(key, options);
 
-  return consumeMemoryRateLimit(key, options);
+  onDecision({ key, decision });
+
+  return decision;
 }
+
+export const rateLimitTesting = {
+  logRejectedRateLimitDecision,
+  resolveTrustedProxyTier,
+};
 
 export function resetRateLimitStateForTesting() {
   rateLimitStore.clear();
