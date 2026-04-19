@@ -1,6 +1,6 @@
 # GitHub 分支保护设置清单
 
-目标：把 `main` 设成“必须经由 PR、必须通过 CI、必须有人复核”的稳定主线，避免直接推送、漏跑校验或强推覆盖。
+目标：把 `main` 设成“必须经由 PR、必须通过 CI、管理员也不能静默绕过”的稳定主线，避免直接推送、漏跑校验或强推覆盖。
 
 适用仓库：`johnrebirth5-web/acre-office-warm-ui`
 
@@ -14,6 +14,39 @@ GitHub 仓库页面：
 
 `main`
 
+## 当前仓库长期基线
+
+适用时间：自 `2026-04-19` 起，除非仓库 owner 明确调整。
+
+- branch pattern = `main`
+- `Require a pull request before merging` 已开启
+- `Require approvals` = `0`
+- `Dismiss stale pull request approvals when new commits are pushed` 已开启
+- `Require status checks to pass before merging` 已开启
+- `Require branches to be up to date before merging` 已开启
+- required checks:
+  - `verify`
+  - `hardening-tests`
+- `Do not allow bypassing the above settings` 已开启
+- `Allow force pushes` 关闭
+- `Allow deletions` 关闭
+
+这份文档描述的是期望基线，不是永远正确的云端事实。任何 merge、规则调整、验收或运维判断之前，都要再次运行：
+
+```bash
+bash scripts/ops/verify-branch-protection.sh \
+  --repo johnrebirth5-web/acre-office-warm-ui \
+  --branch main
+```
+
+必要时再用：
+
+```bash
+gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection
+```
+
+确认实时 GitHub 状态。
+
 ## 必须开启的规则
 
 ### 1. Require a pull request before merging
@@ -24,10 +57,10 @@ GitHub 仓库页面：
 - 保留清晰的 review / discussion 记录
 - 配合 required status checks 才能真正把 CI 变成门槛
 
-推荐值：
+当前仓库基线：
 
 - `Require a pull request before merging`
-- `Require approvals: 1`
+- `Require approvals: 0`
 - `Dismiss stale pull request approvals when new commits are pushed`
 
 ### 2. Require status checks to pass before merging
@@ -45,16 +78,19 @@ GitHub 仓库页面：
   - `verify`
   - `hardening-tests`
 
-### 3. Require approvals >= 1
+### 3. Approval 数量按协作模型设置
 
-为什么要开：
+为什么要单独说明：
 
-- 至少保证另一双眼睛看过改动
-- 对安全、权限、accounting 相关改动尤其重要
+- 多人协作仓库常见做法是 `>= 1`
+- 当前仓库的长期模式是“CI 必过 + PR 必经 + 管理员不可绕过”，但 approval 设成 `0`
+- 这样可以保留分支与 CI 门槛，同时避免单人维护节奏被 approval 卡住
 
-推荐值：
+当前仓库基线：
 
-- 在 `Require a pull request before merging` 下，把 approvals 设成 `1`
+- 在 `Require a pull request before merging` 下，把 approvals 设成 `0`
+
+如果未来改回多人 review 流程，再把这个值上调到 `1` 或更高。
 
 ### 4. Dismiss stale reviews
 
@@ -132,20 +168,23 @@ GitHub 仓库页面：
 
 - [ ] branch pattern = `main`
 - [ ] `Require a pull request before merging` 已开启
-- [ ] approvals = `1`
+- [ ] approvals = `0`
 - [ ] `Dismiss stale pull request approvals when new commits are pushed` 已开启
 - [ ] `Require status checks to pass before merging` 已开启
 - [ ] required checks 包含 `verify`
 - [ ] required checks 包含 `hardening-tests`
 - [ ] `Require branches to be up to date before merging` 已开启
+- [ ] `Do not allow bypassing the above settings` 已开启
 - [ ] `Allow force pushes` 关闭
 - [ ] `Allow deletions` 关闭
 - [ ] `Automatically delete head branches` 已开启
 
-全部勾选后，在本地跑：
+按当前长期基线核对时，最终检查表应读作：
 
 ```bash
-bash scripts/ops/verify-branch-protection.sh
+bash scripts/ops/verify-branch-protection.sh \
+  --repo johnrebirth5-web/acre-office-warm-ui \
+  --branch main
 ```
 
 必须输出 `PASS`。

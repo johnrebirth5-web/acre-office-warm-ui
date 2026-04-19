@@ -153,6 +153,14 @@ If Prisma schema changed, also run:
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
 - Unless the user explicitly asks for a separate feature branch or PR, stay on the currently checked out branch and commit/push there directly; do not auto-create a `codex/*` branch for this workspace.
 - If the repo is already on a feature branch from earlier work, call that out before continuing instead of silently stacking new tasks onto it.
+- Current `main` branch protection baseline for `johnrebirth5-web/acre-office-warm-ui` is:
+  - required status checks include `verify`
+  - required status checks include `hardening-tests`
+  - `required_approving_review_count = 0`
+  - `enforce_admins = true`
+- Treat that branch-protection block as the expected steady state, not as a timeless fact. Before merge work, protection changes, or any reasoning that depends on current GitHub policy, re-run:
+  - `bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main`
+  - if needed, confirm the live GitHub response with `gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection`
 - Keep `origin` pointed at `https://github.com/johnrebirth5-web/acre-office-warm-ui.git` unless the task explicitly requires a different remote.
 - Treat GitHub push and DigitalOcean deployment as separate steps.
 - Even when GitHub push is required, do not deploy or run production commands unless the user explicitly asks for deployment.
@@ -235,6 +243,7 @@ Future Codex tasks should rely on these stable project files instead of chat his
 - [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
 - module specs in [docs/specs](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs)
 - [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/deployment.md) for DigitalOcean production sync/runbook details
+- [docs/ops/branch-protection.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/ops/branch-protection.md) for the expected GitHub `main` protection baseline; always re-check live GitHub settings before merges because cloud policy is mutable
 
 ## Opt-In multi-thread worktree workflow
 

@@ -21,8 +21,9 @@ bash scripts/ops/verify-branch-protection.sh \
 
 ```
 [OK] pull requests are required before merge
-[OK] required approvals is 1
+[OK] required approvals is 0
 [OK] stale reviews are dismissed on new commits
+[OK] administrators cannot bypass branch protection
 [OK] required status checks are enabled
 [OK] branches must be up to date before merge
 [OK] required status checks include verify
@@ -34,7 +35,7 @@ PASS
 
 **判断：**
 
-- 全是 `[OK]` + 最后 `PASS` → 分支保护规则本身没问题。但 Phase 0 两个 commit 是直接推到 main 的，说明你 **以 repo owner 身份绕过了规则**。去 GitHub → Settings → Branches → main rule → 勾上 **"Do not allow bypassing the above settings"**（旧称 "Include administrators"），以后管理员也要走 PR。
+- 全是 `[OK]` + 最后 `PASS` → 分支保护规则本身没问题，当前长期模式已经对齐到“PR 必经、CI 必过、approval=0、管理员不可绕过”。
 - 出现任何 `[FAIL]` → 把完整输出贴给我，我告诉你补哪条。
 
 ---

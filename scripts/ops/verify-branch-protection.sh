@@ -4,15 +4,16 @@ set -euo pipefail
 REPO_NAME="johnrebirth5-web/acre-office-warm-ui"
 BRANCH_NAME="main"
 REQUIRED_CHECKS=("verify" "hardening-tests")
+REQUIRED_APPROVALS=0
 CUSTOM_REQUIRED_CHECKS=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--required-check NAME]
+  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--required-approvals N] [--required-check NAME]
 
 Example:
-  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --required-check verify --required-check hardening-tests
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --required-approvals 0 --required-check verify --required-check hardening-tests
 EOF
 }
 
@@ -46,6 +47,11 @@ while [[ $# -gt 0 ]]; do
         CUSTOM_REQUIRED_CHECKS=1
       fi
       REQUIRED_CHECKS+=("$2")
+      shift 2
+      ;;
+    --required-approvals)
+      [[ $# -ge 2 ]] || { usage; exit 1; }
+      REQUIRED_APPROVALS="$2"
       shift 2
       ;;
     --help)
@@ -90,16 +96,22 @@ else
 fi
 
 approvals="$(jq -r '.required_pull_request_reviews.required_approving_review_count // 0' "$response_tmp")"
-if [[ "$approvals" =~ ^[0-9]+$ ]] && [[ "$approvals" -ge 1 ]]; then
+if [[ "$REQUIRED_APPROVALS" =~ ^[0-9]+$ ]] && [[ "$approvals" =~ ^[0-9]+$ ]] && [[ "$approvals" -eq "$REQUIRED_APPROVALS" ]]; then
   report_ok "required approvals is $approvals"
 else
-  report_fail "required approvals is ${approvals:-0}"
+  report_fail "required approvals is ${approvals:-0} (expected $REQUIRED_APPROVALS)"
 fi
 
 if jq -e '.required_pull_request_reviews.dismiss_stale_reviews == true' "$response_tmp" >/dev/null; then
   report_ok "stale reviews are dismissed on new commits"
 else
   report_fail "stale reviews are not dismissed on new commits"
+fi
+
+if jq -e '.enforce_admins.enabled == true' "$response_tmp" >/dev/null; then
+  report_ok "administrators cannot bypass branch protection"
+else
+  report_fail "administrators can bypass branch protection"
 fi
 
 if jq -e '.required_status_checks != null' "$response_tmp" >/dev/null; then
