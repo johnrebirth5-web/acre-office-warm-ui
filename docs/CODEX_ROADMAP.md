@@ -457,14 +457,17 @@
 ### 2026-04-17 · R0-4-rate-limit-slice · pending
 `apps/web/lib/rate-limit.ts` 已升级为 `memory/upstash` 双后端，并新增 `rate-limit.test.ts`；`auth/change-password`、`auth/invitations/accept`、`public/signatures/[token]/submit`、`listing-studio/imports` 现已接入统一限流，同时保留现有 login / intake / signature-send 的防护链。验证：rate-limit tests、仓库 `typecheck/lint/build` 通过。遗留：仍需把更多 Office 写接口逐步纳入统一策略，并在生产真正切到共享后端。
 
-### 2026-04-18 · R0-office-hardening-finish · pending
+### 2026-04-18 · R0-office-hardening-finish · 3861f0f
 一次性收掉 `office` 剩余手工 JSON mutation 入口：补齐 `accounting/transactions`、`earnest-money`、`commissions calculations/statements`、`billing/payment-methods`、`contacts`、`settings/checklists/fields/roles/table-layouts`、`signatures/templates`、`agents/teams/profile/goals/onboarding`，并把 transaction signature action 最后一段 `readJsonObject` 改为 `parseJsonBody + Zod`。所有新增路由都拆出 handler-level regression tests，并接入 `test:backoffice-hardening`。验证：聚焦 route tests 与仓库 `typecheck/lint/build` 通过；整套 hardening tests 仍受本地 Prisma DB `127.0.0.1:15432` 不可达影响，未在本次作为绿灯门槛。
 
 ### 2026-04-18 · P0-1-secret-rotation · 9b480e4
 补上 `rotate-session-secret.sh` 默认 dry-run 脚本、session/Resend/DB 轮换 runbook、人工执行 checklist，并在 `docs/env.md` 新增带 `last rotated at` 的 secret rotation tracking 表。验证：脚本 dry-run、shell 语法校验、`typecheck/lint/build` 通过；`scan:secrets` 仍依赖真实 secret 完成轮换后再回到绿态。
 
-### 2026-04-18 · P0-2-P1-4-hardening-followups · pending
+### 2026-04-18 · P0-2-P1-4-hardening-followups · d974e8b
 补上每周全量 git 历史 secret scan workflow、branch protection checklist、Upstash 切换 runbook，以及共享 `field-validators`、`withApiGuard` prepare 语义测试、`ACRE_TRUSTED_PROXY_TIER` 与 rate-limit 拒绝结构化日志。验证目标：新增单测、`typecheck/lint/build` 通过；历史扫描 workflow 与 branch protection 属于发布后启用项。
 
-### 2026-04-18 · P3-2-ci-matrix-threshold · pending
+### 2026-04-18 · P3-2-ci-matrix-threshold · d974e8b
 当前先不拆 `hardening-tests` matrix，只在路线图中记录触发条件：单次运行超过 8 分钟时，再按 `unit / integration` 两路并行切分。这样避免在问题还没出现前把 CI 复杂度提前拉高。
+
+### 2026-04-18 · P2-monolith-splits · 7af0f1e
+完成 `packages/db` 五个 4k-6k 行级服务文件和 `front-office-calendar-client.tsx` 的物理拆分：原入口文件改为稳定 re-export，内部按查询/写操作/类型/子域组件拆到目录内，单文件体量控制在 2000 行以内。同步修正 bootstrap admin hardening test 的测试隔离与断言耦合问题，并在本地临时数据库上跑通整套 `test:backoffice-hardening`。验证：`typecheck/lint/build` 与 `hardening-tests` 全绿。遗留：未跟踪的 `CODEX_NEXT_PHASE.md` 仍保留在工作树外，不纳入提交。
