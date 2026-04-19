@@ -53,7 +53,54 @@ const globalForPrisma = globalThis as typeof globalThis & {
   __acrePrismaObservabilityRegistered?: boolean;
 };
 
-const datasourceUrl = process.env.DATABASE_URL;
+function parseIntegerEnvValue(
+  value: string | undefined,
+  options: {
+    min: number;
+  },
+) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(parsed) || parsed < options.min) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export function buildPrismaDatasourceUrl(
+  baseUrl: string | undefined,
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (!baseUrl) {
+    return baseUrl;
+  }
+
+  const connectionLimit = parseIntegerEnvValue(env.PRISMA_CONNECTION_LIMIT, {
+    min: 1,
+  });
+  const poolTimeout = parseIntegerEnvValue(env.PRISMA_POOL_TIMEOUT, {
+    min: 0,
+  });
+
+  if (connectionLimit === null && poolTimeout === null) {
+    return baseUrl;
+  }
+
+  const datasourceUrl = new URL(baseUrl);
+
+  if (connectionLimit !== null) {
+    datasourceUrl.searchParams.set("connection_limit", String(connectionLimit));
+  }
+
+  if (poolTimeout !== null) {
+    datasourceUrl.searchParams.set("pool_timeout", String(poolTimeout));
+  }
+
+  return datasourceUrl.toString();
+}
+
+const datasourceUrl = buildPrismaDatasourceUrl(process.env.DATABASE_URL);
 const prismaLogLevels: [
   { emit: "event"; level: "query" },
   { emit: "event"; level: "warn" },

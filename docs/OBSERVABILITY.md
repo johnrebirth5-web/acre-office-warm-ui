@@ -23,7 +23,7 @@
   - `db.ping_ms`：`SELECT 1` 的耗时，单位毫秒
   - `db.pool_in_use`：当前数据库 `active + idle in transaction` 连接数
   - `db.pool_idle`：当前数据库 `idle` 连接数
-  - `db.pool_max`：`max_connections`
+  - `db.pool_max`：数据库 `max_connections`，不是 Prisma `connection_limit`
   - `process.rss_bytes`：进程常驻内存
   - `process.heap_used_bytes`：Node/V8 已使用堆内存
   - `process.heap_total_bytes`：Node/V8 已分配堆内存
@@ -33,6 +33,9 @@
   - 只要 `status !== "ok"`，当前实现就返回 `503`
   - 这意味着 `degraded` 现在会被多数 uptime monitor 或负载均衡器视为不健康
 - `db.pool_*` 查询失败时会返回 `null`，并把整体状态降为 `degraded`，但不会把接口抛成 500。
+- 如果你开始调 `PRISMA_CONNECTION_LIMIT`，要注意：
+  - `/api/health` 里的 `db.pool_max` 仍然只代表 PostgreSQL 上限
+  - Prisma 连接池大小本身仍要以 env 或 `DATABASE_URL` 的 `connection_limit` 为准
 
 ## /api/metrics
 

@@ -9,6 +9,11 @@
 
 ## Recently completed major work
 
+- 2026-04-19: `Prisma pool tuning env contract` now gives Phase 1 a safe, reversible connection-pool control point instead of forcing operators to hand-edit `DATABASE_URL` query strings:
+  - updated [packages/db/src/client.ts](../../packages/db/src/client.ts) so Prisma now derives its datasource URL through a small builder that conditionally injects `connection_limit` and `pool_timeout` only when `PRISMA_CONNECTION_LIMIT` / `PRISMA_POOL_TIMEOUT` are explicitly set; leaving those env vars empty preserves the prior runtime behavior
+  - added [packages/db/src/client.test.ts](../../packages/db/src/client.test.ts) and updated [package.json](../../package.json) so the pool-tuning URL rewrite logic is regression-tested in the standard hardening suite, including preserving existing query params and ignoring invalid values
+  - updated [.env.example](../../.env.example), [docs/env.md](../env.md), and [docs/OBSERVABILITY.md](../OBSERVABILITY.md) so operators now have one documented place for the new pool env knobs, an explicit starting recommendation for the current single-process DO deployment, and clearer guidance that `/api/health` reports database `max_connections`, not Prisma `connection_limit`
+
 - 2026-04-19: `Session membership request memoization` now removes repeated auth-context database reads from hot-path renders and route chains instead of resolving the same session membership multiple times per request:
   - updated [apps/web/lib/auth-session.ts](../../apps/web/lib/auth-session.ts) so current-render session lookups now reuse a cached membership-context resolver keyed by `membershipId + activeOfficeId`, while route handlers now reuse a per-request `WeakMap` cache keyed to the incoming `NextRequest`; password-change gating behavior stays unchanged because it still runs after the shared context is resolved
   - updated [apps/web/lib/auth-session.test.ts](../../apps/web/lib/auth-session.test.ts) so auth-session coverage now includes request-scope dedupe behavior and office-selection isolation, guarding against regressions where repeated lookups within one request re-open duplicate `@acre/db` reads or accidentally blur separate office selections together

@@ -73,6 +73,15 @@ Docker 本地开发补充：
 - 这意味着宿主机 `.env.local` 应保持为 `127.0.0.1:5433`，而不是 `localhost:5432`
 - 如果你要改 Docker 下的数据库连接串，可以设置 `ACRE_DOCKER_DATABASE_URL`
 
+Prisma 连接池调优补充：
+
+- 当前 `packages/db/src/client.ts` 会在运行时读取 `PRISMA_CONNECTION_LIMIT` 和 `PRISMA_POOL_TIMEOUT`
+- 这两个值只会覆盖 Prisma datasource URL 的对应 query 参数；如果它们为空，当前行为完全回退到原始 `DATABASE_URL`
+- `PRISMA_CONNECTION_LIMIT` 对应 Prisma PostgreSQL 连接池大小，要求是正整数
+- `PRISMA_POOL_TIMEOUT` 对应连接等待超时，单位秒，允许 `0`
+- 生产当前是单个 Node 进程、数据库 `max_connections=100`，可先从 `PRISMA_CONNECTION_LIMIT=15`、`PRISMA_POOL_TIMEOUT=10` 这种保守值起步，再结合 `/api/health` 和慢查询日志继续调
+- 如果 `DATABASE_URL` 自己已经带了 `connection_limit` / `pool_timeout`，显式 env 会覆盖它们
+
 缺失后的影响：
 
 - `npm run db:validate` 会失败
@@ -110,6 +119,54 @@ Docker 本地开发补充：
 
 - 开发环境通常使用本地 PostgreSQL 或开发库
 - 生产环境必须使用真实数据库，并确保网络和权限配置正确
+
+### `PRISMA_CONNECTION_LIMIT`
+
+用途：
+
+- 显式设置 Prisma PostgreSQL 连接池大小
+- 当前由 `packages/db/src/client.ts` 在运行时注入到 datasource URL 的 `connection_limit`
+
+是否必填：
+
+- 非必填
+- 未设置时 Prisma 继续使用默认连接池推导逻辑
+
+示例格式：
+
+```env
+PRISMA_CONNECTION_LIMIT="15"
+```
+
+使用建议：
+
+- 生产当前是单 Node 进程、PostgreSQL `max_connections=100`
+- 当前可先从 `15` 这种保守值起步，再观察 `/api/health` 的 `db.pool_in_use / db.pool_idle` 与慢查询日志
+- 如果未来接入 PgBouncer、增加 Node 进程数，或数据库 `max_connections` 调整了，这个值也要一起复核
+
+### `PRISMA_POOL_TIMEOUT`
+
+用途：
+
+- 设置 Prisma 等待空闲连接的超时时间
+- 当前由 `packages/db/src/client.ts` 在运行时注入到 datasource URL 的 `pool_timeout`
+
+是否必填：
+
+- 非必填
+- 未设置时 Prisma 继续使用默认超时行为
+
+示例格式：
+
+```env
+PRISMA_POOL_TIMEOUT="10"
+```
+
+使用建议：
+
+- 单位是秒
+- `0` 表示不等待池超时保护，不建议在当前生产拓扑下默认使用
+- 当前生产可先保持 `10` 秒，避免连接池排队时无限放大尾延迟
 
 ### `ACRE_SESSION_SECRET`
 
