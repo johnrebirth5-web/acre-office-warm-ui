@@ -15561,20 +15561,29 @@ body,
 
 .listing-share-metrics {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
-.listing-share-metrics article {
+.listing-share-facts-primary {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.listing-share-facts-primary article {
   display: grid;
   gap: 6px;
-  padding: 16px 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(205, 214, 226, 0.74);
-  background: rgba(248, 251, 255, 0.9);
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(189, 202, 220, 0.72);
+  background:
+    linear-gradient(180deg, rgba(249, 252, 255, 0.98), rgba(243, 248, 255, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }
 
-.listing-share-metrics span {
+.listing-share-facts-primary span,
+.listing-share-facts-secondary span {
   color: #667c93;
   font-size: 0.8rem;
   font-weight: 700;
@@ -15582,9 +15591,42 @@ body,
   letter-spacing: 0.04em;
 }
 
-.listing-share-metrics strong,
+.listing-share-facts-primary strong {
+  color: #10263f;
+  font-size: clamp(1.75rem, 3vw, 2rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.listing-share-facts-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: center;
+  padding: 2px 4px 0;
+}
+
+.listing-share-facts-secondary article {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.listing-share-facts-secondary span {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.listing-share-facts-secondary strong,
 .listing-share-footer strong {
   color: #10263f;
+}
+
+.listing-share-facts-secondary strong {
+  font-size: 0.94rem;
+  font-weight: 700;
 }
 
 .listing-share-actions {
@@ -15608,6 +15650,21 @@ body,
   .listing-share-card {
     padding: 22px 18px;
     border-radius: 22px;
+  }
+
+  .listing-share-facts-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .listing-share-facts-primary article {
+    padding: 16px 18px;
+  }
+
+  .listing-share-facts-secondary {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0;
   }
 }
 

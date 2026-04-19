@@ -35,32 +35,37 @@ export default async function PublicListingSharePage(
           <p>{snapshot.shareContextLabel}</p>
         </div>
 
-        <div className="listing-share-metrics">
-          <article>
-            <span>Area</span>
-            <strong>{snapshot.areaLabel}</strong>
-          </article>
-          <article>
-            <span>Price</span>
-            <strong>{snapshot.priceLabel}</strong>
-          </article>
-          <article>
-            <span>Layout</span>
-            <strong>{snapshot.factsLabel}</strong>
-          </article>
-          <article>
-            <span>Shared by</span>
-            <strong>{snapshot.agentLabel}</strong>
-          </article>
-          <article>
-            <span>Channel</span>
-            <strong>{snapshot.channelLabel}</strong>
-          </article>
-          <article>
-            <span>Availability</span>
-            <strong>{snapshot.statusLabel}</strong>
-          </article>
-        </div>
+        <section className="listing-share-metrics" aria-label="Listing facts">
+          <div className="listing-share-facts-primary">
+            <article>
+              <span>Price</span>
+              <strong>{snapshot.priceLabel}</strong>
+            </article>
+            <article>
+              <span>Area</span>
+              <strong>{snapshot.areaLabel}</strong>
+            </article>
+            <article>
+              <span>Layout</span>
+              <strong>{snapshot.factsLabel}</strong>
+            </article>
+          </div>
+
+          <div className="listing-share-facts-secondary">
+            <article>
+              <span>Shared by</span>
+              <strong>{snapshot.agentLabel}</strong>
+            </article>
+            <article>
+              <span>Channel</span>
+              <strong>{snapshot.channelLabel}</strong>
+            </article>
+            <article>
+              <span>Availability</span>
+              <strong>{snapshot.statusLabel}</strong>
+            </article>
+          </div>
+        </section>
 
         <div className="listing-share-actions">
           {snapshot.agentPhone ? (
@@ -88,12 +93,11 @@ export default async function PublicListingSharePage(
           ) : null}
         </div>
 
-        <div className="listing-share-footer">
+        <footer className="listing-share-footer">
           <strong>{snapshot.organizationLabel}</strong>
           <p>{snapshot.followUpLabel}</p>
           <p>{snapshot.privacyLabel}</p>
-          <p>Use the contact buttons above if you want to talk through the listing.</p>
-        </div>
+        </footer>
       </section>
     </main>
   );
