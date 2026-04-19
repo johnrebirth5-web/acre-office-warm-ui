@@ -141,3 +141,11 @@ GitHub 仓库页面：
 - [ ] `Allow force pushes` 关闭
 - [ ] `Allow deletions` 关闭
 - [ ] `Automatically delete head branches` 已开启
+
+全部勾选后，在本地跑：
+
+```bash
+bash scripts/ops/verify-branch-protection.sh
+```
+
+必须输出 `PASS`。
