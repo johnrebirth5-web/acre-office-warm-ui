@@ -816,14 +816,15 @@ model Office {
   checklistTemplateItems                ChecklistTemplateItem[]
   transactionSearchLayouts              TransactionSearchLayout[]
   transactionReportSearchLayouts        TransactionReportSearchLayout[]
-  membershipOfficeAccesses              MembershipOfficeAccess[]                @relation("MembershipOfficeAccessOffice")
-  membershipOfficePermissionOverrides   MembershipOfficePermissionOverride[]    @relation("MembershipOfficePermissionOverrideOffice")
+  membershipOfficeAccesses              MembershipOfficeAccess[]               @relation("MembershipOfficeAccessOffice")
+  membershipOfficePermissionOverrides   MembershipOfficePermissionOverride[]   @relation("MembershipOfficePermissionOverrideOffice")
   studioListingImports                  StudioListingImport[]
   studioListingSnapshots                StudioListingSnapshot[]
   studioListingPacks                    StudioListingPack[]
   studioListingCollections              StudioListingCollection[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
+
   @@unique([organizationId, slug])
 }
 
@@ -1249,33 +1250,33 @@ model Transaction {
 }
 
 model Listing {
-  id                String             @id @default(cuid())
-  organizationId    String
-  officeId          String?
-  ownerMembershipId String?
-  title             String
-  slug              String
-  sourceUrl         String?
-  status            ListingStatus      @default(draft)
-  price             Decimal?           @db.Decimal(12, 2)
-  city              String
-  neighborhood      String
-  bedrooms          Int?
-  bathrooms         Decimal?           @db.Decimal(4, 1)
-  isPublic          Boolean            @default(false)
-  heroFacts         Json?
-  seoKeywords       String[]
-  aiSummary         String?
-  parsedJson        Json?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office            Office?            @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  ownerMembership   Membership?        @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
-  assets            ListingAsset[]
-  appointments      Appointment[]
-  shareLinks        ListingShareLink[]
-  frontOfficeSendRecords FrontOfficeSendRecord[]
+  id                           String                        @id @default(cuid())
+  organizationId               String
+  officeId                     String?
+  ownerMembershipId            String?
+  title                        String
+  slug                         String
+  sourceUrl                    String?
+  status                       ListingStatus                 @default(draft)
+  price                        Decimal?                      @db.Decimal(12, 2)
+  city                         String
+  neighborhood                 String
+  bedrooms                     Int?
+  bathrooms                    Decimal?                      @db.Decimal(4, 1)
+  isPublic                     Boolean                       @default(false)
+  heroFacts                    Json?
+  seoKeywords                  String[]
+  aiSummary                    String?
+  parsedJson                   Json?
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  organization                 Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                       Office?                       @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  ownerMembership              Membership?                   @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
+  assets                       ListingAsset[]
+  appointments                 Appointment[]
+  shareLinks                   ListingShareLink[]
+  frontOfficeSendRecords       FrontOfficeSendRecord[]
   frontOfficeAiAcceptedActions FrontOfficeAiAcceptedAction[]
 
   @@unique([organizationId, slug])
@@ -1295,47 +1296,47 @@ model ListingAsset {
 }
 
 model ListingShareLink {
-  id           String   @id @default(cuid())
+  id           String                 @id @default(cuid())
   listingId    String
   membershipId String?
   channel      String
-  code         String   @unique
+  code         String                 @unique
   targetUrl    String
-  clickCount   Int      @default(0)
+  clickCount   Int                    @default(0)
   qrAssetUrl   String?
-  createdAt    DateTime @default(now())
-  listing      Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt    DateTime               @default(now())
+  listing      Listing                @relation(fields: [listingId], references: [id], onDelete: Cascade)
   sendRecord   FrontOfficeSendRecord?
 }
 
 model FrontOfficeSendRecord {
-  id                 String                      @id @default(cuid())
-  organizationId     String
-  officeId           String?
-  senderMembershipId String
-  clientId           String
-  listingId          String?
-  appointmentId      String?
-  shareLinkId        String?                     @unique
-  channel            FrontOfficeSendChannel
-  materialType       FrontOfficeSendMaterialType @default(listing_share)
-  clientStageLabel   String?
-  appointmentTitle   String?
+  id                  String                       @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  senderMembershipId  String
+  clientId            String
+  listingId           String?
+  appointmentId       String?
+  shareLinkId         String?                      @unique
+  channel             FrontOfficeSendChannel
+  materialType        FrontOfficeSendMaterialType  @default(listing_share)
+  clientStageLabel    String?
+  appointmentTitle    String?
   appointmentStartsAt DateTime?
-  sentAt             DateTime                    @default(now())
-  firstOpenedAt      DateTime?
-  lastOpenedAt       DateTime?
-  openCount          Int                         @default(0)
-  createdAt          DateTime                    @default(now())
-  updatedAt          DateTime                    @updatedAt
-  organization       Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office             Office?                     @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  senderMembership   Membership                  @relation(fields: [senderMembershipId], references: [id], onDelete: Cascade)
-  client             Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  listing            Listing?                    @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  appointment        Appointment?                @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  shareLink          ListingShareLink?           @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
-  aiAcceptedAction   FrontOfficeAiAcceptedAction?
+  sentAt              DateTime                     @default(now())
+  firstOpenedAt       DateTime?
+  lastOpenedAt        DateTime?
+  openCount           Int                          @default(0)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  senderMembership    Membership                   @relation(fields: [senderMembershipId], references: [id], onDelete: Cascade)
+  client              Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing             Listing?                     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  appointment         Appointment?                 @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  shareLink           ListingShareLink?            @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+  aiAcceptedAction    FrontOfficeAiAcceptedAction?
 
   @@index([organizationId, senderMembershipId, sentAt])
   @@index([organizationId, officeId, sentAt])
@@ -1441,53 +1442,55 @@ model StudioListingAsset {
 }
 
 model StudioListingPack {
-  id                    String                 @id @default(cuid())
-  organizationId        String
-  officeId              String?
-  snapshotId            String                 @unique
-  updatedByMembershipId String?
-  status                StudioListingPackStatus @default(draft)
-  headline              String?
-  summary               String?
-  bulletPointsJson      Json?
-  selectedAssetIdsJson  Json?
-  coverAssetId          String?
-  shareEnabled          Boolean                @default(false)
-  shareCode             String?                @unique
-  agentNote             String?
-  contactName           String?
-  contactTitle          String?
-  contactPhone          String?
-  contactEmail          String?
-  pdfStorageKey         String?
-  pdfGeneratedAt        DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  snapshot              StudioListingSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  updatedByMembership   Membership?            @relation("StudioListingPackUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
-  collectionItems       StudioListingCollectionItem[]
-  shareEvents           StudioListingShareEvent[]
+  id                       String                        @id @default(cuid())
+  organizationId           String
+  officeId                 String?
+  snapshotId               String                        @unique
+  updatedByMembershipId    String?
+  status                   StudioListingPackStatus       @default(draft)
+  headline                 String?
+  summary                  String?
+  bulletPointsJson         Json?
+  selectedAssetIdsJson     Json?
+  coverAssetId             String?
+  shareEnabled             Boolean                       @default(false)
+  shareCode                String?                       @unique
+  legacyShareCode          String?                       @unique
+  legacyShareCodeExpiresAt DateTime?
+  agentNote                String?
+  contactName              String?
+  contactTitle             String?
+  contactPhone             String?
+  contactEmail             String?
+  pdfStorageKey            String?
+  pdfGeneratedAt           DateTime?
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  organization             Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                   Office?                       @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  snapshot                 StudioListingSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  updatedByMembership      Membership?                   @relation("StudioListingPackUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+  collectionItems          StudioListingCollectionItem[]
+  shareEvents              StudioListingShareEvent[]
 
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, shareEnabled, updatedAt])
 }
 
 model StudioListingCollection {
-  id                    String                       @id @default(cuid())
+  id                    String                        @id @default(cuid())
   organizationId        String
   officeId              String?
   createdByMembershipId String
   updatedByMembershipId String
   name                  String
   nameNormalized        String
-  createdAt             DateTime                     @default(now())
-  updatedAt             DateTime                     @updatedAt
-  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office                Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  createdByMembership   Membership                   @relation("StudioListingCollectionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
-  updatedByMembership   Membership                   @relation("StudioListingCollectionUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  organization          Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                       @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  createdByMembership   Membership                    @relation("StudioListingCollectionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership                    @relation("StudioListingCollectionUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: Cascade)
   items                 StudioListingCollectionItem[]
 
   @@unique([organizationId, createdByMembershipId, nameNormalized])
@@ -1565,39 +1568,39 @@ model StudioListingExtensionChallenge {
 }
 
 model Client {
-  id                  String                    @id @default(cuid())
-  organizationId      String
-  ownerMembershipId   String?
-  visibility          ContactVisibility         @default(organization_shared)
-  fullName            String
-  email               String?
-  phone               String?
-  contactType         String?
-  source              String
-  stage               String
-  intent              String
-  budgetMin           Decimal?                  @db.Decimal(12, 2)
-  budgetMax           Decimal?                  @db.Decimal(12, 2)
-  preferredAreas      String[]
-  needsSummary        Json?
-  additionalFields    Json?
-  notes               String?
-  lastContactAt       DateTime?
-  nextFollowUpAt      DateTime?
-  leaseEndDate        DateTime?
-  leaseReminderAt     DateTime?
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
-  organization        Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  ownerMembership     Membership?               @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
-  appointments        Appointment[]
-  frontOfficeSendRecords FrontOfficeSendRecord[]
+  id                           String                        @id @default(cuid())
+  organizationId               String
+  ownerMembershipId            String?
+  visibility                   ContactVisibility             @default(organization_shared)
+  fullName                     String
+  email                        String?
+  phone                        String?
+  contactType                  String?
+  source                       String
+  stage                        String
+  intent                       String
+  budgetMin                    Decimal?                      @db.Decimal(12, 2)
+  budgetMax                    Decimal?                      @db.Decimal(12, 2)
+  preferredAreas               String[]
+  needsSummary                 Json?
+  additionalFields             Json?
+  notes                        String?
+  lastContactAt                DateTime?
+  nextFollowUpAt               DateTime?
+  leaseEndDate                 DateTime?
+  leaseReminderAt              DateTime?
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  organization                 Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ownerMembership              Membership?                   @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
+  appointments                 Appointment[]
+  frontOfficeSendRecords       FrontOfficeSendRecord[]
   frontOfficeAiAcceptedActions FrontOfficeAiAcceptedAction[]
-  stageHistory        ClientStageHistory[]
-  handoffDrafts       FrontOfficeHandoffDraft[]
-  followUpTasks       FollowUpTask[]
-  primaryTransactions Transaction[]             @relation("TransactionPrimaryClient")
-  transactionContacts TransactionContact[]
+  stageHistory                 ClientStageHistory[]
+  handoffDrafts                FrontOfficeHandoffDraft[]
+  followUpTasks                FollowUpTask[]
+  primaryTransactions          Transaction[]                 @relation("TransactionPrimaryClient")
+  transactionContacts          TransactionContact[]
 
   @@index([organizationId, stage])
   @@index([organizationId, visibility])
@@ -1606,29 +1609,29 @@ model Client {
 }
 
 model FrontOfficeAiAcceptedAction {
-  id              String                    @id @default(cuid())
+  id              String                      @id @default(cuid())
   organizationId  String
   officeId        String?
   membershipId    String
   clientId        String
   listingId       String?
-  followUpTaskId  String?                   @unique
-  sendRecordId    String?                   @unique
+  followUpTaskId  String?                     @unique
+  sendRecordId    String?                     @unique
   actionType      FrontOfficeAiActionType
   sourceSurface   FrontOfficeAiSourceSurface
   suggestionKind  FrontOfficeAiSuggestionKind
   suggestionLabel String
   actionTitle     String
   channel         FrontOfficeSendChannel?
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  organization    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office          Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  membership      Membership                @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  client          Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  listing         Listing?                  @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  followUpTask    FollowUpTask?             @relation(fields: [followUpTaskId], references: [id], onDelete: SetNull)
-  sendRecord      FrontOfficeSendRecord?    @relation(fields: [sendRecordId], references: [id], onDelete: SetNull)
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  organization    Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office          Office?                     @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership      Membership                  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  client          Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing         Listing?                    @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  followUpTask    FollowUpTask?               @relation(fields: [followUpTaskId], references: [id], onDelete: SetNull)
+  sendRecord      FrontOfficeSendRecord?      @relation(fields: [sendRecordId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, membershipId, createdAt])
   @@index([organizationId, clientId, createdAt])
@@ -1638,29 +1641,29 @@ model FrontOfficeAiAcceptedAction {
 }
 
 model Appointment {
-  id                String            @id @default(cuid())
-  organizationId    String
-  officeId          String?
-  ownerMembershipId String?
-  clientId          String?
-  listingId         String?
-  type              AppointmentType   @default(showing)
-  status            AppointmentStatus @default(scheduled)
-  title             String
-  startsAt          DateTime
-  endsAt            DateTime?
-  location          String?
-  meetingUrl        String?
-  contactLabel      String?
-  notes             String?
-  metadata          Json?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office            Office?           @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  ownerMembership   Membership?       @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
-  client            Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  listing           Listing?          @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  id                     String                  @id @default(cuid())
+  organizationId         String
+  officeId               String?
+  ownerMembershipId      String?
+  clientId               String?
+  listingId              String?
+  type                   AppointmentType         @default(showing)
+  status                 AppointmentStatus       @default(scheduled)
+  title                  String
+  startsAt               DateTime
+  endsAt                 DateTime?
+  location               String?
+  meetingUrl             String?
+  contactLabel           String?
+  notes                  String?
+  metadata               Json?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                 Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  ownerMembership        Membership?             @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
+  client                 Client?                 @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  listing                Listing?                @relation(fields: [listingId], references: [id], onDelete: SetNull)
   frontOfficeSendRecords FrontOfficeSendRecord[]
 
   @@index([organizationId, ownerMembershipId, startsAt])
@@ -1809,19 +1812,19 @@ model TaskListView {
 }
 
 model FollowUpTask {
-  id                 String         @id @default(cuid())
+  id                 String                       @id @default(cuid())
   organizationId     String
   clientId           String?
   assigneeMemberId   String?
   title              String
-  status             TaskStatus     @default(queued)
+  status             TaskStatus                   @default(queued)
   dueAt              DateTime?
   metadata           Json?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  client             Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  assigneeMembership Membership?    @relation(fields: [assigneeMemberId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client             Client?                      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  assigneeMembership Membership?                  @relation(fields: [assigneeMemberId], references: [id], onDelete: SetNull)
   notifications      Notification[]
   aiAcceptedAction   FrontOfficeAiAcceptedAction?
 
@@ -1861,17 +1864,17 @@ model Notification {
 }
 
 model OfficeMailThread {
-  id                    String                 @id @default(cuid())
+  id                    String                  @id @default(cuid())
   organizationId        String
   createdByMembershipId String
   subject               String
   actionUrl             String?
   actionLabel           String?
   latestMessageAt       DateTime
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdByMembership   Membership             @relation("OfficeMailThreadCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership              @relation("OfficeMailThreadCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
   participants          OfficeMailParticipant[]
   messages              OfficeMailMessage[]
 
@@ -1880,16 +1883,16 @@ model OfficeMailThread {
 }
 
 model OfficeMailParticipant {
-  id             String          @id @default(cuid())
+  id             String           @id @default(cuid())
   organizationId String
   threadId       String
   membershipId   String
-  joinedAt       DateTime        @default(now())
+  joinedAt       DateTime         @default(now())
   lastReadAt     DateTime?
   archivedAt     DateTime?
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   thread         OfficeMailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  membership     Membership      @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  membership     Membership       @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
   @@unique([threadId, membershipId])
   @@index([organizationId, membershipId, archivedAt])
@@ -1897,15 +1900,15 @@ model OfficeMailParticipant {
 }
 
 model OfficeMailMessage {
-  id                 String                @id @default(cuid())
+  id                 String                 @id @default(cuid())
   organizationId     String
   threadId           String
   senderMembershipId String
-  body               String                @default("")
-  createdAt          DateTime              @default(now())
-  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  thread             OfficeMailThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  senderMembership   Membership            @relation("OfficeMailMessageSender", fields: [senderMembershipId], references: [id], onDelete: Cascade)
+  body               String                 @default("")
+  createdAt          DateTime               @default(now())
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread             OfficeMailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderMembership   Membership             @relation("OfficeMailMessageSender", fields: [senderMembershipId], references: [id], onDelete: Cascade)
   attachments        OfficeMailAttachment[]
 
   @@index([organizationId, threadId, createdAt])
@@ -1964,25 +1967,25 @@ model EventRsvp {
 }
 
 model Resource {
-  id             String       @id @default(cuid())
-  organizationId String
-  officeId       String?
-  type           ResourceType
-  title          String
-  slug           String
-  summary        String
-  url            String?
+  id               String       @id @default(cuid())
+  organizationId   String
+  officeId         String?
+  type             ResourceType
+  title            String
+  slug             String
+  summary          String
+  url              String?
   originalFileName String?
-  mimeType       String?
-  fileSizeBytes  Int?
-  storageKey     String?
-  tags           String[]
-  isPublished    Boolean      @default(true)
-  searchText     String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office         Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  mimeType         String?
+  fileSizeBytes    Int?
+  storageKey       String?
+  tags             String[]
+  isPublished      Boolean      @default(true)
+  searchText       String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office           Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, slug])
 }
