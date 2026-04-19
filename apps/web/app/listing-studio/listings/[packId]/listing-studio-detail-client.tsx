@@ -2093,10 +2093,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         ) : null}
 
         {detailState.propertyHistory.length ? (
-          <ListingStudioDisclosure
-            description="Raw price and listing history stay nearby without taking over the primary reading flow."
-            title="Property history"
-          >
+          <ListingStudioDisclosure description="" title="Property history">
             <div className="listing-studio-detail-section-list">
               {detailState.propertyHistory.map((section) => (
                 <div className="listing-studio-detail-section-block" key={section.title}>
@@ -2113,10 +2110,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         ) : null}
 
         {detailState.capturedSections.length ? (
-          <ListingStudioDisclosure
-            description="Additional scraped sections stay collapsed until you need the raw source payload."
-            title="Additional details"
-          >
+          <ListingStudioDisclosure description="" title="Additional details">
             <div className="listing-studio-detail-section-list">
               {detailState.capturedSections.map((section) => (
                 <div className="listing-studio-detail-section-block" key={section.title}>
@@ -2279,7 +2273,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                     <span>
                       {isUploadingAssets
                         ? "Uploading media..."
-                        : "Click or drag to add images & videos (JPEG, PNG, WebP · MP4, WebM)"}
+                        : "Drop files or click to upload"}
                     </span>
                   </span>
                 </button>

@@ -155,10 +155,7 @@ export async function TransactionDetailWorkspace({
         />
       ) : null}
 
-      <DetailSection
-        subtitle="Core transaction facts, dates, and referral context."
-        title="Overview"
-      >
+      <DetailSection title="Overview">
         <div className="office-detail-grid">
           <div className="office-detail-field">
             <span>Type</span>
@@ -219,7 +216,7 @@ export async function TransactionDetailWorkspace({
         </div>
       </DetailSection>
 
-      <SectionCard subtitle="Update the primary workflow status for this transaction." title="Status">
+      <SectionCard title="Status">
         <TransactionStatusForm
           canManageStatus={canManageTransactionStatusForRole}
           currentStatus={transaction.status}
@@ -231,7 +228,6 @@ export async function TransactionDetailWorkspace({
         defaultExpanded
         sectionKey="intake-fields"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Review and update transaction values."
         title="Intake fields"
       >
         <TransactionIntakeWorkspace
@@ -278,7 +274,7 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="finance"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Use the same commission calculator flow here to update fees, notes, prerequisites, and the saved final agent net output."
+          subtitle="Fees, splits, and agent net."
           title="Finance"
         >
           <TransactionFinanceForm
@@ -299,7 +295,6 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="commission"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Structured fee logic, final stakeholder split, and calculation history for this transaction."
           title="Commission"
         >
           <TransactionCommissionCard
@@ -325,7 +320,7 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="offers"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Back-office offer tracking, comparison, comments, and offer-linked documents/forms/signatures."
+          subtitle="Incoming offers and linked documents."
           title="Offers"
         >
           <TransactionOffersCard
@@ -359,7 +354,6 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="documents"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Structured back-office files linked to this transaction and its checklist tasks."
         title="Documents"
       >
         <TransactionDocumentsCard
@@ -375,7 +369,7 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="unsorted-documents"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Files that landed in the transaction but have not been organized into the main workflow yet."
+        subtitle="Uploaded but not yet categorized."
         title="Unsorted documents"
       >
         <TransactionUnsortedDocumentsCard
@@ -390,7 +384,7 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="forms-signatures"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Generate transaction forms from templates, keep them tied to checklist tasks, and track manual signature status."
+        subtitle="Generate and track form signatures."
         title="Forms & eSignature"
       >
         <TransactionFormsSignaturesCard

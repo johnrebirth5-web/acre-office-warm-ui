@@ -331,7 +331,6 @@ export function OfficeTasksClient({
     <div className="office-task-list-page">
       <SectionCard
         className="office-list-card office-task-filter-form"
-        subtitle="Filter task operations by saved view, assignee, compliance, and transaction context."
         title="Filters"
       >
         <FilterBar as="form" className="office-task-filter-grid" method="get">
@@ -457,13 +456,11 @@ export function OfficeTasksClient({
 
       <SectionCard
         className="office-list-card office-task-view-save-card"
-        subtitle="Built-in views stay fixed. Save the current filter set as a personal custom view."
         title="Saved views"
       >
         <div className="office-task-view-save-row">
           <div>
             <strong>{snapshot.selectedViewName}</strong>
-            <p>Use the current filters and visible columns as the starting point for a saved personal view.</p>
           </div>
           <div className="office-task-view-save-controls">
             <TextInput onChange={(event) => setSaveViewName(event.target.value)} placeholder="Save current view as..." value={saveViewName} />
@@ -476,7 +473,6 @@ export function OfficeTasksClient({
 
       <SectionCard
         className="office-list-card office-task-create-card"
-        subtitle="Create a task directly into the office task list."
         title="New task"
       >
         <div className="office-task-edit-grid">
