@@ -4,7 +4,7 @@
 
 当前仓库实现位置：
 
-- `/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/lib/rate-limit.ts`
+- `apps/web/lib/rate-limit.ts`
 
 ## 需要的环境变量
 
