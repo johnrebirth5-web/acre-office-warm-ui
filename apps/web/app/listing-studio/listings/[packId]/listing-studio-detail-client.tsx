@@ -1903,6 +1903,8 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                 <img
                   alt={activePhoto.label ?? detailState.title}
                   className="listing-studio-view-stage-image"
+                  decoding="async"
+                  fetchPriority="high"
                   src={`/api/listing-studio/assets/${activePhoto.id}`}
                 />
               </>
@@ -1930,6 +1932,8 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                 >
                   <img
                     alt={asset.label ?? detailState.title}
+                    decoding="async"
+                    loading="lazy"
                     src={`/api/listing-studio/assets/${asset.id}`}
                   />
                 </button>
