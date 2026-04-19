@@ -152,6 +152,8 @@ If Prisma schema changed, also run:
 - For Codex-authored repository changes, finish the task with a local `git commit`.
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
 - Unless the user explicitly asks for a separate feature branch or PR, stay on the currently checked out branch and commit/push there directly; do not auto-create a `codex/*` branch for this workspace.
+- Exception for protected `main`: if the current branch is `main` and GitHub branch protection requires PR + status checks, do not keep retrying `git push origin main`. Create a short-lived `codex/*` branch from the current local `HEAD`, push that branch, open a PR, wait for required checks, and merge back to `main`.
+- If local commits already exist on `main` when that protection rejection is discovered, preserve them by branching from the current `HEAD` first; do not rewrite or discard those commits just to satisfy the PR workflow.
 - If the repo is already on a feature branch from earlier work, call that out before continuing instead of silently stacking new tasks onto it.
 - Current `main` branch protection baseline for `johnrebirth5-web/acre-office-warm-ui` is:
   - required status checks include `verify`
