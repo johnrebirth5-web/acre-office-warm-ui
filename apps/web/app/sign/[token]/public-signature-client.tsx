@@ -5,6 +5,7 @@ import { Button, FormField, TextInput } from "@acre/ui";
 import type { OfficeSignatureField, PublicSignatureRequestSnapshot } from "@acre/db";
 import { usePdfPreview } from "../../../components/signature/use-pdf-preview";
 import { getRecipientEditableFields } from "../../../lib/public-signature-access";
+import { SignatureStatusCallout } from "./signature-status-callout";
 
 type PublicSignatureClientProps = {
   token: string;
@@ -48,44 +49,154 @@ function buildInitialValues(snapshot: PublicSignatureRequestSnapshot): Signature
   );
 }
 
-function buildStatusMessage(snapshot: PublicSignatureRequestSnapshot) {
-  if (snapshot.request.statusKey === "completed") {
-    return "This document has already been signed and completed.";
+type CalloutState =
+  | {
+      tone: "info" | "success" | "warning" | "error";
+      icon: "clock" | "check" | "x" | "question" | "timer";
+      title: string;
+      description?: string;
+      action?: {
+        label: string;
+        href: string;
+        download?: boolean;
+      };
+    }
+  | null;
+
+function formatStatusDate(value: string | null | undefined) {
+  if (!value) {
+    return "";
   }
 
-  if (snapshot.request.statusKey === "canceled" || snapshot.request.statusKey === "voided") {
-    return "This signature request was canceled.";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.slice(0, 10);
   }
 
-  if (snapshot.request.statusKey === "expired") {
-    return "This signing link has expired.";
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function buildMailtoHref(address: string | null | undefined, subject: string, body: string) {
+  const params = new URLSearchParams({
+    subject,
+    body
+  });
+
+  return `mailto:${address?.trim() || ""}?${params.toString()}`;
+}
+
+function buildSignedCopyAction(token: string) {
+  return {
+    label: "Download your signed copy",
+    href: `/api/public/signatures/${encodeURIComponent(token)}/document`,
+    download: true
+  };
+}
+
+function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: string): CalloutState {
+  const senderDisplayName = snapshot.request.senderDisplayName || "the sender";
+  const requestNewLinkAction = {
+    label: "Request a new link",
+    href: buildMailtoHref(
+      snapshot.request.senderReplyTo,
+      `Request a new signing link for ${snapshot.document.title}`,
+      `Hi ${senderDisplayName},\n\nThis signing link expired. Please send me a new link for "${snapshot.document.title}".\n\nThank you.`
+    )
+  };
+  const contactSenderAction = {
+    label: "Contact sender",
+    href: buildMailtoHref(
+      snapshot.request.senderReplyTo,
+      `Question about ${snapshot.document.title}`,
+      `Hi ${senderDisplayName},\n\nI need help with the signing request for "${snapshot.document.title}".\n\nThank you.`
+    )
+  };
+
+  if (snapshot.request.statusKey === "completed" || snapshot.currentRecipient.statusKey === "acted") {
+    return {
+      tone: "success",
+      icon: "check",
+      title: `You already signed this on ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt) || "a previous visit"}.`,
+      action: buildSignedCopyAction(token)
+    };
   }
 
-  if (snapshot.request.statusKey === "declined") {
-    return "This signature request was declined.";
+  if (
+    snapshot.request.statusKey === "canceled" ||
+    snapshot.request.statusKey === "voided" ||
+    snapshot.currentRecipient.statusKey === "voided"
+  ) {
+    return {
+      tone: "info",
+      icon: "x",
+      title: "The sender cancelled this signing request.",
+      action: contactSenderAction
+    };
   }
 
-  if (snapshot.currentRecipient.statusKey === "acted") {
-    return "You already completed your signing step.";
+  if (snapshot.request.statusKey === "expired" || snapshot.currentRecipient.statusKey === "expired") {
+    return {
+      tone: "warning",
+      icon: "clock",
+      title: `This link expired on ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt) || "an earlier date"}.`,
+      action: requestNewLinkAction
+    };
   }
 
-  if (snapshot.currentRecipient.statusKey === "declined") {
-    return "You already declined this signature request.";
-  }
-
-  if (snapshot.currentRecipient.statusKey === "voided" || snapshot.currentRecipient.statusKey === "expired") {
-    return "This signing step is no longer active.";
+  if (snapshot.request.statusKey === "declined" || snapshot.currentRecipient.statusKey === "declined") {
+    return {
+      tone: "info",
+      icon: "x",
+      title: "This signing request was declined.",
+      description: "Contact the sender if you still need to review this document.",
+      action: contactSenderAction
+    };
   }
 
   if (snapshot.currentRecipient.statusKey === "draft" || snapshot.currentRecipient.statusKey === "pending") {
-    return "This signing step is not active yet.";
+    return {
+      tone: "info",
+      icon: "timer",
+      title: "This signing step isn't active yet.",
+      description: "Please wait for the sender to activate your turn."
+    };
   }
 
   if (snapshot.request.statusKey === "draft" || snapshot.request.statusKey === "pending_send") {
-    return "This signature request is not ready yet.";
+    return {
+      tone: "info",
+      icon: "timer",
+      title: "This signing request isn't ready yet.",
+      description: "The sender still needs to finish preparing this document."
+    };
   }
 
-  return "";
+  return null;
+}
+
+function buildInlineErrorCallout(errorMessage: string): CalloutState {
+  if (!errorMessage.trim()) {
+    return null;
+  }
+
+  if (errorMessage.toLowerCase().includes("too many")) {
+    return {
+      tone: "info",
+      icon: "timer",
+      title: "Too many attempts. Try again in a few minutes."
+    };
+  }
+
+  return {
+    tone: "error",
+    icon: "x",
+    title: "We couldn't finish that action.",
+    description: errorMessage
+  };
 }
 
 function resetSignatureCanvas(canvas: HTMLCanvasElement | null) {
@@ -118,7 +229,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const [completed, setCompleted] = useState(snapshot.request.statusKey === "completed");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const statusMessage = buildStatusMessage(snapshot);
+  const statusCallout = useMemo(() => buildStatusCallout(snapshot, token), [snapshot, token]);
+  const submitErrorCallout = useMemo(() => buildInlineErrorCallout(submitError), [submitError]);
+  const previewErrorCallout = useMemo(() => buildInlineErrorCallout(previewError), [previewError]);
   const signatureAccessContext = useMemo(
     () => ({
       fields: snapshot.fields,
@@ -344,10 +457,33 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
           ) : null}
         </div>
 
-        {statusMessage && !completed ? <p className="public-signature-alert">{statusMessage}</p> : null}
-        {completed ? <p className="public-signature-success">The document has been signed successfully. You can close this page.</p> : null}
-        {submitError ? <p className="public-signature-alert">{submitError}</p> : null}
-        {!completed && !statusMessage ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
+        {statusCallout ? (
+          <SignatureStatusCallout
+            action={statusCallout.action}
+            description={statusCallout.description}
+            icon={statusCallout.icon}
+            title={statusCallout.title}
+            tone={statusCallout.tone}
+          />
+        ) : null}
+        {completed && !statusCallout ? (
+          <SignatureStatusCallout
+            action={buildSignedCopyAction(token)}
+            icon="check"
+            title="The document has been signed successfully."
+            tone="success"
+          />
+        ) : null}
+        {submitErrorCallout ? (
+          <SignatureStatusCallout
+            action={submitErrorCallout.action}
+            description={submitErrorCallout.description}
+            icon={submitErrorCallout.icon}
+            title={submitErrorCallout.title}
+            tone={submitErrorCallout.tone}
+          />
+        ) : null}
+        {!completed && !statusCallout ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
@@ -358,7 +494,15 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
       <main className="public-signature-main">
         {isLoading ? <p className="public-signature-helper">Loading document preview…</p> : null}
-        {previewError ? <p className="public-signature-alert">{previewError}</p> : null}
+        {previewErrorCallout ? (
+          <SignatureStatusCallout
+            action={previewErrorCallout.action}
+            description={previewErrorCallout.description}
+            icon={previewErrorCallout.icon}
+            title={previewErrorCallout.title}
+            tone={previewErrorCallout.tone}
+          />
+        ) : null}
 
         <div className="public-signature-pages">
           {pages.map((page) => (
