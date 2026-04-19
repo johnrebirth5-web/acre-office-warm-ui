@@ -334,3 +334,25 @@ test("request session resolver stays request-scoped and keeps office selections 
     ]);
   });
 });
+
+test("request session resolver rejects cookies issued before the last password change", async () => {
+  await withEnvAsync({ NODE_ENV: "development", ACRE_SESSION_SECRET: "test-secret" }, async () => {
+    const issuedAt = Date.now() - 5_000;
+    const baseContext = createMockSessionContext();
+    const resolveRequestSessionContext = createRequestSessionContextResolver(
+      async () => ({
+        ...baseContext,
+        currentCredential: {
+          ...baseContext.currentCredential,
+          passwordChangedAt: new Date(issuedAt + 1_000),
+        },
+      } as SessionMembershipContext),
+    );
+
+    const context = await resolveRequestSessionContext(
+      createMockRequest(signSessionPayload("membership-1", "test-secret", issuedAt)),
+    );
+
+    assert.equal(context, null);
+  });
+});

@@ -3,8 +3,16 @@ import { createTransactionDocument } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { saveStoredFile } from "../../../../../../lib/document-storage";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import {
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getOversizedUpload,
+  isMultipartPayloadTooLarge,
+} from "../../../../../../lib/upload-validation";
 
 export const runtime = "nodejs";
+
+const TRANSACTION_DOCUMENT_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
 
 type RouteContext = {
   params: Promise<{
@@ -32,6 +40,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Document access required." }, { status: 403 });
   }
 
+  if (isMultipartPayloadTooLarge(request, TRANSACTION_DOCUMENT_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(TRANSACTION_DOCUMENT_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const { transactionId } = await params;
   const formData = await request.formData().catch(() => null);
 
@@ -43,6 +60,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   if (!(fileEntry instanceof File)) {
     return NextResponse.json({ error: "A file upload is required." }, { status: 400 });
+  }
+
+  if (getOversizedUpload([fileEntry], TRANSACTION_DOCUMENT_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(TRANSACTION_DOCUMENT_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
   }
 
   const uploadedFile = await saveStoredFile({

@@ -1,6 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { OfficeMailAttachmentInput } from "@acre/db";
 import { deleteStoredFile, saveStoredMailFile } from "../../../../lib/document-storage";
+import {
+  DEFAULT_UPLOAD_BATCH_MAX_BYTES,
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getCombinedUploadSize,
+  getOversizedUpload,
+} from "../../../../lib/upload-validation";
+
+const MAIL_ATTACHMENT_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
+const MAIL_ATTACHMENT_BATCH_MAX_BYTES = DEFAULT_UPLOAD_BATCH_MAX_BYTES;
 
 export function createMailMessageIds(threadId?: string) {
   return {
@@ -20,6 +30,20 @@ export function parseMailFiles(formData: FormData, fieldName = "attachments") {
   return formData
     .getAll(fieldName)
     .filter((entry): entry is File => entry instanceof File && entry.name.trim().length > 0);
+}
+
+export function getMailAttachmentValidationError(files: File[]) {
+  const oversizedAttachment = getOversizedUpload(files, MAIL_ATTACHMENT_MAX_BYTES);
+
+  if (oversizedAttachment) {
+    return `Each attachment must be ${formatUploadLimit(MAIL_ATTACHMENT_MAX_BYTES)} or smaller.`;
+  }
+
+  if (getCombinedUploadSize(files) > MAIL_ATTACHMENT_BATCH_MAX_BYTES) {
+    return `Attachment batches must stay under ${formatUploadLimit(MAIL_ATTACHMENT_BATCH_MAX_BYTES)}.`;
+  }
+
+  return null;
 }
 
 export async function saveMailAttachments(input: {

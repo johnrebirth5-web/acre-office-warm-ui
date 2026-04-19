@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
 import { handleChangePasswordPost } from "./route";
+import { getSessionCookieName } from "../../../../lib/auth-session";
 
 function createChangePasswordRequest(
   formData: FormData,
@@ -101,5 +102,9 @@ test("handleChangePasswordPost preserves the successful redirect after the share
   assert.equal(
     response.headers.get("location"),
     "http://localhost:3105/office/account",
+  );
+  assert.match(
+    response.headers.get("set-cookie") ?? "",
+    new RegExp(getSessionCookieName()),
   );
 });

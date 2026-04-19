@@ -2,7 +2,19 @@ import { canAccessOfficeMail, canSendOfficeMail } from "@acre/auth";
 import { createOfficeMailThread } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
-import { cleanupStoredMailFiles, createMailMessageIds, parseMailFiles, parseMailRecipientIds, saveMailAttachments } from "../_helpers";
+import {
+  DEFAULT_UPLOAD_BATCH_MAX_BYTES,
+  formatUploadLimit,
+  isMultipartPayloadTooLarge,
+} from "../../../../../lib/upload-validation";
+import {
+  cleanupStoredMailFiles,
+  createMailMessageIds,
+  getMailAttachmentValidationError,
+  parseMailFiles,
+  parseMailRecipientIds,
+  saveMailAttachments,
+} from "../_helpers";
 
 export const runtime = "nodejs";
 
@@ -21,6 +33,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Mail send access required." }, { status: 403 });
   }
 
+  if (isMultipartPayloadTooLarge(request, DEFAULT_UPLOAD_BATCH_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Attachment batches must stay under ${formatUploadLimit(DEFAULT_UPLOAD_BATCH_MAX_BYTES)}.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -31,11 +52,18 @@ export async function POST(request: NextRequest) {
   let storedKeys: string[] = [];
 
   try {
+    const files = parseMailFiles(formData);
+    const validationError = getMailAttachmentValidationError(files);
+
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 413 });
+    }
+
     const savedAttachments = await saveMailAttachments({
       organizationId: context.currentOrganization.id,
       threadId,
       messageId,
-      files: parseMailFiles(formData)
+      files,
     });
 
     storedKeys = savedAttachments.storedKeys;

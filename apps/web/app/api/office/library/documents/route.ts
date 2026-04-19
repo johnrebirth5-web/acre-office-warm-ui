@@ -4,9 +4,17 @@ import { LibraryDocumentVisibility } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteStoredFile, saveStoredLibraryFile } from "../../../../../lib/document-storage";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import {
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getOversizedUpload,
+  isMultipartPayloadTooLarge,
+} from "../../../../../lib/upload-validation";
 import { extractPdfMetadata, isPdfFileLike } from "../_shared/pdf-metadata";
 
 export const runtime = "nodejs";
+
+const LIBRARY_DOCUMENT_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
 
 function parseScope(value: FormDataEntryValue | null) {
   return typeof value === "string" && value === LibraryDocumentVisibility.office_only
@@ -36,6 +44,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Library management access required." }, { status: 403 });
   }
 
+  if (isMultipartPayloadTooLarge(request, LIBRARY_DOCUMENT_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(LIBRARY_DOCUMENT_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -46,6 +63,15 @@ export async function POST(request: NextRequest) {
 
   if (!(fileEntry instanceof File)) {
     return NextResponse.json({ error: "A file upload is required." }, { status: 400 });
+  }
+
+  if (getOversizedUpload([fileEntry], LIBRARY_DOCUMENT_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(LIBRARY_DOCUMENT_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
   }
 
   const visibility = parseScope(formData.get("visibility"));

@@ -10,11 +10,19 @@ import {
   deleteStoredFile,
   saveStoredResourceFile,
 } from "../../../../../lib/document-storage";
+import {
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getOversizedUpload,
+  isMultipartPayloadTooLarge,
+} from "../../../../../lib/upload-validation";
 import { isPdfFileLike } from "../../library/_shared/pdf-metadata";
 import { requireOfficeAdminRequestContext } from "../_helpers";
 import { updateOfficeResourceBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
+
+const OFFICE_RESOURCE_UPLOAD_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
 
 type RouteContext = {
   params: Promise<{
@@ -82,6 +90,15 @@ async function updateDocumentResource(
   context: OfficeAdminContext,
   resourceId: string,
 ) {
+  if (isMultipartPayloadTooLarge(request, OFFICE_RESOURCE_UPLOAD_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(OFFICE_RESOURCE_UPLOAD_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -104,6 +121,15 @@ async function updateDocumentResource(
     | null = null;
 
   if (uploadedFile) {
+    if (getOversizedUpload([uploadedFile], OFFICE_RESOURCE_UPLOAD_MAX_BYTES)) {
+      return NextResponse.json(
+        {
+          error: `Document uploads must be ${formatUploadLimit(OFFICE_RESOURCE_UPLOAD_MAX_BYTES)} or smaller.`,
+        },
+        { status: 413 },
+      );
+    }
+
     const fileBytes = new Uint8Array(await uploadedFile.arrayBuffer());
     storedFile = await saveStoredResourceFile({
       organizationId: context.currentOrganization.id,

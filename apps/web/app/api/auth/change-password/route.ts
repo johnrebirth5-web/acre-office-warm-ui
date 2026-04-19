@@ -2,7 +2,13 @@ import { getDefaultAppPath } from "@acre/auth";
 import { changeInternalPassword } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseFormData } from "../../../../lib/api/parse-body";
-import { getRequestSessionContext, mustChangePassword } from "../../../../lib/auth-session";
+import {
+  createSessionCookieValueWithOfficeSelection,
+  getRequestSessionContext,
+  getSessionCookieName,
+  getSessionCookieSettings,
+  mustChangePassword,
+} from "../../../../lib/auth-session";
 import { getRequestOrigin } from "../../../../lib/request-origin";
 import { buildRateLimitKey, consumeRateLimit } from "../../../../lib/rate-limit";
 import { withApiGuard } from "../../../../lib/with-api-guard";
@@ -84,10 +90,20 @@ export async function handleChangePasswordPost(
       const destination = forced
         ? getDefaultAppPath(context!.currentMembership)
         : "/office/account";
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
         new URL(destination, prepared.requestOrigin),
         303,
       );
+      response.cookies.set(
+        getSessionCookieName(),
+        createSessionCookieValueWithOfficeSelection(
+          context!.currentMembership.id,
+          context!.currentOffice?.id ?? null,
+        ),
+        getSessionCookieSettings(),
+      );
+
+      return response;
     },
     {
       getRequestSessionContext: (guardedRequest) =>

@@ -98,6 +98,21 @@ function getContextCacheKey(session: SessionPayload) {
   return `${session.membershipId}:${session.activeOfficeId ?? ""}`;
 }
 
+function getCredentialPasswordChangedAtMs(
+  context: SessionMembershipContext | null,
+) {
+  const passwordChangedAt = context?.currentCredential?.passwordChangedAt;
+  return passwordChangedAt instanceof Date ? passwordChangedAt.getTime() : null;
+}
+
+function hasSessionBeenSuperseded(
+  session: SessionPayload,
+  context: SessionMembershipContext | null,
+) {
+  const passwordChangedAtMs = getCredentialPasswordChangedAtMs(context);
+  return typeof passwordChangedAtMs === "number" && passwordChangedAtMs > session.issuedAt;
+}
+
 export function createCachedSessionMembershipContextResolver(
   loadMembershipContext: SessionMembershipContextLoader = getSessionMembershipContext,
 ) {
@@ -141,7 +156,8 @@ export function createRequestSessionContextResolver(
       sessionCache.set(cacheKey, contextPromise);
     }
 
-    return contextPromise;
+    const context = await contextPromise;
+    return hasSessionBeenSuperseded(session, context) ? null : context;
   };
 }
 
@@ -188,6 +204,10 @@ export async function getCurrentSessionContext(options?: SessionContextOptions):
   }
 
   const context = await getCachedSessionMembershipContext(session.membershipId, session.activeOfficeId ?? null);
+  if (hasSessionBeenSuperseded(session, context)) {
+    return null;
+  }
+
   return isPasswordChangeBlocked(context, options) ? null : context;
 }
 

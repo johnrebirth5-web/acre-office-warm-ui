@@ -3,8 +3,20 @@ import { appendStudioListingPackAssets } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import { ensureListingStudioStorageConfigured } from "../../../../../../lib/listing-studio";
+import {
+  DEFAULT_UPLOAD_BATCH_MAX_BYTES,
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getCombinedUploadSize,
+  getOversizedUpload,
+  getUnsupportedMimeUpload,
+  isMultipartPayloadTooLarge,
+} from "../../../../../../lib/upload-validation";
 
 export const runtime = "nodejs";
+
+const LISTING_STUDIO_UPLOAD_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
+const LISTING_STUDIO_BATCH_MAX_BYTES = DEFAULT_UPLOAD_BATCH_MAX_BYTES;
 
 export async function POST(
   request: NextRequest,
@@ -23,6 +35,15 @@ export async function POST(
     );
   }
 
+  if (isMultipartPayloadTooLarge(request, LISTING_STUDIO_BATCH_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Upload batches must stay under ${formatUploadLimit(LISTING_STUDIO_BATCH_MAX_BYTES)}.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData().catch(() => null);
   if (!formData) {
     return NextResponse.json({ error: "Invalid upload payload." }, { status: 400 });
@@ -36,16 +57,30 @@ export async function POST(
     return NextResponse.json({ error: "At least one file is required." }, { status: 400 });
   }
 
-  const invalidFile = files.find(
-    (file) =>
-      file.type &&
-      !file.type.startsWith("image/") &&
-      !file.type.startsWith("video/"),
-  );
+  const oversizedFile = getOversizedUpload(files, LISTING_STUDIO_UPLOAD_MAX_BYTES);
+  if (oversizedFile) {
+    return NextResponse.json(
+      {
+        error: `Each file must be ${formatUploadLimit(LISTING_STUDIO_UPLOAD_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
+  if (getCombinedUploadSize(files) > LISTING_STUDIO_BATCH_MAX_BYTES) {
+    return NextResponse.json(
+      {
+        error: `Upload batches must stay under ${formatUploadLimit(LISTING_STUDIO_BATCH_MAX_BYTES)}.`,
+      },
+      { status: 413 },
+    );
+  }
+
+  const invalidFile = getUnsupportedMimeUpload(files, ["image/", "video/"]);
 
   if (invalidFile) {
     return NextResponse.json(
-      { error: `Unsupported file type: ${invalidFile.type}` },
+      { error: `Unsupported file type: ${invalidFile.type || "unknown"}` },
       { status: 400 },
     );
   }

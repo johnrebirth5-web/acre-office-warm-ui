@@ -9,11 +9,19 @@ import {
   deleteStoredFile,
   saveStoredResourceFile,
 } from "../../../../lib/document-storage";
+import {
+  DEFAULT_UPLOAD_MAX_BYTES,
+  formatUploadLimit,
+  getOversizedUpload,
+  isMultipartPayloadTooLarge,
+} from "../../../../lib/upload-validation";
 import { isPdfFileLike } from "../library/_shared/pdf-metadata";
 import { requireOfficeAdminRequestContext } from "./_helpers";
 import { createOfficeResourceBodySchema } from "./route.schema";
 
 export const runtime = "nodejs";
+
+const OFFICE_RESOURCE_UPLOAD_MAX_BYTES = DEFAULT_UPLOAD_MAX_BYTES;
 
 type ResourceBody = {
   title?: string;
@@ -74,6 +82,15 @@ async function createDocumentResource(
   request: NextRequest,
   context: OfficeAdminContext,
 ) {
+  if (isMultipartPayloadTooLarge(request, OFFICE_RESOURCE_UPLOAD_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(OFFICE_RESOURCE_UPLOAD_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -89,6 +106,15 @@ async function createDocumentResource(
     return NextResponse.json(
       { error: "A PDF upload is required." },
       { status: 400 },
+    );
+  }
+
+  if (getOversizedUpload([fileEntry], OFFICE_RESOURCE_UPLOAD_MAX_BYTES)) {
+    return NextResponse.json(
+      {
+        error: `Document uploads must be ${formatUploadLimit(OFFICE_RESOURCE_UPLOAD_MAX_BYTES)} or smaller.`,
+      },
+      { status: 413 },
     );
   }
 
