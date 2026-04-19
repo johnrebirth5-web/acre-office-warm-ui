@@ -97,6 +97,20 @@ function shouldLoadSessionContext<Prepared>(
   return Boolean(options.requireAuth || options.canAccess);
 }
 
+async function captureApiGuardException(error: unknown) {
+  if (!process.env.SENTRY_DSN) {
+    return;
+  }
+
+  try {
+    const Sentry = await import("@sentry/nextjs");
+
+    Sentry.captureException(error);
+  } catch {
+    // Sentry is optional. Ignore capture failures to preserve the original API behavior.
+  }
+}
+
 export async function withApiGuard<Prepared = undefined>(
   request: NextRequest,
   handler: (
@@ -104,50 +118,36 @@ export async function withApiGuard<Prepared = undefined>(
   ) => Promise<Response> | Response,
   options: WithApiGuardOptions<Prepared> = {},
 ) {
-  /**
-   * `prepare` MUST be idempotent and side-effect free.
-   * It runs after auth but before permission checks and rate-limit consumption,
-   * which means a request rejected at `canAccess` still incurs `prepare`'s cost.
-   * Use `prepare` only to derive values (for example parsing `formData` or query
-   * params) that are needed by `rateLimit.key` or the downstream handler.
-   */
-  const csrfCheck = resolveCsrfCheck(options.csrf);
+  try {
+    /**
+     * `prepare` MUST be idempotent and side-effect free.
+     * It runs after auth but before permission checks and rate-limit consumption,
+     * which means a request rejected at `canAccess` still incurs `prepare`'s cost.
+     * Use `prepare` only to derive values (for example parsing `formData` or query
+     * params) that are needed by `rateLimit.key` or the downstream handler.
+     */
+    const csrfCheck = resolveCsrfCheck(options.csrf);
 
-  if (csrfCheck && !csrfCheck(request)) {
-    return buildApiGuardErrorResponse(
-      options.csrfMessage ?? "CSRF validation failed.",
-      403,
-      {
-        cacheControlNoStore: options.cacheControlNoStore,
-      },
-    );
-  }
-
-  let context: ApiGuardContext = null;
-  let prepared = undefined as Prepared;
-
-  if (shouldLoadSessionContext(options)) {
-    const getSessionContext =
-      options.getRequestSessionContext ?? getRequestSessionContext;
-    context = await getSessionContext(request);
-  }
-
-  if (options.requireAuth && !context) {
-    if (options.onUnauthorized) {
-      return options.onUnauthorized({ request, context, prepared });
+    if (csrfCheck && !csrfCheck(request)) {
+      return buildApiGuardErrorResponse(
+        options.csrfMessage ?? "CSRF validation failed.",
+        403,
+        {
+          cacheControlNoStore: options.cacheControlNoStore,
+        },
+      );
     }
 
-    return buildApiGuardErrorResponse(
-      options.unauthorizedMessage ?? "Authentication required.",
-      401,
-      {
-        cacheControlNoStore: options.cacheControlNoStore,
-      },
-    );
-  }
+    let context: ApiGuardContext = null;
+    let prepared = undefined as Prepared;
 
-  if (options.canAccess) {
-    if (!context) {
+    if (shouldLoadSessionContext(options)) {
+      const getSessionContext =
+        options.getRequestSessionContext ?? getRequestSessionContext;
+      context = await getSessionContext(request);
+    }
+
+    if (options.requireAuth && !context) {
       if (options.onUnauthorized) {
         return options.onUnauthorized({ request, context, prepared });
       }
@@ -161,49 +161,68 @@ export async function withApiGuard<Prepared = undefined>(
       );
     }
 
-    if (options.prepare) {
+    if (options.canAccess) {
+      if (!context) {
+        if (options.onUnauthorized) {
+          return options.onUnauthorized({ request, context, prepared });
+        }
+
+        return buildApiGuardErrorResponse(
+          options.unauthorizedMessage ?? "Authentication required.",
+          401,
+          {
+            cacheControlNoStore: options.cacheControlNoStore,
+          },
+        );
+      }
+
+      if (options.prepare) {
+        prepared = await options.prepare({ request, context });
+      }
+
+      if (!options.canAccess(context.currentMembership)) {
+        if (options.onForbidden) {
+          return options.onForbidden({ request, context, prepared });
+        }
+
+        return buildApiGuardErrorResponse(
+          options.forbiddenMessage ?? "Permission required.",
+          403,
+          {
+            cacheControlNoStore: options.cacheControlNoStore,
+          },
+        );
+      }
+    } else if (options.prepare) {
       prepared = await options.prepare({ request, context });
     }
 
-    if (!options.canAccess(context.currentMembership)) {
-      if (options.onForbidden) {
-        return options.onForbidden({ request, context, prepared });
-      }
-
-      return buildApiGuardErrorResponse(
-        options.forbiddenMessage ?? "Permission required.",
-        403,
-        {
-          cacheControlNoStore: options.cacheControlNoStore,
-        },
+    if (options.rateLimit) {
+      const decision = await (options.rateLimit.consumer ?? consumeRateLimit)(
+        options.rateLimit.key({ request, context, prepared }),
+        options.rateLimit.options,
       );
-    }
-  } else if (options.prepare) {
-    prepared = await options.prepare({ request, context });
-  }
 
-  if (options.rateLimit) {
-    const decision = await (options.rateLimit.consumer ?? consumeRateLimit)(
-      options.rateLimit.key({ request, context, prepared }),
-      options.rateLimit.options,
-    );
+      if (!decision.allowed) {
+        if (options.rateLimit.onRejected) {
+          return options.rateLimit.onRejected({
+            request,
+            context,
+            prepared,
+            decision,
+          });
+        }
 
-    if (!decision.allowed) {
-      if (options.rateLimit.onRejected) {
-        return options.rateLimit.onRejected({
-          request,
-          context,
-          prepared,
-          decision,
+        return buildApiGuardErrorResponse(options.rateLimit.message, 429, {
+          cacheControlNoStore: options.cacheControlNoStore,
+          retryAfterSeconds: decision.retryAfterSeconds,
         });
       }
-
-      return buildApiGuardErrorResponse(options.rateLimit.message, 429, {
-        cacheControlNoStore: options.cacheControlNoStore,
-        retryAfterSeconds: decision.retryAfterSeconds,
-      });
     }
-  }
 
-  return handler({ request, context, prepared });
+    return handler({ request, context, prepared });
+  } catch (error) {
+    await captureApiGuardException(error);
+    throw error;
+  }
 }

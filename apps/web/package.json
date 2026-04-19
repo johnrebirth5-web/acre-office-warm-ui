@@ -15,6 +15,7 @@
     "@acre/db": "1.0.0",
     "@acre/ui": "1.0.0",
     "@react-pdf/renderer": "^4.3.2",
+    "@sentry/nextjs": "^10.49.0",
     "next": "^16.1.6",
     "nodemailer": "^8.0.4",
     "pdf-lib": "^1.17.1",

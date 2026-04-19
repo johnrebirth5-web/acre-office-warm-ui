@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 function loadDatabaseEnvFromRepoRoot() {
   if (process.env.DATABASE_URL) {
@@ -49,14 +49,137 @@ function loadDatabaseEnvFromRepoRoot() {
 loadDatabaseEnvFromRepoRoot();
 
 const globalForPrisma = globalThis as typeof globalThis & {
-  __acrePrisma?: PrismaClient;
+  __acrePrisma?: AcrePrismaClient;
+  __acrePrismaObservabilityRegistered?: boolean;
 };
 
 const datasourceUrl = process.env.DATABASE_URL;
+const prismaLogLevels: [
+  { emit: "event"; level: "query" },
+  { emit: "event"; level: "warn" },
+  { emit: "event"; level: "error" },
+] = [
+  { emit: "event", level: "query" },
+  { emit: "event", level: "warn" },
+  { emit: "event", level: "error" },
+];
+const prismaClientOptions = {
+  ...(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : {}),
+  log: prismaLogLevels,
+} satisfies Prisma.PrismaClientOptions;
+
+type AcrePrismaClient = PrismaClient<typeof prismaClientOptions>;
+
+function parseThresholdMs(envKey: string, fallback: number) {
+  const parsed = Number.parseInt(process.env[envKey] ?? "", 10);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function truncateValue(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return value.slice(0, maxLength);
+}
+
+async function capturePrismaErrorWithSentry(
+  message: string,
+  target: string | undefined,
+) {
+  if (!process.env.SENTRY_DSN) {
+    return;
+  }
+
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    const error = new Error(message);
+
+    error.name = "PrismaClientError";
+
+    Sentry.captureException(error, {
+      tags: {
+        kind: "prisma_error",
+      },
+      extra: {
+        target: target ?? null,
+      },
+    });
+  } catch {
+    // Sentry is optional. Ignore loading failures when it is not installed or initialized.
+  }
+}
+
+function registerPrismaObservability(client: AcrePrismaClient) {
+  if (
+    process.env.NODE_ENV === "test" ||
+    globalForPrisma.__acrePrismaObservabilityRegistered
+  ) {
+    return;
+  }
+
+  const slowQueryThresholdMs = parseThresholdMs("PRISMA_SLOW_QUERY_MS", 500);
+  const verySlowQueryThresholdMs = parseThresholdMs(
+    "PRISMA_VERY_SLOW_QUERY_MS",
+    2000,
+  );
+
+  client.$on("query", (event) => {
+    if (event.duration > verySlowQueryThresholdMs) {
+      console.error(
+        JSON.stringify({
+          kind: "very_slow_query",
+          duration_ms: event.duration,
+          query: truncateValue(event.query, 500),
+          params:
+            process.env.NODE_ENV === "production"
+              ? "[REDACTED]"
+              : event.params,
+        }),
+      );
+      return;
+    }
+
+    if (event.duration > slowQueryThresholdMs) {
+      console.warn(
+        JSON.stringify({
+          kind: "slow_query",
+          duration_ms: event.duration,
+          query: truncateValue(event.query, 500),
+          params:
+            process.env.NODE_ENV === "production"
+              ? "[REDACTED]"
+              : event.params,
+        }),
+      );
+    }
+  });
+
+  client.$on("error", (event) => {
+    console.error(
+      JSON.stringify({
+        kind: "prisma_error",
+        message: event.message,
+        target: event.target ?? null,
+      }),
+    );
+
+    void capturePrismaErrorWithSentry(event.message, event.target);
+  });
+
+  globalForPrisma.__acrePrismaObservabilityRegistered = true;
+}
 
 export const prisma =
   globalForPrisma.__acrePrisma ??
-  new PrismaClient(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : undefined);
+  new PrismaClient<typeof prismaClientOptions>(prismaClientOptions);
+
+registerPrismaObservability(prisma);
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.__acrePrisma = prisma;
