@@ -47,12 +47,7 @@ mask_secret() {
     return 0
   fi
 
-  if [ "$length" -le 8 ]; then
-    printf '<redacted len=%s>' "$length"
-    return 0
-  fi
-
-  printf '%s...%s (len=%s)' "${value:0:4}" "${value:length-4:4}" "$length"
+  printf '<redacted len=%s>' "$length"
 }
 
 strip_wrapping_quotes() {
