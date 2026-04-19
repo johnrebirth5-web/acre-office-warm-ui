@@ -1,13 +1,67 @@
 import { canManageOfficeCommissions } from "@acre/auth";
-import { deleteCommissionSplitTemplate, saveCommissionSplitTemplate } from "@acre/db";
+import {
+  deleteCommissionSplitTemplate,
+  saveCommissionSplitTemplate,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { upsertCommissionSplitTemplateBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
     splitTemplateId: string;
   }>;
 };
+
+type CommissionSplitTemplateDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveCommissionSplitTemplate?: typeof saveCommissionSplitTemplate;
+};
+
+export async function handleUpdateCommissionSplitTemplatePatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  splitTemplateId: string,
+  dependencies: CommissionSplitTemplateDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    upsertCommissionSplitTemplateBodySchema,
+    {
+      error: "Commission split template payload is invalid.",
+      invalidJsonError: "Commission split template request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const splitTemplate = await (
+      dependencies.saveCommissionSplitTemplate ?? saveCommissionSplitTemplate
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      splitTemplateId,
+      name: body.name,
+      agentPercent: body.agentPercent,
+      isActive: body.isActive ?? true,
+      actorMembershipId: context.currentMembership.id
+    });
+
+    return NextResponse.json({ splitTemplate });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update split template." },
+      { status: 400 }
+    );
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -21,26 +75,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { splitTemplateId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
-  try {
-    const splitTemplate = await saveCommissionSplitTemplate({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      splitTemplateId,
-      name: typeof body?.name === "string" ? body.name : "",
-      agentPercent: typeof body?.agentPercent === "string" ? body.agentPercent : "",
-      isActive: body?.isActive === undefined ? true : Boolean(body.isActive),
-      actorMembershipId: context.currentMembership.id
-    });
-
-    return NextResponse.json({ splitTemplate });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update split template." },
-      { status: 400 }
-    );
-  }
+  return handleUpdateCommissionSplitTemplatePatch(request, context, splitTemplateId);
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {

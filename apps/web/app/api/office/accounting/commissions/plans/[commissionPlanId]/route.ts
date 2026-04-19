@@ -1,13 +1,96 @@
 import { canManageOfficeCommissions } from "@acre/auth";
-import { saveCommissionPlan } from "@acre/db";
+import { saveCommissionPlan, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { upsertCommissionPlanBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
     commissionPlanId: string;
   }>;
 };
+
+type CommissionPlanDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  saveCommissionPlan?: typeof saveCommissionPlan;
+};
+
+function mapCommissionPlanRules(
+  rules: Array<{
+    ruleType: "base_split" | "brokerage_fee" | "referral_fee" | "flat_fee_deduction" | "sliding_scale";
+    ruleName?: string;
+    sortOrder?: number;
+    splitPercent?: string;
+    flatAmount?: string;
+    feeType?: "percentage" | "flat";
+    feeAmount?: string;
+    thresholdStart?: string;
+    thresholdEnd?: string;
+    appliesToRole?: string;
+    recipientType?: "agent" | "brokerage" | "referral";
+    isActive?: boolean;
+  }>
+) {
+  return rules.map((rule) => ({
+    ruleType: rule.ruleType,
+    ruleName: rule.ruleName ?? "",
+    sortOrder: rule.sortOrder,
+    splitPercent: rule.splitPercent ?? "",
+    flatAmount: rule.flatAmount ?? "",
+    feeType: rule.feeType ?? "",
+    feeAmount: rule.feeAmount ?? "",
+    thresholdStart: rule.thresholdStart ?? "",
+    thresholdEnd: rule.thresholdEnd ?? "",
+    appliesToRole: rule.appliesToRole ?? "",
+    recipientType: rule.recipientType ?? "",
+    isActive: rule.isActive ?? true
+  }));
+}
+
+export async function handleUpdateCommissionPlanPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  commissionPlanId: string,
+  dependencies: CommissionPlanDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    upsertCommissionPlanBodySchema,
+    {
+      error: "Commission plan payload is invalid.",
+      invalidJsonError: "Commission plan request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const commissionPlan = await (dependencies.saveCommissionPlan ?? saveCommissionPlan)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      commissionPlanId,
+      name: body.name,
+      description: body.description ?? "",
+      calculationMode: body.calculationMode ?? "",
+      isActive: body.isActive ?? true,
+      defaultCurrency: body.defaultCurrency ?? "",
+      rules: mapCommissionPlanRules(body.rules ?? []),
+      actorMembershipId: context.currentMembership.id
+    });
+
+    return NextResponse.json({ commissionPlan });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update commission plan." },
+      { status: 400 }
+    );
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -21,46 +104,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { commissionPlanId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
-  try {
-    const commissionPlan = await saveCommissionPlan({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      commissionPlanId,
-      name: typeof body?.name === "string" ? body.name : "",
-      description: typeof body?.description === "string" ? body.description : "",
-      calculationMode: typeof body?.calculationMode === "string" ? body.calculationMode : "",
-      isActive: body?.isActive === undefined ? true : Boolean(body.isActive),
-      defaultCurrency: typeof body?.defaultCurrency === "string" ? body.defaultCurrency : "",
-      rules: Array.isArray(body?.rules)
-        ? body.rules.map((rule) => {
-            const input = typeof rule === "object" && rule !== null ? (rule as Record<string, unknown>) : {};
-
-            return {
-              ruleType: typeof input.ruleType === "string" ? input.ruleType : "",
-              ruleName: typeof input.ruleName === "string" ? input.ruleName : "",
-              sortOrder: typeof input.sortOrder === "number" ? input.sortOrder : undefined,
-              splitPercent: typeof input.splitPercent === "string" ? input.splitPercent : "",
-              flatAmount: typeof input.flatAmount === "string" ? input.flatAmount : "",
-              feeType: typeof input.feeType === "string" ? input.feeType : "",
-              feeAmount: typeof input.feeAmount === "string" ? input.feeAmount : "",
-              thresholdStart: typeof input.thresholdStart === "string" ? input.thresholdStart : "",
-              thresholdEnd: typeof input.thresholdEnd === "string" ? input.thresholdEnd : "",
-              appliesToRole: typeof input.appliesToRole === "string" ? input.appliesToRole : "",
-              recipientType: typeof input.recipientType === "string" ? input.recipientType : "",
-              isActive: input.isActive === undefined ? true : Boolean(input.isActive)
-            };
-          })
-        : [],
-      actorMembershipId: context.currentMembership.id
-    });
-
-    return NextResponse.json({ commissionPlan });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update commission plan." },
-      { status: 400 }
-    );
-  }
+  return handleUpdateCommissionPlanPatch(request, context, commissionPlanId);
 }
