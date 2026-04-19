@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:net";
 import test from "node:test";
 import {
   buildRateLimitKey,
+  createRedisRateLimitConsumer,
   consumeRateLimit,
   createUpstashRateLimitConsumer,
   getRequestClientIdentifier,
@@ -102,6 +104,10 @@ test("resolveRateLimitBackend defaults to memory and honors explicit upstash con
     resolveRateLimitBackend({ ACRE_RATE_LIMIT_BACKEND: "upstash" }),
     "upstash",
   );
+  assert.equal(
+    resolveRateLimitBackend({ ACRE_RATE_LIMIT_BACKEND: "redis" }),
+    "redis",
+  );
 });
 
 test("createUpstashRateLimitConsumer sends the expected pipeline request", async () => {
@@ -199,6 +205,122 @@ test("consumeRateLimit routes through the upstash backend when configured", asyn
 
   assert.equal(decision.allowed, true);
   assert.equal(requests[0], "https://upstash.example.com/pipeline");
+});
+
+test("createRedisRateLimitConsumer routes through the configured redis url", async () => {
+  const calls: Array<{ key: string; redisUrl: string; windowMs: number }> = [];
+  const consumeRedisRateLimit = createRedisRateLimitConsumer({
+    env: {
+      ACRE_RATE_LIMIT_BACKEND: "redis",
+      ACRE_RATE_LIMIT_REDIS_URL: "redis://127.0.0.1:6380/0",
+    },
+    executeRedisScript: async (redisUrl, key, windowMs) => {
+      calls.push({ redisUrl, key, windowMs });
+      return {
+        count: 3,
+        ttlMs: 7_500,
+      };
+    },
+  });
+
+  const decision = await consumeRedisRateLimit("scope:key", {
+    limit: 2,
+    windowMs: 9_000,
+    now: 250,
+  });
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.remaining, 0);
+  assert.equal(decision.retryAfterSeconds, 8);
+  assert.deepEqual(calls, [
+    {
+      redisUrl: "redis://127.0.0.1:6380/0",
+      key: "scope:key",
+      windowMs: 9_000,
+    },
+  ]);
+});
+
+test("consumeRateLimit routes through the redis backend when configured", async () => {
+  const calls: string[] = [];
+
+  const decision = await consumeRateLimit(
+    "scope:key",
+    {
+      limit: 1,
+      windowMs: 1_000,
+    },
+    {
+      env: {
+        ACRE_RATE_LIMIT_BACKEND: "redis",
+        ACRE_RATE_LIMIT_REDIS_URL: "redis://127.0.0.1:6380/0",
+      },
+      executeRedisScript: async (redisUrl) => {
+        calls.push(redisUrl);
+        return {
+          count: 1,
+          ttlMs: 1_000,
+        };
+      },
+    },
+  );
+
+  assert.equal(decision.allowed, true);
+  assert.equal(calls[0], "redis://127.0.0.1:6380/0");
+});
+
+test("createRedisRateLimitConsumer fails fast when configuration is incomplete", async () => {
+  const consumeRedisRateLimit = createRedisRateLimitConsumer({
+    env: {
+      ACRE_RATE_LIMIT_BACKEND: "redis",
+    },
+  });
+
+  await assert.rejects(
+    async () =>
+      consumeRedisRateLimit("scope:key", {
+        limit: 1,
+        windowMs: 1_000,
+      }),
+    /ACRE_RATE_LIMIT_BACKEND=redis requires/,
+  );
+});
+
+test("executeRedisRateLimitScript speaks the expected RESP protocol", async () => {
+  resetRateLimitStateForTesting();
+  const requests: string[] = [];
+  const server = createServer((socket) => {
+    socket.on("data", (chunk) => {
+      requests.push(chunk.toString("utf8"));
+      socket.write("*2\r\n:2\r\n");
+      setTimeout(() => {
+        socket.write(":4000\r\n");
+      }, 5);
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  try {
+    const address = server.address();
+    assert(address && typeof address === "object");
+
+    const result = await rateLimitTesting.executeRedisRateLimitScript(
+      `redis://127.0.0.1:${address.port}/0`,
+      "scope:key",
+      4_000,
+    );
+
+    assert.equal(result.count, 2);
+    assert.equal(result.ttlMs, 4_000);
+    assert.match(requests[0] ?? "", /\*5\r\n\$4\r\nEVAL\r\n/);
+    assert.match(requests[0] ?? "", /scope:key/);
+  } finally {
+    server.close();
+    resetRateLimitStateForTesting();
+  }
 });
 
 test("createUpstashRateLimitConsumer fails fast when configuration is incomplete", async () => {
