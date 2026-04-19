@@ -962,6 +962,52 @@ select {
   gap: 12px;
 }
 
+.office-kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 18px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--office-border);
+  border-radius: 12px;
+  background: var(--office-surface-subtle);
+}
+
+.office-kpi-strip-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.office-kpi-strip-label,
+.office-kpi-strip-value {
+  margin: 0;
+}
+
+.office-kpi-strip-label {
+  color: var(--office-text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.office-kpi-strip-value {
+  color: var(--office-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.office-kpi-strip-item-accent .office-kpi-strip-value {
+  color: var(--office-accent-strong);
+}
+
+.office-kpi-strip-item-muted .office-kpi-strip-value {
+  color: var(--office-text-muted);
+}
+
 .office-kpi-card {
   padding: 16px 18px;
   border-radius: 18px;
@@ -2563,7 +2609,10 @@ select {
   gap: 18px;
 }
 
-.office-task-filter-form,
+.office-task-filter-form {
+  padding: 4px 0 2px;
+}
+
 .office-task-view-save-card,
 .office-task-list-card {
   padding: 16px 18px;
@@ -8402,32 +8451,24 @@ a {
   color: var(--office-accent-strong);
 }
 
-.office-settings-summary-grid,
-.office-settings-section-grid,
 .office-settings-card-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.office-settings-section-grid,
-.office-settings-card-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.office-settings-summary-strip,
+.office-settings-start-hint,
+.office-dashboard-status-strip,
+.office-dashboard-commission-strip,
+.office-task-attention-strip {
+  width: 100%;
 }
 
-.office-settings-copy {
-  margin: 0 0 14px;
+.office-settings-start-hint {
+  margin: -6px 0 0;
   color: var(--office-text-muted);
-  line-height: var(--office-line-body);
-}
-
-.office-settings-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--office-accent);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.84rem;
 }
 
 .office-inline-error {
@@ -10908,8 +10949,6 @@ a {
     justify-items: start;
   }
 
-  .office-settings-summary-grid,
-  .office-settings-section-grid,
   .office-settings-card-grid,
   .office-settings-checkbox-grid,
   .office-settings-template-item-grid {
@@ -11004,8 +11043,6 @@ a {
     align-items: flex-start;
   }
 
-  .office-settings-summary-grid,
-  .office-settings-section-grid,
   .office-settings-card-grid,
   .office-settings-checkbox-grid,
   .office-settings-template-item-grid {
@@ -16251,42 +16288,7 @@ body,
 }
 
 .office-dashboard-status-strip {
-  display: grid;
-  width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(5, minmax(112px, 1fr));
-  gap: 8px;
-}
-
-.office-dashboard-status-chip {
-  min-height: 0;
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(194, 205, 220, 0.54);
-  border-radius: 16px;
-  background: rgba(252, 253, 255, 0.92);
-}
-
-.office-dashboard-status-chip span {
-  color: var(--office-text-soft);
-  font-size: 0.66rem;
-  line-height: 1.15;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.office-dashboard-status-chip strong {
-  color: var(--office-text);
-  font-size: 0.98rem;
-  font-weight: 600;
-}
-
-.office-dashboard-status-chip p {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-top: 4px;
 }
 
 .office-dashboard-goal-chart {
@@ -16513,7 +16515,6 @@ body,
 }
 
 @media (max-width: 1120px) {
-  .office-dashboard-status-strip,
   .office-dashboard-goal-chart {
     grid-template-columns: 1fr;
   }
