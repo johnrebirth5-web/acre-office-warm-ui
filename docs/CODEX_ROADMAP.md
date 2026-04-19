@@ -460,5 +460,5 @@
 ### 2026-04-18 · R0-office-hardening-finish · pending
 一次性收掉 `office` 剩余手工 JSON mutation 入口：补齐 `accounting/transactions`、`earnest-money`、`commissions calculations/statements`、`billing/payment-methods`、`contacts`、`settings/checklists/fields/roles/table-layouts`、`signatures/templates`、`agents/teams/profile/goals/onboarding`，并把 transaction signature action 最后一段 `readJsonObject` 改为 `parseJsonBody + Zod`。所有新增路由都拆出 handler-level regression tests，并接入 `test:backoffice-hardening`。验证：聚焦 route tests 与仓库 `typecheck/lint/build` 通过；整套 hardening tests 仍受本地 Prisma DB `127.0.0.1:15432` 不可达影响，未在本次作为绿灯门槛。
 
-### 2026-04-18 · P0-1-secret-rotation · pending
+### 2026-04-18 · P0-1-secret-rotation · 9b480e4
 补上 `rotate-session-secret.sh` 默认 dry-run 脚本、session/Resend/DB 轮换 runbook、人工执行 checklist，并在 `docs/env.md` 新增带 `last rotated at` 的 secret rotation tracking 表。验证：脚本 dry-run、shell 语法校验、`typecheck/lint/build` 通过；`scan:secrets` 仍依赖真实 secret 完成轮换后再回到绿态。
