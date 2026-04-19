@@ -23,6 +23,25 @@ function createRequest(headers: Record<string, string>) {
   };
 }
 
+function captureStderrWrites() {
+  const writes: string[] = [];
+  const originalWrite = process.stderr.write;
+
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    writes.push(
+      typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
+    );
+    return true;
+  }) as typeof process.stderr.write;
+
+  return {
+    restore() {
+      process.stderr.write = originalWrite;
+    },
+    writes,
+  };
+}
+
 test("buildRateLimitKey uses the forwarded client identifier and stable hashed segments", () => {
   const hashedEmail = hashRateLimitSegment("agent@example.com");
   const key = buildRateLimitKey(
@@ -267,6 +286,136 @@ test("consumeRateLimit routes through the redis backend when configured", async 
 
   assert.equal(decision.allowed, true);
   assert.equal(calls[0], "redis://127.0.0.1:6380/0");
+});
+
+test("consumeRateLimit falls back to memory when the redis backend throws in fail-open mode", async () => {
+  resetRateLimitStateForTesting();
+  const stderr = captureStderrWrites();
+
+  try {
+    const decision = await consumeRateLimit(
+      "scope:key",
+      {
+        limit: 2,
+        windowMs: 1_000,
+        now: 100,
+      },
+      {
+        env: {
+          ACRE_RATE_LIMIT_BACKEND: "redis",
+          ACRE_RATE_LIMIT_REDIS_URL: "redis://127.0.0.1:6380/0",
+        },
+        executeRedisScript: async () => {
+          throw new Error("redis unavailable");
+        },
+      },
+    );
+
+    assert.equal(decision.allowed, true);
+    assert.equal(decision.remaining, 1);
+    assert.equal(stderr.writes.length, 1);
+
+    const payload = JSON.parse(stderr.writes[0]?.trim() ?? "{}") as {
+      backend?: string;
+      failClosed?: boolean;
+      kind?: string;
+    };
+
+    assert.equal(payload.kind, "rate_limit_backend_failure");
+    assert.equal(payload.backend, "redis");
+    assert.equal(payload.failClosed, false);
+  } finally {
+    stderr.restore();
+    resetRateLimitStateForTesting();
+  }
+});
+
+test("consumeRateLimit rethrows when the redis backend throws in fail-closed mode", async () => {
+  resetRateLimitStateForTesting();
+  const stderr = captureStderrWrites();
+
+  try {
+    await assert.rejects(
+      () =>
+        consumeRateLimit(
+          "scope:key",
+          {
+            limit: 2,
+            windowMs: 1_000,
+            now: 100,
+          },
+          {
+            env: {
+              ACRE_RATE_LIMIT_BACKEND: "redis",
+              ACRE_RATE_LIMIT_FAIL_MODE: "closed",
+              ACRE_RATE_LIMIT_REDIS_URL: "redis://127.0.0.1:6380/0",
+            },
+            executeRedisScript: async () => {
+              throw new Error("redis unavailable");
+            },
+          },
+        ),
+      /redis unavailable/,
+    );
+
+    assert.equal(stderr.writes.length, 1);
+
+    const payload = JSON.parse(stderr.writes[0]?.trim() ?? "{}") as {
+      backend?: string;
+      failClosed?: boolean;
+      kind?: string;
+    };
+
+    assert.equal(payload.kind, "rate_limit_backend_failure");
+    assert.equal(payload.backend, "redis");
+    assert.equal(payload.failClosed, true);
+  } finally {
+    stderr.restore();
+    resetRateLimitStateForTesting();
+  }
+});
+
+test("consumeRateLimit falls back to memory when the upstash backend throws in fail-open mode", async () => {
+  resetRateLimitStateForTesting();
+  const stderr = captureStderrWrites();
+
+  try {
+    const decision = await consumeRateLimit(
+      "scope:key",
+      {
+        limit: 2,
+        windowMs: 1_000,
+        now: 100,
+      },
+      {
+        env: {
+          ACRE_RATE_LIMIT_BACKEND: "upstash",
+          ACRE_UPSTASH_REDIS_REST_URL: "https://upstash.example.com",
+          ACRE_UPSTASH_REDIS_REST_TOKEN: "secret-token",
+        },
+        fetch: async () => {
+          throw new Error("upstash unavailable");
+        },
+      },
+    );
+
+    assert.equal(decision.allowed, true);
+    assert.equal(decision.remaining, 1);
+    assert.equal(stderr.writes.length, 1);
+
+    const payload = JSON.parse(stderr.writes[0]?.trim() ?? "{}") as {
+      backend?: string;
+      failClosed?: boolean;
+      kind?: string;
+    };
+
+    assert.equal(payload.kind, "rate_limit_backend_failure");
+    assert.equal(payload.backend, "upstash");
+    assert.equal(payload.failClosed, false);
+  } finally {
+    stderr.restore();
+    resetRateLimitStateForTesting();
+  }
 });
 
 test("createRedisRateLimitConsumer fails fast when configuration is incomplete", async () => {
