@@ -46,7 +46,9 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": asset.mimeType || "application/octet-stream",
-      "Cache-Control": shareCode ? "public, max-age=300" : "private, max-age=120",
+      "Cache-Control": shareCode
+        ? "public, max-age=86400, stale-while-revalidate=86400"
+        : "private, max-age=604800, immutable",
       "Content-Length": String(stored.fileSizeBytes),
     },
   });
