@@ -356,7 +356,7 @@ ACRE_SETTINGS_ENCRYPTION_SECRET="replace-with-a-long-random-string"
 示例格式：
 
 ```env
-ACRE_RESEND_API_KEY="re_xxxxxxxxxxxxxxxxx"
+ACRE_RESEND_API_KEY="replace-with-resend-api-key"
 ```
 
 缺失后的影响：
@@ -828,6 +828,20 @@ npm run db:sync:from-production
 - 生产 `DATABASE_URL` 必须指向可用的 PostgreSQL 实例
 - 生产 `ACRE_SECURE_COOKIES` 应显式设为 `true`
 
+### Secret rotation tracking
+
+| Secret | Source of truth | Compatibility window | Last rotated at |
+| --- | --- | --- | --- |
+| `ACRE_SESSION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | `30 days` via `ACRE_SESSION_SECRET_SECONDARY` | `<pending>` |
+| `ACRE_SETTINGS_ENCRYPTION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | none; re-save SMTP / Signature Drive only if decrypt fails | `<pending>` |
+| `ACRE_RESEND_API_KEY` | `/etc/acre/acre-ui-rebuild.env` + Resend dashboard | none | `<pending>` |
+| `DATABASE_URL` (`acre_app` password) | `/etc/acre/acre-ui-rebuild.env` + PostgreSQL role `acre_app` | until the app reconnects with the restarted process | `<pending>` |
+
+配套文档：
+
+- [docs/ops/secret-rotation-runbook.md](./ops/secret-rotation-runbook.md)
+- [docs/ops/secret-rotation-actions.md](./ops/secret-rotation-actions.md)
+
 ### 已暴露本地 secret 的止血 runbook
 
 当 `.env` / `.env.local`、终端输出、截图、聊天记录或备份暴露了真实值时，按以下顺序处理：
@@ -846,8 +860,8 @@ npm run db:sync:from-production
 
 ```bash
 git log --all --full-history -p -- .env .env.local
-git log --all -S 're_J4gNba2j'
-git log --all -S 'f6ca1b16f453'
+git log --all -S '<old-resend-key-fragment>'
+git log --all -S '<old-db-password-fragment>'
 git log --all -S 'ACRE_SESSION_SECRET'
 ```
 
