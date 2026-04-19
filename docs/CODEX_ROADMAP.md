@@ -185,6 +185,7 @@
   - `office/tasks/views` 与 `office/reports/search-layout` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/account/profile`、`office/activity/comments` 与 `office/mail/threads/[threadId]` 的轻量写入口已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/1099-tracker/records` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
+  - `office/accounting/agent-billing/payment-methods`、`payment-methods/[paymentMethodId]`、`charges`、`payments` 与 `credit-applications` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office/accounting/statements`、`statements/[statementId]`、`statements/[statementId]/status`、`statements/[statementId]/send` 以及 `accounting/self-service/statements/[statementId]/review` 已补统一 Zod body schema 与 handler-level regression tests，并纳入 `test:backoffice-hardening`（2026-04-18，pending）
   - `office signature send/resend` PATCH 路由已接入统一权限 wrapper，去掉重复 session / 403 分支（2026-04-11，pending）
   - 新增 `withApiGuard` 统一收口 `csrf + auth + permission + prepare + rate limit`，并把 `login`、`FO intake-assist`、`office signature request PATCH` 三条高复用入口迁到共享 guard；对应 route tests 已纳入 `test:backoffice-hardening`（2026-04-17，pending）

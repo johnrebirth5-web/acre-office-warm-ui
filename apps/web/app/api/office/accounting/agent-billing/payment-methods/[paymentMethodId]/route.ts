@@ -1,7 +1,12 @@
 import { canManageOfficeAgentBilling } from "@acre/auth";
-import { updateAgentPaymentMethod } from "@acre/db";
+import {
+  updateAgentPaymentMethod,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateAgentBillingPaymentMethodBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,34 +14,51 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type AgentBillingPaymentMethodDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateAgentPaymentMethod?: typeof updateAgentPaymentMethod;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateAgentBillingPaymentMethodPatch(
+  request: NextRequest,
+  paymentMethodId: string,
+  context: SessionMembershipContext,
+  dependencies: AgentBillingPaymentMethodDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateAgentBillingPaymentMethodBodySchema,
+    {
+      error: "Agent billing payment method payload is invalid.",
+      invalidJsonError: "Agent billing payment method request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeAgentBilling(context.currentMembership)) {
-    return NextResponse.json({ error: "Agent billing management access required." }, { status: 403 });
-  }
-
-  const { paymentMethodId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const updatedId = await updateAgentPaymentMethod({
+    const updatedId = await (
+      dependencies.updateAgentPaymentMethod ?? updateAgentPaymentMethod
+    )({
       organizationId: context.currentOrganization.id,
       paymentMethodId,
-      officeId: typeof body?.officeId === "string" ? body.officeId : context.currentOffice?.id ?? null,
-      membershipId: typeof body?.membershipId === "string" ? body.membershipId : undefined,
-      type: typeof body?.type === "string" ? body.type : undefined,
-      label: typeof body?.label === "string" ? body.label : undefined,
-      provider: typeof body?.provider === "string" ? body.provider : undefined,
-      last4: typeof body?.last4 === "string" ? body.last4 : undefined,
-      isDefault: typeof body?.isDefault === "boolean" ? body.isDefault : undefined,
-      autoPayEnabled: typeof body?.autoPayEnabled === "boolean" ? body.autoPayEnabled : undefined,
-      externalReferenceId: typeof body?.externalReferenceId === "string" ? body.externalReferenceId : undefined,
-      status: typeof body?.status === "string" ? body.status : undefined,
+      officeId:
+        body.officeId === undefined || body.officeId === null
+          ? context.currentOffice?.id ?? null
+          : body.officeId,
+      membershipId: body.membershipId,
+      type: body.type,
+      label: body.label,
+      provider: body.provider,
+      last4: body.last4,
+      isDefault: body.isDefault,
+      autoPayEnabled: body.autoPayEnabled,
+      externalReferenceId: body.externalReferenceId,
+      status: body.status,
       actorMembershipId: context.currentMembership.id
     });
 
@@ -51,4 +73,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeAgentBilling(context.currentMembership)) {
+    return NextResponse.json({ error: "Agent billing management access required." }, { status: 403 });
+  }
+
+  const { paymentMethodId } = await params;
+  return handleUpdateAgentBillingPaymentMethodPatch(request, paymentMethodId, context);
 }
