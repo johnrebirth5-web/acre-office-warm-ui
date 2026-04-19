@@ -11,6 +11,25 @@ import {
 } from "@acre/ui";
 import { StudioCollectionPicker } from "../../studio-collection-picker";
 
+const preloadedAssetIds = new Set<string>();
+
+function preloadAssetImage(assetId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (preloadedAssetIds.has(assetId)) {
+    return;
+  }
+
+  preloadedAssetIds.add(assetId);
+
+  const image = new window.Image();
+
+  image.decoding = "async";
+  image.src = `/api/listing-studio/assets/${assetId}`;
+}
+
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
 };
@@ -1383,6 +1402,28 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     return () => window.clearTimeout(timeoutId);
   }, [isAddressCopied]);
 
+  useEffect(() => {
+    if (!activePhoto || photoAssets.length < 2) {
+      return;
+    }
+
+    const index = photoAssets.findIndex((asset) => asset.id === activePhoto.id);
+    if (index === -1) {
+      return;
+    }
+
+    const nextAsset = photoAssets[(index + 1) % photoAssets.length];
+    const prevAsset =
+      photoAssets[(index - 1 + photoAssets.length) % photoAssets.length];
+
+    if (nextAsset) {
+      preloadAssetImage(nextAsset.id);
+    }
+    if (prevAsset && prevAsset.id !== nextAsset?.id) {
+      preloadAssetImage(prevAsset.id);
+    }
+  }, [activePhoto?.id, photoAssets]);
+
   function openEditor() {
     setEditorState(buildEditorState(detailState));
     setIsEditorOpen(true);
@@ -1498,6 +1539,20 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   function handleSelectPhoto(assetId: string) {
     setMediaMode("photo");
     setActivePhotoId(assetId);
+
+    const index = photoAssets.findIndex((asset) => asset.id === assetId);
+    if (index !== -1 && photoAssets.length > 1) {
+      const nextAsset = photoAssets[(index + 1) % photoAssets.length];
+      const prevAsset =
+        photoAssets[(index - 1 + photoAssets.length) % photoAssets.length];
+
+      if (nextAsset) {
+        preloadAssetImage(nextAsset.id);
+      }
+      if (prevAsset && prevAsset.id !== nextAsset?.id) {
+        preloadAssetImage(prevAsset.id);
+      }
+    }
   }
 
   function handleCyclePhoto(direction: -1 | 1) {
