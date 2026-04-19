@@ -2,12 +2,60 @@ import { canManageOfficeFields } from "@acre/auth";
 import { deleteOfficeCustomFieldDefinition, updateOfficeCustomFieldDefinition } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
+import { updateOfficeCustomFieldDefinitionBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
     fieldKey: string;
   }>;
 };
+
+export async function handleUpdateOfficeCustomFieldDefinitionPatch(
+  request: NextRequest,
+  fieldKey: string,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    updateOfficeCustomFieldDefinition?: typeof updateOfficeCustomFieldDefinition;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, updateOfficeCustomFieldDefinitionBodySchema, {
+    error: "Custom field payload is invalid.",
+    invalidJsonError: "Custom field payload must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const snapshot = await (dependencies.updateOfficeCustomFieldDefinition ?? updateOfficeCustomFieldDefinition)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      actorMembershipId: context.currentMembership.id,
+      module: body.module ?? "transaction",
+      fieldKey,
+      label: body.label,
+      type: body.type,
+      isRequired: body.isRequired,
+      isVisible: body.isVisible,
+      isDeletionLocked: body.isDeletionLocked,
+      sortOrder: body.sortOrder,
+      options: body.options?.map((option) => String(option ?? "")) ?? undefined
+    });
+
+    return NextResponse.json({ snapshot });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to update custom field."
+      },
+      { status: 400 }
+    );
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -21,45 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { fieldKey } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        module?: string;
-        label?: string;
-        type?: string;
-        isRequired?: boolean;
-        isVisible?: boolean;
-        isDeletionLocked?: boolean;
-        sortOrder?: number;
-        options?: string[];
-      }
-    | null;
-
-  try {
-    const snapshot = await updateOfficeCustomFieldDefinition({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      actorMembershipId: context.currentMembership.id,
-      module: body?.module === "contact" || body?.module === "offer" ? body.module : "transaction",
-      fieldKey,
-      label: body?.label,
-      type: body?.type,
-      isRequired: typeof body?.isRequired === "boolean" ? body.isRequired : undefined,
-      isVisible: typeof body?.isVisible === "boolean" ? body.isVisible : undefined,
-      isDeletionLocked:
-        typeof body?.isDeletionLocked === "boolean" ? body.isDeletionLocked : undefined,
-      sortOrder: typeof body?.sortOrder === "number" ? body.sortOrder : undefined,
-      options: Array.isArray(body?.options) ? body.options.map((option) => String(option ?? "")) : undefined
-    });
-
-    return NextResponse.json({ snapshot });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to update custom field."
-      },
-      { status: 400 }
-    );
-  }
+  return handleUpdateOfficeCustomFieldDefinitionPatch(request, fieldKey, context);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {

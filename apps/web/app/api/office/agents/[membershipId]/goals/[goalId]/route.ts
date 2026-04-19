@@ -2,6 +2,8 @@ import { canManageOfficeGoals } from "@acre/auth";
 import { updateAgentGoal } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
+import { updateAgentGoalBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,6 +11,49 @@ type RouteContext = {
     goalId: string;
   }>;
 };
+
+export async function handleUpdateAgentGoalPatch(
+  request: NextRequest,
+  membershipId: string,
+  goalId: string,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    updateAgentGoal?: typeof updateAgentGoal;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, updateAgentGoalBodySchema, {
+    error: "Agent goal payload is invalid.",
+    invalidJsonError: "Agent goal payload must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const goal = await (dependencies.updateAgentGoal ?? updateAgentGoal)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      actorMembershipId: context.currentMembership.id,
+      membershipId,
+      goalId,
+      periodType: body.periodType,
+      startsAt: body.startsAt ?? "",
+      endsAt: body.endsAt ?? "",
+      targetTransactionCount: body.targetTransactionCount,
+      targetClosedVolume: body.targetClosedVolume,
+      targetOfficeNet: body.targetOfficeNet,
+      targetAgentNet: body.targetAgentNet,
+      notes: body.notes
+    });
+
+    return NextResponse.json({ goal });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update goal." }, { status: 400 });
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -22,38 +67,5 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { membershipId, goalId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        periodType?: string;
-        startsAt?: string;
-        endsAt?: string;
-        targetTransactionCount?: string;
-        targetClosedVolume?: string;
-        targetOfficeNet?: string;
-        targetAgentNet?: string;
-        notes?: string;
-      }
-    | null;
-
-  try {
-    const goal = await updateAgentGoal({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      actorMembershipId: context.currentMembership.id,
-      membershipId,
-      goalId,
-      periodType: body?.periodType ?? "",
-      startsAt: body?.startsAt ?? "",
-      endsAt: body?.endsAt ?? "",
-      targetTransactionCount: body?.targetTransactionCount,
-      targetClosedVolume: body?.targetClosedVolume,
-      targetOfficeNet: body?.targetOfficeNet,
-      targetAgentNet: body?.targetAgentNet,
-      notes: body?.notes
-    });
-
-    return NextResponse.json({ goal });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update goal." }, { status: 400 });
-  }
+  return handleUpdateAgentGoalPatch(request, membershipId, goalId, context);
 }

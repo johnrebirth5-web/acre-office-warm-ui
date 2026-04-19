@@ -1,7 +1,9 @@
 import { canManageOfficeAccounting } from "@acre/auth";
-import { updateEarnestMoneyRecord } from "@acre/db";
+import { updateEarnestMoneyRecord, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { updateEarnestMoneyRecordBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,35 +11,49 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type EarnestMoneyDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateEarnestMoneyRecord?: typeof updateEarnestMoneyRecord;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateEarnestMoneyRecordPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  earnestMoneyRecordId: string,
+  dependencies: EarnestMoneyDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateEarnestMoneyRecordBodySchema,
+    {
+      error: "Earnest money payload is invalid.",
+      invalidJsonError: "Earnest money request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeAccounting(context.currentMembership)) {
-    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
-  }
-
-  const { earnestMoneyRecordId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const earnestMoneyRecord = await updateEarnestMoneyRecord({
+    const earnestMoneyRecord = await (
+      dependencies.updateEarnestMoneyRecord ?? updateEarnestMoneyRecord
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       earnestMoneyRecordId,
-      expectedAmount: typeof body?.expectedAmount === "string" ? body.expectedAmount : undefined,
-      dueAt: typeof body?.dueAt === "string" ? body.dueAt : undefined,
-      receivedAmount: typeof body?.receivedAmount === "string" ? body.receivedAmount : undefined,
-      refundedAmount: typeof body?.refundedAmount === "string" ? body.refundedAmount : undefined,
-      paymentDate: typeof body?.paymentDate === "string" ? body.paymentDate : undefined,
-      depositDate: typeof body?.depositDate === "string" ? body.depositDate : undefined,
-      heldByOffice: body?.heldByOffice === undefined ? undefined : Boolean(body.heldByOffice),
-      heldExternally: body?.heldExternally === undefined ? undefined : Boolean(body.heldExternally),
-      trackInLedger: body?.trackInLedger === undefined ? undefined : Boolean(body.trackInLedger),
-      notes: typeof body?.notes === "string" ? body.notes : undefined,
+      expectedAmount: body.expectedAmount,
+      dueAt: body.dueAt,
+      receivedAmount: body.receivedAmount,
+      refundedAmount: body.refundedAmount,
+      paymentDate: body.paymentDate,
+      depositDate: body.depositDate,
+      heldByOffice: body.heldByOffice,
+      heldExternally: body.heldExternally,
+      trackInLedger: body.trackInLedger,
+      notes: body.notes,
       actorMembershipId: context.currentMembership.id
     });
 
@@ -52,4 +68,20 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeAccounting(context.currentMembership)) {
+    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
+  }
+
+  const { earnestMoneyRecordId } = await params;
+
+  return handleUpdateEarnestMoneyRecordPatch(request, context, earnestMoneyRecordId);
 }

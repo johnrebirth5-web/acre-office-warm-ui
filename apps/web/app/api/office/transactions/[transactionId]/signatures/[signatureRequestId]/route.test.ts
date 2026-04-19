@@ -69,6 +69,7 @@ test("handleSignatureRequestPatch returns 400 when the action is invalid", async
       signatureRequestId: "sig_1",
     },
     {
+      canManageOfficeSignatures: () => true,
       csrf: () => true,
       getRequestSessionContext: async () => createSessionContext(),
     },
@@ -77,6 +78,11 @@ test("handleSignatureRequestPatch returns 400 when the action is invalid", async
   assert.equal(response.status, 400);
   assert.deepEqual(await readJson(response), {
     error: "A valid signature action is required.",
+    errorCode: "validation_error",
+    fieldErrors: {
+      action:
+        'Invalid option: expected one of "send"|"resend"|"viewed"|"signed"|"declined"|"canceled"|"expire"',
+    },
   });
 });
 
@@ -88,6 +94,7 @@ test("handleSignatureRequestPatch returns 429 when send is rate limited", async 
       signatureRequestId: "sig_1",
     },
     {
+      canManageOfficeSignatures: () => true,
       csrf: () => true,
       getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => ({
@@ -116,6 +123,7 @@ test("handleSignatureRequestPatch bypasses rate limiting for non-send actions", 
       signatureRequestId: "sig_1",
     },
     {
+      canManageOfficeSignatures: () => true,
       csrf: () => true,
       getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => {
@@ -146,6 +154,7 @@ test("handleSignatureRequestPatch returns 404 when send cannot load the signatur
       signatureRequestId: "sig_1",
     },
     {
+      canManageOfficeSignatures: () => true,
       csrf: () => true,
       getRequestSessionContext: async () => createSessionContext(),
       rateLimit: () => ({

@@ -2,6 +2,8 @@ import { canManageOfficeAgents } from "@acre/auth";
 import { saveAgentProfile } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
+import { saveAgentProfileBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -56,26 +58,29 @@ function pickSelfServiceBankInformationInput(body: AgentProfilePatchBody | null)
   };
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
-
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
-
-  const { membershipId } = await params;
+export async function handleSaveAgentProfilePatch(
+  request: NextRequest,
+  membershipId: string,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    saveAgentProfile?: typeof saveAgentProfile;
+  } = {}
+) {
   const canManageAgents = canManageOfficeAgents(context.currentMembership);
-  const canSelfManageBankInformation = context.currentMembership.id === membershipId;
+  const parsedBody = await parseJsonBody(request, saveAgentProfileBodySchema, {
+    error: "Agent profile payload is invalid.",
+    invalidJsonError: "Agent profile payload must be valid JSON."
+  });
 
-  if (!canManageAgents && !canSelfManageBankInformation) {
-    return NextResponse.json({ error: "Agent management or self bank information access required." }, { status: 403 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const body = (await request.json().catch(() => null)) as AgentProfilePatchBody | null;
+  const body = parsedBody.data as AgentProfilePatchBody;
   const input = canManageAgents ? body : pickSelfServiceBankInformationInput(body);
 
   try {
-    const profile = await saveAgentProfile({
+    const profile = await (dependencies.saveAgentProfile ?? saveAgentProfile)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       membershipId,
@@ -112,4 +117,22 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save agent profile." }, { status: 400 });
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const { membershipId } = await params;
+  const canManageAgents = canManageOfficeAgents(context.currentMembership);
+  const canSelfManageBankInformation = context.currentMembership.id === membershipId;
+
+  if (!canManageAgents && !canSelfManageBankInformation) {
+    return NextResponse.json({ error: "Agent management or self bank information access required." }, { status: 403 });
+  }
+
+  return handleSaveAgentProfilePatch(request, membershipId, context);
 }

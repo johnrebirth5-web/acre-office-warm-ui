@@ -1,28 +1,44 @@
 import { canApproveOfficeCommissions, canManageOfficeCommissions } from "@acre/auth";
-import { generateCommissionStatementSnapshot } from "@acre/db";
+import { generateCommissionStatementSnapshot, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { createCommissionStatementBodySchema } from "./route.schema";
 
-export async function POST(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+type CommissionStatementsRouteDependencies = {
+  generateCommissionStatementSnapshot?: typeof generateCommissionStatementSnapshot;
+  parseJsonBody?: typeof parseJsonBody;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleCreateCommissionStatementPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: CommissionStatementsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    createCommissionStatementBodySchema,
+    {
+      error: "Commission statement payload is invalid.",
+      invalidJsonError: "Commission statement request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
-    return NextResponse.json({ error: "Commission statement management access required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const statement = await generateCommissionStatementSnapshot({
+    const statement = await (
+      dependencies.generateCommissionStatementSnapshot ?? generateCommissionStatementSnapshot
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
-      membershipId: typeof body?.membershipId === "string" ? body.membershipId : "",
-      startDate: typeof body?.startDate === "string" ? body.startDate : "",
-      endDate: typeof body?.endDate === "string" ? body.endDate : "",
+      membershipId: body.membershipId,
+      startDate: body.startDate,
+      endDate: body.endDate,
       actorMembershipId: context.currentMembership.id
     });
 
@@ -37,4 +53,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
+    return NextResponse.json({ error: "Commission statement management access required." }, { status: 403 });
+  }
+
+  return handleCreateCommissionStatementPost(request, context);
 }

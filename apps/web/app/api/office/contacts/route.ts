@@ -1,7 +1,17 @@
 import { canCreateOfficeContacts, canViewOfficeContacts } from "@acre/auth";
-import { createContact, getOfficeContactFieldSchema, listContacts, officeContactsPageDefaults, officeContactsPageLimits, prepareContactFieldSubmission } from "@acre/db";
+import {
+  createContact,
+  getOfficeContactFieldSchema,
+  listContacts,
+  officeContactsPageDefaults,
+  officeContactsPageLimits,
+  prepareContactFieldSubmission,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
+import { officeContactPayloadSchema } from "./route.schema";
 
 function parsePreferredAreas(value: unknown) {
   if (typeof value !== "string") {
@@ -27,6 +37,13 @@ function parsePositiveInteger(value: string | null, fallback: number, max?: numb
 
   return max ? Math.min(numeric, max) : numeric;
 }
+
+type OfficeContactsRouteDependencies = {
+  createContact?: typeof createContact;
+  getOfficeContactFieldSchema?: typeof getOfficeContactFieldSchema;
+  parseJsonBody?: typeof parseJsonBody;
+  prepareContactFieldSubmission?: typeof prepareContactFieldSubmission;
+};
 
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
@@ -76,21 +93,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Contact create access required." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  return handleCreateOfficeContactPost(request, context);
+}
 
-  if (!body) {
-    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
+export async function handleCreateOfficeContactPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeContactsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(request, officeContactPayloadSchema, {
+    error: "Contact payload is invalid.",
+    invalidJsonError: "Contact request body must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
+
+  const body = parsedBody.data;
   try {
-    const schema = await getOfficeContactFieldSchema({
+    const schema = await (dependencies.getOfficeContactFieldSchema ?? getOfficeContactFieldSchema)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
-    const submission = prepareContactFieldSubmission({
+    const submission = (dependencies.prepareContactFieldSubmission ?? prepareContactFieldSubmission)({
       schema,
       payload: body
     });
-    const contact = await createContact({
+    const contact = await (dependencies.createContact ?? createContact)({
       organizationId: context.currentOrganization.id,
       ownerMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id,

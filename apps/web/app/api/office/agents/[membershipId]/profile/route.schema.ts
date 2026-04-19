@@ -1,0 +1,30 @@
+import { z } from "zod";
+
+export const saveAgentProfileBodySchema = z.object({
+  displayName: z.string().optional(),
+  bio: z.string().optional(),
+  notes: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  licenseState: z.string().optional(),
+  startDate: z.string().optional(),
+  commissionPlanName: z.string().optional(),
+  splitTemplateId: z.string().optional(),
+  customAgentPercent: z.string().optional(),
+  commissionEffectiveFrom: z.string().optional(),
+  commissionEffectiveTo: z.string().optional(),
+  avatarUrl: z.string().optional(),
+  internalExtension: z.string().optional(),
+  bankPayeeName: z.string().optional(),
+  bankFirstName: z.string().optional(),
+  bankLastName: z.string().optional(),
+  bankEmail: z.string().optional(),
+  bankAddress: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankRoutingNumber: z.string().optional(),
+  bankPhoneNumber: z.string().optional(),
+  bankTaxIdType: z.enum(["ssn", "ein"]).optional(),
+  bankTaxIdValue: z.string().optional(),
+  bankDateOfBirth: z.string().optional(),
+  bankAccountType: z.enum(["checking", "savings", "business_checking", "business_savings", "other"]).optional()
+});

@@ -2,6 +2,7 @@ import { canManageOfficeSignatures } from "@acre/auth";
 import { getSignatureEditorSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { isSameOriginRequest } from "../../../../../../../lib/csrf";
 import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
 import {
@@ -16,9 +17,9 @@ import {
   sendSignatureRequestEmail
 } from "../../../../../../../lib/signature-email";
 import { createSignatureToken } from "../../../../../../../lib/signature-token";
-import { parseAllowedString, readJsonObject } from "../../../../../../../lib/validate";
 import { withApiGuard } from "../../../../../../../lib/with-api-guard";
 import { withPermission } from "../../../../../../../lib/with-permission";
+import { signatureRequestActionBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -95,6 +96,15 @@ function buildSignatureActionErrorResponse(
   }
 
   return response;
+}
+
+async function parseSignatureRequestAction(
+  request: NextRequest,
+) {
+  return parseJsonBody(request, signatureRequestActionBodySchema, {
+    error: "A valid signature action is required.",
+    invalidJsonError: "A valid signature action is required.",
+  });
 }
 
 function getSignatureSendRateLimitKey(
@@ -332,23 +342,15 @@ export async function handleSignatureRequestPatch(
       request,
       dependencies.canManageOfficeSignatures ?? canManageOfficeSignatures,
       async (context) => {
-        const body = await readJsonObject(request);
-        const action = parseAllowedString(
-          typeof body?.action === "string" ? body.action : null,
-          signatureRequestActions,
-        );
-
-        if (!action) {
-          return NextResponse.json(
-            { error: "A valid signature action is required." },
-            { status: 400 },
-          );
+        const parsedBody = await parseSignatureRequestAction(request);
+        if (!parsedBody.ok) {
+          return parsedBody.response;
         }
 
         return runSignatureRequestAction(
           request,
           routeContext,
-          action,
+          parsedBody.data.action,
           context,
           dependencies,
         );
@@ -360,22 +362,18 @@ export async function handleSignatureRequestPatch(
     );
   }
 
-  return (dependencies.withApiGuard ?? withApiGuard)<{
-    action: SignatureRequestAction | null;
-  }>(
+  return (dependencies.withApiGuard ?? withApiGuard)(
     request,
-    async ({ context, prepared }) => {
-      if (!prepared.action) {
-        return NextResponse.json(
-          { error: "A valid signature action is required." },
-          { status: 400 },
-        );
+    async ({ context }) => {
+      const parsedBody = await parseSignatureRequestAction(request);
+      if (!parsedBody.ok) {
+        return parsedBody.response;
       }
 
       return runSignatureRequestAction(
         request,
         routeContext,
-        prepared.action,
+        parsedBody.data.action,
         context!,
         dependencies,
       );
@@ -388,15 +386,6 @@ export async function handleSignatureRequestPatch(
       forbiddenMessage: "Signature access required.",
       getRequestSessionContext:
         dependencies.getRequestSessionContext ?? getRequestSessionContext,
-      prepare: async ({ request: guardedRequest }) => {
-        const body = await readJsonObject(guardedRequest);
-        return {
-          action: parseAllowedString(
-            typeof body?.action === "string" ? body.action : null,
-            signatureRequestActions,
-          ),
-        };
-      },
       requireAuth: true,
       unauthorizedMessage: "Authentication required.",
     },

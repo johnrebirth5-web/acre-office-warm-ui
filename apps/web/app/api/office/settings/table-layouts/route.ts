@@ -2,6 +2,8 @@ import { canManageOfficeSettings } from "@acre/auth";
 import { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
+import { saveOfficeTableLayoutBodySchema } from "./route.schema";
 
 type TableLayoutRequestBody = {
   tableKey?: string;
@@ -49,6 +51,38 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ layouts });
 }
 
+export async function handleSaveOfficeTableLayoutPut(
+  request: NextRequest,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    saveOfficeTableLayout?: typeof saveOfficeTableLayout;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, saveOfficeTableLayoutBodySchema, {
+    error: "Table layout payload is invalid.",
+    invalidJsonError: "Table layout payload must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data as TableLayoutRequestBody;
+
+  try {
+    const layout = await (dependencies.saveOfficeTableLayout ?? saveOfficeTableLayout)({
+      organizationId: context.currentOrganization.id,
+      actorMembershipId: context.currentMembership.id,
+      tableKey: body?.tableKey ?? "",
+      columns: normalizeColumns(body?.columns)
+    });
+
+    return NextResponse.json({ layout });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save the table layout." }, { status: 400 });
+  }
+}
+
 export async function PUT(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -60,18 +94,5 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Settings management permission required." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as TableLayoutRequestBody;
-
-  try {
-    const layout = await saveOfficeTableLayout({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      tableKey: body?.tableKey ?? "",
-      columns: normalizeColumns(body?.columns)
-    });
-
-    return NextResponse.json({ layout });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save the table layout." }, { status: 400 });
-  }
+  return handleSaveOfficeTableLayoutPut(request, context);
 }

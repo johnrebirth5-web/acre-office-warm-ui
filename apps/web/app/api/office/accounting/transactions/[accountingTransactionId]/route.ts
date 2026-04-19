@@ -1,7 +1,9 @@
 import { canManageOfficeAccounting } from "@acre/auth";
-import { updateAccountingTransaction } from "@acre/db";
+import { updateAccountingTransaction, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { saveAccountingTransactionBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -33,38 +35,52 @@ function normalizeLineItems(value: unknown) {
   });
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type AccountingTransactionDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateAccountingTransaction?: typeof updateAccountingTransaction;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateAccountingTransactionPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  accountingTransactionId: string,
+  dependencies: AccountingTransactionDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    saveAccountingTransactionBodySchema,
+    {
+      error: "Accounting transaction payload is invalid.",
+      invalidJsonError: "Accounting transaction request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeAccounting(context.currentMembership)) {
-    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
-  }
-
-  const { accountingTransactionId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const transaction = await updateAccountingTransaction({
+    const transaction = await (
+      dependencies.updateAccountingTransaction ?? updateAccountingTransaction
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       accountingTransactionId,
-      type: typeof body?.type === "string" ? body.type : "",
-      status: typeof body?.status === "string" ? body.status : "",
-      accountingDate: typeof body?.accountingDate === "string" ? body.accountingDate : "",
-      dueDate: typeof body?.dueDate === "string" ? body.dueDate : "",
-      paymentMethod: typeof body?.paymentMethod === "string" ? body.paymentMethod : "",
-      referenceNumber: typeof body?.referenceNumber === "string" ? body.referenceNumber : "",
-      counterpartyName: typeof body?.counterpartyName === "string" ? body.counterpartyName : "",
-      memo: typeof body?.memo === "string" ? body.memo : "",
-      notes: typeof body?.notes === "string" ? body.notes : "",
-      totalAmount: typeof body?.totalAmount === "string" ? body.totalAmount : "",
-      relatedTransactionId: typeof body?.relatedTransactionId === "string" ? body.relatedTransactionId : "",
-      relatedMembershipId: typeof body?.relatedMembershipId === "string" ? body.relatedMembershipId : "",
-      lineItems: normalizeLineItems(body?.lineItems),
+      type: body.type ?? "",
+      status: body.status ?? "",
+      accountingDate: body.accountingDate ?? "",
+      dueDate: body.dueDate ?? "",
+      paymentMethod: body.paymentMethod ?? "",
+      referenceNumber: body.referenceNumber ?? "",
+      counterpartyName: body.counterpartyName ?? "",
+      memo: body.memo ?? "",
+      notes: body.notes ?? "",
+      totalAmount: body.totalAmount ?? "",
+      relatedTransactionId: body.relatedTransactionId ?? "",
+      relatedMembershipId: body.relatedMembershipId ?? "",
+      lineItems: normalizeLineItems(body.lineItems),
       createdByMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id
     });
@@ -80,4 +96,20 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeAccounting(context.currentMembership)) {
+    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
+  }
+
+  const { accountingTransactionId } = await params;
+
+  return handleUpdateAccountingTransactionPatch(request, context, accountingTransactionId);
 }

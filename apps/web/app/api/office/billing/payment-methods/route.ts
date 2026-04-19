@@ -1,7 +1,59 @@
 import { canViewOfficeAgentBilling } from "@acre/auth";
-import { createOfficeBillingPaymentMethod } from "@acre/db";
+import { createOfficeBillingPaymentMethod, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { createOfficeBillingPaymentMethodBodySchema } from "./route.schema";
+
+type OfficeBillingPaymentMethodsRouteDependencies = {
+  createOfficeBillingPaymentMethod?: typeof createOfficeBillingPaymentMethod;
+  parseJsonBody?: typeof parseJsonBody;
+};
+
+export async function handleCreateOfficeBillingPaymentMethodPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: OfficeBillingPaymentMethodsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    createOfficeBillingPaymentMethodBodySchema,
+    {
+      error: "Billing payment method payload is invalid.",
+      invalidJsonError: "Billing payment method request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const paymentMethodId = await (
+      dependencies.createOfficeBillingPaymentMethod ?? createOfficeBillingPaymentMethod
+    )({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      membershipId: context.currentMembership.id,
+      type: body.type,
+      label: body.label,
+      provider: body.provider ?? "",
+      last4: body.last4 ?? "",
+      isDefault: body.isDefault,
+      autoPayEnabled: body.autoPayEnabled,
+      actorMembershipId: context.currentMembership.id
+    });
+
+    return NextResponse.json({ paymentMethodId }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to save payment method." },
+      { status: 400 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   const context = await getRequestSessionContext(request);
@@ -14,27 +66,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Billing access required." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-
-  try {
-    const paymentMethodId = await createOfficeBillingPaymentMethod({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      membershipId: context.currentMembership.id,
-      type: typeof body?.type === "string" ? body.type : "",
-      label: typeof body?.label === "string" ? body.label : "",
-      provider: typeof body?.provider === "string" ? body.provider : "",
-      last4: typeof body?.last4 === "string" ? body.last4 : "",
-      isDefault: typeof body?.isDefault === "boolean" ? body.isDefault : undefined,
-      autoPayEnabled: typeof body?.autoPayEnabled === "boolean" ? body.autoPayEnabled : undefined,
-      actorMembershipId: context.currentMembership.id
-    });
-
-    return NextResponse.json({ paymentMethodId }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save payment method." },
-      { status: 400 }
-    );
-  }
+  return handleCreateOfficeBillingPaymentMethodPost(request, context);
 }

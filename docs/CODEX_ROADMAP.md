@@ -456,3 +456,6 @@
 
 ### 2026-04-17 · R0-4-rate-limit-slice · pending
 `apps/web/lib/rate-limit.ts` 已升级为 `memory/upstash` 双后端，并新增 `rate-limit.test.ts`；`auth/change-password`、`auth/invitations/accept`、`public/signatures/[token]/submit`、`listing-studio/imports` 现已接入统一限流，同时保留现有 login / intake / signature-send 的防护链。验证：rate-limit tests、仓库 `typecheck/lint/build` 通过。遗留：仍需把更多 Office 写接口逐步纳入统一策略，并在生产真正切到共享后端。
+
+### 2026-04-18 · R0-office-hardening-finish · pending
+一次性收掉 `office` 剩余手工 JSON mutation 入口：补齐 `accounting/transactions`、`earnest-money`、`commissions calculations/statements`、`billing/payment-methods`、`contacts`、`settings/checklists/fields/roles/table-layouts`、`signatures/templates`、`agents/teams/profile/goals/onboarding`，并把 transaction signature action 最后一段 `readJsonObject` 改为 `parseJsonBody + Zod`。所有新增路由都拆出 handler-level regression tests，并接入 `test:backoffice-hardening`。验证：聚焦 route tests 与仓库 `typecheck/lint/build` 通过；整套 hardening tests 仍受本地 Prisma DB `127.0.0.1:15432` 不可达影响，未在本次作为绿灯门槛。

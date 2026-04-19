@@ -2,63 +2,40 @@ import { canManageOfficeFields } from "@acre/auth";
 import { saveOfficeFieldSettings } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
+import { officeFieldSettingsBodySchema } from "./route.schema";
 
-export async function PATCH(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+export async function handleSaveOfficeFieldSettingsPatch(
+  request: NextRequest,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    saveOfficeFieldSettings?: typeof saveOfficeFieldSettings;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, officeFieldSettingsBodySchema, {
+    error: "Field settings payload is invalid.",
+    invalidJsonError: "Field settings payload must be valid JSON."
+  });
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeFields(context.currentMembership)) {
-    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as
-    | {
-        module?: string;
-        contactRoleSettings?: Array<{
-          role?: string;
-          isRequired?: boolean;
-        }>;
-        builtInFieldSettings?: Array<{
-          fieldKey?: string;
-          label?: string;
-          isRequired?: boolean;
-          isVisible?: boolean;
-          sortOrder?: number;
-          selectOptions?: Array<{
-            value?: string;
-            label?: string;
-            isEnabled?: boolean;
-          }>;
-        }>;
-        customFieldDefinitions?: Array<{
-          fieldKey?: string;
-          label?: string;
-          type?: string;
-          isRequired?: boolean;
-          isVisible?: boolean;
-          isDeletionLocked?: boolean;
-          sortOrder?: number;
-          options?: string[];
-        }>;
-      }
-    | null;
+  const body = parsedBody.data;
 
   try {
-    const snapshot = await saveOfficeFieldSettings({
+    const snapshot = await (dependencies.saveOfficeFieldSettings ?? saveOfficeFieldSettings)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
-      module: body?.module === "contact" || body?.module === "offer" ? body.module : "transaction",
+      module: body.module ?? "transaction",
       contactRoleSettings:
-        body?.contactRoleSettings?.map((entry) => ({
+        body.contactRoleSettings?.map((entry) => ({
           role: entry.role ?? "",
           isRequired: Boolean(entry.isRequired)
         })) ?? [],
       builtInFieldSettings:
-        body?.builtInFieldSettings?.map((entry) => ({
+        body.builtInFieldSettings?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
           label: typeof entry.label === "string" ? entry.label : undefined,
           isRequired: Boolean(entry.isRequired),
@@ -73,7 +50,7 @@ export async function PATCH(request: NextRequest) {
             : undefined
         })) ?? [],
       customFieldDefinitions:
-        body?.customFieldDefinitions?.map((entry) => ({
+        body.customFieldDefinitions?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
           label: entry.label ?? "",
           type: entry.type ?? "",
@@ -90,4 +67,18 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save field settings." }, { status: 400 });
   }
+}
+
+export async function PATCH(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeFields(context.currentMembership)) {
+    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
+  }
+
+  return handleSaveOfficeFieldSettingsPatch(request, context);
 }

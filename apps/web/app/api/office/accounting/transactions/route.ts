@@ -1,7 +1,9 @@
 import { canManageOfficeAccounting } from "@acre/auth";
-import { createAccountingTransaction } from "@acre/db";
+import { createAccountingTransaction, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { saveAccountingTransactionBodySchema } from "./route.schema";
 
 function normalizeLineItems(value: unknown) {
   if (!Array.isArray(value)) {
@@ -27,36 +29,50 @@ function normalizeLineItems(value: unknown) {
   });
 }
 
-export async function POST(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+type AccountingTransactionsRouteDependencies = {
+  createAccountingTransaction?: typeof createAccountingTransaction;
+  parseJsonBody?: typeof parseJsonBody;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleCreateAccountingTransactionPost(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  dependencies: AccountingTransactionsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    saveAccountingTransactionBodySchema,
+    {
+      error: "Accounting transaction payload is invalid.",
+      invalidJsonError: "Accounting transaction request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeAccounting(context.currentMembership)) {
-    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const transaction = await createAccountingTransaction({
+    const transaction = await (
+      dependencies.createAccountingTransaction ?? createAccountingTransaction
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
-      type: typeof body?.type === "string" ? body.type : "",
-      status: typeof body?.status === "string" ? body.status : "",
-      accountingDate: typeof body?.accountingDate === "string" ? body.accountingDate : "",
-      dueDate: typeof body?.dueDate === "string" ? body.dueDate : "",
-      paymentMethod: typeof body?.paymentMethod === "string" ? body.paymentMethod : "",
-      referenceNumber: typeof body?.referenceNumber === "string" ? body.referenceNumber : "",
-      counterpartyName: typeof body?.counterpartyName === "string" ? body.counterpartyName : "",
-      memo: typeof body?.memo === "string" ? body.memo : "",
-      notes: typeof body?.notes === "string" ? body.notes : "",
-      totalAmount: typeof body?.totalAmount === "string" ? body.totalAmount : "",
-      relatedTransactionId: typeof body?.relatedTransactionId === "string" ? body.relatedTransactionId : "",
-      relatedMembershipId: typeof body?.relatedMembershipId === "string" ? body.relatedMembershipId : "",
-      lineItems: normalizeLineItems(body?.lineItems),
+      type: body.type ?? "",
+      status: body.status ?? "",
+      accountingDate: body.accountingDate ?? "",
+      dueDate: body.dueDate ?? "",
+      paymentMethod: body.paymentMethod ?? "",
+      referenceNumber: body.referenceNumber ?? "",
+      counterpartyName: body.counterpartyName ?? "",
+      memo: body.memo ?? "",
+      notes: body.notes ?? "",
+      totalAmount: body.totalAmount ?? "",
+      relatedTransactionId: body.relatedTransactionId ?? "",
+      relatedMembershipId: body.relatedMembershipId ?? "",
+      lineItems: normalizeLineItems(body.lineItems),
       createdByMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id
     });
@@ -68,4 +84,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeAccounting(context.currentMembership)) {
+    return NextResponse.json({ error: "Accounting management access required." }, { status: 403 });
+  }
+
+  return handleCreateAccountingTransactionPost(request, context);
 }

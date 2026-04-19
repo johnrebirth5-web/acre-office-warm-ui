@@ -1,7 +1,15 @@
 import { canEditOfficeContacts, canViewOfficeContacts } from "@acre/auth";
-import { getContactById, getOfficeContactFieldSchema, prepareContactFieldSubmission, updateContact } from "@acre/db";
+import {
+  getContactById,
+  getOfficeContactFieldSchema,
+  prepareContactFieldSubmission,
+  updateContact,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { officeContactPayloadSchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -19,6 +27,14 @@ function parsePreferredAreas(value: unknown) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+
+type OfficeContactDetailRouteDependencies = {
+  getContactById?: typeof getContactById;
+  getOfficeContactFieldSchema?: typeof getOfficeContactFieldSchema;
+  parseJsonBody?: typeof parseJsonBody;
+  prepareContactFieldSubmission?: typeof prepareContactFieldSubmission;
+  updateContact?: typeof updateContact;
+};
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -58,13 +74,28 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { contactId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
-  if (!body) {
-    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
+  return handleUpdateOfficeContactPatch(request, context, contactId);
+}
+
+export async function handleUpdateOfficeContactPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  contactId: string,
+  dependencies: OfficeContactDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(request, officeContactPayloadSchema, {
+    error: "Contact payload is invalid.",
+    invalidJsonError: "Contact request body must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const existingContact = await getContactById({
+  const body = parsedBody.data;
+
+  const existingContact = await (dependencies.getContactById ?? getContactById)({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     contactId,
@@ -76,16 +107,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const schema = await getOfficeContactFieldSchema({
+    const schema = await (dependencies.getOfficeContactFieldSchema ?? getOfficeContactFieldSchema)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
-    const submission = prepareContactFieldSubmission({
+    const submission = (dependencies.prepareContactFieldSubmission ?? prepareContactFieldSubmission)({
       schema,
       payload: body,
       existingContact
     });
-    const contact = await updateContact(contactId, {
+    const contact = await (dependencies.updateContact ?? updateContact)(contactId, {
       organizationId: context.currentOrganization.id,
       ownerMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id,

@@ -1,7 +1,9 @@
 import { canApproveOfficeCommissions, canManageOfficeCommissions } from "@acre/auth";
-import { updateCommissionCalculationStatus } from "@acre/db";
+import { updateCommissionCalculationStatus, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateCommissionCalculationStatusBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,26 +11,40 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type CommissionCalculationRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateCommissionCalculationStatus?: typeof updateCommissionCalculationStatus;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateCommissionCalculationPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  calculationId: string,
+  dependencies: CommissionCalculationRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateCommissionCalculationStatusBodySchema,
+    {
+      error: "Commission calculation payload is invalid.",
+      invalidJsonError: "Commission calculation request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
-    return NextResponse.json({ error: "Commission review access required." }, { status: 403 });
-  }
-
-  const { calculationId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const calculation = await updateCommissionCalculationStatus({
+    const calculation = await (
+      dependencies.updateCommissionCalculationStatus ?? updateCommissionCalculationStatus
+    )({
       organizationId: context.currentOrganization.id,
       calculationId,
-      status: typeof body?.status === "string" ? body.status : "",
-      notes: typeof body?.notes === "string" ? body.notes : "",
+      status: body.status,
+      notes: body.notes ?? "",
       actorMembershipId: context.currentMembership.id
     });
 
@@ -43,4 +59,20 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
+    return NextResponse.json({ error: "Commission review access required." }, { status: 403 });
+  }
+
+  const { calculationId } = await params;
+
+  return handleUpdateCommissionCalculationPatch(request, context, calculationId);
 }

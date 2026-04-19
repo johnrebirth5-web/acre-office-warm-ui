@@ -2,6 +2,42 @@ import { canManageOfficeTeams } from "@acre/auth";
 import { createAgentTeam } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
+import { createAgentTeamBodySchema } from "./route.schema";
+
+export async function handleCreateAgentTeamPost(
+  request: NextRequest,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    createAgentTeam?: typeof createAgentTeam;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, createAgentTeamBodySchema, {
+    error: "Team payload is invalid.",
+    invalidJsonError: "Team payload must be valid JSON."
+  });
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+
+  const body = parsedBody.data;
+
+  try {
+    const team = await (dependencies.createAgentTeam ?? createAgentTeam)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      actorMembershipId: context.currentMembership.id,
+      name: body.name,
+      parentTeamId: body.parentTeamId ?? null,
+      leaderMembershipId: body.leaderMembershipId ?? ""
+    });
+
+    return NextResponse.json({ team }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create team." }, { status: 400 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   const context = await getRequestSessionContext(request);
@@ -14,22 +50,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Team management permission required." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | { name?: string; parentTeamId?: string | null; leaderMembershipId?: string }
-    | null;
-
-  try {
-    const team = await createAgentTeam({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      actorMembershipId: context.currentMembership.id,
-      name: body?.name ?? "",
-      parentTeamId: body?.parentTeamId ?? null,
-      leaderMembershipId: body?.leaderMembershipId ?? ""
-    });
-
-    return NextResponse.json({ team }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create team." }, { status: 400 });
-  }
+  return handleCreateAgentTeamPost(request, context);
 }

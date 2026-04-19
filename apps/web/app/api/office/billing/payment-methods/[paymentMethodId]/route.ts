@@ -1,7 +1,9 @@
 import { canViewOfficeAgentBilling } from "@acre/auth";
-import { updateOfficeBillingPaymentMethod } from "@acre/db";
+import { updateOfficeBillingPaymentMethod, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { updateOfficeBillingPaymentMethodBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,33 +11,47 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeBillingPaymentMethodDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateOfficeBillingPaymentMethod?: typeof updateOfficeBillingPaymentMethod;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateOfficeBillingPaymentMethodPatch(
+  request: NextRequest,
+  context: SessionMembershipContext,
+  paymentMethodId: string,
+  dependencies: OfficeBillingPaymentMethodDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateOfficeBillingPaymentMethodBodySchema,
+    {
+      error: "Billing payment method payload is invalid.",
+      invalidJsonError: "Billing payment method request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canViewOfficeAgentBilling(context.currentMembership)) {
-    return NextResponse.json({ error: "Billing access required." }, { status: 403 });
-  }
-
-  const { paymentMethodId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const updatedId = await updateOfficeBillingPaymentMethod({
+    const updatedId = await (
+      dependencies.updateOfficeBillingPaymentMethod ?? updateOfficeBillingPaymentMethod
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       membershipId: context.currentMembership.id,
       paymentMethodId,
-      type: typeof body?.type === "string" ? body.type : undefined,
-      label: typeof body?.label === "string" ? body.label : undefined,
-      provider: typeof body?.provider === "string" ? body.provider : undefined,
-      last4: typeof body?.last4 === "string" ? body.last4 : undefined,
-      isDefault: typeof body?.isDefault === "boolean" ? body.isDefault : undefined,
-      autoPayEnabled: typeof body?.autoPayEnabled === "boolean" ? body.autoPayEnabled : undefined,
-      remove: body?.action === "remove",
+      type: body.type,
+      label: body.label,
+      provider: body.provider,
+      last4: body.last4,
+      isDefault: body.isDefault,
+      autoPayEnabled: body.autoPayEnabled,
+      remove: body.action === "remove",
       actorMembershipId: context.currentMembership.id
     });
 
@@ -50,4 +66,20 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canViewOfficeAgentBilling(context.currentMembership)) {
+    return NextResponse.json({ error: "Billing access required." }, { status: 403 });
+  }
+
+  const { paymentMethodId } = await params;
+
+  return handleUpdateOfficeBillingPaymentMethodPatch(request, context, paymentMethodId);
 }

@@ -6,6 +6,8 @@ import {
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { parseJsonBody } from "../../../../../lib/api/parse-body";
+import { saveSignatureTemplateBodySchema } from "./route.schema";
 
 type SaveTemplateRequestBody = Omit<SaveSignatureTemplateInput, "organizationId" | "officeId" | "actorMembershipId"> | null;
 
@@ -28,21 +30,26 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ snapshot });
 }
 
-export async function POST(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+export async function handleSaveSignatureTemplatePost(
+  request: NextRequest,
+  context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>,
+  dependencies: {
+    saveSignatureTemplate?: typeof saveSignatureTemplate;
+  } = {}
+) {
+  const parsedBody = await parseJsonBody(request, saveSignatureTemplateBodySchema, {
+    error: "Signature template payload is invalid.",
+    invalidJsonError: "Signature template payload must be valid JSON."
+  });
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeSignatureTemplates(context.currentMembership)) {
-    return NextResponse.json({ error: "Signature template access required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as SaveTemplateRequestBody;
+  const body = parsedBody.data as SaveTemplateRequestBody;
 
   try {
-    const template = await saveSignatureTemplate({
+    const template = await (dependencies.saveSignatureTemplate ?? saveSignatureTemplate)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
@@ -66,4 +73,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeSignatureTemplates(context.currentMembership)) {
+    return NextResponse.json({ error: "Signature template access required." }, { status: 403 });
+  }
+
+  return handleSaveSignatureTemplatePost(request, context);
 }
