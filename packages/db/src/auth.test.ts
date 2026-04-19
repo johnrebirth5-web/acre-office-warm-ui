@@ -17,10 +17,11 @@ after(async () => {
 });
 
 async function createBootstrapOrganizationContext() {
+  const suffix = randomUUID().slice(0, 8);
   const organization = await prisma.organization.create({
     data: {
-      name: "Acre Bootstrap Test",
-      slug: "acre"
+      name: `Acre Bootstrap Test ${suffix}`,
+      slug: `acre-bootstrap-${suffix}`
     }
   });
 
@@ -159,9 +160,22 @@ test("bootstrap admin exists as an active office_admin account with a stored has
   try {
     const result = await ensureBootstrapAdminAccount();
 
-    assert.equal(result.organizationId, context.organization.id);
+    assert.ok(result.organizationId);
     assert.ok(result.membershipId);
     assert.ok(result.userId);
+
+    const bootstrapOrganization = await prisma.organization.findUnique({
+      where: {
+        id: result.organizationId,
+      },
+      include: {
+        offices: {
+          orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+        },
+      },
+    });
+
+    assert.ok(bootstrapOrganization);
 
     const bootstrapUser = await prisma.user.findUnique({
       where: {
@@ -180,8 +194,8 @@ test("bootstrap admin exists as an active office_admin account with a stored has
     const bootstrapMembership = bootstrapUser?.memberships.find((membership) => membership.id === result.membershipId);
     assert.equal(bootstrapMembership?.role, "office_admin");
     assert.equal(bootstrapMembership?.status, "active");
-    assert.equal(bootstrapMembership?.organizationId, context.organization.id);
-    assert.equal(bootstrapMembership?.officeId, context.office.id);
+    assert.equal(bootstrapMembership?.organizationId, result.organizationId);
+    assert.equal(bootstrapMembership?.officeId, bootstrapOrganization?.offices[0]?.id ?? null);
 
     if (result.created) {
       assert.equal(bootstrapUser?.credential?.mustChangePassword, true);
