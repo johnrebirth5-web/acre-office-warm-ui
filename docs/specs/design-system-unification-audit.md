@@ -14,55 +14,55 @@ It exists to support the current product rule:
 
 Current canonical sources of truth:
 
-- [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/office-design-system.md)
-- [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css)
-- [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)
-- [apps/web/app/\_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
-- [apps/web/app/\_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
-- [apps/web/app/\_components/workspace-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/workspace-nav.tsx)
-- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [docs/office-design-system.md](../office-design-system.md)
+- [apps/web/app/globals.css](../../apps/web/app/globals.css)
+- [packages/ui/src/index.tsx](../../packages/ui/src/index.tsx)
+- [apps/web/app/\_components/canonical-list-page-template.tsx](../../apps/web/app/_components/canonical-list-page-template.tsx)
+- [apps/web/app/\_components/canonical-detail-page-template.tsx](../../apps/web/app/_components/canonical-detail-page-template.tsx)
+- [apps/web/app/\_components/workspace-nav.tsx](../../apps/web/app/_components/workspace-nav.tsx)
+- [apps/web/app/office/\_components/office-list-page-template.tsx](../../apps/web/app/office/_components/office-list-page-template.tsx)
 
 `Front Office` already follows this baseline through:
 
-- [apps/web/app/agent/\_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
+- [apps/web/app/agent/\_components/front-office-page-template.tsx](../../apps/web/app/agent/_components/front-office-page-template.tsx)
 
-As of `2026-04-01`, FO and BO route-level templates already share one common route-template skeleton through [canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx). The remaining unification work is now about expanding adoption and removing legacy page-local chrome, not about inventing the shared skeleton for the first time.
+As of `2026-04-01`, FO and BO route-level templates already share one common route-template skeleton through [canonical-list-page-template.tsx](../../apps/web/app/_components/canonical-list-page-template.tsx). The remaining unification work is now about expanding adoption and removing legacy page-local chrome, not about inventing the shared skeleton for the first time.
 
 As of `2026-04-01` later in the same cleanup pass, the `office/activity` workspace has also completed its first live migration batch:
 
-- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
-- [apps/web/app/office/activity/activity-alerts-layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/activity-alerts-layout.tsx)
+- [apps/web/app/office/activity/page.tsx](../../apps/web/app/office/activity/page.tsx)
+- [apps/web/app/office/activity/activity-alerts-layout.tsx](../../apps/web/app/office/activity/activity-alerts-layout.tsx)
 
-These files no longer emit `bm-*` activity shell/list markup. Their workspace chrome now routes through `office-activity-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which makes `activity` the first high-visibility BO workbench migrated off `bm-*` shell language without changing its data flow.
+These files no longer emit `bm-*` activity shell/list markup. Their workspace chrome now routes through `office-activity-*` classes in [apps/web/app/globals.css](../../apps/web/app/globals.css), which makes `activity` the first high-visibility BO workbench migrated off `bm-*` shell language without changing its data flow.
 
 As of `2026-04-01` in the next migration batch, the `office/dashboard` goal / KPI workspace has also moved onto canonical Office naming:
 
-- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
+- [apps/web/app/office/dashboard/page.tsx](../../apps/web/app/office/dashboard/page.tsx)
 
-The dashboard no longer emits `bm-*` classes for its goal tracking, KPI strip, chart, or payout-statement action row. Those surfaces now use `office-dashboard-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which removes another major BO visual-language fork while keeping the same data and dashboard composition.
+The dashboard no longer emits `bm-*` classes for its goal tracking, KPI strip, chart, or payout-statement action row. Those surfaces now use `office-dashboard-*` classes in [apps/web/app/globals.css](../../apps/web/app/globals.css), which removes another major BO visual-language fork while keeping the same data and dashboard composition.
 
 As of the same `2026-04-01` consolidation pass, the remaining active Office workspaces with live `bm-*` markup were migrated in one batch:
 
-- [apps/web/app/office/accounting/accounting-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/accounting-client.tsx)
-- [apps/web/app/office/accounting/agent-billing-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/agent-billing-panel.tsx)
-- [apps/web/app/office/accounting/commission-management-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/commission-management-panel.tsx)
-- [apps/web/app/office/billing/billing-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/billing/billing-client.tsx)
-- [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
-- [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
-- [apps/web/app/office/transactions/transaction-intake-form.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transaction-intake-form.tsx)
-- transaction detail subcards and signature editor under [apps/web/app/office/transactions/[transactionId]](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId])
+- [apps/web/app/office/accounting/accounting-client.tsx](../../apps/web/app/office/accounting/accounting-client.tsx)
+- [apps/web/app/office/accounting/agent-billing-panel.tsx](../../apps/web/app/office/accounting/agent-billing-panel.tsx)
+- [apps/web/app/office/accounting/commission-management-panel.tsx](../../apps/web/app/office/accounting/commission-management-panel.tsx)
+- [apps/web/app/office/billing/billing-client.tsx](../../apps/web/app/office/billing/billing-client.tsx)
+- [apps/web/app/office/contacts/contacts-client.tsx](../../apps/web/app/office/contacts/contacts-client.tsx)
+- [apps/web/app/office/transactions/transactions-client.tsx](../../apps/web/app/office/transactions/transactions-client.tsx)
+- [apps/web/app/office/transactions/transaction-intake-form.tsx](../../apps/web/app/office/transactions/transaction-intake-form.tsx)
+- transaction detail subcards and signature editor under [apps/web/app/office/transactions/[transactionId]](../../apps/web/app/office/transactions/[transactionId])
 
 After that sweep, active `apps/web/app` page markup no longer emits `bm-*` design-language classes. Remaining `bm-*` references are now limited to compatibility CSS and table-runtime support, not live page/component chrome.
 
 As of the next `2026-04-01` cleanup step, the highest-traffic BO route pages also moved from hand-assembled `PageShell + PageHeader + PageHeaderSummary` composition onto the shared route-template shell/header pair:
 
-- [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx)
-- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
-- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
-- [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx)
-- [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx)
+- [apps/web/app/office/accounting/page.tsx](../../apps/web/app/office/accounting/page.tsx)
+- [apps/web/app/office/activity/page.tsx](../../apps/web/app/office/activity/page.tsx)
+- [apps/web/app/office/dashboard/page.tsx](../../apps/web/app/office/dashboard/page.tsx)
+- [apps/web/app/office/notifications/page.tsx](../../apps/web/app/office/notifications/page.tsx)
+- [apps/web/app/office/tasks/page.tsx](../../apps/web/app/office/tasks/page.tsx)
 
-These pages now start from [office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) at the shell/header layer while preserving their existing body layouts, which narrows the remaining route-template gap to the rest of the BO surface set.
+These pages now start from [office-list-page-template.tsx](../../apps/web/app/office/_components/office-list-page-template.tsx) at the shell/header layer while preserving their existing body layouts, which narrows the remaining route-template gap to the rest of the BO surface set.
 
 ## Audit method
 
@@ -78,7 +78,7 @@ The current audit reviewed:
 
 ### 1. Shared primitives are already the right foundation
 
-The repo already has a solid canonical primitive set in [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx):
+The repo already has a solid canonical primitive set in [packages/ui/src/index.tsx](../../packages/ui/src/index.tsx):
 
 - `PageShell`
 - `PageHeader`
@@ -97,36 +97,36 @@ This means the main problem is not missing foundation. The problem is incomplete
 
 Canonical shared route-level list skeleton now exists in:
 
-- [apps/web/app/\_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
+- [apps/web/app/\_components/canonical-list-page-template.tsx](../../apps/web/app/_components/canonical-list-page-template.tsx)
 
 BO list-page adapter exists in:
 
-- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [apps/web/app/office/\_components/office-list-page-template.tsx](../../apps/web/app/office/_components/office-list-page-template.tsx)
 
 FO list-page adapter exists in:
 
-- [apps/web/app/agent/\_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
+- [apps/web/app/agent/\_components/front-office-page-template.tsx](../../apps/web/app/agent/_components/front-office-page-template.tsx)
 
 The BO adapter is now directly used by the main Office list/workspace routes, including:
 
-- [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
-- [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
-- workspace routes such as [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx), [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx), [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx), [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx), [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx), [apps/web/app/office/pipeline/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/pipeline/page.tsx), [apps/web/app/office/library/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/library/page.tsx), [apps/web/app/office/reports/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/reports/page.tsx), [apps/web/app/office/billing/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/billing/page.tsx), [apps/web/app/office/approve-docs/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/approve-docs/page.tsx), [apps/web/app/office/performance/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/performance/page.tsx), [apps/web/app/office/account/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/account/page.tsx), [apps/web/app/office/1099-tracker/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/1099-tracker/page.tsx), [apps/web/app/office/signatures/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/signatures/page.tsx), and the settings index/workbench routes under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
+- [apps/web/app/office/transactions/transactions-client.tsx](../../apps/web/app/office/transactions/transactions-client.tsx)
+- [apps/web/app/office/contacts/contacts-client.tsx](../../apps/web/app/office/contacts/contacts-client.tsx)
+- workspace routes such as [apps/web/app/office/accounting/page.tsx](../../apps/web/app/office/accounting/page.tsx), [apps/web/app/office/activity/page.tsx](../../apps/web/app/office/activity/page.tsx), [apps/web/app/office/dashboard/page.tsx](../../apps/web/app/office/dashboard/page.tsx), [apps/web/app/office/notifications/page.tsx](../../apps/web/app/office/notifications/page.tsx), [apps/web/app/office/tasks/page.tsx](../../apps/web/app/office/tasks/page.tsx), [apps/web/app/office/pipeline/page.tsx](../../apps/web/app/office/pipeline/page.tsx), [apps/web/app/office/library/page.tsx](../../apps/web/app/office/library/page.tsx), [apps/web/app/office/reports/page.tsx](../../apps/web/app/office/reports/page.tsx), [apps/web/app/office/billing/page.tsx](../../apps/web/app/office/billing/page.tsx), [apps/web/app/office/approve-docs/page.tsx](../../apps/web/app/office/approve-docs/page.tsx), [apps/web/app/office/performance/page.tsx](../../apps/web/app/office/performance/page.tsx), [apps/web/app/office/account/page.tsx](../../apps/web/app/office/account/page.tsx), [apps/web/app/office/1099-tracker/page.tsx](../../apps/web/app/office/1099-tracker/page.tsx), [apps/web/app/office/signatures/page.tsx](../../apps/web/app/office/signatures/page.tsx), and the settings index/workbench routes under [apps/web/app/office/settings](../../apps/web/app/office/settings)
 
 The repo now also has a dedicated shared detail-shell family:
 
-- [apps/web/app/\_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
-- [apps/web/app/office/\_components/office-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-detail-page-template.tsx)
+- [apps/web/app/\_components/canonical-detail-page-template.tsx](../../apps/web/app/_components/canonical-detail-page-template.tsx)
+- [apps/web/app/office/\_components/office-detail-page-template.tsx](../../apps/web/app/office/_components/office-detail-page-template.tsx)
 
 That adapter is now used by special Office routes such as:
 
-- [apps/web/app/office/settings/users/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/page.tsx)
-- [apps/web/app/office/settings/teams/[teamId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/teams/[teamId]/page.tsx)
-- [apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx)
-- [apps/web/app/office/transactions/new/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/new/page.tsx)
-- [apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx)
-- [apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx)
-- [apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx)
+- [apps/web/app/office/settings/users/[membershipId]/page.tsx](../../apps/web/app/office/settings/users/[membershipId]/page.tsx)
+- [apps/web/app/office/settings/teams/[teamId]/page.tsx](../../apps/web/app/office/settings/teams/[teamId]/page.tsx)
+- [apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx](../../apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx)
+- [apps/web/app/office/transactions/new/page.tsx](../../apps/web/app/office/transactions/new/page.tsx)
+- [apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx](../../apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx)
+- [apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx](../../apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx)
+- [apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx](../../apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx)
 
 Finding:
 
@@ -137,10 +137,10 @@ Finding:
 
 Active page/component markup under `apps/web/app` no longer emits `bm-*` classes for live Office or Front Office surfaces, and the remaining runtime fallback hooks were also removed from:
 
-- [apps/web/app/office/office-table-layout-bootstrap.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-bootstrap.ts)
-- [apps/web/app/office/office-table-layout-runtime.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-runtime.tsx)
+- [apps/web/app/office/office-table-layout-bootstrap.ts](../../apps/web/app/office/office-table-layout-bootstrap.ts)
+- [apps/web/app/office/office-table-layout-runtime.tsx](../../apps/web/app/office/office-table-layout-runtime.tsx)
 
-[apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) no longer keeps the old `.bm-*`, `.office-bm-*`, `agent-nav-*`, or retired user-hero selector families as active compatibility baggage for live pages.
+[apps/web/app/globals.css](../../apps/web/app/globals.css) no longer keeps the old `.bm-*`, `.office-bm-*`, `agent-nav-*`, or retired user-hero selector families as active compatibility baggage for live pages.
 
 Finding:
 
@@ -152,12 +152,12 @@ Finding:
 
 The remaining active Office detail pages that still hand-assembled old route chrome have been moved onto the shared detail-shell family, including:
 
-- [apps/web/app/office/contacts/[contactId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/[contactId]/page.tsx)
-- [apps/web/app/office/payout-statements/[statementId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/payout-statements/[statementId]/page.tsx)
+- [apps/web/app/office/contacts/[contactId]/page.tsx](../../apps/web/app/office/contacts/[contactId]/page.tsx)
+- [apps/web/app/office/payout-statements/[statementId]/page.tsx](../../apps/web/app/office/payout-statements/[statementId]/page.tsx)
 
 Nested admin/detail workspaces also moved further into canonical body grammar in:
 
-- [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
+- [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](../../apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
 
 Finding:
 
@@ -168,17 +168,17 @@ Finding:
 
 FO layout and BO layout already share the same top-level shell classes:
 
-- [apps/web/app/office/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/layout.tsx)
-- [apps/web/app/agent/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/layout.tsx)
+- [apps/web/app/office/layout.tsx](../../apps/web/app/office/layout.tsx)
+- [apps/web/app/agent/layout.tsx](../../apps/web/app/agent/layout.tsx)
 
 Navigation behavior is now shared through:
 
-- [apps/web/app/\_components/workspace-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/workspace-nav.tsx)
+- [apps/web/app/\_components/workspace-nav.tsx](../../apps/web/app/_components/workspace-nav.tsx)
 
 Thin FO/BO wrappers now only provide workspace-specific item maps:
 
-- [apps/web/app/office/office-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-nav.tsx)
-- [apps/web/app/agent/agent-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/agent-nav.tsx)
+- [apps/web/app/office/office-nav.tsx](../../apps/web/app/office/office-nav.tsx)
+- [apps/web/app/agent/agent-nav.tsx](../../apps/web/app/agent/agent-nav.tsx)
 
 Finding:
 
@@ -203,13 +203,13 @@ Finding:
 
 ### Already closest to canonical
 
-- FO pages built on [front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
-- BO list pages built on [office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- FO pages built on [front-office-page-template.tsx](../../apps/web/app/agent/_components/front-office-page-template.tsx)
+- BO list pages built on [office-list-page-template.tsx](../../apps/web/app/office/_components/office-list-page-template.tsx)
 - detail/admin surfaces already centered on `SectionCard`, `QueueItem`, and shared form primitives, such as:
-  - [apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx)
-  - [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
-  - [apps/web/app/office/contacts/[contactId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/[contactId]/page.tsx)
-  - [apps/web/app/office/payout-statements/[statementId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/payout-statements/[statementId]/page.tsx)
+  - [apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx](../../apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx)
+  - [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](../../apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
+  - [apps/web/app/office/contacts/[contactId]/page.tsx](../../apps/web/app/office/contacts/[contactId]/page.tsx)
+  - [apps/web/app/office/payout-statements/[statementId]/page.tsx](../../apps/web/app/office/payout-statements/[statementId]/page.tsx)
 
 ### Partially canonical, but still hand-assembled
 
@@ -240,8 +240,8 @@ Goal:
 
 Recommended approach:
 
-- keep [front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx) as a thin adapter only if needed
-- refactor it to compose the same lower-level contract as [office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- keep [front-office-page-template.tsx](../../apps/web/app/agent/_components/front-office-page-template.tsx) as a thin adapter only if needed
+- refactor it to compose the same lower-level contract as [office-list-page-template.tsx](../../apps/web/app/office/_components/office-list-page-template.tsx)
 - convert BO hand-built list pages to `OfficeListPageTemplate` or a single shared variant layer
 
 Completed workbench batch:
@@ -253,15 +253,15 @@ Completed workbench batch:
   - `accounting`, `activity`, `dashboard`, `notifications`, `tasks`
   - `pipeline`, `library`, `reports`
   - `billing`, `approve-docs`, `performance`, `account`, `1099-tracker`, `signatures`, `signatures/templates`
-  - settings index/workbench routes under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
+  - settings index/workbench routes under [apps/web/app/office/settings](../../apps/web/app/office/settings)
 - route-level shell adoption now also covers the main Office special pages through the shared detail-shell family:
   - `New transaction`
   - settings user detail / team detail / permissions
   - `1099 Summary Preview`
   - transaction signature prepare / edit routes
 - inner-workspace normalization has started inside that shell layer:
-  - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx) now promotes owner / office / status into the shared detail header instead of keeping those facts in a route-local header/overview split
-  - [apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx) now uses shared `SectionCard`, `ListPageStatsGrid`, and `StatCard` grammar for the main permissions workspace instead of a fully custom hero panel
+  - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](../../apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx) now promotes owner / office / status into the shared detail header instead of keeping those facts in a route-local header/overview split
+  - [apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx](../../apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx) now uses shared `SectionCard`, `ListPageStatsGrid`, and `StatCard` grammar for the main permissions workspace instead of a fully custom hero panel
 
 Next candidates:
 

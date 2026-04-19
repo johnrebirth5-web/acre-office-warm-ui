@@ -6,7 +6,7 @@ This file is the stable `Front Office` product brief for Codex tasks in this rep
 
 It is the repo-local source of truth distilled from:
 
-- `/Users/openclaw_john/Desktop/ACRE_Front_Office_PRD_03-30.docx.pdf`
+- `ACRE_Front_Office_PRD_03-30.docx.pdf`
 
 Use this file instead of chat history when a task touches `Front Office`, `/agent` routes, or FO/BO handoff behavior.
 

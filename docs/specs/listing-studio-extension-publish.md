@@ -77,7 +77,7 @@ npm run package --workspace=@acre/extension
 
 建议直接使用：
 
-- [docs/specs/listing-studio-extension-store-listing.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/listing-studio-extension-store-listing.md)
+- [docs/specs/listing-studio-extension-store-listing.md](listing-studio-extension-store-listing.md)
 
 ### 4. Privacy section
 

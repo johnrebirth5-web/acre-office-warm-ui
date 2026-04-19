@@ -371,6 +371,6 @@
 
 如果以后开新线程，需要让 Codex 快速理解当前登录系统，可以优先让它读取：
 
-- [docs/specs/auth-usage-guide.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/auth-usage-guide.md)
-- [docs/specs/auth-invitations-users-spec.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/auth-invitations-users-spec.md)
-- [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
+- [docs/specs/auth-usage-guide.md](auth-usage-guide.md)
+- [docs/specs/auth-invitations-users-spec.md](auth-invitations-users-spec.md)
+- [docs/specs/implementation-log.md](implementation-log.md)

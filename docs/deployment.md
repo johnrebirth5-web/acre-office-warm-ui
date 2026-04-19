@@ -20,7 +20,7 @@ Use it only when the user explicitly asks for deployment or production sync work
 
 ### Repo and Remote
 
-- Active local repo: `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
+- Active local repo: `<repo-root>`
 - Active GitHub remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 
 ### Public Entries

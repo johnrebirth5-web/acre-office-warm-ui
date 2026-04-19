@@ -10,12 +10,12 @@
 
 本文件只作为“后续推进手册”使用，不能覆盖以下更高优先级文件：
 
-1. [AGENTS.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/AGENTS.md)
-2. [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md)
-3. [docs/specs/backoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/backoffice-overview.md)
-4. [docs/specs/documents-signature-spec.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/documents-signature-spec.md)
-5. [docs/specs/product-coverage-audit.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/product-coverage-audit.md)
-6. [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
+1. [AGENTS.md](../AGENTS.md)
+2. [docs/specs/frontoffice-overview.md](specs/frontoffice-overview.md)
+3. [docs/specs/backoffice-overview.md](specs/backoffice-overview.md)
+4. [docs/specs/documents-signature-spec.md](specs/documents-signature-spec.md)
+5. [docs/specs/product-coverage-audit.md](specs/product-coverage-audit.md)
+6. [docs/specs/implementation-log.md](specs/implementation-log.md)
 
 如果本文件与上述文档冲突，以这些文档为准。
 

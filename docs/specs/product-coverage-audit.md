@@ -17,10 +17,10 @@ Use it when the question is:
 
 This audit is based on the current documented product baseline in:
 
-- [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md)
-- [docs/specs/backoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/backoffice-overview.md)
-- [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
-- [docs/specs/documents-signature-spec.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/documents-signature-spec.md)
+- [docs/specs/frontoffice-overview.md](frontoffice-overview.md)
+- [docs/specs/backoffice-overview.md](backoffice-overview.md)
+- [docs/specs/implementation-log.md](implementation-log.md)
+- [docs/specs/documents-signature-spec.md](documents-signature-spec.md)
 
 Audit date:
 

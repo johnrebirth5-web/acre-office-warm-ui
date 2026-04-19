@@ -52,7 +52,7 @@
 
 ## 字体策略
 
-- 全局主字体通过 [apps/web/app/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/layout.tsx) 加载 `Inter`
+- 全局主字体通过 [apps/web/app/layout.tsx](../apps/web/app/layout.tsx) 加载 `Inter`
 - 变量名：`--font-office-sans`
 - Office 页面真正消费的共享 token 是 `--office-font-sans`
 - `--office-font-sans` 必须包含明确的 CJK fallback，当前基线包含 `PingFang SC`、`Hiragino Sans GB`、`Microsoft YaHei`、`Noto Sans SC`、`Source Han Sans SC`
@@ -89,7 +89,7 @@
 
 ## Tokens
 
-主要 tokens 定义在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css)：
+主要 tokens 定义在 [apps/web/app/globals.css](../apps/web/app/globals.css)：
 
 - 字体：`--office-font-sans`
 - 背景 / surface：`--office-bg`、`--office-surface`、`--office-surface-muted`
@@ -110,7 +110,7 @@
 
 ## 共享组件
 
-共享 primitives 在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)：
+共享 primitives 在 [packages/ui/src/index.tsx](../packages/ui/src/index.tsx)：
 
 - `PageShell`
 - `PageHeader`
@@ -150,7 +150,7 @@
 
 Office 路由级 canonical 组合层：
 
-- [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [apps/web/app/office/_components/office-list-page-template.tsx](../apps/web/app/office/_components/office-list-page-template.tsx)
 
 使用原则：
 
@@ -232,7 +232,7 @@ Office 路由级 canonical 组合层：
 
 - transactions 的 `PageHeader + SummaryChip + list card + filter bar + dense table + footer` 是 peer list pages 的直接参考，不要再为 contacts / agents / reports / accounting / settings 各自发明另一套 page composition
 - `OfficeListPage` 是 transactions 提炼出来的 canonical page shell；当 contacts 之类的 peer list page 需要页头 + summary + table card 时，优先直接复用这个组合层，而不是每页重新手写 `PageShell + PageHeader + ListPageTableSection`
-- transactions 和 contacts 现在共用 [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
+- transactions 和 contacts 现在共用 [apps/web/app/office/_components/office-list-page-template.tsx](../apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
 - 现在优先使用 `ListPageTableSection` 把 `filters -> table/list -> footer` 固定成一套顺序，避免每页各自排列 inventory section
 - 当一个页面需要多个 peer list modules 时，优先使用 `ListPageStack` 和 `ListPageSplit` 组织主列表与次级列表/明细区，而不是重新回到 `dashboard` 式 page-local grid
 - 对于 settings / accounting / agent detail 里的“小型运营清单”，优先使用 `office-queue-list + QueueItem`，不要继续使用带大左侧标签栏的旧 `office-note-item`
@@ -634,7 +634,7 @@ Back Office 以后新增表格时，默认模板就是这套共享 Office table 
 以后新增 `Office` 页面时：
 
 1. 先看这个文档
-2. 优先复用 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)
+2. 优先复用 [packages/ui/src/index.tsx](../packages/ui/src/index.tsx)
 3. 尽量不要新增页面专属 button / card / table 皮肤
 4. 如果需要新模式，先判断是否应该进入 `@acre/ui`
 5. 如果页面包含 dense table / filter bar / 双栏 detail，先按上面的 responsive 规则处理，不要再让页面在 laptop 宽度下被横向挤坏

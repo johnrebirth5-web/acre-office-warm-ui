@@ -8,7 +8,7 @@ This is the default simplification standard for `/agent` pages.
 
 Use it together with:
 
-- [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md)
+- [docs/specs/frontoffice-overview.md](frontoffice-overview.md)
 
 Do not rely on chat history as the source of truth for simplification decisions.
 
@@ -290,8 +290,8 @@ Use this prompt when assigning page simplification to another thread:
 ```text
 你现在负责做一个 Front Office 页面减法任务。先读：
 
-1. /Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md
-2. /Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-page-simplification-playbook.md
+1. <repo-root>/docs/specs/frontoffice-overview.md
+2. <repo-root>/docs/specs/frontoffice-page-simplification-playbook.md
 
 目标：
 - 把目标页面改成更像“操作台”，不是“解释台”

@@ -38,7 +38,7 @@ This version already incorporates the acceptance fixes that were required before
 ## Thread 01
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -65,7 +65,7 @@ owned files:
 - packages/db/src/front-office-dashboard.ts
 
 额外兼容性规则：
-- 不得破坏 `/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/page.tsx` 当前依赖的 dashboard snapshot shape，特别是 leadership queue 与通知页当前消费字段。
+- 不得破坏 `<repo-root>/apps/web/app/agent/notifications/page.tsx` 当前依赖的 dashboard snapshot shape，特别是 leadership queue 与通知页当前消费字段。
 
 任务：
 - 把 `/agent/dashboard` 打磨成真正的 FO 启动台，不再像“说明板”。
@@ -83,7 +83,7 @@ owned files:
 ## Thread 02
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -125,7 +125,7 @@ owned files:
 ## Thread 03
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -165,7 +165,7 @@ owned files:
 ## Thread 04
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -217,7 +217,7 @@ owned files:
 ## Thread 05
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -263,7 +263,7 @@ owned files:
 ## Thread 06
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -313,7 +313,7 @@ owned files:
 ## Thread 07
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -360,7 +360,7 @@ owned files:
 ## Thread 08
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -408,7 +408,7 @@ owned files:
 ## Thread 09
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
@@ -433,7 +433,7 @@ owned files:
 - apps/web/app/agent/resources/page.tsx
 
 额外兼容性规则：
-- 不得破坏 `/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/page.tsx` 当前依赖的 activity snapshot shape。
+- 不得破坏 `<repo-root>/apps/web/app/agent/notifications/page.tsx` 当前依赖的 activity snapshot shape。
 - 对 `packages/db/src/front-office-workspaces.ts` 的改动默认只能做 backward-compatible 增强。
 - 不得改掉已有字段名、顶层结构或让 notifications、resources、clients、listings 的现有消费方直接失效。
 
@@ -456,7 +456,7 @@ owned files:
 ## Thread 10
 
 ```text
-你在 Acre 仓库 `/Users/openclaw_john/工作文件夹/Acre_latest_clean` 工作。
+你在 Acre 仓库 `<repo-root>` 工作。
 
 先读：
 - docs/specs/frontoffice-overview.md
