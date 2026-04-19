@@ -9,6 +9,7 @@ type RateLimitState = {
 
 type RateLimitEnvironment = Record<string, string | undefined> & {
   ACRE_RATE_LIMIT_BACKEND?: string;
+  ACRE_RATE_LIMIT_FAIL_MODE?: string;
   ACRE_RATE_LIMIT_REDIS_URL?: string;
   ACRE_TRUSTED_PROXY_TIER?: string;
   ACRE_UPSTASH_REDIS_REST_URL?: string;
@@ -781,22 +782,67 @@ export async function consumeRateLimit(
   const env = runtime.env ?? process.env;
   const onDecision = options.onDecision ?? logRejectedRateLimitDecision;
   const backend = resolveRateLimitBackend(env);
-  const decision =
-    backend === "upstash"
-      ? await createUpstashRateLimitConsumer({
-          env,
-          fetch: runtime.fetch,
-        })(key, options)
-      : backend === "redis"
-        ? await createRedisRateLimitConsumer({
-            env,
-            executeRedisScript: runtime.executeRedisScript,
-          })(key, options)
-        : consumeMemoryRateLimit(key, options);
+  const failClosed = isRateLimitFailClosed(env);
+  let decision: RateLimitDecision;
+
+  if (backend === "memory") {
+    decision = consumeMemoryRateLimit(key, options);
+  } else {
+    try {
+      decision =
+        backend === "upstash"
+          ? await createUpstashRateLimitConsumer({
+              env,
+              fetch: runtime.fetch,
+            })(key, options)
+          : await createRedisRateLimitConsumer({
+              env,
+              executeRedisScript: runtime.executeRedisScript,
+            })(key, options);
+    } catch (error) {
+      reportRateLimitBackendFailure({ backend, error, key, failClosed });
+
+      if (failClosed) {
+        throw error;
+      }
+
+      decision = consumeMemoryRateLimit(key, options);
+    }
+  }
 
   onDecision({ key, decision });
 
   return decision;
+}
+
+function isRateLimitFailClosed(env: RateLimitEnvironment) {
+  const value = env.ACRE_RATE_LIMIT_FAIL_MODE?.trim().toLowerCase();
+
+  return value === "closed";
+}
+
+function reportRateLimitBackendFailure(input: {
+  backend: "upstash" | "redis";
+  error: unknown;
+  key: string;
+  failClosed: boolean;
+}) {
+  const message =
+    input.error instanceof Error ? input.error.message : String(input.error);
+
+  process.stderr.write(
+    JSON.stringify({
+      kind: "rate_limit_backend_failure",
+      backend: input.backend,
+      key: input.key,
+      failClosed: input.failClosed,
+      error: message,
+      ts: new Date().toISOString(),
+    }) + "\n",
+  );
+
+  // Keep this module free of external monitoring dependencies. Higher-level
+  // request guards remain responsible for exception capture.
 }
 
 export const rateLimitTesting = {

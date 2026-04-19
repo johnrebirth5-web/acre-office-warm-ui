@@ -436,6 +436,16 @@ ACRE_RATE_LIMIT_BACKEND="memory"
 - 如果显式设置为 `redis`，则必须同时提供 `ACRE_RATE_LIMIT_REDIS_URL`
 - 如果显式设置为 `upstash`，则必须同时提供 `ACRE_UPSTASH_REDIS_REST_URL` 和 `ACRE_UPSTASH_REDIS_REST_TOKEN`
 
+### `ACRE_RATE_LIMIT_FAIL_MODE`
+
+Behavior when the configured rate limit backend (Redis or Upstash) throws.
+
+- `open` (default): log the error, fall back to the in-process memory store,
+  keep serving the request. Keeps auth endpoints available during Redis
+  outages at the cost of one process rotation of counters.
+- `closed`: propagate the error to the caller (usually becomes a 500). Use
+  only if strict enforcement is more important than availability.
+
 ### `ACRE_RATE_LIMIT_REDIS_URL`
 
 用途：
