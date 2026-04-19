@@ -7,12 +7,12 @@ import {
   DataTableHeader,
   DataTableRow,
   SectionCard,
-  StatCard,
   StatusBadge,
   SummaryChip
 } from "@acre/ui";
 import { getSessionAccess, requireOfficeSession } from "../../../lib/auth-session";
 import { getServerI18n } from "../../../lib/i18n/server";
+import { KpiStrip, type KpiStripItem } from "../../_components/kpi-strip";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { LocalDateTime } from "../_components/local-date-time";
 
@@ -97,6 +97,26 @@ export default async function OfficeDashboardPage() {
     : snapshot.commission.monthlyTotals;
   const payoutReviewQueue = snapshot.commission.payoutReviewQueue;
   const latestPayoutReviewStatement = payoutReviewQueue.statements[0] ?? null;
+  const transactionKpiItems: KpiStripItem[] = snapshot.transactionCountsByStatus.map((metric) => ({
+    label: metric.status,
+    value: metric.count,
+    tone:
+      metric.status === "Active" || metric.status === "Pending"
+        ? "accent"
+        : metric.status === "Cancelled"
+          ? "muted"
+          : undefined
+  }));
+  const commissionKpiItems = [
+    { label: t((messages) => messages.officeDashboard.totalCommission), value: snapshot.commission.totalCommissionLabel },
+    {
+      label: t((messages) => messages.officeDashboard.thisMonth),
+      value: snapshot.commission.currentMonthCommissionLabel,
+      tone: "accent" as const
+    },
+    { label: t((messages) => messages.officeDashboard.payable), value: snapshot.commission.payableLabel },
+    { label: t((messages) => messages.officeDashboard.paid), value: snapshot.commission.paidLabel }
+  ];
 
   return (
     <OfficeListPageShell className="office-dashboard-page">
@@ -134,17 +154,7 @@ export default async function OfficeDashboardPage() {
                   </span>
                 </div>
 
-                <div className="office-dashboard-status-strip">
-                  {snapshot.transactionCountsByStatus.map((metric) => (
-                    <StatCard
-                      className="office-dashboard-status-chip"
-                      hint={t((messages) => messages.officeDashboard.transactionsHint)}
-                      key={metric.status}
-                      label={metric.status}
-                      value={metric.count}
-                    />
-                  ))}
-                </div>
+                <KpiStrip className="office-dashboard-status-strip" items={transactionKpiItems} />
               </div>
 
               <div className="office-dashboard-goal-chart">
@@ -289,12 +299,7 @@ export default async function OfficeDashboardPage() {
               </div>
             ) : null}
 
-            <div className="office-kpi-grid office-commission-kpi-grid">
-              <StatCard hint={t((messages) => messages.officeDashboard.allPersistedRowsHint)} label={t((messages) => messages.officeDashboard.totalCommission)} value={snapshot.commission.totalCommissionLabel} />
-              <StatCard hint={t((messages) => messages.officeDashboard.rowsCalculatedThisMonthHint)} label={t((messages) => messages.officeDashboard.thisMonth)} value={snapshot.commission.currentMonthCommissionLabel} />
-              <StatCard hint={t((messages) => messages.officeDashboard.rowsMarkedPayableHint)} label={t((messages) => messages.officeDashboard.payable)} value={snapshot.commission.payableLabel} />
-              <StatCard hint={t((messages) => messages.officeDashboard.rowsMarkedPaidHint)} label={t((messages) => messages.officeDashboard.paid)} value={snapshot.commission.paidLabel} />
-            </div>
+            <KpiStrip className="office-dashboard-commission-strip" items={commissionKpiItems} />
 
             <div className="office-dashboard-commission-meta">
               <span>{t((messages) => messages.officeDashboard.persistedRowsSummary, {

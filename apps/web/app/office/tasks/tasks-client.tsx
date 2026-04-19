@@ -12,6 +12,7 @@ import type {
   OfficeTransactionTaskComplianceStatus,
   OfficeTransactionTaskStatus
 } from "@acre/db";
+import { KpiStrip } from "../../_components/kpi-strip";
 
 type OfficeTasksClientProps = {
   snapshot: OfficeTaskListSnapshot;
@@ -329,11 +330,7 @@ export function OfficeTasksClient({
 
   return (
     <div className="office-task-list-page">
-      <SectionCard
-        className="office-list-card office-task-filter-form"
-        title="Filters"
-      >
-        <FilterBar as="form" className="office-task-filter-grid" method="get">
+      <FilterBar aria-label="Task filters" as="form" className="office-task-filter-form office-task-filter-grid" method="get">
           <FilterField className="office-task-filter-field" label="Current view">
             <SelectInput defaultValue={snapshot.selectedViewKey} name="view">
               {snapshot.viewOptions.map((view) => (
@@ -442,17 +439,9 @@ export function OfficeTasksClient({
               Reset
             </Link>
           </div>
-        </FilterBar>
-      </SectionCard>
+      </FilterBar>
 
-      <section className="office-kpi-grid office-kpi-grid-compact">
-        {attentionSummary.map((item) => (
-          <article className="office-kpi-card" key={item.label}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </article>
-        ))}
-      </section>
+      <KpiStrip className="office-task-attention-strip" items={attentionSummary} />
 
       <SectionCard
         className="office-list-card office-task-view-save-card"
