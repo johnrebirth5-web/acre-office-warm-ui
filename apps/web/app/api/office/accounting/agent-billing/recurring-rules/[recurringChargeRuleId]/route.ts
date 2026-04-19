@@ -1,7 +1,12 @@
 import { canManageOfficeAgentBilling } from "@acre/auth";
-import { updateAgentRecurringChargeRule } from "@acre/db";
+import {
+  updateAgentRecurringChargeRule,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { updateAgentRecurringChargeRuleBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,37 +14,54 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type AgentBillingRecurringRuleDetailRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateAgentRecurringChargeRule?: typeof updateAgentRecurringChargeRule;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateAgentBillingRecurringRulePatch(
+  request: NextRequest,
+  recurringChargeRuleId: string,
+  context: SessionMembershipContext,
+  dependencies: AgentBillingRecurringRuleDetailRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateAgentRecurringChargeRuleBodySchema,
+    {
+      error: "Recurring billing rule payload is invalid.",
+      invalidJsonError: "Recurring billing rule request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canManageOfficeAgentBilling(context.currentMembership)) {
-    return NextResponse.json({ error: "Agent billing management access required." }, { status: 403 });
-  }
-
-  const { recurringChargeRuleId } = await params;
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = parsedBody.data;
 
   try {
-    const updatedId = await updateAgentRecurringChargeRule({
+    const updatedId = await (
+      dependencies.updateAgentRecurringChargeRule ?? updateAgentRecurringChargeRule
+    )({
       organizationId: context.currentOrganization.id,
       recurringChargeRuleId,
-      officeId: typeof body?.officeId === "string" ? body.officeId : context.currentOffice?.id ?? null,
-      membershipId: typeof body?.membershipId === "string" ? body.membershipId : undefined,
-      name: typeof body?.name === "string" ? body.name : undefined,
-      chargeType: typeof body?.chargeType === "string" ? body.chargeType : undefined,
-      description: typeof body?.description === "string" ? body.description : undefined,
-      amount: typeof body?.amount === "string" ? body.amount : undefined,
-      frequency: typeof body?.frequency === "string" ? body.frequency : undefined,
-      customIntervalDays: typeof body?.customIntervalDays === "string" ? body.customIntervalDays : undefined,
-      startDate: typeof body?.startDate === "string" ? body.startDate : undefined,
-      nextDueDate: typeof body?.nextDueDate === "string" ? body.nextDueDate : undefined,
-      endDate: typeof body?.endDate === "string" ? body.endDate : undefined,
-      autoGenerateInvoice: typeof body?.autoGenerateInvoice === "boolean" ? body.autoGenerateInvoice : undefined,
-      isActive: typeof body?.isActive === "boolean" ? body.isActive : undefined,
+      officeId:
+        body.officeId === undefined || body.officeId === null
+          ? context.currentOffice?.id ?? null
+          : body.officeId,
+      membershipId: body.membershipId,
+      name: body.name,
+      chargeType: body.chargeType,
+      description: body.description,
+      amount: body.amount,
+      frequency: body.frequency,
+      customIntervalDays: body.customIntervalDays,
+      startDate: body.startDate,
+      nextDueDate: body.nextDueDate,
+      endDate: body.endDate,
+      autoGenerateInvoice: body.autoGenerateInvoice,
+      isActive: body.isActive,
       actorMembershipId: context.currentMembership.id
     });
 
@@ -54,4 +76,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeAgentBilling(context.currentMembership)) {
+    return NextResponse.json({ error: "Agent billing management access required." }, { status: 403 });
+  }
+
+  const { recurringChargeRuleId } = await params;
+  return handleUpdateAgentBillingRecurringRulePatch(request, recurringChargeRuleId, context);
 }
