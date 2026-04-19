@@ -1378,6 +1378,13 @@ export async function getPublicSignatureDocumentStorageRecord(token: string) {
     return null;
   }
 
+  if (
+    request.expiredAt ||
+    (request.expiresAt && request.expiresAt.getTime() <= Date.now())
+  ) {
+    return null;
+  }
+
   return {
     signatureRequestId: request.id,
     currentRecipientId: access?.currentRecipientId ?? null,
