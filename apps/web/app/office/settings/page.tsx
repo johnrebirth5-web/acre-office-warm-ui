@@ -48,31 +48,20 @@ export default async function OfficeSettingsPage() {
       </section>
 
       <section className="office-settings-section-grid">
-        <SectionCard subtitle="Account access and member operations in one place." title="Users">
-          <p className="office-settings-copy">
-            Manage invitations, access state, office assignment, onboarding, goals, and operational member visibility from a unified route.
-          </p>
+        <SectionCard subtitle="Members, access, and onboarding." title="Users">
           <Link className="office-settings-link" href="/office/settings/users">
             Open users
           </Link>
         </SectionCard>
 
-        <SectionCard subtitle="Organization-wide role templates that seed effective permissions for every member." title="Roles">
-          <p className="office-settings-copy">
-            Edit the default permission template for each fixed Back Office role, then layer user-specific allow or deny overrides from
-            the user detail page.
-          </p>
+        <SectionCard subtitle="Role templates and overrides." title="Roles">
           <Link className="office-settings-link" href="/office/settings/roles">
             Open role templates
           </Link>
         </SectionCard>
 
         {canManageOfficeSettings(context.currentMembership) ? (
-          <SectionCard subtitle="Administrator-managed sender defaults plus Resend-ready delivery and SMTP fallback for signature requests." title="Email delivery">
-            <p className="office-settings-copy">
-              Configure the sender identity, reply-to defaults, and optional SMTP fallback that power outgoing signature request emails
-              while API-based delivery can stay in env.
-            </p>
+          <SectionCard subtitle="Sender defaults for signature emails." title="Email delivery">
             <Link className="office-settings-link" href="/office/settings/email-delivery">
               Open email delivery
             </Link>
@@ -80,37 +69,25 @@ export default async function OfficeSettingsPage() {
         ) : null}
 
         <SectionCard subtitle="Operational roster structure." title="Teams">
-          <p className="office-settings-copy">
-            Create teams, manage active/inactive rosters, and assign or remove agents without leaving Back Office.
-          </p>
           <Link className="office-settings-link" href="/office/settings/teams">
             Open teams
           </Link>
         </SectionCard>
 
         <SectionCard subtitle="Required contact roles and transaction field behavior." title="Fields">
-          <p className="office-settings-copy">
-            Define required transaction roles and field visibility/requiredness so operational workflows stop depending on hardcoded defaults.
-          </p>
           <Link className="office-settings-link" href="/office/settings/fields">
             Open field settings
           </Link>
         </SectionCard>
 
-        <SectionCard subtitle="Reusable task templates for sales, rentals, and office defaults." title="Checklists">
-          <p className="office-settings-copy">
-            Create and manage reusable checklist templates that describe grouped task rows, due offsets, and document requirements.
-          </p>
+        <SectionCard subtitle="Reusable task templates." title="Checklists">
           <Link className="office-settings-link" href="/office/settings/checklists">
             Open checklist templates
           </Link>
         </SectionCard>
 
         {canManageOfficeSignatureTemplates(context.currentMembership) || canManageOfficeSettings(context.currentMembership) ? (
-          <SectionCard subtitle="Service-account based Google Drive archival targets for completed signature envelopes." title="Signature Drive">
-            <p className="office-settings-copy">
-              Save the shared drive credentials, root folder, and category-specific folder IDs that Acre uses when completed signed files are archived.
-            </p>
+          <SectionCard subtitle="Google Drive archival for signed envelopes." title="Signature Drive">
             <Link className="office-settings-link" href="/office/settings/signature-drive">
               Open signature drive settings
             </Link>
@@ -118,10 +95,7 @@ export default async function OfficeSettingsPage() {
         ) : null}
 
         {canAccessOfficeCommissionWorkspace(context.currentMembership) ? (
-          <SectionCard subtitle="Default split templates, member-level defaults, and advanced legacy commission tools." title="Commission plans">
-            <p className="office-settings-copy">
-              Open commission plans to manage reusable split templates, review member defaults, and adjust advanced plan settings.
-            </p>
+          <SectionCard subtitle="Split templates and member defaults." title="Commission plans">
             <Link className="office-settings-link" href="/office/settings/commission-plans">
               Open commission plans
             </Link>
