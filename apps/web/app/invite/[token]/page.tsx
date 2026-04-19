@@ -1,6 +1,12 @@
 import { Button } from "@acre/ui";
 import { getInvitationSnapshot } from "@acre/db";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  consumePublicTokenRateLimit,
+  PUBLIC_INVITATION_READ_RATE_LIMIT_OPTIONS,
+} from "../../../lib/public-token-rate-limit";
 import { SignatureStatusCallout } from "../../sign/[token]/signature-status-callout";
 
 type InvitePageProps = {
@@ -127,6 +133,18 @@ function getInviteFormErrorCallout(error?: string): InviteCalloutState | null {
 
 export default async function InvitePage({ params, searchParams }: InvitePageProps) {
   const { token } = await params;
+  const headerStore = await headers();
+  const rateLimitDecision = await consumePublicTokenRateLimit({
+    scope: "public/invitations/read",
+    request: headerStore,
+    token,
+    options: PUBLIC_INVITATION_READ_RATE_LIMIT_OPTIONS,
+  });
+
+  if (!rateLimitDecision.allowed) {
+    notFound();
+  }
+
   const snapshot = await getInvitationSnapshot(token);
   const query = (await searchParams) ?? {};
   const isReady = snapshot.status === "ready";

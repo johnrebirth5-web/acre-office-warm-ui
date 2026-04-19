@@ -132,6 +132,7 @@ test("generic listing shares return a public snapshot and increment click tracki
     });
 
     assert.match(share.sharePath, /^\/share\/listings\//);
+    assert.match(share.snapshot.shareLink.code, /^[A-Za-z0-9_-]{32}$/);
     assert.equal(share.sendRecordId, null);
 
     const snapshot = await getFrontOfficeListingSharePageSnapshot(

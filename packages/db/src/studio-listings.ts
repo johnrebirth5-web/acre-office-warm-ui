@@ -302,6 +302,10 @@ function createOpaqueToken(prefix: string) {
   return `${prefix}_${randomBytes(24).toString("base64url")}`;
 }
 
+function createStudioListingPackShareCode() {
+  return `pack_${randomBytes(24).toString("base64url")}`;
+}
+
 function trimString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -2749,7 +2753,7 @@ export async function publishStudioListingPack(input: {
   const shareCode =
     existing.shareCode && existing.shareCode.trim()
       ? existing.shareCode
-      : `pack_${randomBytes(6).toString("base64url").toLowerCase()}`;
+      : createStudioListingPackShareCode();
 
   await prisma.studioListingPack.update({
     where: { id: existing.id },

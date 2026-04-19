@@ -11,6 +11,7 @@ import {
 import {
   addStudioListingPackToCollection,
   createStudioListingCollection,
+  publishStudioListingPack,
   getStudioListingCollectionDetail,
   listStudioListingCollectionPickerItems,
   listStudioListingCollections,
@@ -238,6 +239,31 @@ test("collections are scoped to the current membership and reject duplicate name
       collectionId: created?.id ?? "",
     });
     assert.equal(hiddenFromTeammate, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("publishing a pack mints a high-entropy share code", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Queens Landing",
+      streetAddress: "41-15 Crescent Street",
+      latitude: 40.7513,
+      longitude: -73.9375,
+    });
+
+    const published = await publishStudioListingPack({
+      organizationId: context.organization.id,
+      packId: pack.packId,
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.ok(published);
+    assert.match(published?.shareCode ?? "", /^pack_[A-Za-z0-9_-]{32}$/);
   } finally {
     await context.cleanup();
   }

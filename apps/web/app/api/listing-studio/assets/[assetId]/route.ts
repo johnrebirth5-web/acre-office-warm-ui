@@ -3,6 +3,11 @@ import { getStudioListingAssetRecord } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import { readStoredFile } from "../../../../../lib/document-storage";
+import {
+  buildPublicTokenRateLimitResponse,
+  consumePublicTokenRateLimit,
+  PUBLIC_LISTING_STUDIO_ASSET_READ_RATE_LIMIT_OPTIONS,
+} from "../../../../../lib/public-token-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -25,6 +30,20 @@ export async function GET(
       return NextResponse.json(
         { error: "Listing Studio access required." },
         { status: 403 },
+      );
+    }
+  } else {
+    const rateLimitDecision = await consumePublicTokenRateLimit({
+      scope: "public/listing-studio/packs/assets/read",
+      request,
+      token: shareCode,
+      options: PUBLIC_LISTING_STUDIO_ASSET_READ_RATE_LIMIT_OPTIONS,
+    });
+
+    if (!rateLimitDecision.allowed) {
+      return buildPublicTokenRateLimitResponse(
+        "Too many listing asset requests. Please try again in a moment.",
+        rateLimitDecision.retryAfterSeconds,
       );
     }
   }
