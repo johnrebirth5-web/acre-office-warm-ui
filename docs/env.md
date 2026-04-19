@@ -411,6 +411,7 @@ SENTRY_AUTH_TOKEN="<sentry-auth-token>"
 - 选择写接口 rate limit 的共享后端
 - 当前支持：
   - `memory`：默认值，单进程内存窗口计数
+  - `redis`：通过标准 Redis 连接串共享计数，适合单机多进程或自建/托管 Redis
   - `upstash`：通过 Upstash Redis REST API 共享计数，适合多实例/容器
 - 当前由 `apps/web/lib/rate-limit.ts` 读取
 
@@ -429,8 +430,35 @@ ACRE_RATE_LIMIT_BACKEND="memory"
 使用建议：
 
 - 本地开发和单实例测试环境继续用 `memory`
+- 如果已经有可达的 Redis，可改用 `redis`
 - 多实例或会横向扩容的环境应改用 `upstash`
+- 当前 DigitalOcean 生产机如果要先避免进程重启清零，可使用 `ACRE_RATE_LIMIT_BACKEND="redis"` 并把 `ACRE_RATE_LIMIT_REDIS_URL` 指到现有 Redis，例如 `redis://127.0.0.1:6380/0`
+- 如果显式设置为 `redis`，则必须同时提供 `ACRE_RATE_LIMIT_REDIS_URL`
 - 如果显式设置为 `upstash`，则必须同时提供 `ACRE_UPSTASH_REDIS_REST_URL` 和 `ACRE_UPSTASH_REDIS_REST_TOKEN`
+
+### `ACRE_RATE_LIMIT_REDIS_URL`
+
+用途：
+
+- 标准 Redis 连接串
+- 仅在 `ACRE_RATE_LIMIT_BACKEND="redis"` 时使用
+- 当前支持 `redis://` 与 `rediss://`
+
+是否必填：
+
+- 仅在使用 `redis` 后端时必填
+
+示例格式：
+
+```env
+ACRE_RATE_LIMIT_REDIS_URL="redis://127.0.0.1:6380/0"
+```
+
+使用建议：
+
+- 单机生产如果已经有本地 Redis，可先用这个模式替代 `memory`
+- 如果未来切到托管 Redis，也可以继续沿用这个变量，只需替换连接串
+- 如果未来明确走 Upstash REST，则继续使用 `upstash` 后端，不需要这个变量
 
 ### `ACRE_UPSTASH_REDIS_REST_URL`
 
