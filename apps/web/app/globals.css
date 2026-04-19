@@ -118,6 +118,11 @@ select {
   gap: 14px;
 }
 
+.auth-status-area {
+  display: grid;
+  gap: 14px;
+}
+
 .auth-field {
   display: grid;
   gap: 6px;
