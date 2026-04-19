@@ -232,6 +232,8 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const statusCallout = useMemo(() => buildStatusCallout(snapshot, token), [snapshot, token]);
   const submitErrorCallout = useMemo(() => buildInlineErrorCallout(submitError), [submitError]);
   const previewErrorCallout = useMemo(() => buildInlineErrorCallout(previewError), [previewError]);
+  const senderDisplayName = snapshot.request.senderDisplayName || "Your Acre agent";
+  const expiresLabel = formatStatusDate(snapshot.request.expiresAt);
   const signatureAccessContext = useMemo(
     () => ({
       fields: snapshot.fields,
@@ -432,34 +434,59 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   return (
     <div className="public-signature-shell">
       <aside className="public-signature-sidebar">
-        <p className="public-signature-eyebrow">Acre signature request</p>
-        <h1>{snapshot.document.title}</h1>
-        <p>{snapshot.request.senderDisplayName || "Your Acre agent"} invited you to sign this document.</p>
+        <div className="public-signature-sidebar-summary">
+          <p className="public-signature-eyebrow">Acre signature request</p>
+          <h1>{snapshot.document.title}</h1>
+          <p className="public-signature-sidebar-description">{senderDisplayName} invited you to sign this document.</p>
+        </div>
 
         <div className="public-signature-meta">
-          <p>
+          <p className="public-signature-meta-item public-signature-meta-item-primary">
             <strong>Recipient</strong>
             <span>{snapshot.currentRecipient.name}</span>
           </p>
-          <p>
+          <p className="public-signature-meta-item public-signature-meta-item-primary">
+            <strong>Sender</strong>
+            <span>{senderDisplayName}</span>
+          </p>
+          {expiresLabel ? (
+            <p className="public-signature-meta-item public-signature-meta-item-primary">
+              <strong>Expires</strong>
+              <span>{expiresLabel}</span>
+            </p>
+          ) : null}
+          <p className="public-signature-meta-item public-signature-meta-item-secondary">
             <strong>Email</strong>
             <span>{snapshot.currentRecipient.email}</span>
           </p>
-          <p>
+          <p className="public-signature-meta-item public-signature-meta-item-secondary">
             <strong>Role</strong>
             <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
           </p>
-          {snapshot.request.expiresAt ? (
-            <p>
-              <strong>Expires</strong>
-              <span>{snapshot.request.expiresAt.slice(0, 10)}</span>
-            </p>
-          ) : null}
         </div>
+
+        <details className="public-signature-sidebar-details">
+          <summary>Details</summary>
+          <div className="public-signature-sidebar-details-body">
+            <p>{senderDisplayName} invited you to sign this document.</p>
+            <div className="public-signature-sidebar-details-list">
+              <div className="public-signature-sidebar-details-item">
+                <strong>Email</strong>
+                <span>{snapshot.currentRecipient.email}</span>
+              </div>
+              <div className="public-signature-sidebar-details-item">
+                <strong>Role</strong>
+                <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
+              </div>
+            </div>
+            {!completed && !statusCallout ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
+          </div>
+        </details>
 
         {statusCallout ? (
           <SignatureStatusCallout
             action={statusCallout.action}
+            className="public-signature-sidebar-status"
             description={statusCallout.description}
             icon={statusCallout.icon}
             title={statusCallout.title}
@@ -483,7 +510,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
             tone={submitErrorCallout.tone}
           />
         ) : null}
-        {!completed && !statusCallout ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
+        {!completed && !statusCallout ? <p className="public-signature-helper public-signature-sidebar-helper-desktop">Only the fields assigned to you are shown on the document.</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
@@ -493,6 +520,16 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
       </aside>
 
       <main className="public-signature-main">
+        {statusCallout ? (
+          <SignatureStatusCallout
+            action={statusCallout.action}
+            className="public-signature-main-status"
+            description={statusCallout.description}
+            icon={statusCallout.icon}
+            title={statusCallout.title}
+            tone={statusCallout.tone}
+          />
+        ) : null}
         {isLoading ? <p className="public-signature-helper">Loading document preview…</p> : null}
         {previewErrorCallout ? (
           <SignatureStatusCallout
