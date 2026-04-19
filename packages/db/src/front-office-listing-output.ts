@@ -207,7 +207,7 @@ function buildFactsLabel(input: {
 }
 
 function buildShareCode() {
-  return randomBytes(9).toString("base64url");
+  return randomBytes(24).toString("base64url");
 }
 
 function normalizeOptionalText(value: string | null | undefined) {

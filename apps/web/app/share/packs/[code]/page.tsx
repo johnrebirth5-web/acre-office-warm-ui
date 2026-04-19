@@ -1,6 +1,10 @@
 import { getStudioListingPublicPack } from "@acre/db";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import {
+  consumePublicTokenRateLimit,
+  PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
+} from "../../../../lib/public-token-rate-limit";
 
 type ListingStudioPublicSharePageProps = {
   params: Promise<{ code: string }>;
@@ -15,6 +19,16 @@ export default async function ListingStudioPublicSharePage(
   const viewerFingerprint =
     typeof searchParams.viewer === "string" ? searchParams.viewer : null;
   const headerStore = await headers();
+  const rateLimitDecision = await consumePublicTokenRateLimit({
+    scope: "public/listing-studio/packs/read",
+    request: headerStore,
+    token: code,
+    options: PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
+  });
+
+  if (!rateLimitDecision.allowed) {
+    notFound();
+  }
 
   const snapshot = await getStudioListingPublicPack({
     shareCode: code,

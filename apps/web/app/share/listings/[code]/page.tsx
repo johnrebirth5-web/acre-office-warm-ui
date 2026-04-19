@@ -1,5 +1,10 @@
 import { getFrontOfficeListingSharePageSnapshot } from "@acre/db";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import {
+  consumePublicTokenRateLimit,
+  PUBLIC_LISTING_SHARE_READ_RATE_LIMIT_OPTIONS,
+} from "../../../../lib/public-token-rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +18,18 @@ export default async function PublicListingSharePage(
   props: PublicListingSharePageProps,
 ) {
   const { code } = await props.params;
+  const headerStore = await headers();
+  const rateLimitDecision = await consumePublicTokenRateLimit({
+    scope: "public/listings/share/read",
+    request: headerStore,
+    token: code,
+    options: PUBLIC_LISTING_SHARE_READ_RATE_LIMIT_OPTIONS,
+  });
+
+  if (!rateLimitDecision.allowed) {
+    notFound();
+  }
+
   const snapshot = await getFrontOfficeListingSharePageSnapshot(code);
 
   if (!snapshot) {
