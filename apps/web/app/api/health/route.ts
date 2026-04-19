@@ -1,9 +1,29 @@
-import { getDatabaseHealthCheck, getHealthSnapshot } from "@acre/db";
+import {
+  getDatabaseHealthCheck as getDatabaseHealthCheckFromDb,
+  getHealthSnapshot as getHealthSnapshotFromDb,
+  type DatabaseHealthCheck,
+  type HealthSnapshot,
+} from "@acre/db";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export type HealthRouteDependencies = {
+  getDatabaseHealthCheck?: () => Promise<DatabaseHealthCheck>;
+  getHealthSnapshot?: () => Promise<HealthSnapshot>;
+  memoryUsage?: () => NodeJS.MemoryUsage;
+  timestampFactory?: () => string;
+  uptime?: () => number;
+};
+
+export async function handleHealthGet(
+  dependencies: HealthRouteDependencies = {},
+) {
+  const getHealthSnapshot =
+    dependencies.getHealthSnapshot ?? getHealthSnapshotFromDb;
+  const getDatabaseHealthCheck =
+    dependencies.getDatabaseHealthCheck ?? getDatabaseHealthCheckFromDb;
+
   try {
     const [snapshot, database] = await Promise.all([
       getHealthSnapshot(),
@@ -34,8 +54,10 @@ export async function GET() {
       },
     );
   } catch {
-    const memoryUsage = process.memoryUsage();
-    const timestamp = new Date().toISOString();
+    const memoryUsage = (dependencies.memoryUsage ?? process.memoryUsage)();
+    const timestamp =
+      dependencies.timestampFactory?.() ?? new Date().toISOString();
+    const uptimeSeconds = (dependencies.uptime ?? process.uptime)();
 
     return NextResponse.json(
       {
@@ -60,7 +82,7 @@ export async function GET() {
           rss_bytes: memoryUsage.rss,
           heap_used_bytes: memoryUsage.heapUsed,
           heap_total_bytes: memoryUsage.heapTotal,
-          uptime_seconds: process.uptime(),
+          uptime_seconds: uptimeSeconds,
         },
         timestamp,
       },
@@ -72,4 +94,8 @@ export async function GET() {
       },
     );
   }
+}
+
+export async function GET() {
+  return handleHealthGet();
 }

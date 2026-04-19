@@ -22,8 +22,19 @@ function getEventLoopLagMs() {
   return lagMs;
 }
 
-export async function GET(request: Request) {
-  const expectedToken = process.env.ACRE_METRICS_TOKEN?.trim();
+export type MetricsRouteOptions = {
+  expectedToken?: string | null;
+  getEventLoopLagMs?: () => number;
+  memoryUsage?: () => NodeJS.MemoryUsage;
+  uptime?: () => number;
+};
+
+export async function handleMetricsGet(
+  request: Request,
+  options: MetricsRouteOptions = {},
+) {
+  const expectedToken =
+    options.expectedToken ?? process.env.ACRE_METRICS_TOKEN?.trim();
   const providedToken = request.headers.get("x-metrics-token");
 
   if (!expectedToken || providedToken !== expectedToken) {
@@ -36,7 +47,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const memoryUsage = process.memoryUsage();
+  const memoryUsage = (options.memoryUsage ?? process.memoryUsage)();
   const metrics = [
     formatGaugeMetric(
       "nodejs_process_rss_bytes",
@@ -61,12 +72,12 @@ export async function GET(request: Request) {
     formatGaugeMetric(
       "nodejs_process_uptime_seconds",
       "Process uptime in seconds.",
-      process.uptime(),
+      (options.uptime ?? process.uptime)(),
     ),
     formatGaugeMetric(
       "nodejs_event_loop_lag_ms",
       "Mean event loop lag in milliseconds since the last scrape.",
-      getEventLoopLagMs(),
+      (options.getEventLoopLagMs ?? getEventLoopLagMs)(),
     ),
   ];
 
@@ -77,4 +88,8 @@ export async function GET(request: Request) {
       "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
     },
   });
+}
+
+export async function GET(request: Request) {
+  return handleMetricsGet(request);
 }

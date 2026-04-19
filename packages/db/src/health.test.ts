@@ -52,6 +52,32 @@ test("database health reports unavailable when the query fails", async () => {
   assert.equal(result.status, "unavailable");
 });
 
+test("health snapshot reports degraded process-only metrics when no database URL is configured", async () => {
+  const snapshot = await getHealthSnapshot({
+    hasDatabaseUrl: false,
+    memoryUsage: () => ({
+      arrayBuffers: 16,
+      external: 32,
+      heapTotal: 2048,
+      heapUsed: 1024,
+      rss: 4096,
+    }),
+    timestampFactory: () => "2026-04-19T00:00:00.000Z",
+    uptime: () => 12,
+  });
+
+  assert.equal(snapshot.status, "degraded");
+  assert.equal(snapshot.db.ping_ms, 0);
+  assert.equal(snapshot.db.pool_in_use, null);
+  assert.equal(snapshot.db.pool_idle, null);
+  assert.equal(snapshot.db.pool_max, null);
+  assert.equal(snapshot.process.rss_bytes, 4096);
+  assert.equal(snapshot.process.heap_used_bytes, 1024);
+  assert.equal(snapshot.process.heap_total_bytes, 2048);
+  assert.equal(snapshot.process.uptime_seconds, 12);
+  assert.equal(snapshot.timestamp, "2026-04-19T00:00:00.000Z");
+});
+
 test("health snapshot reports ok with ping, pool stats, and process metrics", async () => {
   const queryCalls: string[] = [];
   let nowValue = 100;

@@ -202,6 +202,151 @@ ACRE_BASE_URL="https://acresystem.us"
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
 
+### `ACRE_METRICS_TOKEN`
+
+用途：
+
+- 保护 `/api/metrics` 的 header 鉴权 token
+- 当前由 `apps/web/app/api/metrics/route.ts` 读取，并要求请求头 `X-Metrics-Token` 与之完全匹配
+
+是否必填：
+
+- 对普通页面和业务 API 不是必填
+- 对要采集 `/api/metrics` 的环境是必填
+
+示例格式：
+
+```env
+ACRE_METRICS_TOKEN="replace-with-a-long-random-token"
+```
+
+缺失后的影响：
+
+- `/api/metrics` 会对所有请求返回 `401`
+- `/api/health`、业务 API、登录和页面渲染不受影响
+
+部署建议：
+
+- 生产环境应把它放进 `/etc/acre/acre-ui-rebuild.env`
+- 不要把真实 token 写进仓库内 `.env.example`
+
+### `PRISMA_SLOW_QUERY_MS`
+
+用途：
+
+- 控制 Prisma 慢查询日志的 warn 阈值，默认 `500`
+- 当前由 `packages/db/src/client.ts` 读取
+
+是否必填：
+
+- 非必填
+- 缺失或非法值时回退到 `500`
+
+示例格式：
+
+```env
+PRISMA_SLOW_QUERY_MS="500"
+```
+
+缺失后的影响：
+
+- 不会阻塞 Prisma 或应用启动
+- 仅会使用默认慢查询阈值
+
+### `PRISMA_VERY_SLOW_QUERY_MS`
+
+用途：
+
+- 控制 Prisma 超慢查询日志的 error 阈值，默认 `2000`
+- 当前由 `packages/db/src/client.ts` 读取
+
+是否必填：
+
+- 非必填
+- 缺失或非法值时回退到 `2000`
+
+示例格式：
+
+```env
+PRISMA_VERY_SLOW_QUERY_MS="2000"
+```
+
+缺失后的影响：
+
+- 不会阻塞 Prisma 或应用启动
+- 仅会使用默认超慢查询阈值
+
+### `SENTRY_DSN`
+
+用途：
+
+- 启用 Sentry SDK，把 API guard 异常、Prisma 运行时错误、全局错误边界和 Next runtime 错误送到 Sentry
+- 当前由 `apps/web/sentry.shared.ts` 统一读取
+
+是否必填：
+
+- 非必填
+- 留空时 Sentry 保持静默关闭
+
+示例格式：
+
+```env
+SENTRY_DSN="https://<key>@o0.ingest.sentry.io/<project>"
+```
+
+缺失后的影响：
+
+- 构建仍可通过
+- 应用仍可运行
+- 只是不会向 Sentry 上报异常
+
+### `SENTRY_TRACES_SAMPLE_RATE`
+
+用途：
+
+- 控制 Sentry tracing 采样率
+- 当前默认值是 `0.1`
+
+是否必填：
+
+- 非必填
+- 未设置时回退到 `0.1`
+
+示例格式：
+
+```env
+SENTRY_TRACES_SAMPLE_RATE="0.1"
+```
+
+缺失后的影响：
+
+- 不会阻塞构建或运行
+- 仅会使用默认 tracing 采样率
+
+### `SENTRY_AUTH_TOKEN`
+
+用途：
+
+- 给 `@sentry/nextjs` 的构建插件上传 source map 用
+- 当前只在 `apps/web/next.config.ts` 的 `withSentryConfig(...)` 里读取
+
+是否必填：
+
+- 非必填
+- 仅在你要上传 source map 到 Sentry 时需要
+
+示例格式：
+
+```env
+SENTRY_AUTH_TOKEN="<sentry-auth-token>"
+```
+
+缺失后的影响：
+
+- `npm run build` 仍会通过
+- 只是会跳过 source map 上传
+- 运行时异常采集仍主要由 `SENTRY_DSN` 决定
+
 ### `ACRE_RATE_LIMIT_BACKEND`
 
 用途：

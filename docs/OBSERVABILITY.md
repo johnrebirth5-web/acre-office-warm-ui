@@ -28,6 +28,10 @@
   - `process.heap_used_bytes`：Node/V8 已使用堆内存
   - `process.heap_total_bytes`：Node/V8 已分配堆内存
   - `process.uptime_seconds`：当前进程运行时长
+- HTTP 状态码语义：
+  - `status === "ok"` 时返回 `200`
+  - 只要 `status !== "ok"`，当前实现就返回 `503`
+  - 这意味着 `degraded` 现在会被多数 uptime monitor 或负载均衡器视为不健康
 - `db.pool_*` 查询失败时会返回 `null`，并把整体状态降为 `degraded`，但不会把接口抛成 500。
 
 ## /api/metrics

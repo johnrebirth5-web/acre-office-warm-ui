@@ -34,6 +34,7 @@ Use it only when the user explicitly asks for deployment or production sync work
 - systemd service: `acre-ui-rebuild-web.service`
 - `WorkingDirectory`: `/opt/acre-ui-rebuild/app`
 - env file: `/etc/acre/acre-ui-rebuild.env`
+- observability 相关环境变量也放在这个 env file，例如 `ACRE_METRICS_TOKEN`、可选的 `PRISMA_SLOW_QUERY_MS` / `PRISMA_VERY_SLOW_QUERY_MS`、以及可选的 `SENTRY_*`
 - nginx config: `/etc/nginx/sites-available/acre-ui-rebuild.conf`
 - nginx upstream: `127.0.0.1:3206`
 - HTTPS/TLS: `certbot + nginx`, certificate for `acresystem.us` / `www.acresystem.us`

@@ -830,6 +830,7 @@
   - `/invite/[token]`
 - 一组 API：
   - `/api/health`
+  - `/api/metrics`
   - `/api/db/seeded-context`
   - `/api/agent/dashboard`
   - `/api/office/dashboard`
