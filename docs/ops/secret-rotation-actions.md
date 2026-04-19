@@ -52,6 +52,12 @@ sudo bash ./scripts/rotate-session-secret.sh --apply
 sudo systemctl status acre-ui-rebuild-web.service --no-pager
 ```
 
+验证：
+
+- [ ] 开始前另起一个 ssh 会话跑 `bash scripts/ops/preflight.sh`；如果输出 `NO-GO` 就停手
+- [ ] 在准备执行 `systemctl restart` 或其他服务重启动作之前，在另一个会话跑 `bash scripts/ops/watch.sh` 并保持打开
+- [ ] 完成后跑 `bash scripts/ops/smoke.sh`；如果输出 `FAIL`，按本 doc 的回滚段处理
+
 检查 env 文件：
 
 ```bash
@@ -106,6 +112,9 @@ sudo systemctl status acre-ui-rebuild-web.service --no-pager
 
 验证：
 
+- [ ] 开始前另起一个 ssh 会话跑 `bash scripts/ops/preflight.sh`；如果输出 `NO-GO` 就停手
+- [ ] 在准备执行 `systemctl restart` 或其他服务重启动作之前，在另一个会话跑 `bash scripts/ops/watch.sh` 并保持打开
+- [ ] 完成后跑 `bash scripts/ops/smoke.sh`；如果输出 `FAIL`，按本 doc 的回滚段处理
 - [ ] 发一封真实测试邮件，确认新 key 已生效
 - [ ] 验证成功后，再回到 Resend 控制台 revoke 旧 key
 
@@ -172,6 +181,10 @@ sudo systemctl status acre-ui-rebuild-web.service --no-pager
 ```
 
 验证：
+
+- [ ] 开始前另起一个 ssh 会话跑 `bash scripts/ops/preflight.sh`；如果输出 `NO-GO` 就停手
+- [ ] 在准备执行 `systemctl restart` 或其他服务重启动作之前，在另一个会话跑 `bash scripts/ops/watch.sh` 并保持打开
+- [ ] 完成后跑 `bash scripts/ops/smoke.sh`；如果输出 `FAIL`，按本 doc 的回滚段处理
 
 ```bash
 curl -fsS https://acresystem.us/api/health | jq
