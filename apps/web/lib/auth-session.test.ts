@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHmac } from "node:crypto";
+import type { SessionMembershipContext } from "@acre/db";
 import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config.ts";
 import {
+  createRequestSessionContextResolver,
   createSessionCookieValue,
   createSessionCookieValueWithOfficeSelection,
   decodeSessionCookieValue,
+  getSessionCookieName,
 } from "./auth-session.ts";
 
 function withEnv(
@@ -42,6 +45,40 @@ function withEnv(
   }
 }
 
+async function withEnvAsync(
+  nextEnv: Partial<
+    Record<"NODE_ENV" | "ACRE_SESSION_SECRET" | "ACRE_SESSION_SECRET_SECONDARY" | "ACRE_SECURE_COOKIES", string | undefined>
+  >,
+  run: () => Promise<void>
+) {
+  const previous = {
+    NODE_ENV: process.env.NODE_ENV,
+    ACRE_SESSION_SECRET: process.env.ACRE_SESSION_SECRET,
+    ACRE_SESSION_SECRET_SECONDARY: process.env.ACRE_SESSION_SECRET_SECONDARY,
+    ACRE_SECURE_COOKIES: process.env.ACRE_SECURE_COOKIES
+  };
+
+  for (const [key, value] of Object.entries(nextEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    await run();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 function signSessionPayload(
   membershipId: string,
   secret: string,
@@ -58,6 +95,69 @@ function signSessionPayload(
   const signature = createHmac("sha256", secret).update(serializedPayload).digest("base64url");
 
   return `${serializedPayload}.${signature}`;
+}
+
+function createMockSessionContext(): SessionMembershipContext {
+  return {
+    currentUser: {
+      id: "user-1",
+      email: "office@acreny.us",
+      firstName: "Acre",
+      lastName: "Admin",
+      timezone: "America/New_York",
+      locale: "en-US",
+    },
+    currentCredential: {
+      id: "credential-1",
+      mustChangePassword: false,
+      failedLoginCount: 0,
+      lockedUntil: null,
+      lastLoginAt: null,
+      lastFailedLoginAt: null,
+      passwordChangedAt: null,
+    },
+    currentMembership: {
+      id: "membership-1",
+      role: "office_admin",
+      title: "Office Admin",
+      status: "active",
+      permissions: ["settings:manage"],
+    },
+    currentOrganization: {
+      id: "org-1",
+      name: "Acre",
+      slug: "acre",
+      timezone: "America/New_York",
+    },
+    currentOffice: {
+      id: "office-1",
+      name: "Acre NY Realty",
+      slug: "acre-ny",
+      market: "NYC",
+    },
+    accessibleOffices: [
+      {
+        id: "office-1",
+        name: "Acre NY Realty",
+        slug: "acre-ny",
+        market: "NYC",
+      },
+    ],
+  };
+}
+
+function createMockRequest(cookieValue: string | undefined) {
+  return {
+    cookies: {
+      get(name: string) {
+        if (name !== getSessionCookieName() || !cookieValue) {
+          return undefined;
+        }
+
+        return { value: cookieValue };
+      },
+    },
+  };
 }
 
 test("secure cookie behavior stays explicit and proxy-safe", () => {
@@ -170,5 +270,67 @@ test("session cookies can persist the current company selection", () => {
 
     assert.equal(payload?.membershipId, "membership-1");
     assert.equal(payload?.activeOfficeId, "office-2");
+  });
+});
+
+test("request session resolver dedupes repeated lookups within the same request", async () => {
+  await withEnvAsync({ NODE_ENV: "development", ACRE_SESSION_SECRET: "test-secret" }, async () => {
+    const calls: Array<{ membershipId: string; activeOfficeId: string | null }> = [];
+    const resolveRequestSessionContext = createRequestSessionContextResolver(
+      async (membershipId, options) => {
+        calls.push({
+          membershipId,
+          activeOfficeId: options?.activeOfficeId ?? null,
+        });
+        return createMockSessionContext();
+      },
+    );
+    const request = createMockRequest(
+      createSessionCookieValueWithOfficeSelection("membership-1", "office-2"),
+    );
+
+    const [first, second] = await Promise.all([
+      resolveRequestSessionContext(request),
+      resolveRequestSessionContext(request),
+    ]);
+
+    assert.equal(first?.currentMembership.id, "membership-1");
+    assert.equal(second?.currentMembership.id, "membership-1");
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0], {
+      membershipId: "membership-1",
+      activeOfficeId: "office-2",
+    });
+  });
+});
+
+test("request session resolver stays request-scoped and keeps office selections distinct", async () => {
+  await withEnvAsync({ NODE_ENV: "development", ACRE_SESSION_SECRET: "test-secret" }, async () => {
+    const calls: Array<{ membershipId: string; activeOfficeId: string | null }> = [];
+    const resolveRequestSessionContext = createRequestSessionContextResolver(
+      async (membershipId, options) => {
+        calls.push({
+          membershipId,
+          activeOfficeId: options?.activeOfficeId ?? null,
+        });
+        return createMockSessionContext();
+      },
+    );
+
+    await resolveRequestSessionContext(
+      createMockRequest(createSessionCookieValueWithOfficeSelection("membership-1", "office-1")),
+    );
+    await resolveRequestSessionContext(
+      createMockRequest(createSessionCookieValueWithOfficeSelection("membership-1", "office-2")),
+    );
+    await resolveRequestSessionContext(
+      createMockRequest(createSessionCookieValueWithOfficeSelection("membership-1", "office-1")),
+    );
+
+    assert.deepEqual(calls, [
+      { membershipId: "membership-1", activeOfficeId: "office-1" },
+      { membershipId: "membership-1", activeOfficeId: "office-2" },
+      { membershipId: "membership-1", activeOfficeId: "office-1" },
+    ]);
   });
 });

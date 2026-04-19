@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { getDefaultAppPath, isOfficeRole, summarizeAccess } from "@acre/auth";
 import { ensureBootstrapAdminAccount, getSessionMembershipContext, type SessionMembershipContext } from "@acre/db";
 import type { NextRequest } from "next/server";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecrets, shouldUseSecureCookies } from "./auth-session-config";
@@ -16,6 +17,21 @@ type SessionPayload = {
 
 type SessionContextOptions = {
   allowPasswordChangeRequired?: boolean;
+};
+
+type SessionMembershipContextLoader = (
+  membershipId: string,
+  options?: {
+    activeOfficeId?: string | null;
+  },
+) => Promise<SessionMembershipContext | null>;
+
+type SessionCookieStore = {
+  get(name: string): { value?: string } | undefined;
+};
+
+type SessionRequestLike = {
+  cookies: SessionCookieStore;
 };
 
 function signPayload(serializedPayload: string, secret: string) {
@@ -78,6 +94,60 @@ function decodeSession(cookieValue: string | undefined): SessionPayload | null {
   }
 }
 
+function getContextCacheKey(session: SessionPayload) {
+  return `${session.membershipId}:${session.activeOfficeId ?? ""}`;
+}
+
+export function createCachedSessionMembershipContextResolver(
+  loadMembershipContext: SessionMembershipContextLoader = getSessionMembershipContext,
+) {
+  return cache(async (membershipId: string, activeOfficeId: string | null) => {
+    if (!membershipId) {
+      return null;
+    }
+
+    return loadMembershipContext(membershipId, {
+      activeOfficeId,
+    });
+  });
+}
+
+export function createRequestSessionContextResolver(
+  loadMembershipContext: SessionMembershipContextLoader = getSessionMembershipContext,
+) {
+  const requestCache = new WeakMap<object, Map<string, Promise<SessionMembershipContext | null>>>();
+
+  return async function resolveRequestSessionContext(request: SessionRequestLike) {
+    const session = decodeSession(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+
+    if (!session) {
+      return null;
+    }
+
+    let sessionCache = requestCache.get(request);
+
+    if (!sessionCache) {
+      sessionCache = new Map();
+      requestCache.set(request, sessionCache);
+    }
+
+    const cacheKey = getContextCacheKey(session);
+    let contextPromise = sessionCache.get(cacheKey);
+
+    if (!contextPromise) {
+      contextPromise = loadMembershipContext(session.membershipId, {
+        activeOfficeId: session.activeOfficeId ?? null,
+      });
+      sessionCache.set(cacheKey, contextPromise);
+    }
+
+    return contextPromise;
+  };
+}
+
+const getCachedSessionMembershipContext = createCachedSessionMembershipContextResolver();
+const resolveRequestSessionContext = createRequestSessionContextResolver();
+
 export function createSessionCookieValue(membershipId: string) {
   return encodeSession({
     membershipId,
@@ -117,22 +187,12 @@ export async function getCurrentSessionContext(options?: SessionContextOptions):
     return null;
   }
 
-  const context = await getSessionMembershipContext(session.membershipId, {
-    activeOfficeId: session.activeOfficeId ?? null,
-  });
+  const context = await getCachedSessionMembershipContext(session.membershipId, session.activeOfficeId ?? null);
   return isPasswordChangeBlocked(context, options) ? null : context;
 }
 
 export async function getRequestSessionContext(request: NextRequest, options?: SessionContextOptions): Promise<SessionMembershipContext | null> {
-  const session = decodeSession(request.cookies.get(SESSION_COOKIE_NAME)?.value);
-
-  if (!session) {
-    return null;
-  }
-
-  const context = await getSessionMembershipContext(session.membershipId, {
-    activeOfficeId: session.activeOfficeId ?? null,
-  });
+  const context = await resolveRequestSessionContext(request);
   return isPasswordChangeBlocked(context, options) ? null : context;
 }
 
