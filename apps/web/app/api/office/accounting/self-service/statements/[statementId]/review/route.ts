@@ -1,6 +1,11 @@
-import { respondToAgentPayoutStatement } from "@acre/db";
+import {
+  respondToAgentPayoutStatement,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../../lib/auth-session";
+import { reviewAgentPayoutStatementBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -8,29 +13,42 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type StatementSelfServiceReviewRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  respondToAgentPayoutStatement?: typeof respondToAgentPayoutStatement;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleReviewAccountingStatementPost(
+  request: NextRequest,
+  statementId: string,
+  context: SessionMembershipContext,
+  dependencies: StatementSelfServiceReviewRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    reviewAgentPayoutStatementBodySchema,
+    {
+      error: "Statement review payload is invalid.",
+      invalidJsonError: "Statement review request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  const { statementId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        response?: unknown;
-        message?: unknown;
-      }
-    | null;
+  const body = parsedBody.data;
 
   try {
-    const result = await respondToAgentPayoutStatement({
+    const result = await (
+      dependencies.respondToAgentPayoutStatement ?? respondToAgentPayoutStatement
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       statementId,
       actorMembershipId: context.currentMembership.id,
-      response: body?.response === "request_revision" ? "request_revision" : "confirm",
-      message: typeof body?.message === "string" ? body.message : ""
+      response: body.response === "request_revision" ? "request_revision" : "confirm",
+      message: body.message ?? ""
     });
 
     if (!result) {
@@ -44,4 +62,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const { statementId } = await params;
+  return handleReviewAccountingStatementPost(request, statementId, context);
 }

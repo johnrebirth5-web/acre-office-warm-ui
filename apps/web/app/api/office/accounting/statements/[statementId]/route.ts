@@ -1,7 +1,12 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
-import { updateAgentPayoutStatementManualLineItems } from "@acre/db";
+import {
+  updateAgentPayoutStatementManualLineItems,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { updateAgentPayoutStatementManualLineItemsBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,40 +14,45 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type StatementManualLineItemsRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  updateAgentPayoutStatementManualLineItems?: typeof updateAgentPayoutStatementManualLineItems;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleUpdateAccountingStatementPatch(
+  request: NextRequest,
+  statementId: string,
+  context: SessionMembershipContext,
+  dependencies: StatementManualLineItemsRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    updateAgentPayoutStatementManualLineItemsBodySchema,
+    {
+      error: "Statement manual line items payload is invalid.",
+      invalidJsonError: "Statement manual line items request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canAccessOfficeAdminAccountingWorkspace(context.currentMembership)) {
-    return NextResponse.json({ error: "Office admin access required." }, { status: 403 });
-  }
-
-  const { statementId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        manualLineItems?: Array<{
-          id?: unknown;
-          memo?: unknown;
-          amount?: unknown;
-        }>;
-      }
-    | null;
+  const body = parsedBody.data;
 
   try {
-    const result = await updateAgentPayoutStatementManualLineItems({
+    const result = await (
+      dependencies.updateAgentPayoutStatementManualLineItems ??
+      updateAgentPayoutStatementManualLineItems
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       statementId,
-      manualLineItems: Array.isArray(body?.manualLineItems)
-        ? body.manualLineItems.map((lineItem) => ({
-            ...(typeof lineItem?.id === "string" ? { id: lineItem.id } : {}),
-            memo: typeof lineItem?.memo === "string" ? lineItem.memo : "",
-            amount: typeof lineItem?.amount === "string" ? lineItem.amount : ""
-          }))
-        : [],
+      manualLineItems: (body.manualLineItems ?? []).map((lineItem) => ({
+        ...(lineItem.id === undefined ? {} : { id: lineItem.id }),
+        memo: lineItem.memo ?? "",
+        amount: lineItem.amount ?? ""
+      })),
       actorMembershipId: context.currentMembership.id
     });
 
@@ -57,4 +67,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canAccessOfficeAdminAccountingWorkspace(context.currentMembership)) {
+    return NextResponse.json({ error: "Office admin access required." }, { status: 403 });
+  }
+
+  const { statementId } = await params;
+  return handleUpdateAccountingStatementPatch(request, statementId, context);
 }

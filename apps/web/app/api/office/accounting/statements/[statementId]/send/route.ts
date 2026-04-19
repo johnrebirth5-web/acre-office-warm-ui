@@ -1,7 +1,12 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
-import { sendAgentPayoutStatementToAgent } from "@acre/db";
+import {
+  sendAgentPayoutStatementToAgent,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import { sendAgentPayoutStatementBodySchema } from "./route.schema";
 
 type RouteContext = {
   params: Promise<{
@@ -9,31 +14,41 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type StatementSendRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  sendAgentPayoutStatementToAgent?: typeof sendAgentPayoutStatementToAgent;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+export async function handleSendAccountingStatementPost(
+  request: NextRequest,
+  statementId: string,
+  context: SessionMembershipContext,
+  dependencies: StatementSendRouteDependencies = {}
+) {
+  const parsedBody = await (dependencies.parseJsonBody ?? parseJsonBody)(
+    request,
+    sendAgentPayoutStatementBodySchema,
+    {
+      error: "Statement send payload is invalid.",
+      invalidJsonError: "Statement send request body must be valid JSON."
+    }
+  );
+
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
 
-  if (!canAccessOfficeAdminAccountingWorkspace(context.currentMembership)) {
-    return NextResponse.json({ error: "Office admin access required." }, { status: 403 });
-  }
-
-  const { statementId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        message?: unknown;
-      }
-    | null;
+  const body = parsedBody.data;
 
   try {
-    const result = await sendAgentPayoutStatementToAgent({
+    const result = await (
+      dependencies.sendAgentPayoutStatementToAgent ?? sendAgentPayoutStatementToAgent
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       statementId,
       actorMembershipId: context.currentMembership.id,
-      message: typeof body?.message === "string" ? body.message : ""
+      message: body.message ?? ""
     });
 
     if (!result) {
@@ -47,4 +62,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canAccessOfficeAdminAccountingWorkspace(context.currentMembership)) {
+    return NextResponse.json({ error: "Office admin access required." }, { status: 403 });
+  }
+
+  const { statementId } = await params;
+  return handleSendAccountingStatementPost(request, statementId, context);
 }
