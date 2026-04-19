@@ -17795,7 +17795,7 @@ body,
     overflow-wrap: anywhere;
   }
 
-  .public-signature-meta-item-secondary {
+  .public-signature-meta .public-signature-meta-item-secondary {
     display: none;
   }
 
