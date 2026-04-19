@@ -14,7 +14,7 @@
 - [ ] 先跑 git 历史扫描，确认泄漏范围：
 
 ```bash
-cd /Users/openclaw_john/工作文件夹/Acre_latest_clean
+cd <repo-root>
 git log --all --full-history -p -- .env .env.local
 git log --all -S 'ACRE_SESSION_SECRET'
 git log --all -S '<old-resend-key-fragment>'
@@ -74,29 +74,31 @@ sudo grep -n '^ACRE_SESSION_SECRET_SECONDARY=' /etc/acre/acre-ui-rebuild.env
 服务器动作：
 
 ```bash
-export NEW_RESEND_KEY='paste-new-resend-key-here'
-sudo python3 - "$NEW_RESEND_KEY" <<'PY'
+read -rsp 'New Resend API key: ' NEW_RESEND_KEY
+echo
+sudo python3 -c '
 from pathlib import Path
 import sys
 
 env_file = Path("/etc/acre/acre-ui-rebuild.env")
-new_value = sys.argv[1]
+new_value = sys.stdin.read().rstrip("\n")
 lines = env_file.read_text().splitlines()
 updated = []
 replaced = False
 
 for line in lines:
     if line.startswith("ACRE_RESEND_API_KEY="):
-        updated.append(f'ACRE_RESEND_API_KEY="{new_value}"')
+        updated.append(f"ACRE_RESEND_API_KEY=\"{new_value}\"")
         replaced = True
     else:
         updated.append(line)
 
 if not replaced:
-    updated.append(f'ACRE_RESEND_API_KEY="{new_value}"')
+    updated.append(f"ACRE_RESEND_API_KEY=\"{new_value}\"")
 
 env_file.write_text("\n".join(updated) + "\n")
-PY
+' <<<"$NEW_RESEND_KEY"
+unset NEW_RESEND_KEY
 
 sudo systemctl restart acre-ui-rebuild-web.service
 sudo systemctl status acre-ui-rebuild-web.service --no-pager
@@ -121,21 +123,30 @@ PY
 更新 PostgreSQL 用户密码：
 
 ```bash
-export NEW_DB_PASSWORD='replace_me'
-psql "$DATABASE_URL" -c "ALTER USER acre_app WITH PASSWORD '$NEW_DB_PASSWORD';"
+psql "$DATABASE_URL"
 ```
+
+在 `psql` 提示符内执行：
+
+```text
+\password acre_app
+\q
+```
+
+- [ ] 在 `\password acre_app` 的两次提示里输入同一个新密码；这一步不会把密码暴露到 shell history 或 `ps` 输出
 
 更新生产 env 文件里的 `DATABASE_URL`：
 
 ```bash
-export NEW_DB_PASSWORD='replace_me'
-sudo python3 - "$NEW_DB_PASSWORD" <<'PY'
+read -rsp 'New DB password: ' NEW_DB_PASSWORD
+echo
+sudo python3 -c '
 from pathlib import Path
 from urllib.parse import quote
 import sys
 
 env_file = Path("/etc/acre/acre-ui-rebuild.env")
-new_password = quote(sys.argv[1], safe="")
+new_password = quote(sys.stdin.read().rstrip("\n"), safe="")
 lines = env_file.read_text().splitlines()
 updated = []
 
@@ -144,15 +155,17 @@ for line in lines:
         updated.append(line)
         continue
     prefix, value = line.split("=", 1)
-    raw = value.strip().strip('"').strip("'")
+    raw = value.strip().strip("\"")
+    raw = raw.strip(chr(39))
     marker = "://"
     scheme, rest = raw.split(marker, 1)
     credentials, host_part = rest.split("@", 1)
     user = credentials.split(":", 1)[0]
-    updated.append(f'DATABASE_URL="{scheme}{marker}{user}:{new_password}@{host_part}"')
+    updated.append(f"DATABASE_URL=\"{scheme}{marker}{user}:{new_password}@{host_part}\"")
 
 env_file.write_text("\n".join(updated) + "\n")
-PY
+' <<<"$NEW_DB_PASSWORD"
+unset NEW_DB_PASSWORD
 
 sudo systemctl restart acre-ui-rebuild-web.service
 sudo systemctl status acre-ui-rebuild-web.service --no-pager
