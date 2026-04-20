@@ -1,5 +1,5 @@
 import { canApproveOfficeCommissions, canManageOfficeCommissions } from "@acre/auth";
-import { overrideTransactionCommission } from "@acre/db";
+import { overrideTransactionCommission, type SessionMembershipContext } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
@@ -11,20 +11,22 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+type OfficeTransactionCommissionOverrideRouteDependencies = {
+  parseJsonBody?: typeof parseJsonBody;
+  overrideTransactionCommission?: typeof overrideTransactionCommission;
+};
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
-
-  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
-    return NextResponse.json({ error: "Commission override access required." }, { status: 403 });
-  }
-
-  const { transactionId } = await params;
-  const parsedBody = await parseJsonBody(request, overrideTransactionCommissionBodySchema, {
+export async function handleOverrideTransactionCommissionPost(
+  request: NextRequest,
+  transactionId: string,
+  context: SessionMembershipContext,
+  dependencies: OfficeTransactionCommissionOverrideRouteDependencies = {},
+) {
+  const parsedBody = await (
+    dependencies.parseJsonBody ?? parseJsonBody
+  )(request, overrideTransactionCommissionBodySchema, {
     error: "Commission override payload is invalid.",
+    invalidJsonError: "Commission override request body must be valid JSON.",
   });
 
   if (!parsedBody.ok) {
@@ -32,7 +34,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const snapshot = await overrideTransactionCommission({
+    const snapshot = await (
+      dependencies.overrideTransactionCommission ?? overrideTransactionCommission
+    )({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
@@ -57,4 +61,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
+    return NextResponse.json({ error: "Commission override access required." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleOverrideTransactionCommissionPost(request, transactionId, context);
 }

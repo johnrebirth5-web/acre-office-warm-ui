@@ -6,7 +6,7 @@ import {
 
 const transactionCommissionOverrideRowSchema = z.object({
   key: z.string().trim().min(1, "Each override row must include a stable key."),
-  membershipId: domainId("Enter a valid identifier.").optional().default(""),
+  membershipId: z.union([domainId("Enter a valid identifier."), z.literal("")]).optional().default(""),
   amount: amountString("Every override row must include a valid amount.").min(
     1,
     "Every override row must include a valid amount.",
