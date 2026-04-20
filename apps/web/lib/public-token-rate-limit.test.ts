@@ -1,6 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPublicTokenRateLimitKey, buildPublicTokenRateLimitResponse, consumePublicTokenRateLimit } from "./public-token-rate-limit";
+import {
+  resetRateLimitStateForTesting,
+} from "./rate-limit";
+import {
+  buildPublicTokenRateLimitKey,
+  buildPublicTokenRateLimitResponse,
+  consumePublicTokenRateLimit,
+} from "./public-token-rate-limit";
+
+function captureStderrWrites() {
+  const writes: string[] = [];
+  const originalWrite = process.stderr.write;
+
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    writes.push(
+      typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
+    );
+    return true;
+  }) as typeof process.stderr.write;
+
+  return {
+    restore() {
+      process.stderr.write = originalWrite;
+    },
+    writes,
+  };
+}
 
 test("buildPublicTokenRateLimitKey hashes the token segment instead of exposing the raw token", () => {
   const key = buildPublicTokenRateLimitKey(
@@ -61,4 +87,72 @@ test("buildPublicTokenRateLimitResponse sets retry headers for callers", async (
   assert.deepEqual(await response.json(), {
     error: "Too many signature view attempts. Please try again in a moment.",
   });
+});
+
+test("consumePublicTokenRateLimit falls back to per-process memory when the shared backend throws", async () => {
+  resetRateLimitStateForTesting();
+  const stderr = captureStderrWrites();
+
+  try {
+    const firstDecision = await consumePublicTokenRateLimit({
+      scope: "public/signatures/read",
+      request: {
+        get(name: string) {
+          return name.toLowerCase() === "x-forwarded-for"
+            ? "203.0.113.7"
+            : null;
+        },
+      },
+      token: "signature_token_123",
+      options: {
+        limit: 1,
+        windowMs: 60_000,
+        now: 1_000,
+      },
+      consumer: async () => {
+        throw new Error("upstash unavailable");
+      },
+    });
+
+    const secondDecision = await consumePublicTokenRateLimit({
+      scope: "public/signatures/read",
+      request: {
+        get(name: string) {
+          return name.toLowerCase() === "x-forwarded-for"
+            ? "203.0.113.7"
+            : null;
+        },
+      },
+      token: "signature_token_123",
+      options: {
+        limit: 1,
+        windowMs: 60_000,
+        now: 1_500,
+      },
+      consumer: async () => {
+        throw new Error("upstash unavailable");
+      },
+    });
+
+    assert.equal(firstDecision.allowed, true);
+    assert.equal(firstDecision.remaining, 0);
+    assert.equal(secondDecision.allowed, false);
+    assert.equal(secondDecision.retryAfterSeconds, 60);
+    assert.ok(stderr.writes.length >= 2);
+
+    const payload = JSON.parse(stderr.writes[0]?.trim() ?? "{}") as {
+      error?: string;
+      key?: string;
+      kind?: string;
+      scope?: string;
+    };
+
+    assert.equal(payload.kind, "public_token_rate_limit_fallback");
+    assert.equal(payload.scope, "public/signatures/read");
+    assert.match(payload.key ?? "", /^public\/signatures\/read:203\.0\.113\.7:[a-f0-9]{24}$/);
+    assert.equal(payload.error, "upstash unavailable");
+  } finally {
+    stderr.restore();
+    resetRateLimitStateForTesting();
+  }
 });
