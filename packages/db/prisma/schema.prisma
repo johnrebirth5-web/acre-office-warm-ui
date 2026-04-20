@@ -1475,6 +1475,7 @@ model StudioListingPack {
   coverAssetId             String?
   shareEnabled             Boolean                       @default(false)
   companyFeedVisible       Boolean                       @default(false)
+  companyFeedLabel         String?
   companyFeedPublishedAt   DateTime?
   shareCode                String?                       @unique
   legacyShareCode          String?                       @unique

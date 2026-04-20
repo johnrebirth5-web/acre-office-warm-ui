@@ -107,6 +107,7 @@ async function createStudioListingsTestContext() {
     latitude?: number | null;
     longitude?: number | null;
     companyFeedVisible?: boolean;
+    companyFeedLabel?: string | null;
   }) {
     const importRecord = await prisma.studioListingImport.create({
       data: {
@@ -162,6 +163,9 @@ async function createStudioListingsTestContext() {
         bulletPointsJson: ["Bedrooms: 2", "Bathrooms: 2"],
         selectedAssetIdsJson: Prisma.JsonNull,
         companyFeedVisible: input.companyFeedVisible ?? false,
+        companyFeedLabel:
+          input.companyFeedLabel ??
+          (input.companyFeedVisible ? "Acre Featured" : null),
         companyFeedPublishedAt: input.companyFeedVisible ? new Date() : null,
         companyFeedPublishedByMembershipId: input.companyFeedVisible
           ? input.membershipId
@@ -331,6 +335,11 @@ test("admin imports are saved personally and published to the company dashboard"
         ?.companyFeedVisible,
       true,
     );
+    assert.equal(
+      dashboard.items.find((item) => item.packId === imported.packId)
+        ?.companyFeedLabel,
+      "Acre Featured",
+    );
   } finally {
     await context.cleanup();
   }
@@ -449,8 +458,10 @@ test("company dashboard only returns packs currently published to the feed", asy
       membershipId: context.adminMembership.id,
       packId: hiddenPack.packId,
       companyFeedVisible: true,
+      companyFeedLabel: "Acre Exclusive",
     });
     assert.equal(published?.pack.companyFeedVisible, true);
+    assert.equal(published?.pack.companyFeedLabel, "Acre Exclusive");
 
     const dashboardAfterPublish = await getListingStudioCompanyDashboard({
       organizationId: context.organization.id,
@@ -462,6 +473,11 @@ test("company dashboard only returns packs currently published to the feed", asy
     assert.ok(
       dashboardAfterPublish.items.some((item) => item.packId === hiddenPack.packId),
     );
+    assert.equal(
+      dashboardAfterPublish.items.find((item) => item.packId === hiddenPack.packId)
+        ?.companyFeedLabel,
+      "Acre Exclusive",
+    );
 
     const unpublished = await updateStudioListingPack({
       organizationId: context.organization.id,
@@ -470,6 +486,7 @@ test("company dashboard only returns packs currently published to the feed", asy
       companyFeedVisible: false,
     });
     assert.equal(unpublished?.pack.companyFeedVisible, false);
+    assert.equal(unpublished?.pack.companyFeedLabel, "Acre Exclusive");
 
     const dashboardAfterUnpublish = await getListingStudioCompanyDashboard({
       organizationId: context.organization.id,

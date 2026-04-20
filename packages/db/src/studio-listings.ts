@@ -18,6 +18,8 @@ type StudioFloorPlanItem = { label: string; url?: string | null; assetId?: strin
 type StudioDetailSection = { title: string; items: string[] };
 type StudioLabeledValue = { label: string; value: string };
 
+const DEFAULT_STUDIO_LISTING_COMPANY_FEED_LABEL = "Acre Featured";
+
 export type StudioCapturedAssetInput = {
   kind?: StudioListingAssetKind | null;
   url: string;
@@ -83,6 +85,7 @@ export type StudioListingListItem = {
   heroAssetId: string | null;
   shareEnabled: boolean;
   companyFeedVisible: boolean;
+  companyFeedLabel: string | null;
   companyFeedPublishedAt: string | null;
   savedAt: string | null;
   savedSource: StudioListingSavedPackSource | null;
@@ -174,6 +177,7 @@ export type StudioListingDetailSnapshot = {
     shareEnabled: boolean;
     shareCode: string | null;
     companyFeedVisible: boolean;
+    companyFeedLabel: string | null;
     companyFeedPublishedAt: string | null;
     agentNote: string;
     contactName: string;
@@ -346,6 +350,14 @@ function createStudioListingPackShareCode() {
 
 function trimString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function resolveCompanyFeedLabel(
+  value: unknown,
+  companyFeedVisible: boolean,
+) {
+  return trimString(value) ??
+    (companyFeedVisible ? DEFAULT_STUDIO_LISTING_COMPANY_FEED_LABEL : null);
 }
 
 function normalizeCollectionName(value: string) {
@@ -1545,6 +1557,9 @@ export async function createStudioListingImport(input: CreateStudioListingImport
           selectedAssetIdsJson: selectedAssetIds,
           coverAssetId,
           companyFeedVisible: shouldPublishToCompanyFeed,
+          companyFeedLabel: shouldPublishToCompanyFeed
+            ? DEFAULT_STUDIO_LISTING_COMPANY_FEED_LABEL
+            : null,
           companyFeedPublishedAt: shouldPublishToCompanyFeed ? new Date() : null,
           contactName:
             `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email,
@@ -1639,6 +1654,10 @@ function mapListItem(
     heroAssetId,
     shareEnabled: record.shareEnabled,
     companyFeedVisible: record.companyFeedVisible,
+    companyFeedLabel: resolveCompanyFeedLabel(
+      record.companyFeedLabel,
+      record.companyFeedVisible,
+    ),
     companyFeedPublishedAt: record.companyFeedPublishedAt?.toISOString() ?? null,
     savedAt: options?.savedPack?.createdAt.toISOString() ?? null,
     savedSource: options?.savedPack?.source ?? null,
@@ -2352,6 +2371,10 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
       shareEnabled: record.shareEnabled,
       shareCode: record.shareCode,
       companyFeedVisible: record.companyFeedVisible,
+      companyFeedLabel: resolveCompanyFeedLabel(
+        record.companyFeedLabel,
+        record.companyFeedVisible,
+      ),
       companyFeedPublishedAt: record.companyFeedPublishedAt?.toISOString() ?? null,
       agentNote: record.agentNote?.trim() || "",
       contactName: record.contactName?.trim() || "",
@@ -2447,6 +2470,7 @@ export async function updateStudioListingPack(input: {
   amenities?: StudioAmenitySection[];
   sourceFacts?: StudioLabeledValue[];
   companyFeedVisible?: boolean;
+  companyFeedLabel?: string | null;
 }) {
   const existing = await prisma.studioListingPack.findFirst({
     where: {
@@ -2654,6 +2678,23 @@ export async function updateStudioListingPack(input: {
     input.companyFeedVisible === undefined
       ? existing.companyFeedVisible
       : input.companyFeedVisible;
+  const existingCompanyFeedLabel = resolveCompanyFeedLabel(
+    existing.companyFeedLabel,
+    existing.companyFeedVisible,
+  );
+  const requestedCompanyFeedLabel =
+    input.companyFeedLabel === undefined
+      ? undefined
+      : trimString(input.companyFeedLabel);
+  const nextCompanyFeedLabel =
+    requestedCompanyFeedLabel !== undefined
+      ? requestedCompanyFeedLabel ??
+        (nextCompanyFeedVisible
+          ? DEFAULT_STUDIO_LISTING_COMPANY_FEED_LABEL
+          : existingCompanyFeedLabel)
+      : nextCompanyFeedVisible
+        ? existingCompanyFeedLabel ?? DEFAULT_STUDIO_LISTING_COMPANY_FEED_LABEL
+        : existingCompanyFeedLabel;
   const nextCompanyFeedPublishedAt = nextCompanyFeedVisible
     ? existing.companyFeedVisible && existing.companyFeedPublishedAt
       ? existing.companyFeedPublishedAt
@@ -2705,6 +2746,7 @@ export async function updateStudioListingPack(input: {
       selectedAssetIdsJson: selectedAssetIds,
       coverAssetId: nextCoverAssetId,
       companyFeedVisible: nextCompanyFeedVisible,
+      companyFeedLabel: nextCompanyFeedLabel,
       companyFeedPublishedAt: nextCompanyFeedPublishedAt,
       companyFeedPublishedByMembershipId: nextCompanyFeedPublishedByMembershipId,
       agentNote: nextAgentNote,

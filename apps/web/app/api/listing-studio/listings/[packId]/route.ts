@@ -111,15 +111,21 @@ export async function handleUpdateStudioListingPackPatch(
         amenities?: Array<{ title: string; items: string[] }>;
         sourceFacts?: Array<{ label: string; value: string }>;
         companyFeedVisible?: boolean;
+        companyFeedLabel?: string | null;
       }
     | null;
   const requestedCompanyFeedVisibility =
     typeof body?.companyFeedVisible === "boolean"
       ? body.companyFeedVisible
       : undefined;
+  const requestedCompanyFeedLabel =
+    typeof body?.companyFeedLabel === "string" || body?.companyFeedLabel === null
+      ? body.companyFeedLabel
+      : undefined;
 
   if (
-    requestedCompanyFeedVisibility !== undefined &&
+    (requestedCompanyFeedVisibility !== undefined ||
+      requestedCompanyFeedLabel !== undefined) &&
     !canManageListingStudioCompanyFeed(context.currentMembership)
   ) {
     return NextResponse.json(
@@ -177,6 +183,7 @@ export async function handleUpdateStudioListingPackPatch(
     amenities: Array.isArray(body?.amenities) ? body.amenities : undefined,
     sourceFacts: Array.isArray(body?.sourceFacts) ? body.sourceFacts : undefined,
     companyFeedVisible: requestedCompanyFeedVisibility,
+    companyFeedLabel: requestedCompanyFeedLabel,
   });
 
   if (!detail) {

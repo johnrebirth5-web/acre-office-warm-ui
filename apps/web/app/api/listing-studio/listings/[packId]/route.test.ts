@@ -37,6 +37,7 @@ test("handleUpdateStudioListingPackPatch rejects company dashboard visibility ch
   const response = await handleUpdateStudioListingPackPatch(
     createPatchRequest({
       companyFeedVisible: true,
+      companyFeedLabel: "Acre Exclusive",
     }),
     "pack_123",
     {
@@ -62,6 +63,7 @@ test("handleUpdateStudioListingPackPatch forwards company dashboard visibility f
     createPatchRequest({
       headline: "Updated headline",
       companyFeedVisible: false,
+      companyFeedLabel: "Acre Exclusive",
     }),
     "pack_123",
     {
@@ -87,6 +89,7 @@ test("handleUpdateStudioListingPackPatch forwards company dashboard visibility f
   assert.equal(capturedInput?.["packId"], "pack_123");
   assert.equal(capturedInput?.["headline"], "Updated headline");
   assert.equal(capturedInput?.["companyFeedVisible"], false);
+  assert.equal(capturedInput?.["companyFeedLabel"], "Acre Exclusive");
   assert.deepEqual(await response.json(), {
     packId: "pack_123",
   });

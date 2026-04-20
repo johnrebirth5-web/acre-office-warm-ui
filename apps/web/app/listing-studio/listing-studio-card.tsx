@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ConfirmActionDialog } from "@acre/ui";
+import { ConfirmActionDialog, FormField, TextInput } from "@acre/ui";
 import { startTransition, useState } from "react";
 import type {
   StudioListingCompanyFeedItem,
@@ -11,6 +11,19 @@ import type {
 import { StudioCollectionPicker } from "./studio-collection-picker";
 
 type ListingStudioCardMode = "personal" | "dashboard";
+
+const DEFAULT_COMPANY_FEED_LABEL = "Acre Featured";
+const OTHER_COMPANY_FEED_LABEL = "Other";
+const COMPANY_FEED_LABEL_OPTIONS = [
+  "Acre Exclusive",
+  "Acre Lising",
+  "Acre Agent Rep",
+  "Acre Featured",
+  "Acre Off-Market",
+] as const;
+
+type CompanyFeedPresetLabel = (typeof COMPANY_FEED_LABEL_OPTIONS)[number];
+type CompanyFeedLabelChoice = CompanyFeedPresetLabel | typeof OTHER_COMPANY_FEED_LABEL;
 
 type ListingStudioCardProps = {
   item: StudioListingListItem | StudioListingCompanyFeedItem;
@@ -39,6 +52,47 @@ function readInitialSavedState(
   }
 
   return Boolean(item.savedAt);
+}
+
+function resolveCompanyFeedLabel(
+  label: string | null | undefined,
+  companyFeedVisible: boolean,
+) {
+  const trimmedLabel = label?.trim() || null;
+
+  return trimmedLabel ?? (companyFeedVisible ? DEFAULT_COMPANY_FEED_LABEL : null);
+}
+
+function readCompanyFeedLabelChoice(
+  label: string | null | undefined,
+): {
+  choice: CompanyFeedLabelChoice;
+  customLabel: string;
+} {
+  const normalizedLabel = label?.trim() || "";
+
+  if (!normalizedLabel) {
+    return {
+      choice: DEFAULT_COMPANY_FEED_LABEL,
+      customLabel: "",
+    };
+  }
+
+  const presetChoice = COMPANY_FEED_LABEL_OPTIONS.find(
+    (option) => option === normalizedLabel,
+  );
+
+  if (presetChoice) {
+    return {
+      choice: presetChoice,
+      customLabel: "",
+    };
+  }
+
+  return {
+    choice: OTHER_COMPANY_FEED_LABEL,
+    customLabel: normalizedLabel,
+  };
 }
 
 function IconTrash() {
@@ -73,9 +127,22 @@ export function ListingStudioCard({
   const [isSavedToMyListings, setIsSavedToMyListings] = useState(
     readInitialSavedState(item),
   );
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [publishDialogError, setPublishDialogError] = useState<string | null>(null);
   const [isUpdatingCompanyFeed, setIsUpdatingCompanyFeed] = useState(false);
   const [companyFeedVisible, setCompanyFeedVisible] = useState(
     item.companyFeedVisible,
+  );
+  const [companyFeedLabel, setCompanyFeedLabel] = useState(
+    resolveCompanyFeedLabel(item.companyFeedLabel, item.companyFeedVisible),
+  );
+  const initialCompanyFeedChoice = readCompanyFeedLabelChoice(
+    resolveCompanyFeedLabel(item.companyFeedLabel, item.companyFeedVisible),
+  );
+  const [companyFeedLabelChoice, setCompanyFeedLabelChoice] =
+    useState<CompanyFeedLabelChoice>(initialCompanyFeedChoice.choice);
+  const [customCompanyFeedLabel, setCustomCompanyFeedLabel] = useState(
+    initialCompanyFeedChoice.customLabel,
   );
 
   if (isHidden || (mode === "dashboard" && !companyFeedVisible)) {
@@ -155,7 +222,21 @@ export function ListingStudioCard({
     }
   }
 
-  async function handleCompanyFeedToggle(nextVisible: boolean) {
+  function openPublishDialog() {
+    const nextChoice = readCompanyFeedLabelChoice(
+      resolveCompanyFeedLabel(companyFeedLabel, companyFeedVisible),
+    );
+
+    setCompanyFeedLabelChoice(nextChoice.choice);
+    setCustomCompanyFeedLabel(nextChoice.customLabel);
+    setPublishDialogError(null);
+    setIsPublishDialogOpen(true);
+  }
+
+  async function handleCompanyFeedToggle(
+    nextVisible: boolean,
+    nextLabel?: string | null,
+  ) {
     if (isUpdatingCompanyFeed) {
       return;
     }
@@ -170,6 +251,7 @@ export function ListingStudioCard({
         },
         body: JSON.stringify({
           companyFeedVisible: nextVisible,
+          ...(nextLabel !== undefined ? { companyFeedLabel: nextLabel } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as
@@ -183,6 +265,15 @@ export function ListingStudioCard({
       }
 
       setCompanyFeedVisible(nextVisible);
+      if (nextLabel !== undefined) {
+        setCompanyFeedLabel(resolveCompanyFeedLabel(nextLabel, nextVisible));
+      } else if (nextVisible) {
+        setCompanyFeedLabel((currentLabel) =>
+          resolveCompanyFeedLabel(currentLabel, true),
+        );
+      }
+      setPublishDialogError(null);
+      setIsPublishDialogOpen(false);
       if (mode === "dashboard" && !nextVisible) {
         setIsHidden(true);
       }
@@ -195,6 +286,20 @@ export function ListingStudioCard({
     } finally {
       setIsUpdatingCompanyFeed(false);
     }
+  }
+
+  async function handlePublishToDashboard() {
+    const nextLabel =
+      companyFeedLabelChoice === OTHER_COMPANY_FEED_LABEL
+        ? customCompanyFeedLabel.trim()
+        : companyFeedLabelChoice;
+
+    if (!nextLabel) {
+      setPublishDialogError("Enter a custom label before publishing.");
+      return;
+    }
+
+    await handleCompanyFeedToggle(true, nextLabel);
   }
 
   return (
@@ -250,7 +355,7 @@ export function ListingStudioCard({
               ) : null}
               {companyFeedVisible ? (
                 <span className="office-status-badge office-status-badge-accent">
-                  Company dashboard
+                  {companyFeedLabel || DEFAULT_COMPANY_FEED_LABEL}
                 </span>
               ) : null}
             </div>
@@ -298,9 +403,9 @@ export function ListingStudioCard({
                 className="office-button office-button-secondary"
                 disabled={isUpdatingCompanyFeed}
                 onClick={() =>
-                  void handleCompanyFeedToggle(
-                    mode === "dashboard" ? false : !companyFeedVisible,
-                  )
+                  mode === "dashboard" || companyFeedVisible
+                    ? void handleCompanyFeedToggle(false)
+                    : openPublishDialog()
                 }
                 type="button"
               >
@@ -334,6 +439,85 @@ export function ListingStudioCard({
         title={`Delete ${item.displayTitle || item.addressLine}?`}
       >
         <p>This action cannot be undone.</p>
+      </ConfirmActionDialog>
+
+      <ConfirmActionDialog
+        cancelLabel="Cancel"
+        confirmLabel={isUpdatingCompanyFeed ? "Publishing..." : "Confirm"}
+        confirmVariant="primary"
+        description="Choose the status label that should appear on this card after it is published to the company dashboard."
+        isOpen={isPublishDialogOpen}
+        onCancel={() => {
+          if (!isUpdatingCompanyFeed) {
+            setPublishDialogError(null);
+            setIsPublishDialogOpen(false);
+          }
+        }}
+        onConfirm={() => {
+          void handlePublishToDashboard();
+        }}
+        title={`Publish ${item.displayTitle || item.addressLine} to dashboard?`}
+      >
+        <div className="listing-studio-publish-dialog">
+          <div
+            aria-label="Company dashboard status label"
+            className="listing-studio-publish-options"
+            role="radiogroup"
+          >
+            {COMPANY_FEED_LABEL_OPTIONS.map((option) => (
+              <label
+                className={`listing-studio-publish-option${companyFeedLabelChoice === option ? " is-selected" : ""}`}
+                key={option}
+              >
+                <input
+                  checked={companyFeedLabelChoice === option}
+                  name={`company-feed-label-${item.packId}`}
+                  onChange={() => {
+                    setCompanyFeedLabelChoice(option);
+                    setPublishDialogError(null);
+                  }}
+                  type="radio"
+                  value={option}
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+
+            <label
+              className={`listing-studio-publish-option${companyFeedLabelChoice === OTHER_COMPANY_FEED_LABEL ? " is-selected" : ""}`}
+            >
+              <input
+                checked={companyFeedLabelChoice === OTHER_COMPANY_FEED_LABEL}
+                name={`company-feed-label-${item.packId}`}
+                onChange={() => {
+                  setCompanyFeedLabelChoice(OTHER_COMPANY_FEED_LABEL);
+                  setPublishDialogError(null);
+                }}
+                type="radio"
+                value={OTHER_COMPANY_FEED_LABEL}
+              />
+              <span>{OTHER_COMPANY_FEED_LABEL}</span>
+            </label>
+          </div>
+
+          {companyFeedLabelChoice === OTHER_COMPANY_FEED_LABEL ? (
+            <FormField label="Custom label">
+              <TextInput
+                maxLength={48}
+                onChange={(event) => {
+                  setCustomCompanyFeedLabel(event.target.value);
+                  setPublishDialogError(null);
+                }}
+                placeholder="Enter a custom dashboard label"
+                value={customCompanyFeedLabel}
+              />
+            </FormField>
+          ) : null}
+
+          {publishDialogError ? (
+            <p className="listing-studio-publish-error">{publishDialogError}</p>
+          ) : null}
+        </div>
       </ConfirmActionDialog>
     </>
   );
