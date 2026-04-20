@@ -47,8 +47,29 @@ export const LISTING_STUDIO_EXTENSION_APPROVE_RATE_LIMIT_OPTIONS = {
   windowMs: 15 * 60 * 1000,
 } satisfies RateLimitOptions;
 
+function isHeaderReader(value: unknown): value is HeaderReader {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "get" in value &&
+      typeof (value as { get?: unknown }).get === "function",
+  );
+}
+
 function resolveHeaders(input: HeaderSource): HeaderReader {
-  return "headers" in input ? input.headers : input;
+  if (isHeaderReader(input)) {
+    return input;
+  }
+
+  if (isHeaderReader(input.headers)) {
+    return input.headers;
+  }
+
+  return {
+    get() {
+      return null;
+    },
+  };
 }
 
 export function buildPublicTokenRateLimitKey(
