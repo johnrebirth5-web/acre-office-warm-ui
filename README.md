@@ -1038,6 +1038,28 @@ npm run docker:dev:keepalive
 npm run docker:dev:down
 ```
 
+## 一次性员工 / Transaction 导入
+
+2026-04 的三公司 legacy roster + transaction 清库导入使用一次性 CLI：
+
+```bash
+npm run import:acre-2026-04 -- analyze
+npm run import:acre-2026-04 -- run --dry-run
+npm run import:acre-2026-04 -- run --execute
+```
+
+- 脚本入口：`scripts/import/acre-2026-04/index.ts`
+- 默认源目录：`/Users/openclaw_john/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/veryjohn_99bc/msg/file/2026-04`
+- 默认报告目录：`.local-storage/legacy-import-reports`
+- 真正写库只在显式传入 `--execute` 时发生；默认是 dry-run
+- `run` 会按 `reset-business-data -> import-users -> import-transactions` 串行执行
+- `reset` 会保留 organization、3 个 offices、字段配置、角色模板和 bootstrap admin，只清业务 roster / contacts / transactions / commissions / payouts / invitations 等可重建业务数据
+- transaction 只导入 `pending / closed`，其余状态写入跳过报告
+
+详细映射、已知限制和执行说明见：
+
+- [docs/specs/legacy-import-2026-04.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/legacy-import-2026-04.md)
+
 如果你当前本地开发直接连的是 `DigitalOcean` 上的数据库，并且希望本地网站尽量一直在线、同时保持 `next dev` 开发态，可以额外开一个终端长期运行：
 
 ```bash

@@ -207,6 +207,16 @@ export {
   revokeInvitationForMembership,
   unlockInternalAccount,
 } from "./auth";
+export {
+  ensureLegacyImportBootstrapContext,
+  mapLegacyImportedUserRole,
+  normalizeLegacyImportNameForLookup,
+  normalizeLegacyTransactionRow,
+  previewResetOrganizationBusinessData,
+  resetOrganizationBusinessData,
+  splitImportedFullName,
+  upsertImportedActiveUser,
+} from "./legacy-import";
 export { getSeededWorkspaceSnapshot } from "./bootstrap";
 export {
   getOfficeAccountSnapshot,
@@ -702,6 +712,18 @@ export type {
   SessionMembershipContext,
   UnlockInternalAccountInput,
 } from "./auth";
+export type {
+  LegacyImportIssue,
+  LegacyNormalizedTransactionRow,
+  LegacyTransactionContactMatchInput,
+  LegacyUserImportRole,
+  ResetOrganizationBusinessDataInput,
+  ResetOrganizationBusinessDataPreview,
+  ResetOrganizationBusinessDataResult,
+  SplitImportedFullNameResult,
+  UpsertImportedActiveUserInput,
+  UpsertImportedActiveUserResult,
+} from "./legacy-import";
 export type {
   GetOfficeAccountSnapshotInput,
   OfficeAccountNotificationPreferenceState,

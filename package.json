@@ -17,6 +17,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "provision:backoffice-accounts": "tsx scripts/provision-backoffice-initial-accounts.ts",
+    "import:acre-2026-04": "tsx scripts/import/acre-2026-04/index.ts",
     "deploy:digitalocean": "bash ./scripts/deploy-digitalocean.sh",
     "hooks:install": "git config core.hooksPath .githooks",
     "scan:secrets": "bash ./scripts/run-gitleaks.sh detect --source . --no-git --config .gitleaks.toml --redact --no-banner",
