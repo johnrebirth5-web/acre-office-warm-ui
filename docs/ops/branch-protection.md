@@ -1,6 +1,6 @@
 # GitHub 分支保护设置清单
 
-目标：允许直接推送到 `main`，但继续保留 CI、管理员约束和防误操作保护，避免强推覆盖或误删主线。
+目标：允许直接推送到 `main`，不再把 PR 或 CI 检查设为 merge / push 门槛，同时继续保留防强推和防误删保护。
 
 适用仓库：`johnrebirth5-web/acre-office-warm-ui`
 
@@ -20,11 +20,7 @@ GitHub 仓库页面：
 
 - branch pattern = `main`
 - `Require a pull request before merging` 已关闭
-- `Require status checks to pass before merging` 已开启
-- `Require branches to be up to date before merging` 已开启
-- required checks:
-  - `verify`
-  - `hardening-tests`
+- `Require status checks to pass before merging` 已关闭
 - `Do not allow bypassing the above settings` 已开启
 - `Allow force pushes` 关闭
 - `Allow deletions` 关闭
@@ -47,22 +43,7 @@ gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection
 
 ## 必须开启的规则
 
-### 1. Require status checks to pass before merging
-
-为什么要开：
-
-- 没有这个开关，CI 只是“会跑”，不是“必须过”
-- 当前仓库最关键的两条检查是 `verify` 和 `hardening-tests`
-
-推荐值：
-
-- `Require status checks to pass before merging`
-- `Require branches to be up to date before merging`
-- Required checks:
-  - `verify`
-  - `hardening-tests`
-
-### 2. No force push
+### 1. No force push
 
 为什么要开：
 
@@ -73,7 +54,7 @@ gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection
 
 - 保持 `Allow force pushes` 为关闭状态
 
-### 3. No deletions
+### 2. No deletions
 
 为什么要开：
 
@@ -84,12 +65,12 @@ gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection
 
 - 保持 `Allow deletions` 为关闭状态
 
-### 4. No bypass for administrators
+### 3. No bypass for administrators
 
 为什么要开：
 
 - 即使管理员也要受同一套主线保护约束
-- 即使允许 direct push，也不应该允许静默改掉保护后无痕绕过
+- 即使允许 direct push，也不应该静默放开剩余保护项
 
 推荐值：
 
@@ -98,20 +79,16 @@ gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection
 ## 当前协作含义
 
 - 允许有权限的成员直接 push 到 `main`
-- 保留 `verify` 与 `hardening-tests` 作为 PR merge 时的必过检查
-- 如果选择走 PR，仍然要求分支在 merge 前与 `main` 保持最新
-- 不再要求 approval 或 stale review 规则，因为当前不强制 PR
+- 不再要求 PR、approval、stale review 或 required checks
+- `.github/workflows/ci.yml` 里的 `verify` 与 `hardening-tests` 仍然存在，但现在是“运行后观察结果”，不是 branch protection 门槛
 
-直接推送 `main` 时，建议至少在本地先跑一次与你这次改动相称的校验；推送后仍应关注 GitHub Actions 结果。
+直接推送 `main` 时，建议至少在本地先跑一次与你这次改动相称的校验；推送后仍应关注 GitHub Actions 结果，因为它们不再替你自动挡住有问题的提交。
 
 ## 最终检查表
 
 - [ ] branch pattern = `main`
 - [ ] `Require a pull request before merging` 已关闭
-- [ ] `Require status checks to pass before merging` 已开启
-- [ ] required checks 包含 `verify`
-- [ ] required checks 包含 `hardening-tests`
-- [ ] `Require branches to be up to date before merging` 已开启
+- [ ] `Require status checks to pass before merging` 已关闭
 - [ ] `Do not allow bypassing the above settings` 已开启
 - [ ] `Allow force pushes` 关闭
 - [ ] `Allow deletions` 关闭

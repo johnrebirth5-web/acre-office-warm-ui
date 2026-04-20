@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_NAME="johnrebirth5-web/acre-office-warm-ui"
 BRANCH_NAME="main"
+REQUIRE_STATUS_CHECKS=0
 REQUIRED_CHECKS=("verify" "hardening-tests")
 REQUIRE_PULL_REQUESTS=0
 REQUIRED_APPROVALS=0
@@ -11,11 +12,12 @@ CUSTOM_REQUIRED_CHECKS=0
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--require-pr] [--required-approvals N] [--required-check NAME]
+  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--require-pr] [--require-status-checks] [--required-approvals N] [--required-check NAME]
 
 Example:
-  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --required-check verify --required-check hardening-tests
-  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --require-pr --required-approvals 0 --required-check verify --required-check hardening-tests
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --require-status-checks --required-check verify --required-check hardening-tests
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --require-pr --required-approvals 0 --require-status-checks --required-check verify --required-check hardening-tests
 EOF
 }
 
@@ -48,11 +50,16 @@ while [[ $# -gt 0 ]]; do
         REQUIRED_CHECKS=()
         CUSTOM_REQUIRED_CHECKS=1
       fi
+      REQUIRE_STATUS_CHECKS=1
       REQUIRED_CHECKS+=("$2")
       shift 2
       ;;
     --require-pr)
       REQUIRE_PULL_REQUESTS=1
+      shift
+      ;;
+    --require-status-checks)
+      REQUIRE_STATUS_CHECKS=1
       shift
       ;;
     --required-approvals)
@@ -132,34 +139,50 @@ else
   report_fail "administrators can bypass branch protection"
 fi
 
-if jq -e '.required_status_checks != null' "$response_tmp" >/dev/null; then
-  report_ok "required status checks are enabled"
-else
-  report_fail "required status checks are not enabled"
-fi
-
-if jq -e '.required_status_checks.strict == true' "$response_tmp" >/dev/null; then
-  report_ok "branches must be up to date before merge"
-else
-  report_fail "branches are not required to be up to date before merge"
-fi
-
-for required_check in "${REQUIRED_CHECKS[@]}"; do
-  if jq -e --arg required_check "$required_check" '
-    [
-      (.required_status_checks.contexts // []),
-      ((.required_status_checks.checks // []) | map(.context))
-    ]
-    | add
-    | map(select(. != null))
-    | unique
-    | index($required_check) != null
-  ' "$response_tmp" >/dev/null; then
-    report_ok "required status checks include $required_check"
+if [[ "$REQUIRE_STATUS_CHECKS" -eq 1 ]]; then
+  if jq -e '.required_status_checks != null' "$response_tmp" >/dev/null; then
+    report_ok "required status checks are enabled"
   else
-    report_fail "required status checks do not include $required_check"
+    report_fail "required status checks are not enabled"
   fi
-done
+else
+  if jq -e '.required_status_checks == null' "$response_tmp" >/dev/null; then
+    report_ok "required status checks are not enabled"
+  else
+    report_fail "required status checks are still enabled"
+  fi
+fi
+
+if [[ "$REQUIRE_STATUS_CHECKS" -eq 1 ]]; then
+  if jq -e '.required_status_checks.strict == true' "$response_tmp" >/dev/null; then
+    report_ok "branches must be up to date before merge"
+  else
+    report_fail "branches are not required to be up to date before merge"
+  fi
+else
+  report_ok "branch up-to-date checks are not configured"
+fi
+
+if [[ "$REQUIRE_STATUS_CHECKS" -eq 1 ]]; then
+  for required_check in "${REQUIRED_CHECKS[@]}"; do
+    if jq -e --arg required_check "$required_check" '
+      [
+        (.required_status_checks.contexts // []),
+        ((.required_status_checks.checks // []) | map(.context))
+      ]
+      | add
+      | map(select(. != null))
+      | unique
+      | index($required_check) != null
+    ' "$response_tmp" >/dev/null; then
+      report_ok "required status checks include $required_check"
+    else
+      report_fail "required status checks do not include $required_check"
+    fi
+  done
+else
+  report_ok "named required status checks are not configured"
+fi
 
 if jq -e '.allow_force_pushes.enabled == false' "$response_tmp" >/dev/null; then
   report_ok "force pushes are disabled"
