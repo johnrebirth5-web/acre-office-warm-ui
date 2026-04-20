@@ -446,6 +446,11 @@ Behavior when the configured rate limit backend (Redis or Upstash) throws.
 - `closed`: propagate the error to the caller (usually becomes a 500). Use
   only if strict enforcement is more important than availability.
 
+Public token-backed routes such as `/share/*`, `/sign/*`, public invite links,
+and Listing Studio shared assets still force a memory fallback even when this
+flag is `closed`, so public links do not white-screen during a shared rate-limit
+backend outage.
+
 ### `ACRE_RATE_LIMIT_REDIS_URL`
 
 用途：

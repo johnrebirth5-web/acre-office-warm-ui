@@ -71,11 +71,37 @@ export async function consumePublicTokenRateLimit(input: {
   request: HeaderSource;
 }): Promise<RateLimitDecision> {
   const consumer = input.consumer ?? consumeRateLimit;
-
-  return consumer(
-    buildPublicTokenRateLimitKey(input.scope, input.request, input.token),
-    input.options,
+  const key = buildPublicTokenRateLimitKey(
+    input.scope,
+    input.request,
+    input.token,
   );
+
+  try {
+    return await consumer(key, input.options);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "unknown");
+
+    process.stderr.write(
+      JSON.stringify({
+        kind: "public_token_rate_limit_fallback",
+        key,
+        scope: input.scope,
+        error: message,
+        ts: new Date().toISOString(),
+      }) + "\n",
+    );
+
+    // Public token routes should never white-screen just because the shared
+    // rate-limit backend is unhealthy. Fall back to a per-process memory
+    // limiter even when the global backend is configured fail-closed.
+    return consumeRateLimit(key, input.options, {
+      env: {
+        ACRE_RATE_LIMIT_BACKEND: "memory",
+      },
+    });
+  }
 }
 
 export function buildPublicTokenRateLimitResponse(
