@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { StudioListingDetailSnapshot } from "@acre/db";
+import { useRouter } from "next/navigation";
 import {
   Button,
   CheckboxField,
@@ -32,6 +33,7 @@ function preloadAssetImage(assetId: string) {
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
+  mode?: "detail" | "edit";
 };
 
 type MediaMode = "photo" | "floorplan" | "map";
@@ -1323,7 +1325,11 @@ function StageActionButton(props: {
   );
 }
 
-export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
+export function ListingStudioDetailClient({
+  detail,
+  mode = "detail",
+}: ListingStudioDetailClientProps) {
+  const router = useRouter();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const editorScrollRef = useRef<HTMLDivElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
@@ -1336,7 +1342,8 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   const [isSharing, setIsSharing] = useState(false);
   const [isUploadingAssets, setIsUploadingAssets] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const isStandaloneEditor = mode === "edit";
+  const [isEditorOpen, setIsEditorOpen] = useState(isStandaloneEditor);
   const [editorState, setEditorState] = useState(() => buildEditorState(detail));
   const [isDropzoneActive, setIsDropzoneActive] = useState(false);
   const [isAddressCopied, setIsAddressCopied] = useState(false);
@@ -1442,7 +1449,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
   }, [activePhoto?.id, photoAssets]);
 
   useEffect(() => {
-    if (!isEditorOpen) {
+    if (!isEditorOpen || isStandaloneEditor) {
       return undefined;
     }
 
@@ -1451,11 +1458,16 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [isEditorOpen]);
+  }, [isEditorOpen, isStandaloneEditor]);
 
   function openEditor() {
     setEditorState(buildEditorState(detailState));
-    setIsEditorOpen(true);
+
+    if (isStandaloneEditor) {
+      return;
+    }
+
+    router.push(`/listing-studio/listings/${detailState.packId}/edit`);
   }
 
   function closeEditor() {
@@ -1464,6 +1476,12 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
     }
 
     setEditorState(buildEditorState(detailState));
+
+    if (isStandaloneEditor) {
+      router.push(`/listing-studio/listings/${detailState.packId}`);
+      return;
+    }
+
     setIsEditorOpen(false);
   }
 
@@ -1803,6 +1821,11 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
       setStatusMessage("Listing changes saved.");
 
       if (options?.closeEditor) {
+        if (isStandaloneEditor) {
+          router.push(`/listing-studio/listings/${nextDetail.packId}`);
+          return;
+        }
+
         setIsEditorOpen(false);
       }
     } catch (error) {
@@ -1866,10 +1889,11 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
 
   return (
     <>
-      <div className="listing-studio-listed-shell">
-        <div className="listing-studio-listed-frame">
-          <div className="listing-studio-listed-main">
-            <div className="listing-studio-view-page">
+      {!isStandaloneEditor ? (
+        <div className="listing-studio-listed-shell">
+          <div className="listing-studio-listed-frame">
+            <div className="listing-studio-listed-main">
+              <div className="listing-studio-view-page">
               <header className="listing-studio-view-header">
                 <div className="listing-studio-view-header-copy">
                   <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
@@ -2184,16 +2208,30 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      ) : null}
 
-      {isEditorOpen ? (
-        <div className="listing-studio-editor-shell" onWheel={handleEditorWheel}>
-          <div className="listing-studio-editor-frame">
+      {isStandaloneEditor || isEditorOpen ? (
+        <div
+          className={
+            isStandaloneEditor
+              ? "listing-studio-editor-page-shell"
+              : "listing-studio-editor-shell"
+          }
+          onWheel={isStandaloneEditor ? undefined : handleEditorWheel}
+        >
+          <div
+            className={
+              isStandaloneEditor
+                ? "listing-studio-editor-page-frame"
+                : "listing-studio-editor-frame"
+            }
+          >
             <section
               aria-label="Edit listing"
-              aria-modal="true"
-              className="listing-studio-editor-surface"
-              role="dialog"
+              aria-modal={isStandaloneEditor ? undefined : true}
+              className={`listing-studio-editor-surface${isStandaloneEditor ? " is-page" : ""}`}
+              role={isStandaloneEditor ? undefined : "dialog"}
             >
               <header className="listing-studio-editor-header">
                 <button className="listing-studio-editor-back" onClick={closeEditor} type="button">
@@ -2209,9 +2247,9 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
               ) : null}
 
               <div
-                className="listing-studio-editor-scroll"
-                ref={editorScrollRef}
-                tabIndex={0}
+                className={`listing-studio-editor-scroll${isStandaloneEditor ? " is-page" : ""}`}
+                ref={isStandaloneEditor ? undefined : editorScrollRef}
+                tabIndex={isStandaloneEditor ? undefined : 0}
               >
                 <section className="listing-studio-editor-section">
                 <div className="listing-studio-editor-section-head">

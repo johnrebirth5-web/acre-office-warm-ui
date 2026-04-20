@@ -9,6 +9,10 @@
 
 ## Recently completed major work
 
+- 2026-04-20: `Listing Studio standalone edit route` now follows the normal page-scroll model instead of trapping the editor inside a fixed internal scroller:
+  - updated [apps/web/app/listing-studio/listings/[packId]/listing-studio-detail-client.tsx](../../apps/web/app/listing-studio/listings/[packId]/listing-studio-detail-client.tsx), added [apps/web/app/listing-studio/listings/[packId]/edit/page.tsx](../../apps/web/app/listing-studio/listings/[packId]/edit/page.tsx), and updated [apps/web/app/globals.css](../../apps/web/app/globals.css) so `Edit listing` now routes to `/listing-studio/listings/[packId]/edit`, `Cancel / Save Changes` return to the saved-listing detail route, and the editor itself scrolls as a normal standalone page instead of a fixed fullscreen dialog with an internal scroll area
+  - updated [README.md](../../README.md) and [docs/architecture.md](../architecture.md) so the documented `Listing Studio` route map now includes the new dedicated edit page
+
 - 2026-04-19: `Prisma pool tuning env contract` now gives Phase 1 a safe, reversible connection-pool control point instead of forcing operators to hand-edit `DATABASE_URL` query strings:
   - updated [packages/db/src/client.ts](../../packages/db/src/client.ts) so Prisma now derives its datasource URL through a small builder that conditionally injects `connection_limit` and `pool_timeout` only when `PRISMA_CONNECTION_LIMIT` / `PRISMA_POOL_TIMEOUT` are explicitly set; leaving those env vars empty preserves the prior runtime behavior
   - added [packages/db/src/client.test.ts](../../packages/db/src/client.test.ts) and updated [package.json](../../package.json) so the pool-tuning URL rewrite logic is regression-tested in the standard hardening suite, including preserving existing query params and ignoring invalid values

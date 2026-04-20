@@ -245,6 +245,7 @@
   - `/listing-studio/collections/[collectionId]`
   - `/listing-studio/shares`
   - `/listing-studio/listings/[packId]`
+  - `/listing-studio/listings/[packId]/edit`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
   - 页面入口虽仍保留 `listing-studio` 路由前缀，但当前已挂到 `Front Office` workspace shell 中，而不是单独第三个 workspace；`Studio` 现在在 FO 侧边栏中作为可展开父级导航出现

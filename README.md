@@ -53,6 +53,7 @@
     - 顶部承接 Chrome extension connect 和 Studio overview
     - 列表主体只显示“我导入的房源 + 我从公司 dashboard 收录的房源”
   - `/listing-studio/listings/[packId]`
+  - `/listing-studio/listings/[packId]/edit`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
