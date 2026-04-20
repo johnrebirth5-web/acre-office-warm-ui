@@ -58,6 +58,37 @@ test("buildRateLimitKey uses the forwarded client identifier and stable hashed s
   assert.equal(hashRateLimitSegment("agent@example.com"), hashedEmail);
 });
 
+test("buildRateLimitKey accepts a direct header reader without a wrapping request object", () => {
+  const hashedEmail = hashRateLimitSegment("agent@example.com");
+  const key = buildRateLimitKey(
+    "auth/login",
+    {
+      get(name: string) {
+        return name.toLowerCase() === "x-forwarded-for"
+          ? "198.51.100.42, 10.0.0.4"
+          : null;
+      },
+    },
+    hashedEmail,
+  );
+
+  assert.equal(key, `auth/login:198.51.100.42:${hashedEmail}`);
+});
+
+test("getRequestClientIdentifier prefers a callable header reader over an unrelated nested headers field", () => {
+  const clientId = getRequestClientIdentifier({
+    get(name: string) {
+      return name.toLowerCase() === "x-real-ip" ? "192.0.2.55" : null;
+    },
+    headers: {},
+  } as {
+    get(name: string): string | null;
+    headers: Record<string, never>;
+  });
+
+  assert.equal(clientId, "192.0.2.55");
+});
+
 test("getRequestClientIdentifier honors trusted proxy header priority modes", () => {
   const request = createRequest({
     "cf-connecting-ip": "198.51.100.8",
