@@ -126,6 +126,64 @@ function getViewLabel(view: FrontOfficeEventCalendarView, isZh?: boolean) {
   return isZh ? "日视图" : "Day";
 }
 
+function getBoardTitle(view: FrontOfficeEventCalendarView, isZh?: boolean) {
+  if (view === "month") {
+    return isZh ? "事件月历看板" : "Event month board";
+  }
+
+  if (view === "week") {
+    return isZh ? "事件周历看板" : "Event week board";
+  }
+
+  return isZh ? "事件日历看板" : "Event day board";
+}
+
+function getShiftLabel(
+  view: FrontOfficeEventCalendarView,
+  step: -1 | 1,
+  isZh?: boolean,
+) {
+  if (view === "month") {
+    return step < 0
+      ? isZh
+        ? "上个月"
+        : "Prev month"
+      : isZh
+        ? "下个月"
+        : "Next month";
+  }
+
+  if (view === "week") {
+    return step < 0
+      ? isZh
+        ? "上一周"
+        : "Prev week"
+      : isZh
+        ? "下一周"
+        : "Next week";
+  }
+
+  return step < 0
+    ? isZh
+      ? "前一天"
+      : "Prev day"
+    : isZh
+      ? "后一天"
+      : "Next day";
+}
+
+function toMonthInputValue(value: string) {
+  return value.slice(0, 7);
+}
+
+function toFocusDateFromMonthInput(value: string) {
+  if (!/^\d{4}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  return `${value}-01`;
+}
+
 function shiftFocusDate(
   focusDate: string,
   view: FrontOfficeEventCalendarView,
@@ -352,6 +410,25 @@ export function FrontOfficeEventHubClient({
         buildHref({
           calendarView: snapshot.view,
           focusDate: new Date().toISOString().slice(0, 10),
+          eventId: selectedEventId ?? undefined,
+          appointmentId: null,
+        }),
+      );
+    });
+  }
+
+  function jumpToMonth(monthValue: string) {
+    const nextFocusDate = toFocusDateFromMonthInput(monthValue);
+
+    if (!nextFocusDate) {
+      return;
+    }
+
+    startRouting(() => {
+      router.push(
+        buildHref({
+          calendarView: snapshot.view,
+          focusDate: nextFocusDate,
           eventId: selectedEventId ?? undefined,
           appointmentId: null,
         }),
@@ -600,18 +677,27 @@ export function FrontOfficeEventHubClient({
             <span className={styles.heroEyebrow}>
               {isZh ? "工作台控制" : "Board controls"}
             </span>
-            <h3>
-              {getViewLabel(snapshot.view, isZh)}
-              {isZh ? "工作台" : " board"}
-            </h3>
+            <h3>{getBoardTitle(snapshot.view, isZh)}</h3>
             <p>
               {isZh
-                ? "在这里切换月、周、日视图，统一查看 shared event、mandatory 和 appointment 事项。"
-                : "Switch month, week, and day views here while keeping shared events, mandatory commitments, and appointments on one board."}
+                ? "在这里按月、周、日查看 shared event 和 appointment，并且可以直接跳到目标月份。"
+                : "Review shared events and appointments by month, week, or day, then jump directly to the month you want."}
             </p>
           </div>
 
           <div className={styles.heroControls}>
+            <label className={styles.monthJumpField}>
+              <span className={styles.monthJumpLabel}>
+                {isZh ? "跳到月份" : "Jump to month"}
+              </span>
+              <input
+                className={`office-input ${styles.monthJumpInput}`}
+                onChange={(event) => jumpToMonth(event.target.value)}
+                type="month"
+                value={toMonthInputValue(snapshot.focusDate)}
+              />
+            </label>
+
             <div className={styles.viewTabs}>
               {(["month", "week", "day"] as const).map((view) => (
                 <Button
@@ -635,7 +721,7 @@ export function FrontOfficeEventHubClient({
                 size="sm"
                 variant="ghost"
               >
-                {isZh ? "上一段" : "Prev"}
+                {getShiftLabel(snapshot.view, -1, isZh)}
               </Button>
               <Button
                 disabled={isRouting}
@@ -651,7 +737,7 @@ export function FrontOfficeEventHubClient({
                 size="sm"
                 variant="ghost"
               >
-                {isZh ? "下一段" : "Next"}
+                {getShiftLabel(snapshot.view, 1, isZh)}
               </Button>
             </div>
           </div>
