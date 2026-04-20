@@ -4,6 +4,7 @@ import { after, test } from "node:test";
 import {
   Prisma,
   StudioListingImportStatus,
+  StudioListingAssetKind,
   StudioListingPackStatus,
   StudioListingSourceSite,
   type UserRole,
@@ -11,10 +12,12 @@ import {
 import {
   addStudioListingPackToCollection,
   createStudioListingCollection,
-  publishStudioListingPack,
+  getStudioListingAssetRecord,
+  getStudioListingPublicPack,
   getStudioListingCollectionDetail,
   listStudioListingCollectionPickerItems,
   listStudioListingCollections,
+  publishStudioListingPack,
   removeStudioListingPackFromCollection,
 } from "./studio-listings.ts";
 import { prisma } from "./client.ts";
@@ -264,6 +267,159 @@ test("publishing a pack mints a high-entropy share code", async () => {
 
     assert.ok(published);
     assert.match(published?.shareCode ?? "", /^pack_[A-Za-z0-9_-]{32}$/);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("legacy share codes resolve public packs during the rotation window", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Legacy Share Window",
+      streetAddress: "12-10 Jackson Avenue",
+      latitude: 40.7445,
+      longitude: -73.9481,
+    });
+    const legacyShareCodeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.studioListingPack.update({
+      where: { id: pack.packId },
+      data: {
+        shareEnabled: true,
+        shareCode: "pack_12345678901234567890123456789012",
+        legacyShareCode: "oldweak",
+        legacyShareCodeExpiresAt,
+      },
+    });
+
+    const snapshot = await getStudioListingPublicPack({
+      shareCode: "oldweak",
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.usesLegacyShareCode, true);
+    assert.equal(
+      snapshot?.legacyShareCodeExpiresAt?.getTime(),
+      legacyShareCodeExpiresAt.getTime(),
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("expired legacy share codes do not resolve public packs", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Expired Legacy Share",
+      streetAddress: "45-22 Vernon Boulevard",
+      latitude: 40.7501,
+      longitude: -73.9403,
+    });
+
+    await prisma.studioListingPack.update({
+      where: { id: pack.packId },
+      data: {
+        shareEnabled: true,
+        shareCode: "pack_abcdefghijklmnopqrstuvwx12345678",
+        legacyShareCode: "oldweak-expired",
+        legacyShareCodeExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const snapshot = await getStudioListingPublicPack({
+      shareCode: "oldweak-expired",
+    });
+
+    assert.equal(snapshot, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("public pack lookup prefers the current share code over legacy metadata", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Current Share Priority",
+      streetAddress: "27-01 39th Avenue",
+      latitude: 40.7513,
+      longitude: -73.9375,
+    });
+    const legacyShareCodeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.studioListingPack.update({
+      where: { id: pack.packId },
+      data: {
+        shareEnabled: true,
+        shareCode: "pack_priority1234567890123456789012",
+        legacyShareCode: "oldweak-priority",
+        legacyShareCodeExpiresAt,
+      },
+    });
+
+    const snapshot = await getStudioListingPublicPack({
+      shareCode: "pack_priority1234567890123456789012",
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.usesLegacyShareCode, false);
+    assert.equal(snapshot?.legacyShareCodeExpiresAt, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("legacy share codes continue to authorize public asset reads during the rotation window", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Legacy Asset Share",
+      streetAddress: "30-10 41st Avenue",
+      latitude: 40.7504,
+      longitude: -73.9428,
+    });
+
+    const asset = await prisma.studioListingAsset.create({
+      data: {
+        organizationId: context.organization.id,
+        snapshotId: pack.snapshotId,
+        kind: StudioListingAssetKind.gallery,
+        label: "Front exterior",
+        storageKey: `test/studio-assets/${randomUUID()}.jpg`,
+        mimeType: "image/jpeg",
+        fileName: "front-exterior.jpg",
+        fileSizeBytes: 4096,
+        sortOrder: 0,
+      },
+    });
+
+    await prisma.studioListingPack.update({
+      where: { id: pack.packId },
+      data: {
+        shareEnabled: true,
+        shareCode: "pack_asset12345678901234567890123456",
+        legacyShareCode: "oldweak-asset",
+        legacyShareCodeExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const record = await getStudioListingAssetRecord({
+      assetId: asset.id,
+      shareCode: "oldweak-asset",
+    });
+
+    assert.ok(record);
+    assert.equal(record?.id, asset.id);
   } finally {
     await context.cleanup();
   }
