@@ -2495,8 +2495,7 @@ export async function getOfficeTransactionOwnerAssignment(input: {
     prisma.membership.findFirst({
       where: {
         id: input.viewerMembershipId,
-        organizationId: input.organizationId,
-        ...(buildTransactionOwnerOfficeWhere(input.officeId) ?? {})
+        organizationId: input.organizationId
       },
       include: {
         user: true

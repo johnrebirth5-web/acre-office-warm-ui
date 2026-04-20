@@ -13,6 +13,7 @@ import {
 import { createOffer } from "./offers.ts";
 import {
   createTransaction,
+  getOfficeTransactionOwnerAssignment,
   getTransactionById,
   getOfficeTransactionSearchLayoutSnapshot,
   listTransactions,
@@ -174,6 +175,34 @@ test("createOffer stores an empty additionalFields object when none is provided"
 
     assert.ok(offer);
     assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("transaction owner assignment keeps the viewer when the current office differs from the membership default office", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const secondaryOffice = await prisma.office.create({
+      data: {
+        organizationId: context.organization.id,
+        name: `Transactions Secondary ${randomUUID().slice(0, 8)}`,
+        slug: `transactions-secondary-${randomUUID().slice(0, 8)}`,
+        market: "Brooklyn",
+        isPrimary: false,
+      },
+    });
+
+    const assignment = await getOfficeTransactionOwnerAssignment({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: secondaryOffice.id,
+    });
+
+    assert.equal(assignment.currentOwnerMembershipId, context.adminMembership.id);
+    assert.match(assignment.currentOwnerLabel, /transactions-admin-/);
+    assert.equal(assignment.canSelectDifferentOwner, true);
   } finally {
     await context.cleanup();
   }
