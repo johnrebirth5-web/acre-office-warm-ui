@@ -18890,6 +18890,7 @@ body,
 .listing-studio-collection-detail-page {
   display: grid;
   gap: 20px;
+  padding-top: 84px;
 }
 
 .listing-studio-collection-option-list {
@@ -20951,6 +20952,10 @@ body,
 }
 
 @media (max-width: 1100px) {
+  .listing-studio-collection-detail-page {
+    padding-top: 0;
+  }
+
   .listing-studio-layout-shell .workspace-session-shell {
     position: static;
     top: auto;
