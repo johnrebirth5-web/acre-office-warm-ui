@@ -17,16 +17,18 @@ export async function WorkspaceSessionStatus({
   return (
     <div className="workspace-session-shell">
       <section aria-label="Current signed-in session" className="workspace-session-inline">
-        <span
-          className="workspace-session-email"
-          title={context.currentUser.email}
-        >
-          {context.currentUser.email}
-        </span>
-        <span aria-hidden="true" className="workspace-session-separator">
-          ·
-        </span>
-        <span className="workspace-session-role">{roleLabel}</span>
+        <div className="workspace-session-meta">
+          <span
+            className="workspace-session-email"
+            title={context.currentUser.email}
+          >
+            {context.currentUser.email}
+          </span>
+          <span aria-hidden="true" className="workspace-session-separator">
+            ·
+          </span>
+          <span className="workspace-session-role">{roleLabel}</span>
+        </div>
         <form
           action="/api/auth/logout"
           className="workspace-session-action"
