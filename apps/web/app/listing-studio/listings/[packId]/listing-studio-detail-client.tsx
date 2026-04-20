@@ -296,8 +296,16 @@ function IconShare() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <path
-        d="M15.5 7.5a3 3 0 1 0-2.86-4h-.28a3 3 0 0 0 .14.9l-5.63 3.1a3 3 0 1 0 0 8.98l5.63 3.1a3 3 0 1 0 .63-1.87l-5.63-3.1a3.12 3.12 0 0 0 0-1.38l5.63-3.1a3 3 0 0 0 2.37 1.17Z"
+        d="M15.9 6.55a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Zm-7.8 8.1a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Zm7.8 8.1a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Z"
         stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="m10.44 10.25 3.1-1.82M10.44 13.75l3.1 1.82"
+        stroke="currentColor"
+        strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.8"
       />
@@ -309,7 +317,14 @@ function IconLink() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <path
-        d="M10 14 8 16a4 4 0 1 1-5.66-5.66l3-3A4 4 0 0 1 11 8m3-2 2-2a4 4 0 1 1 5.66 5.66l-3 3A4 4 0 0 1 13 16m-2-4h2"
+        d="M14.5 4.75h4.75V9.5M18.9 5.1l-8.2 8.2"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M18.9 13.2v3.15a2.55 2.55 0 0 1-2.55 2.55H7.65A2.55 2.55 0 0 1 5.1 16.35V7.65A2.55 2.55 0 0 1 7.65 5.1h3.15"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -325,6 +340,7 @@ function IconEdit() {
       <path
         d="m4 20 4.5-1 9.24-9.24a2.12 2.12 0 0 0-3-3L5.5 16 4 20Z"
         stroke="currentColor"
+        strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.8"
       />

@@ -804,63 +804,85 @@ select {
 }
 
 .workspace-session-inline {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 9px 7px 14px;
+  border: 1px solid rgba(208, 216, 228, 0.74);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  color: var(--office-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.workspace-session-meta {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
   min-width: 0;
-  color: var(--office-text-muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
 }
 
 .workspace-session-email {
   min-width: 0;
+  max-width: min(34vw, 260px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--office-text);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 
 .workspace-session-role {
   color: var(--office-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .workspace-session-separator {
-  color: rgba(126, 141, 166, 0.9);
+  color: rgba(126, 141, 166, 0.74);
   font-weight: 600;
 }
 
 .workspace-session-action {
   display: flex;
-  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 .workspace-session-signout {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--office-accent);
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(33, 71, 139, 0.08);
+  border-radius: 999px;
+  background: rgba(33, 71, 139, 0.08);
+  color: var(--office-accent-strong);
   font: inherit;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
 }
 
 .workspace-session-signout:hover {
-  color: var(--office-accent-strong);
-  text-decoration: underline;
+  border-color: rgba(33, 71, 139, 0.16);
+  background: rgba(33, 71, 139, 0.12);
+  color: #133367;
+  transform: translateY(-1px);
 }
 
 .workspace-session-signout:focus-visible {
-  outline: 2px solid rgba(23, 63, 134, 0.24);
-  outline-offset: 4px;
-  border-radius: 6px;
+  outline: 2px solid rgba(23, 63, 134, 0.22);
+  outline-offset: 2px;
 }
 
 .office-search-shell {
@@ -18167,16 +18189,21 @@ body,
 
 .listing-studio-layout-shell .workspace-session-shell {
   position: absolute;
-  top: 22px;
-  right: 24px;
+  top: 18px;
+  left: 50%;
+  right: auto;
   z-index: 4;
+  width: min(1180px, calc(100% - 44px));
   display: flex;
   justify-content: flex-end;
-  max-width: calc(100% - 48px);
+  max-width: none;
+  transform: translateX(-50%);
 }
 
 .listing-studio-layout-shell .workspace-session-inline {
   justify-content: flex-end;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
 }
 
 .listing-studio-page > * {
@@ -19637,9 +19664,15 @@ body,
   top: 18px;
   right: 18px;
   z-index: 2;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 999px;
+  background: rgba(246, 243, 236, 0.54);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(16px) saturate(145%);
 }
 
 .listing-studio-view-stage-collections {
@@ -19650,24 +19683,28 @@ body,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 999px;
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(190, 201, 214, 0.46);
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-  color: #111827;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
+  color: #16253c;
   cursor: pointer;
   transition:
     transform 140ms ease,
     box-shadow 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 }
 
 .listing-studio-view-stage-action:hover:not(:disabled),
 .listing-studio-view-stage-action:focus-visible {
   background: #fff;
-  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.22);
+  border-color: rgba(33, 71, 139, 0.18);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
+  color: #133367;
   outline: 0;
   transform: translateY(-1px);
 }
@@ -19678,8 +19715,8 @@ body,
 }
 
 .listing-studio-view-stage-action svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .listing-studio-view-collection-popover {
@@ -20892,6 +20929,17 @@ body,
 }
 
 @media (max-width: 1100px) {
+  .listing-studio-layout-shell .workspace-session-shell {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    margin: 0 0 14px;
+    transform: none;
+    justify-content: flex-end;
+  }
+
   .listing-studio-banner-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -20950,18 +20998,23 @@ body,
 }
 
 @media (max-width: 900px) {
+  .listing-studio-layout-shell .workspace-session-shell {
+    justify-content: flex-start;
+  }
+
   .listing-studio-view-header {
     flex-direction: column;
     align-items: stretch;
   }
 
   .listing-studio-view-stage-actions {
-    gap: 8px;
+    gap: 6px;
+    padding: 7px;
   }
 
   .listing-studio-view-stage-action {
-    width: 54px;
-    height: 54px;
+    width: 46px;
+    height: 46px;
   }
 
   .listing-studio-view-amenity-list {
@@ -21004,6 +21057,10 @@ body,
 }
 
 @media (max-width: 640px) {
+  .listing-studio-layout-shell .workspace-session-inline {
+    justify-content: space-between;
+  }
+
   .listing-studio-view-summary-card,
   .listing-studio-view-info-card,
   .listing-studio-view-stage-card {
@@ -21019,17 +21076,18 @@ body,
   .listing-studio-view-stage-actions {
     top: 12px;
     right: 12px;
-    gap: 6px;
+    gap: 5px;
+    padding: 6px;
   }
 
   .listing-studio-view-stage-action {
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
   }
 
   .listing-studio-view-stage-action svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 
   .listing-studio-view-stage-image,
