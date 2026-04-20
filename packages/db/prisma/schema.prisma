@@ -61,6 +61,11 @@ enum StudioListingPackStatus {
   archived
 }
 
+enum StudioListingSavedPackSource {
+  imported_by_me
+  saved_from_dashboard
+}
+
 enum StudioExtensionChallengeStatus {
   pending
   approved
@@ -745,6 +750,7 @@ model Organization {
   studioListingSnapshots                StudioListingSnapshot[]
   studioListingAssets                   StudioListingAsset[]
   studioListingPacks                    StudioListingPack[]
+  studioListingSavedPacks               StudioListingSavedPack[]
   studioListingCollections              StudioListingCollection[]
   studioListingShareEvents              StudioListingShareEvent[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
@@ -952,6 +958,8 @@ model Membership {
   sentOfficeMailMessages                       OfficeMailMessage[]                    @relation("OfficeMailMessageSender")
   studioListingImportsCreated                  StudioListingImport[]                  @relation("StudioListingImportCreatedBy")
   studioListingPacksUpdated                    StudioListingPack[]                    @relation("StudioListingPackUpdatedBy")
+  studioListingPacksPublishedToCompanyFeed     StudioListingPack[]                    @relation("StudioListingPackCompanyFeedPublishedBy")
+  studioListingSavedPacks                      StudioListingSavedPack[]               @relation("StudioListingSavedPackMembership")
   studioListingCollectionsCreated              StudioListingCollection[]              @relation("StudioListingCollectionCreatedBy")
   studioListingCollectionsUpdated              StudioListingCollection[]              @relation("StudioListingCollectionUpdatedBy")
   studioListingExtensionTokens                 StudioListingExtensionToken[]          @relation("StudioListingExtensionTokenMembership")
@@ -1458,6 +1466,7 @@ model StudioListingPack {
   officeId                 String?
   snapshotId               String                        @unique
   updatedByMembershipId    String?
+  companyFeedPublishedByMembershipId String?
   status                   StudioListingPackStatus       @default(draft)
   headline                 String?
   summary                  String?
@@ -1465,6 +1474,8 @@ model StudioListingPack {
   selectedAssetIdsJson     Json?
   coverAssetId             String?
   shareEnabled             Boolean                       @default(false)
+  companyFeedVisible       Boolean                       @default(false)
+  companyFeedPublishedAt   DateTime?
   shareCode                String?                       @unique
   legacyShareCode          String?                       @unique
   legacyShareCodeExpiresAt DateTime?
@@ -1481,11 +1492,30 @@ model StudioListingPack {
   office                   Office?                       @relation(fields: [officeId], references: [id], onDelete: SetNull)
   snapshot                 StudioListingSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
   updatedByMembership      Membership?                   @relation("StudioListingPackUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+  companyFeedPublishedByMembership Membership?           @relation("StudioListingPackCompanyFeedPublishedBy", fields: [companyFeedPublishedByMembershipId], references: [id], onDelete: SetNull)
+  savedPacks               StudioListingSavedPack[]
   collectionItems          StudioListingCollectionItem[]
   shareEvents              StudioListingShareEvent[]
 
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, shareEnabled, updatedAt])
+  @@index([organizationId, companyFeedVisible, updatedAt])
+}
+
+model StudioListingSavedPack {
+  id             String                       @id @default(cuid())
+  organizationId String
+  membershipId   String
+  packId         String
+  source         StudioListingSavedPackSource
+  createdAt      DateTime                     @default(now())
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership     Membership                   @relation("StudioListingSavedPackMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  pack           StudioListingPack           @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, packId])
+  @@index([organizationId, membershipId, createdAt])
+  @@index([organizationId, packId, createdAt])
 }
 
 model StudioListingCollection {

@@ -4,13 +4,20 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ConfirmActionDialog } from "@acre/ui";
 import { startTransition, useState } from "react";
-import type { StudioListingListItem } from "@acre/db";
+import type {
+  StudioListingCompanyFeedItem,
+  StudioListingListItem,
+} from "@acre/db";
 import { StudioCollectionPicker } from "./studio-collection-picker";
 
+type ListingStudioCardMode = "personal" | "dashboard";
+
 type ListingStudioCardProps = {
-  item: StudioListingListItem;
+  item: StudioListingListItem | StudioListingCompanyFeedItem;
+  mode?: ListingStudioCardMode;
   showCollectionPicker?: boolean;
   showDeleteAction?: boolean;
+  canManageCompanyFeed?: boolean;
 };
 
 function getListingTypeLabel(listingType: string | null) {
@@ -22,6 +29,16 @@ function getListingTypeLabel(listingType: string | null) {
     return "Rental";
   }
   return null;
+}
+
+function readInitialSavedState(
+  item: StudioListingListItem | StudioListingCompanyFeedItem,
+) {
+  if ("isSavedToMyListings" in item) {
+    return item.isSavedToMyListings;
+  }
+
+  return Boolean(item.savedAt);
 }
 
 function IconTrash() {
@@ -40,8 +57,10 @@ function IconTrash() {
 
 export function ListingStudioCard({
   item,
+  mode = "personal",
   showCollectionPicker = false,
   showDeleteAction = false,
+  canManageCompanyFeed = false,
 }: ListingStudioCardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,9 +68,17 @@ export function ListingStudioCard({
   const listingTypeLabel = getListingTypeLabel(item.listingType);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDeleted, setIsDeleted] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [isSavingToMyListings, setIsSavingToMyListings] = useState(false);
+  const [isSavedToMyListings, setIsSavedToMyListings] = useState(
+    readInitialSavedState(item),
+  );
+  const [isUpdatingCompanyFeed, setIsUpdatingCompanyFeed] = useState(false);
+  const [companyFeedVisible, setCompanyFeedVisible] = useState(
+    item.companyFeedVisible,
+  );
 
-  if (isDeleted) {
+  if (isHidden || (mode === "dashboard" && !companyFeedVisible)) {
     return null;
   }
 
@@ -75,7 +102,7 @@ export function ListingStudioCard({
       }
 
       setIsDeleteDialogOpen(false);
-      setIsDeleted(true);
+      setIsHidden(true);
 
       const nextSearchParams = new URLSearchParams(searchParams.toString());
       nextSearchParams.set("deleted", "1");
@@ -93,6 +120,80 @@ export function ListingStudioCard({
       );
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function handleSaveToMyListings() {
+    if (isSavingToMyListings || isSavedToMyListings) {
+      return;
+    }
+
+    setIsSavingToMyListings(true);
+
+    try {
+      const response = await fetch(
+        `/api/listing-studio/listings/${item.packId}/save`,
+        {
+          method: "POST",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to save this listing.");
+      }
+
+      setIsSavedToMyListings(true);
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Unable to save this listing.",
+      );
+    } finally {
+      setIsSavingToMyListings(false);
+    }
+  }
+
+  async function handleCompanyFeedToggle(nextVisible: boolean) {
+    if (isUpdatingCompanyFeed) {
+      return;
+    }
+
+    setIsUpdatingCompanyFeed(true);
+
+    try {
+      const response = await fetch(`/api/listing-studio/listings/${item.packId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyFeedVisible: nextVisible,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error || "Unable to update company dashboard visibility.",
+        );
+      }
+
+      setCompanyFeedVisible(nextVisible);
+      if (mode === "dashboard" && !nextVisible) {
+        setIsHidden(true);
+      }
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to update company dashboard visibility.",
+      );
+    } finally {
+      setIsUpdatingCompanyFeed(false);
     }
   }
 
@@ -146,6 +247,11 @@ export function ListingStudioCard({
                 Shared
               </span>
             ) : null}
+            {companyFeedVisible ? (
+              <span className="office-status-badge office-status-badge-accent">
+                Company dashboard
+              </span>
+            ) : null}
           </div>
           <strong>{item.priceLabel}</strong>
           {item.displayTitle ? (
@@ -162,12 +268,50 @@ export function ListingStudioCard({
         </div>
       </Link>
 
-      {showCollectionPicker ? (
-        <div className="listing-studio-card-footer">
-          <StudioCollectionPicker
-            buttonLabel="Add to collection"
-            packId={item.packId}
-          />
+      {mode === "dashboard" || showCollectionPicker || canManageCompanyFeed ? (
+        <div className="listing-studio-card-footer listing-studio-card-footer-actions">
+          {mode === "dashboard" ? (
+            <button
+              className={`office-button ${isSavedToMyListings ? "office-button-secondary" : "office-button-primary"}`}
+              disabled={isSavingToMyListings || isSavedToMyListings}
+              onClick={() => void handleSaveToMyListings()}
+              type="button"
+            >
+              {isSavingToMyListings
+                ? "Adding..."
+                : isSavedToMyListings
+                  ? "Added to my listings"
+                  : "+ Add to my listings"}
+            </button>
+          ) : null}
+
+          {showCollectionPicker ? (
+            <StudioCollectionPicker
+              buttonLabel="Add to collection"
+              packId={item.packId}
+            />
+          ) : null}
+
+          {canManageCompanyFeed ? (
+            <button
+              className="office-button office-button-secondary"
+              disabled={isUpdatingCompanyFeed}
+              onClick={() =>
+                void handleCompanyFeedToggle(
+                  mode === "dashboard" ? false : !companyFeedVisible,
+                )
+              }
+              type="button"
+            >
+              {isUpdatingCompanyFeed
+                ? mode === "dashboard" || companyFeedVisible
+                  ? "Updating..."
+                  : "Publishing..."
+                : mode === "dashboard" || companyFeedVisible
+                  ? "Remove from dashboard"
+                  : "Publish to dashboard"}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

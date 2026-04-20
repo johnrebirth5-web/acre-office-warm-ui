@@ -2,7 +2,7 @@
 
 ## Goal
 
-把 `Acre Listing Studio` 扩展发布到 `Chrome Web Store`，让 `Listing Studio dashboard` 上的安装入口最终可以变成真正的 `Add to Chrome`。
+把 `Acre Listing Studio` 扩展发布到 `Chrome Web Store`，让 `Listing Studio listings` 上的安装入口最终可以变成真正的 `Add to Chrome`。
 
 ## Current reality
 
@@ -13,10 +13,10 @@
   - `Load unpacked`
   - 选择 `apps/extension/dist`
 - 未来商店环境：
-  - dashboard 安装页读取 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
+  - listings 安装页读取 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
   - 若已配置 Chrome Web Store 链接，安装页会显示 `Add to Chrome`
 
-当前还没有真实的 Chrome Web Store 链接，所以 dashboard 里的安装页仍然是说明页，而不是商店直装页。
+当前还没有真实的 Chrome Web Store 链接，所以 listings 里的安装页仍然是说明页，而不是商店直装页。
 
 ## Package for Chrome Web Store
 
@@ -102,7 +102,7 @@ npm run package --workspace=@acre/extension
 
 这样可以先测试真实商店安装链路，但不会公开搜索曝光。
 
-## Acre dashboard link setup
+## Acre listings link setup
 
 当前代码默认内置正式商店条目：
 
@@ -119,21 +119,21 @@ NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.co
 配置完成后：
 
 - `/listing-studio/extension/install`
-- `dashboard` 未安装扩展时的安装入口
+- `listings` 未安装扩展时的安装入口
 
 都会自动切到真实 `Add to Chrome` 链接。
 
 并且：
 
-- `dashboard` 未安装状态下点击主按钮会直接打开 Chrome Web Store
+- `listings` 未安装状态下点击主按钮会直接打开 Chrome Web Store
 - Acre 会记住当前 tab 正在等待安装
-- 用户安装完成后回到原来的 `Listing Studio dashboard` 标签页，页面会自动刷新并继续浏览器连接流程
+- 用户安装完成后回到原来的 `Listing Studio listings` 标签页，页面会自动刷新并继续浏览器连接流程
 
 ## Recommended rollout order
 
 1. 打包发布 zip
 2. 先在 Chrome Web Store 建 `Unlisted` 版本
 3. 拿到正式商店链接
-4. 验证 Acre dashboard -> install page -> Chrome Web Store -> Add to Chrome -> dashboard connect 全链路
+4. 验证 Acre listings -> install page -> Chrome Web Store -> Add to Chrome -> listings connect 全链路
 5. 如果商店条目变更，再覆盖 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
 6. 确认无误后再决定是否改成 `Public`

@@ -1,6 +1,7 @@
 import {
   canAccessListingStudio,
   canEditListingStudio,
+  canManageListingStudioCompanyFeed,
 } from "@acre/auth";
 import {
   deleteStudioListingPack,
@@ -12,6 +13,14 @@ import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import { ensureListingStudioStorageConfigured } from "../../../../../lib/listing-studio";
 
 export const runtime = "nodejs";
+
+type ListingStudioPackRouteDependencies = {
+  deleteStudioListingPack?: typeof deleteStudioListingPack;
+  ensureListingStudioStorageConfigured?: typeof ensureListingStudioStorageConfigured;
+  getRequestSessionContext?: typeof getRequestSessionContext;
+  getStudioListingPackDetail?: typeof getStudioListingPackDetail;
+  updateStudioListingPack?: typeof updateStudioListingPack;
+};
 
 export async function GET(
   request: NextRequest,
@@ -46,11 +55,14 @@ export async function GET(
   return NextResponse.json(detail);
 }
 
-export async function PATCH(
+export async function handleUpdateStudioListingPackPatch(
   request: NextRequest,
-  props: { params: Promise<{ packId: string }> },
+  packId: string,
+  dependencies: ListingStudioPackRouteDependencies = {},
 ) {
-  const context = await getRequestSessionContext(request);
+  const context = await (
+    dependencies.getRequestSessionContext ?? getRequestSessionContext
+  )(request);
 
   if (!context) {
     return NextResponse.json(
@@ -98,10 +110,27 @@ export async function PATCH(
         descriptionText?: string | null;
         amenities?: Array<{ title: string; items: string[] }>;
         sourceFacts?: Array<{ label: string; value: string }>;
+        companyFeedVisible?: boolean;
       }
     | null;
-  const { packId } = await props.params;
-  const detail = await updateStudioListingPack({
+  const requestedCompanyFeedVisibility =
+    typeof body?.companyFeedVisible === "boolean"
+      ? body.companyFeedVisible
+      : undefined;
+
+  if (
+    requestedCompanyFeedVisibility !== undefined &&
+    !canManageListingStudioCompanyFeed(context.currentMembership)
+  ) {
+    return NextResponse.json(
+      { error: "Listing Studio company feed manage access required." },
+      { status: 403 },
+    );
+  }
+
+  const detail = await (
+    dependencies.updateStudioListingPack ?? updateStudioListingPack
+  )({
     organizationId: context.currentOrganization.id,
     packId,
     membershipId: context.currentMembership.id,
@@ -147,6 +176,7 @@ export async function PATCH(
     descriptionText: body?.descriptionText,
     amenities: Array.isArray(body?.amenities) ? body.amenities : undefined,
     sourceFacts: Array.isArray(body?.sourceFacts) ? body.sourceFacts : undefined,
+    companyFeedVisible: requestedCompanyFeedVisibility,
   });
 
   if (!detail) {
@@ -154,6 +184,14 @@ export async function PATCH(
   }
 
   return NextResponse.json(detail);
+}
+
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ packId: string }> },
+) {
+  const { packId } = await props.params;
+  return handleUpdateStudioListingPackPatch(request, packId);
 }
 
 export async function DELETE(
@@ -177,7 +215,7 @@ export async function DELETE(
   }
 
   const { packId } = await props.params;
-  ensureListingStudioStorageConfigured();
+  (ensureListingStudioStorageConfigured)();
   const deleted = await deleteStudioListingPack({
     organizationId: context.currentOrganization.id,
     packId,

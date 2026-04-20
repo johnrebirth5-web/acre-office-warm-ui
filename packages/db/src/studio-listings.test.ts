@@ -11,16 +11,37 @@ import {
 } from "@prisma/client";
 import {
   addStudioListingPackToCollection,
+  configureStudioListingFileHelpers,
+  createStudioListingImport,
   createStudioListingCollection,
   getStudioListingAssetRecord,
+  getListingStudioCompanyDashboard,
   getStudioListingPublicPack,
   getStudioListingCollectionDetail,
+  listStudioListingPacks,
   listStudioListingCollectionPickerItems,
   listStudioListingCollections,
   publishStudioListingPack,
   removeStudioListingPackFromCollection,
+  saveStudioListingPackToMyListings,
+  updateStudioListingPack,
 } from "./studio-listings.ts";
 import { prisma } from "./client.ts";
+
+configureStudioListingFileHelpers({
+  async saveText(input) {
+    return {
+      storageKey: `test/${input.bucket}/${input.importId}/${input.fileName}`,
+    };
+  },
+  async saveFile(input) {
+    return {
+      storageKey: `test/${input.bucket}/${randomUUID()}-${input.fileName}`,
+      fileName: input.fileName,
+      fileSizeBytes: input.bytes.byteLength,
+    };
+  },
+});
 
 after(async () => {
   await prisma.$disconnect();
@@ -85,6 +106,7 @@ async function createStudioListingsTestContext() {
     neighborhood?: string;
     latitude?: number | null;
     longitude?: number | null;
+    companyFeedVisible?: boolean;
   }) {
     const importRecord = await prisma.studioListingImport.create({
       data: {
@@ -139,10 +161,22 @@ async function createStudioListingsTestContext() {
         summary: `${input.streetAddress} summary`,
         bulletPointsJson: ["Bedrooms: 2", "Bathrooms: 2"],
         selectedAssetIdsJson: Prisma.JsonNull,
+        companyFeedVisible: input.companyFeedVisible ?? false,
+        companyFeedPublishedAt: input.companyFeedVisible ? new Date() : null,
+        companyFeedPublishedByMembershipId: input.companyFeedVisible
+          ? input.membershipId
+          : null,
         contactName: "Test Agent",
         contactTitle: "Acre agent",
         contactPhone: "2125550100",
         contactEmail: "agent@example.com",
+        savedPacks: {
+          create: {
+            organizationId: organization.id,
+            membershipId: input.membershipId,
+            source: "imported_by_me",
+          },
+        },
       },
     });
 
@@ -153,12 +187,14 @@ async function createStudioListingsTestContext() {
     };
   }
 
+  const adminMembership = await createMembership("office_admin", "studio-admin");
   const ownerMembership = await createMembership("agent", "studio-owner");
   const teammateMembership = await createMembership("agent", "studio-peer");
 
   return {
     organization,
     office,
+    adminMembership,
     ownerMembership,
     teammateMembership,
     createPack,
@@ -242,6 +278,213 @@ test("collections are scoped to the current membership and reject duplicate name
       collectionId: created?.id ?? "",
     });
     assert.equal(hiddenFromTeammate, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("admin imports are saved personally and published to the company dashboard", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const imported = await createStudioListingImport({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.adminMembership.id,
+      sourceSite: StudioListingSourceSite.streeteasy,
+      sourceUrl: `https://streeteasy.com/building/${randomUUID()}`,
+      rawHtml: "<html><body>listing</body></html>",
+      canonicalFields: {
+        title: "Admin Import",
+        streetAddress: "5-11 47th Avenue",
+        city: "Long Island City",
+        state: "NY",
+        postalCode: "11101",
+        neighborhood: "Hunters Point",
+        listingType: "sale",
+        price: 875000,
+        priceLabel: "$875,000",
+        bedrooms: 1,
+        bathrooms: 1,
+        sqft: 658,
+      },
+      assets: [],
+    });
+
+    const dashboard = await getListingStudioCompanyDashboard({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+    });
+    const adminListings = await listStudioListingPacks({
+      organizationId: context.organization.id,
+      membershipId: context.adminMembership.id,
+    });
+
+    assert.ok(dashboard.items.some((item) => item.packId === imported.packId));
+    assert.ok(adminListings.some((item) => item.packId === imported.packId));
+    assert.equal(
+      adminListings.find((item) => item.packId === imported.packId)?.savedSource,
+      "imported_by_me",
+    );
+    assert.equal(
+      dashboard.items.find((item) => item.packId === imported.packId)
+        ?.companyFeedVisible,
+      true,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("agent imports stay private to personal listings until an admin publishes them", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const imported = await createStudioListingImport({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      sourceSite: StudioListingSourceSite.zillow,
+      sourceUrl: `https://zillow.com/homedetails/${randomUUID()}`,
+      rawHtml: "<html><body>listing</body></html>",
+      canonicalFields: {
+        title: "Agent Import",
+        streetAddress: "24-01 Queens Plaza North",
+        city: "Long Island City",
+        state: "NY",
+        postalCode: "11101",
+        neighborhood: "Queens Plaza",
+        listingType: "rent",
+        price: 4200,
+        priceLabel: "$4,200/mo",
+        bedrooms: 1,
+        bathrooms: 1,
+      },
+      assets: [],
+    });
+
+    const dashboard = await getListingStudioCompanyDashboard({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+    });
+    const ownerListings = await listStudioListingPacks({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.ok(ownerListings.some((item) => item.packId === imported.packId));
+    assert.ok(!dashboard.items.some((item) => item.packId === imported.packId));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("company dashboard saves are idempotent and scoped to the viewer", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.adminMembership.id,
+      title: "Published LIC",
+      streetAddress: "10-50 Jackson Avenue",
+      companyFeedVisible: true,
+    });
+
+    const firstSave = await saveStudioListingPackToMyListings({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+      packId: pack.packId,
+    });
+    const secondSave = await saveStudioListingPackToMyListings({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+      packId: pack.packId,
+    });
+    const teammateListings = await listStudioListingPacks({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+    });
+    const ownerListings = await listStudioListingPacks({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.deepEqual(firstSave, {
+      saved: true,
+      alreadySaved: false,
+    });
+    assert.deepEqual(secondSave, {
+      saved: true,
+      alreadySaved: true,
+    });
+    assert.ok(teammateListings.some((item) => item.packId === pack.packId));
+    assert.equal(
+      teammateListings.find((item) => item.packId === pack.packId)?.savedSource,
+      "saved_from_dashboard",
+    );
+    assert.ok(!ownerListings.some((item) => item.packId === pack.packId));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("company dashboard only returns packs currently published to the feed", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const visiblePack = await context.createPack({
+      membershipId: context.adminMembership.id,
+      title: "Visible Pack",
+      streetAddress: "21 India Street",
+      companyFeedVisible: true,
+    });
+    const hiddenPack = await context.createPack({
+      membershipId: context.adminMembership.id,
+      title: "Hidden Pack",
+      streetAddress: "5 Pointz Lane",
+    });
+
+    const published = await updateStudioListingPack({
+      organizationId: context.organization.id,
+      membershipId: context.adminMembership.id,
+      packId: hiddenPack.packId,
+      companyFeedVisible: true,
+    });
+    assert.equal(published?.pack.companyFeedVisible, true);
+
+    const dashboardAfterPublish = await getListingStudioCompanyDashboard({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+    assert.ok(
+      dashboardAfterPublish.items.some((item) => item.packId === visiblePack.packId),
+    );
+    assert.ok(
+      dashboardAfterPublish.items.some((item) => item.packId === hiddenPack.packId),
+    );
+
+    const unpublished = await updateStudioListingPack({
+      organizationId: context.organization.id,
+      membershipId: context.adminMembership.id,
+      packId: hiddenPack.packId,
+      companyFeedVisible: false,
+    });
+    assert.equal(unpublished?.pack.companyFeedVisible, false);
+
+    const dashboardAfterUnpublish = await getListingStudioCompanyDashboard({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+    assert.ok(
+      dashboardAfterUnpublish.items.some(
+        (item) => item.packId === visiblePack.packId,
+      ),
+    );
+    assert.ok(
+      !dashboardAfterUnpublish.items.some(
+        (item) => item.packId === hiddenPack.packId,
+      ),
+    );
   } finally {
     await context.cleanup();
   }

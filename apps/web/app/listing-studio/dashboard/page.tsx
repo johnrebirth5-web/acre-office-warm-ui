@@ -1,25 +1,14 @@
-import { getListingStudioDashboard } from "@acre/db";
-import { ListPageStatsGrid, SectionCard, StatCard } from "@acre/ui";
+import { canManageListingStudioCompanyFeed } from "@acre/auth";
+import { getListingStudioCompanyDashboard } from "@acre/db";
 import { requireSessionContext } from "../../../lib/auth-session";
-import { ListingStudioExtensionConnectAction } from "./extension-connect-action";
 import { ListingStudioCard } from "../listing-studio-card";
-
-function formatConnectedAtLabel(value: string | null) {
-  if (!value) {
-    return "Not connected yet";
-  }
-
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 export default async function ListingStudioDashboardPage() {
   const context = await requireSessionContext();
-  const snapshot = await getListingStudioDashboard({
+  const canManageCompanyFeed = canManageListingStudioCompanyFeed(
+    context.currentMembership,
+  );
+  const snapshot = await getListingStudioCompanyDashboard({
     organizationId: context.currentOrganization.id,
     membershipId: context.currentMembership.id,
   });
@@ -29,75 +18,51 @@ export default async function ListingStudioDashboardPage() {
       <section className="office-page-header listing-studio-header">
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
-          <h2>Save listings and share them fast.</h2>
+          <h2>Company dashboard</h2>
+          <p>
+            Listings published by your admin team appear here for the whole
+            studio. Add the ones you want into your own listings workspace with
+            one click.
+          </p>
         </div>
       </section>
 
-      <div className="office-list-page-stack listing-studio-stack">
-        <SectionCard
-          className="listing-studio-banner-card"
-          subtitle="Connect the Chrome extension here, then save StreetEasy and Zillow listings straight into Acre."
-          title="Chrome extension"
-        >
-          <ListingStudioExtensionConnectAction
-            serverActiveTokenCount={snapshot.extension.activeTokenCount}
-            serverHasActiveToken={snapshot.extension.hasActiveToken}
-            serverLatestConnectedAtLabel={formatConnectedAtLabel(
-              snapshot.extension.latestConnectedAt,
-            )}
-          />
-        </SectionCard>
+      <div className="listing-studio-shell">
+        <section className="listing-studio-listed-section">
+          <div className="listing-studio-listed-section-head">
+            <div>
+              <span className="listing-studio-shell-eyebrow">Company feed</span>
+              <h2>Shared company listings</h2>
+            </div>
+            <p>
+              {snapshot.items.length} listing
+              {snapshot.items.length === 1 ? "" : "s"} currently live on the
+              company board.
+            </p>
+          </div>
 
-        <SectionCard
-          className="office-list-card"
-          subtitle="A quick read on current Listing Studio activity."
-          title="Studio overview"
-        >
-          <ListPageStatsGrid>
-            <StatCard
-              hint="All saved listings in this organization"
-              label="Saved listings"
-              value={snapshot.summary.totalListings}
-            />
-            <StatCard
-              hint="Imports received in the last two weeks"
-              label="Recent imports"
-              value={snapshot.summary.recentImports}
-            />
-            <StatCard
-              hint="Public share page opens recorded across shared listings"
-              label="Share views"
-              value={snapshot.summary.shareViews}
-            />
-            <StatCard
-              hint="Listings that already have a live public share link"
-              label="Ready to share"
-              value={snapshot.summary.readyToShare}
-            />
-          </ListPageStatsGrid>
-        </SectionCard>
-
-        <SectionCard
-          className="office-list-card"
-          subtitle="Recently updated saved listings."
-          title="Recent listings"
-        >
           <div className="listing-studio-card-grid">
-            {snapshot.recentListings.length ? (
-              snapshot.recentListings.map((item) => (
-                <ListingStudioCard item={item} key={item.packId} />
+            {snapshot.items.length ? (
+              snapshot.items.map((item) => (
+                <ListingStudioCard
+                  canManageCompanyFeed={canManageCompanyFeed}
+                  item={item}
+                  key={item.packId}
+                  mode="dashboard"
+                />
               ))
             ) : (
               <div className="listing-studio-empty-state">
-                <strong>No saved listings yet.</strong>
+                <strong>No company listings are live yet.</strong>
                 <p>
-                  Open a supported listing page in Chrome, click the Acre save
-                  card, and the listing will show up here automatically.
+                  {canManageCompanyFeed
+                    ? "Import a listing from Studio > Listings, or publish one from your saved listings to start the company board."
+                    : "Wait for an owner or office admin to publish listings here, then you can add them into your own Listings workspace."}
                 </p>
               </div>
             )}
           </div>
-        </SectionCard>
+        </section>
       </div>
     </div>
   );

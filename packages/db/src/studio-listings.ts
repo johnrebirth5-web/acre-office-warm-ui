@@ -1,5 +1,14 @@
 import { createHash, randomBytes } from "node:crypto";
-import { Prisma, StudioExtensionChallengeStatus, StudioListingAssetKind, StudioListingImportStatus, StudioListingPackStatus, StudioListingSourceSite } from "@prisma/client";
+import { canManageListingStudioCompanyFeed } from "@acre/auth";
+import {
+  Prisma,
+  StudioExtensionChallengeStatus,
+  StudioListingAssetKind,
+  StudioListingImportStatus,
+  StudioListingPackStatus,
+  StudioListingSavedPackSource,
+  StudioListingSourceSite,
+} from "@prisma/client";
 import { prisma } from "./client";
 
 type JsonRecord = Record<string, unknown>;
@@ -29,7 +38,7 @@ export type CreateStudioListingImportInput = {
   assets: StudioCapturedAssetInput[];
 };
 
-export type StudioListingDashboardSnapshot = {
+export type StudioListingWorkspaceOverviewSnapshot = {
   extension: {
     hasActiveToken: boolean;
     activeTokenCount: number;
@@ -41,8 +50,21 @@ export type StudioListingDashboardSnapshot = {
     shareViews: number;
     readyToShare: number;
   };
-  recentListings: StudioListingListItem[];
 };
+
+export type StudioListingCompanyFeedItem = StudioListingListItem & {
+  companyFeedPublishedAt: string | null;
+  isSavedToMyListings: boolean;
+};
+
+export type StudioListingCompanyDashboardSnapshot = {
+  items: StudioListingCompanyFeedItem[];
+};
+
+export type StudioListingDashboardSnapshot =
+  StudioListingWorkspaceOverviewSnapshot & {
+    recentListings: StudioListingListItem[];
+  };
 
 export type StudioListingListItem = {
   packId: string;
@@ -60,6 +82,10 @@ export type StudioListingListItem = {
   importedAt: string;
   heroAssetId: string | null;
   shareEnabled: boolean;
+  companyFeedVisible: boolean;
+  companyFeedPublishedAt: string | null;
+  savedAt: string | null;
+  savedSource: StudioListingSavedPackSource | null;
 };
 
 export type StudioListingCollectionPickerItem = {
@@ -147,6 +173,8 @@ export type StudioListingDetailSnapshot = {
     coverAssetId: string | null;
     shareEnabled: boolean;
     shareCode: string | null;
+    companyFeedVisible: boolean;
+    companyFeedPublishedAt: string | null;
     agentNote: string;
     contactName: string;
     contactTitle: string;
@@ -282,6 +310,14 @@ const studioListingCollectionInclude = Prisma.validator<Prisma.StudioListingColl
 
 type StudioListingCollectionRecord = Prisma.StudioListingCollectionGetPayload<{
   include: typeof studioListingCollectionInclude;
+}>;
+
+type StudioListingSavedPackRecord = Prisma.StudioListingSavedPackGetPayload<{
+  include: {
+    pack: {
+      include: typeof studioListingPackDetailInclude;
+    };
+  };
 }>;
 
 export function configureStudioListingFileHelpers(helpers: ListingStudioFileHelpers) {
@@ -1340,6 +1376,13 @@ export async function createStudioListingImport(input: CreateStudioListingImport
     throw new Error("Active membership is required to save listing imports.");
   }
 
+  const shouldPublishToCompanyFeed = canManageListingStudioCompanyFeed({
+    role: membership.role,
+    permissions: Array.isArray(membership.permissions)
+      ? (membership.permissions as never)
+      : null,
+  });
+
   const importRecord = await prisma.studioListingImport.create({
     data: {
       organizationId: input.organizationId,
@@ -1492,17 +1535,29 @@ export async function createStudioListingImport(input: CreateStudioListingImport
           officeId: input.officeId ?? membership.officeId,
           snapshotId: snapshot.id,
           updatedByMembershipId: input.membershipId,
+          companyFeedPublishedByMembershipId: shouldPublishToCompanyFeed
+            ? input.membershipId
+            : null,
           status: StudioListingPackStatus.ready,
           headline: normalized.title,
           summary: createDefaultSummary(normalized),
           bulletPointsJson: normalized.heroFacts.map((fact) => `${fact.label}: ${fact.value}`),
           selectedAssetIdsJson: selectedAssetIds,
           coverAssetId,
+          companyFeedVisible: shouldPublishToCompanyFeed,
+          companyFeedPublishedAt: shouldPublishToCompanyFeed ? new Date() : null,
           contactName:
             `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email,
           contactTitle: membership.title ?? "Acre agent",
           contactPhone: membership.user.phone ?? "",
           contactEmail: membership.user.email,
+          savedPacks: {
+            create: {
+              organizationId: input.organizationId,
+              membershipId: input.membershipId,
+              source: StudioListingSavedPackSource.imported_by_me,
+            },
+          },
         },
       });
 
@@ -1539,7 +1594,15 @@ export async function createStudioListingImport(input: CreateStudioListingImport
   }
 }
 
-function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
+function mapListItem(
+  record: StudioListingPackRecord,
+  options?: {
+    savedPack?: {
+      createdAt: Date;
+      source: StudioListingSavedPackSource;
+    } | null;
+  },
+): StudioListingListItem {
   const heroAssetId =
     record.snapshot.assets.find((asset) => asset.id === record.coverAssetId)?.id ??
     record.snapshot.assets.find((asset) => asset.kind === StudioListingAssetKind.hero)?.id ??
@@ -1575,6 +1638,10 @@ function mapListItem(record: StudioListingPackRecord): StudioListingListItem {
     importedAt: record.snapshot.import.createdAt.toISOString(),
     heroAssetId,
     shareEnabled: record.shareEnabled,
+    companyFeedVisible: record.companyFeedVisible,
+    companyFeedPublishedAt: record.companyFeedPublishedAt?.toISOString() ?? null,
+    savedAt: options?.savedPack?.createdAt.toISOString() ?? null,
+    savedSource: options?.savedPack?.source ?? null,
   };
 }
 
@@ -1586,6 +1653,15 @@ function mapCollectionListingItem(
     latitude: record.snapshot.latitude ? Number(record.snapshot.latitude) : null,
     longitude: record.snapshot.longitude ? Number(record.snapshot.longitude) : null,
   };
+}
+
+function mapSavedPackListItem(record: StudioListingSavedPackRecord) {
+  return mapListItem(record.pack, {
+    savedPack: {
+      createdAt: record.createdAt,
+      source: record.source,
+    },
+  });
 }
 
 function sortStudioListingPackRecords(records: StudioListingPackRecord[]) {
@@ -1615,7 +1691,7 @@ function mapCollectionListItem(
     listingCount: listingRecords.length,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
-    previewListings: listingRecords.slice(0, 3).map(mapListItem),
+    previewListings: listingRecords.slice(0, 3).map((item) => mapListItem(item)),
   };
 }
 
@@ -1646,11 +1722,11 @@ function isCollectionNameConflictError(error: unknown) {
   );
 }
 
-export async function getListingStudioDashboard(input: {
+export async function getListingStudioWorkspaceOverview(input: {
   organizationId: string;
   membershipId: string;
-}) : Promise<StudioListingDashboardSnapshot> {
-  const [packCount, recentImportCount, shareViews, readyToShare, recent, activeTokens] = await Promise.all([
+}): Promise<StudioListingWorkspaceOverviewSnapshot> {
+  const [packCount, recentImportCount, shareViews, readyToShare, activeTokens] = await Promise.all([
     prisma.studioListingPack.count({
       where: { organizationId: input.organizationId },
     }),
@@ -1670,12 +1746,6 @@ export async function getListingStudioDashboard(input: {
         organizationId: input.organizationId,
         shareEnabled: true,
       },
-    }),
-    prisma.studioListingPack.findMany({
-      where: { organizationId: input.organizationId },
-      include: studioListingPackDetailInclude,
-      orderBy: { updatedAt: "desc" },
-      take: 6,
     }),
     prisma.studioListingExtensionToken.findMany({
       where: {
@@ -1703,12 +1773,65 @@ export async function getListingStudioDashboard(input: {
       shareViews,
       readyToShare,
     },
-    recentListings: recent.map(mapListItem),
+  };
+}
+
+export async function getListingStudioCompanyDashboard(input: {
+  organizationId: string;
+  membershipId: string;
+}): Promise<StudioListingCompanyDashboardSnapshot> {
+  const records = await prisma.studioListingPack.findMany({
+    where: {
+      organizationId: input.organizationId,
+      companyFeedVisible: true,
+    },
+    include: {
+      ...studioListingPackDetailInclude,
+      savedPacks: {
+        where: {
+          membershipId: input.membershipId,
+        },
+        select: {
+          createdAt: true,
+          source: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: [{ companyFeedPublishedAt: "desc" }, { updatedAt: "desc" }],
+  });
+
+  return {
+    items: records.map((record) => {
+      const savedPack = record.savedPacks[0] ?? null;
+
+      return {
+        ...mapListItem(record, { savedPack }),
+        companyFeedPublishedAt: record.companyFeedPublishedAt?.toISOString() ?? null,
+        isSavedToMyListings: Boolean(savedPack),
+      };
+    }),
+  };
+}
+
+export async function getListingStudioDashboard(input: {
+  organizationId: string;
+  membershipId: string;
+}): Promise<StudioListingDashboardSnapshot> {
+  const [overview, recentListings] = await Promise.all([
+    getListingStudioWorkspaceOverview(input),
+    listStudioListingPacks(input),
+  ]);
+
+  return {
+    ...overview,
+    recentListings: recentListings.slice(0, 6),
   };
 }
 
 export async function listStudioListingPacks(input: {
   organizationId: string;
+  membershipId: string;
   search?: string | null;
   sourceSite?: StudioListingSourceSite | null;
   listingType?: string | null;
@@ -1716,28 +1839,35 @@ export async function listStudioListingPacks(input: {
   const search = trimString(input.search);
   const requestedListingType = trimString(input.listingType)?.toLowerCase() ?? null;
 
-  const records = await prisma.studioListingPack.findMany({
+  const records = await prisma.studioListingSavedPack.findMany({
     where: {
       organizationId: input.organizationId,
-      snapshot: {
-        sourceSite: input.sourceSite ?? undefined,
-        OR: search
-          ? [
-              { title: { contains: search, mode: "insensitive" } },
-              { streetAddress: { contains: search, mode: "insensitive" } },
-              { buildingName: { contains: search, mode: "insensitive" } },
-              { city: { contains: search, mode: "insensitive" } },
-              { neighborhood: { contains: search, mode: "insensitive" } },
-            ]
-          : undefined,
+      membershipId: input.membershipId,
+      pack: {
+        snapshot: {
+          sourceSite: input.sourceSite ?? undefined,
+          OR: search
+            ? [
+                { title: { contains: search, mode: "insensitive" } },
+                { streetAddress: { contains: search, mode: "insensitive" } },
+                { buildingName: { contains: search, mode: "insensitive" } },
+                { city: { contains: search, mode: "insensitive" } },
+                { neighborhood: { contains: search, mode: "insensitive" } },
+              ]
+            : undefined,
+        },
       },
     },
-    include: studioListingPackDetailInclude,
-    orderBy: { updatedAt: "desc" },
+    include: {
+      pack: {
+        include: studioListingPackDetailInclude,
+      },
+    },
+    orderBy: [{ createdAt: "desc" }],
   });
 
   return records
-    .map(mapListItem)
+    .map(mapSavedPackListItem)
     .filter(
       (item) =>
         !requestedListingType ||
@@ -1843,17 +1973,18 @@ export async function createStudioListingCollection(input: {
     .$transaction(async (tx) => {
       const nextPackId = trimString(input.initialPackId);
       if (nextPackId) {
-        const pack = await tx.studioListingPack.findFirst({
+        const savedPack = await tx.studioListingSavedPack.findFirst({
           where: {
-            id: nextPackId,
             organizationId: input.organizationId,
+            membershipId: input.membershipId,
+            packId: nextPackId,
           },
           select: {
-            id: true,
+            packId: true,
           },
         });
 
-        if (!pack) {
+        if (!savedPack) {
           throw new Error("Listing pack not found.");
         }
       }
@@ -2001,17 +2132,18 @@ export async function addStudioListingPackToCollection(input: {
       return null;
     }
 
-    const pack = await tx.studioListingPack.findFirst({
+    const savedPack = await tx.studioListingSavedPack.findFirst({
       where: {
-        id: input.packId,
         organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        packId: input.packId,
       },
       select: {
-        id: true,
+        packId: true,
       },
     });
 
-    if (!pack) {
+    if (!savedPack) {
       throw new Error("Listing pack not found.");
     }
 
@@ -2219,6 +2351,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
       coverAssetId: record.coverAssetId,
       shareEnabled: record.shareEnabled,
       shareCode: record.shareCode,
+      companyFeedVisible: record.companyFeedVisible,
+      companyFeedPublishedAt: record.companyFeedPublishedAt?.toISOString() ?? null,
       agentNote: record.agentNote?.trim() || "",
       contactName: record.contactName?.trim() || "",
       contactTitle: record.contactTitle?.trim() || "",
@@ -2312,6 +2446,7 @@ export async function updateStudioListingPack(input: {
   descriptionText?: string | null;
   amenities?: StudioAmenitySection[];
   sourceFacts?: StudioLabeledValue[];
+  companyFeedVisible?: boolean;
 }) {
   const existing = await prisma.studioListingPack.findFirst({
     where: {
@@ -2515,6 +2650,21 @@ export async function updateStudioListingPack(input: {
   nextCanonicalFields.amenities = nextAmenities;
   nextCanonicalFields.sourceFacts = nextSourceFacts;
   nextRawParsedJson.canonicalFields = nextCanonicalFields;
+  const nextCompanyFeedVisible =
+    input.companyFeedVisible === undefined
+      ? existing.companyFeedVisible
+      : input.companyFeedVisible;
+  const nextCompanyFeedPublishedAt = nextCompanyFeedVisible
+    ? existing.companyFeedVisible && existing.companyFeedPublishedAt
+      ? existing.companyFeedPublishedAt
+      : new Date()
+    : null;
+  const nextCompanyFeedPublishedByMembershipId = nextCompanyFeedVisible
+    ? existing.companyFeedVisible &&
+      existing.companyFeedPublishedByMembershipId
+      ? existing.companyFeedPublishedByMembershipId
+      : input.membershipId
+    : null;
 
   await prisma.studioListingSnapshot.update({
     where: { id: existing.snapshot.id },
@@ -2554,6 +2704,9 @@ export async function updateStudioListingPack(input: {
       bulletPointsJson: nextBulletPoints,
       selectedAssetIdsJson: selectedAssetIds,
       coverAssetId: nextCoverAssetId,
+      companyFeedVisible: nextCompanyFeedVisible,
+      companyFeedPublishedAt: nextCompanyFeedPublishedAt,
+      companyFeedPublishedByMembershipId: nextCompanyFeedPublishedByMembershipId,
       agentNote: nextAgentNote,
       contactName: resolveContactField(input.contactName, existing.contactName),
       contactTitle: resolveContactField(input.contactTitle, existing.contactTitle),
@@ -2566,6 +2719,59 @@ export async function updateStudioListingPack(input: {
     organizationId: input.organizationId,
     packId: input.packId,
   });
+}
+
+export async function saveStudioListingPackToMyListings(input: {
+  organizationId: string;
+  membershipId: string;
+  packId: string;
+}) {
+  const pack = await prisma.studioListingPack.findFirst({
+    where: {
+      id: input.packId,
+      organizationId: input.organizationId,
+      companyFeedVisible: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!pack) {
+    return null;
+  }
+
+  const existing = await prisma.studioListingSavedPack.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      packId: input.packId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existing) {
+    return {
+      saved: true,
+      alreadySaved: true,
+    };
+  }
+
+  await prisma.studioListingSavedPack.create({
+    data: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      packId: input.packId,
+      source: StudioListingSavedPackSource.saved_from_dashboard,
+    },
+  });
+
+  return {
+    saved: true,
+    alreadySaved: false,
+  };
 }
 
 export async function appendStudioListingPackAssets(input: {

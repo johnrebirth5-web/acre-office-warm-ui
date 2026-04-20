@@ -4,7 +4,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@acre/ui";
 
-const RETURN_TO_DASHBOARD_DELAY_MS = 1200;
+const RETURN_TO_LISTINGS_DELAY_MS = 1200;
 
 export function ListingStudioExtensionApprovalClient(props: {
   challengeToken: string;
@@ -22,11 +22,11 @@ export function ListingStudioExtensionApprovalClient(props: {
     }
   }
 
-  function scheduleDashboardReturn() {
+  function scheduleListingsReturn() {
     clearRedirectTimeout();
     redirectTimeoutRef.current = window.setTimeout(() => {
-      router.replace("/listing-studio/dashboard?extensionConnection=approved");
-    }, RETURN_TO_DASHBOARD_DELAY_MS);
+      router.replace("/listing-studio/listings?extensionConnection=approved");
+    }, RETURN_TO_LISTINGS_DELAY_MS);
   }
 
   function approve() {
@@ -59,7 +59,7 @@ export function ListingStudioExtensionApprovalClient(props: {
             Date.now().toString(),
           );
         } catch {}
-        scheduleDashboardReturn();
+        scheduleListingsReturn();
       } catch (error) {
         setStatus("error");
         setMessage(error instanceof Error ? error.message : "Approval failed.");

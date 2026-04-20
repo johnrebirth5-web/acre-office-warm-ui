@@ -20,6 +20,7 @@ export default async function ListingStudioCollectionDetailPage(
     }),
     listStudioListingPacks({
       organizationId: context.currentOrganization.id,
+      membershipId: context.currentMembership.id,
     }),
   ]);
 

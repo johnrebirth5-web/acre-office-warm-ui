@@ -100,6 +100,7 @@ export type PermissionKey =
   | "listing_studio:create"
   | "listing_studio:edit"
   | "listing_studio:share"
+  | "listing_studio:company_manage"
   | "clients:view"
   | "clients:manage"
   | "events:view"
@@ -1038,6 +1039,15 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "company"
   },
   {
+    key: "listing_studio:company_manage",
+    label: "Can manage Listing Studio company feed",
+    description: "Publish or remove Listing Studio packs from the shared company dashboard feed.",
+    group: "listing_studio",
+    parentKey: "listing_studio:edit",
+    sortOrder: 197,
+    scopeBehavior: "company"
+  },
+  {
     key: "clients:view",
     label: "Can view clients",
     description: "View client records.",
@@ -1803,6 +1813,12 @@ export function canEditListingStudio(subject: PermissionSubject): boolean {
 
 export function canShareListingStudio(subject: PermissionSubject): boolean {
   return can(subject, "listing_studio:share");
+}
+
+export function canManageListingStudioCompanyFeed(
+  subject: PermissionSubject,
+): boolean {
+  return can(subject, "listing_studio:company_manage");
 }
 
 export function canManageOfficeOffers(subject: PermissionSubject): boolean {

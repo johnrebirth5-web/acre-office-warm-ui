@@ -46,19 +46,25 @@
     - `amenities / transit / floor plans / property history / additional source sections`
 - `Listing Studio` 当前已落地 `v1` 主链路：
   - `/listing-studio/dashboard`
+    - 现在是公司公盘，只展示管理员发布给全员查看的房源
+    - agent 可在卡片上点击 `+ Add to my listings` 收录到自己的 `Studio > Listings`
   - `/listing-studio/listings`
+    - 现在是当前 agent 的个人工作台
+    - 顶部承接 Chrome extension connect 和 Studio overview
+    - 列表主体只显示“我导入的房源 + 我从公司 dashboard 收录的房源”
   - `/listing-studio/listings/[packId]`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
-  - dashboard 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
+  - listings 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
   - 当前安装页：
     - `/listing-studio/extension/install`
-    - dashboard 当前 tab 检测不到扩展时会打开 Chrome Web Store / 扩展设置入口，而不是假定用户尚未安装
+    - listings 当前 tab 检测不到扩展时会打开 Chrome Web Store / 扩展设置入口，而不是假定用户尚未安装
     - `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 现在只作为公开商店链接的覆盖配置，不再是启用一键安装的前提
-    - 安装完成后，回到原来的 `Listing Studio dashboard` 标签页，页面会自动刷新并继续浏览器连接流程
-    - 批准页现在会自动提交授权，并在成功后自动返回 `Listing Studio dashboard`
+    - 安装完成后，回到原来的 `Listing Studio listings` 标签页，页面会自动刷新并继续浏览器连接流程
+    - 批准页现在会自动提交授权，并在成功后自动返回 `Listing Studio listings`
+  - company dashboard 发布权限现在单独受 `listing_studio:company_manage` 控制，仅 `owner / office_admin` 默认拥有
   - 当前公开隐私页：
     - `/legal/listing-studio-extension-privacy`
   - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存

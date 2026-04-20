@@ -10,7 +10,7 @@
 
 ## Short description
 
-Use Acre Listing Studio to save StreetEasy and Zillow listings directly into Acre for sharing, editing, and PDF export.
+Use Acre Listing Studio to save StreetEasy and Zillow listings directly into Acre for company sharing, personal organization, and PDF export.
 
 ## Long description
 
@@ -67,9 +67,9 @@ Chrome Web Store screenshots should show:
 
 1. StreetEasy page with Acre floating save card visible
 2. Zillow page with Acre floating save card visible
-3. Listing Studio dashboard with extension connect state
+3. Listing Studio listings workspace with extension connect state
 4. Listing Studio saved listing detail page
-5. Listing Studio share page or PDF preview
+5. Listing Studio company dashboard or PDF/share preview
 
 ## Promo asset checklist
 
@@ -82,4 +82,4 @@ Chrome Web Store screenshots should show:
 
 Suggested reviewer note:
 
-`This extension is used by Acre users to save supported StreetEasy and Zillow listing pages into their Acre Listing Studio workspace. It only activates on supported listing detail pages and the Acre Listing Studio dashboard.`
+`This extension is used by Acre users to save supported StreetEasy and Zillow listing pages into their Acre Listing Studio workspace. It only activates on supported listing detail pages and the Acre Listing Studio listings workspace.`

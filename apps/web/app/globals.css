@@ -18476,6 +18476,22 @@ body,
   padding: 0 16px 16px;
 }
 
+.listing-studio-card-footer-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.listing-studio-card-footer-actions .office-button,
+.listing-studio-card-footer-actions .studio-collection-picker {
+  flex: 1 1 180px;
+}
+
+.listing-studio-card-footer-actions .studio-collection-picker-trigger {
+  width: 100%;
+  justify-content: center;
+}
+
 .listing-studio-card-meta {
   display: flex;
   flex-wrap: wrap;

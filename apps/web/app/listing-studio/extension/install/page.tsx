@@ -39,9 +39,9 @@ export default function ListingStudioExtensionInstallPage() {
               </a>
               <Link
                 className="office-button office-button-secondary"
-                href="/listing-studio/dashboard"
+                href="/listing-studio/listings"
               >
-                Back to dashboard
+                Back to listings
               </Link>
             </div>
           </div>
@@ -63,7 +63,7 @@ export default function ListingStudioExtensionInstallPage() {
             </div>
             <div className="listing-studio-install-step">
               <span>02</span>
-              <strong>Return to the Listing Studio dashboard</strong>
+              <strong>Return to your Listing Studio listings</strong>
               <p>
                 Go back to the same Listing Studio tab after Chrome adds the
                 extension.
@@ -73,7 +73,7 @@ export default function ListingStudioExtensionInstallPage() {
               <span>03</span>
               <strong>Acre finishes the browser connection</strong>
               <p>
-                The dashboard will detect the extension, refresh once if
+                Listings will detect the extension, refresh once if
                 needed, open the approval page, then return here once the
                 browser is linked.
               </p>

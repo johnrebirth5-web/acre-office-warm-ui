@@ -37,7 +37,7 @@ export function AgentNav({ currentCompanyId, companies, homeHref }: AgentNavProp
           label: t((messages) => messages.agentNav.items.listings),
         },
         {
-          href: "/listing-studio/dashboard",
+          href: "/listing-studio/listings",
           label: t((messages) => messages.agentNav.items.studio),
           children: [
             {

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   const listingType = request.nextUrl.searchParams.get("type");
   const items = await listStudioListingPacks({
     organizationId: context.currentOrganization.id,
+    membershipId: context.currentMembership.id,
     search: query,
     sourceSite:
       source === StudioListingSourceSite.streeteasy ||

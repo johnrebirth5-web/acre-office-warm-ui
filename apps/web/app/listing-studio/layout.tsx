@@ -30,7 +30,7 @@ export default async function ListingStudioLayout({
             name: office.name,
           }))}
           currentCompanyId={context.currentOffice?.id ?? null}
-          homeHref="/listing-studio/dashboard"
+          homeHref="/listing-studio/listings"
         />
         <div className="main-area acre-main-area office-dashboard-main">
           <WorkspaceSessionStatus context={context} />

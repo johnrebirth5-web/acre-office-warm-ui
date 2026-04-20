@@ -116,22 +116,29 @@
 
 ### Dashboard
 
-- extension connected 状态
-- connect Chrome extension 按钮
-- install Chrome extension 入口
-- 最近导入 listing
-- ready-to-share 数量
-- public share views
-- 返回最近导入 packet 的快捷入口
+- 公司公盘卡片流
+- 只展示 `companyFeedVisible = true` 的 pack
+- 所有 agent 都能看到管理员发布的房源
+- 每张 card 支持 `+ Add to my listings`
+- 已经收录到当前个人 workspace 的房源，卡片需要显示完成态
+- 只有具备 `listing_studio:company_manage` 的管理员可以在这里做发布 / 下架管理动作
 
 ### Listings
 
+- extension connected 状态
+- connect Chrome extension 按钮
+- install Chrome extension 入口
+- Studio overview
 - card grid
 - 搜索
 - source site 筛选
 - listing type 筛选
-- imported-at 时间排序
+- 当前 membership 自己的 saved packs
+  - 自己导入的 pack
+  - 从 company dashboard 收录的 pack
+- imported-at / saved-at 时间排序
 - 每张 card 支持直接加入 / 移出 collections
+- 具备 `listing_studio:company_manage` 的管理员可在这里把个人 pack 发布到 company dashboard
 
 ### Collections
 
@@ -194,6 +201,16 @@
 - `StudioListingPack`
   - 客户版整理层，可编辑
   - 保存 headline、summary、bullet points、selected assets、share settings、agent contact
+  - 额外保存 company dashboard 发布状态：
+    - `companyFeedVisible`
+    - `companyFeedPublishedAt`
+    - `companyFeedPublishedByMembershipId`
+- `StudioListingSavedPack`
+  - 当前 membership 的个人 saved join layer
+  - 用于承接“自己导入的 pack”和“从 company dashboard 收录的 pack”
+  - `source` 区分：
+    - `imported_by_me`
+    - `saved_from_dashboard`
 - `StudioListingCollection`
   - 当前用户私有 collection
   - 保存 collection 名称、当前 organization / office scope、创建人与最后更新时间
@@ -228,14 +245,14 @@
 
 连接流程：
 
-1. 如果当前 dashboard tab 尚未与扩展 bridge 成功握手，dashboard 会先引导用户进入 `/listing-studio/extension/install` / Chrome Web Store 设置入口
+1. 如果当前 listings tab 尚未与扩展 bridge 成功握手，listings 会先引导用户进入 `/listing-studio/extension/install` / Chrome Web Store 设置入口
 2. 安装页会直接显示正式 `Add to Chrome`，并允许用 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 覆盖到别的商店条目
-3. 当前浏览器检测到扩展后，用户可从 dashboard 点击 `Connect Chrome extension`
-4. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展
+3. 当前浏览器检测到扩展后，用户可从 listings 点击 `Connect Chrome extension`
+4. listings 通过扩展 bridge 把当前 Acre base URL 发给扩展
 5. 扩展请求 `/api/listing-studio/extension/connect/start`
 6. 服务端生成 challenge token
 7. 扩展打开已登录 Acre 的批准页并自动批准 challenge
-8. dashboard 轮询扩展状态，扩展拿到长期 token 后完成绑定
+8. listings 轮询扩展状态，扩展拿到长期 token 后完成绑定
 
 ## Permissions
 
@@ -248,6 +265,9 @@
   - 也允许创建 / 更新 / 删除 collections 以及管理 collection items
 - `listing_studio:share`
   - 允许发布 share 和导出 PDF
+- `listing_studio:company_manage`
+  - 允许把 pack 发布到 company dashboard 或从 dashboard 下架
+  - 默认只授予 `owner / office_admin`
 
 ## API surface
 
@@ -260,6 +280,7 @@
 - `GET /api/listing-studio/listings/[packId]`
 - `PATCH /api/listing-studio/listings/[packId]`
 - `DELETE /api/listing-studio/listings/[packId]`
+- `POST /api/listing-studio/listings/[packId]/save`
 - `GET /api/listing-studio/collections`
 - `POST /api/listing-studio/collections`
 - `GET /api/listing-studio/collections/[collectionId]`
@@ -316,4 +337,4 @@
 - 联系人信息现在可在 packet editor 里直接修改，并会流入 share / PDF / poster，但它仍然是手动维护的 packet 字段，不是独立 CRM 同步或外部模板同步
 - 如果 packet share 尚未发布，scan path 会回退到原始 source listing，而不是假装始终存在 Acre public packet
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
-- dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖
+- listings 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖
