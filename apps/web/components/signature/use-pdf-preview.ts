@@ -13,6 +13,8 @@ type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
 const pdfJsModuleUrl = "/api/pdfjs/pdf.mjs";
 const pdfJsWorkerUrl = "/api/pdfjs/pdf.worker.mjs";
+const pdfJsCMapUrl = "/api/pdfjs/cmaps/";
+const pdfJsStandardFontDataUrl = "/api/pdfjs/standard-fonts/";
 
 let pdfJsImportPromise: Promise<PdfJsModule> | null = null;
 
@@ -56,7 +58,10 @@ export function usePdfPreview(documentUrl: string) {
         const pdfjs = await loadPdfJs();
 
         const pdfDocument = await pdfjs.getDocument({
-          data: bytes
+          data: bytes,
+          cMapUrl: pdfJsCMapUrl,
+          cMapPacked: true,
+          standardFontDataUrl: pdfJsStandardFontDataUrl
         }).promise;
 
         const nextPages: PdfPreviewPage[] = [];
