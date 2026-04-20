@@ -43,6 +43,28 @@ test("buildPublicTokenRateLimitKey hashes the token segment instead of exposing 
   assert.equal(key.includes("token_123"), false);
 });
 
+test("buildPublicTokenRateLimitKey prefers a direct header reader over an unrelated headers field", () => {
+  const key = buildPublicTokenRateLimitKey(
+    "public/listing-studio/packs/read",
+    {
+      get(name: string) {
+        return name.toLowerCase() === "x-forwarded-for" ? "198.51.100.42" : null;
+      },
+      headers: {},
+    } as {
+      get(name: string): string | null;
+      headers: Record<string, never>;
+    },
+    "pack_token_123",
+  );
+
+  assert.match(
+    key,
+    /^public\/listing-studio\/packs\/read:198\.51\.100\.42:[a-f0-9]{24}$/,
+  );
+  assert.equal(key.includes("pack_token_123"), false);
+});
+
 test("consumePublicTokenRateLimit forwards the hashed key to the injected consumer", async () => {
   let capturedKey = "";
 
