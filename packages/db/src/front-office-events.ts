@@ -99,6 +99,7 @@ export type FrontOfficeEventHubAppointmentItem = {
 export type FrontOfficeEventHubSnapshot = {
   view: FrontOfficeEventCalendarView;
   focusDate: string;
+  todayDate: string;
   rangeLabel: string;
   canManageEvents: boolean;
   summary: {
@@ -1299,6 +1300,7 @@ export async function getFrontOfficeEventHubSnapshot(input: {
   return {
     view: resolvedView,
     focusDate: toIsoDateValue(focusDate),
+    todayDate: toIsoDateValue(new Date()),
     rangeLabel: sharedEvents.rangeLabel,
     canManageEvents: sharedEvents.canManage,
     summary: {

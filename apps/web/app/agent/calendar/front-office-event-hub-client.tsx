@@ -126,6 +126,17 @@ function formatBoardTime(value: string, timeZone?: string | null) {
   });
 }
 
+function getDayDateNumber(dayKey: string) {
+  return dayKey.slice(8, 10).replace(/^0/, "") || "0";
+}
+
+function getWeekdayLabel(dayKey: string) {
+  return new Date(`${dayKey}T12:00:00`).toLocaleDateString("en-US", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+
 function shiftFocusDate(
   focusDate: string,
   view: FrontOfficeEventCalendarView,
@@ -287,7 +298,7 @@ export function FrontOfficeEventHubClient({
     snapshot.sharedEvents.selectedEvent ??
     null;
   const focusMonth = new Date(`${snapshot.focusDate}T12:00:00`).getMonth();
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = snapshot.todayDate;
 
   function setFeedback(
     tone: "info" | "error" | null,
@@ -820,9 +831,7 @@ export function FrontOfficeEventHubClient({
                 <div className={`${styles.calendarGrid} ${styles.weekGrid}`}>
                   {visibleDays.slice(0, 7).map((dayKey) => (
                     <span className={styles.weekdayLabel} key={dayKey}>
-                      {new Date(`${dayKey}T12:00:00`).toLocaleDateString("en-US", {
-                        weekday: "short",
-                      })}
+                      {getWeekdayLabel(dayKey)}
                     </span>
                   ))}
                 </div>
@@ -849,7 +858,7 @@ export function FrontOfficeEventHubClient({
                         key={dayKey}
                       >
                         <div className={styles.dayHeader}>
-                          <strong>{new Date(`${dayKey}T12:00:00`).getDate()}</strong>
+                          <strong>{getDayDateNumber(dayKey)}</strong>
                           <span>{formatDayHeader(dayKey, timeZone)}</span>
                         </div>
 
