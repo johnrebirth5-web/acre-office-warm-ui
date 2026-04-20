@@ -215,6 +215,7 @@ export type InternalAuthBootstrapResult = {
 export type CreateInvitedUserInput = {
   organizationId: string;
   actorMembershipId: string;
+  viewerOfficeId?: string | null;
   email: string;
   firstName: string;
   lastName: string;
@@ -1336,6 +1337,30 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
       defaultOfficeId: input.defaultOfficeId ?? input.officeId ?? null,
       selectedOfficeIds: input.accessibleOfficeIds ?? undefined,
     });
+
+    if (
+      input.viewerOfficeId &&
+      !membershipHasAccessToOffice({
+        role: input.role,
+        allOffices: organizationOffices,
+        defaultOfficeId: normalizedOfficeAssignment.defaultOfficeId,
+        officeAccesses: normalizedOfficeAssignment.explicitOfficeIds.map((officeId) => {
+          const office = organizationOffices.find((entry) => entry.id === officeId);
+
+          if (!office) {
+            throw new Error("Selected company was not found.");
+          }
+
+          return {
+            officeId,
+            office,
+          };
+        }),
+        officeId: input.viewerOfficeId,
+      })
+    ) {
+      throw new Error("Choose the current company in company access or switch the top-level company first.");
+    }
 
     const membership = await tx.membership.create({
       data: {

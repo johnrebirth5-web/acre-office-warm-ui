@@ -29,6 +29,9 @@ function createSessionContext(options: { canManageOfficeSettings?: boolean } = {
     currentOrganization: {
       id: "org_1",
     },
+    currentOffice: {
+      id: "office_1",
+    },
   } as never;
 }
 
@@ -108,6 +111,7 @@ test("handleCreateOfficeUserPost passes normalized payload and invitation URL th
   assert.deepEqual(capturedInput, {
     organizationId: "org_1",
     actorMembershipId: "membership_1",
+    viewerOfficeId: "office_1",
     email: "agent@example.com",
     firstName: "Acre",
     lastName: "Agent",

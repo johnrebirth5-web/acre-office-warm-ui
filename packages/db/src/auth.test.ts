@@ -361,6 +361,30 @@ test("non-admin user managers cannot create office_admin invitations", async () 
   }
 });
 
+test("createInvitedUser requires the current company to stay inside company access", async () => {
+  const context = await createInternalAuthTestContext();
+
+  try {
+    await assert.rejects(
+      () =>
+        createInvitedUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          viewerOfficeId: context.office.id,
+          email: `secondary-only-${randomUUID().slice(0, 8)}@example.com`,
+          firstName: "Secondary",
+          lastName: "Only",
+          role: "agent",
+          defaultOfficeId: context.secondaryOffice.id,
+          accessibleOfficeIds: [context.secondaryOffice.id],
+        }),
+      /Choose the current company in company access or switch the top-level company first\./,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("password login succeeds after invitation setup", async () => {
   const context = await createAcceptedUserAccount("Login123!");
 

@@ -67,6 +67,7 @@ export async function handleCreateOfficeUserPost(
     )({
       organizationId: context.currentOrganization.id,
       actorMembershipId: context.currentMembership.id,
+      viewerOfficeId: context.currentOffice?.id ?? null,
       email: parsedBody.data.email ?? "",
       firstName: parsedBody.data.firstName ?? "",
       lastName: parsedBody.data.lastName ?? "",
