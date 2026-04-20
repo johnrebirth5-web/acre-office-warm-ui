@@ -45,29 +45,6 @@ type TimelineItem = {
   href: string;
 };
 
-const legacyLaneLinks = [
-  {
-    key: "reply_due",
-    title: "Reply due",
-    description: "Open the coordination queue where outside replies are still pending.",
-  },
-  {
-    key: "confirmation_pending",
-    title: "Confirmations",
-    description: "Jump back into appointments that still need an outside confirmation.",
-  },
-  {
-    key: "touch_due",
-    title: "Touch due",
-    description: "Return to next-touch writeback before the thread goes cold.",
-  },
-  {
-    key: "writeback_pending",
-    title: "Writeback lane",
-    description: "Resume bridge-opened appointments that still need Acre writeback.",
-  },
-] as const;
-
 const emptyFormState: EventFormState = {
   title: "",
   description: "",
@@ -382,21 +359,6 @@ export function FrontOfficeEventHubClient({
     });
   }
 
-  function navigateToLegacyLane(view: string) {
-    startRouting(() => {
-      router.push(
-        buildHref(
-          {
-            calendarView: view,
-            appointmentId: null,
-            eventId: null,
-          },
-          ["focusDate"],
-        ),
-      );
-    });
-  }
-
   function openAppointment(href: string) {
     startRouting(() => {
       router.push(href);
@@ -644,8 +606,8 @@ export function FrontOfficeEventHubClient({
             </h3>
             <p>
               {isZh
-                ? "在这里切换月、周、日视图，并保留 appointment lane 的快速返回入口。"
-                : "Switch the active board here while keeping the legacy appointment lanes one click away."}
+                ? "在这里切换月、周、日视图，统一查看 shared event、mandatory 和 appointment 事项。"
+                : "Switch month, week, and day views here while keeping shared events, mandatory commitments, and appointments on one board."}
             </p>
           </div>
 
@@ -729,20 +691,6 @@ export function FrontOfficeEventHubClient({
             </dd>
           </div>
         </dl>
-
-        <div className={styles.laneStrip}>
-          {legacyLaneLinks.map((lane) => (
-            <button
-              className={`front-office-action-card ${styles.laneLink}`}
-              key={lane.key}
-              onClick={() => navigateToLegacyLane(lane.key)}
-              type="button"
-            >
-              <strong>{lane.title}</strong>
-              <span>{lane.description}</span>
-            </button>
-          ))}
-        </div>
       </section>
 
       {feedbackTone && feedbackMessage ? (

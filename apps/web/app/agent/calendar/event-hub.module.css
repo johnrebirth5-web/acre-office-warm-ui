@@ -82,40 +82,9 @@
   margin: 0;
 }
 
-.laneStrip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
-  gap: 12px;
-}
-
-.laneLink {
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    transform 120ms ease,
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-
-.laneLink:hover {
-  transform: translateY(-1px);
-}
-
-.laneLink strong {
-  color: var(--office-text);
-  font-size: 0.95rem;
-}
-
-.laneLink span {
-  color: var(--office-text-muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
