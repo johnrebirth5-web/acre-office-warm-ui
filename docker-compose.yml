@@ -24,6 +24,8 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    stdin_open: true
+    tty: true
     working_dir: /app
     environment:
       ACRE_DEV_HOST: 0.0.0.0

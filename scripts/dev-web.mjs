@@ -3,11 +3,12 @@ import { unwatchFile, watchFile } from "node:fs";
 import { resolve } from "node:path";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const nextBinPath = resolve(process.cwd(), "node_modules/next/dist/bin/next");
 const port = process.env.PORT?.trim() || "3105";
 const host = process.env.ACRE_DEV_HOST?.trim();
 const schemaPath = resolve(process.cwd(), "packages/db/prisma/schema.prisma");
 const shouldSkipInitialGenerate = process.env.ACRE_DEV_PRISMA_PREGENERATED === "1";
-const nextArgs = ["run", "dev", "--workspace=@acre/web", "--", "--port", port];
+const nextArgs = [nextBinPath, "dev", "--port", port];
 
 if (host) {
   nextArgs.push("--hostname", host);
@@ -23,8 +24,20 @@ let recentUnexpectedExitTimes = [];
 
 function spawnNpm(args) {
   return spawn(npmCommand, args, {
-    stdio: "inherit",
+    // Detached Docker compose runs without an interactive stdin. Letting
+    // `next dev` inherit that EOF-prone stdin, or swapping it for `/dev/null`,
+    // can make the dev server exit cleanly after the first compile. Give the
+    // child an open pipe instead so stdin stays connected even in containers.
+    stdio: ["pipe", "inherit", "inherit"],
     env: process.env
+  });
+}
+
+function spawnNextDev() {
+  return spawn(process.execPath, nextArgs, {
+    cwd: resolve(process.cwd(), "apps/web"),
+    stdio: ["pipe", "inherit", "inherit"],
+    env: process.env,
   });
 }
 
@@ -125,7 +138,7 @@ function scheduleUnexpectedRestart(code, signal) {
 }
 
 function startNextChild() {
-  const child = spawnNpm(nextArgs);
+  const child = spawnNextDev();
   nextChild = child;
   const startedAt = Date.now();
 
