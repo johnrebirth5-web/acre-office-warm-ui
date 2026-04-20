@@ -157,6 +157,8 @@ export type StudioListingDetailSnapshot = {
 
 export type StudioListingPublicPackSnapshot = {
   code: string;
+  usesLegacyShareCode: boolean;
+  legacyShareCodeExpiresAt: Date | null;
   title: string;
   headline: string;
   summary: string;
@@ -2822,6 +2824,27 @@ function hashViewerValue(value: string | null) {
   return value ? createHash("sha256").update(value).digest("hex") : null;
 }
 
+function buildStudioListingPrimaryShareWhere(
+  shareCode: string,
+): Prisma.StudioListingPackWhereInput {
+  return {
+    shareCode,
+    shareEnabled: true,
+  };
+}
+
+function buildStudioListingLegacyShareWhere(
+  shareCode: string,
+): Prisma.StudioListingPackWhereInput {
+  return {
+    legacyShareCode: shareCode,
+    legacyShareCodeExpiresAt: {
+      gt: new Date(),
+    },
+    shareEnabled: true,
+  };
+}
+
 export async function getStudioListingPublicPack(input: {
   shareCode: string;
   viewerFingerprint?: string | null;
@@ -2829,13 +2852,25 @@ export async function getStudioListingPublicPack(input: {
   userAgent?: string | null;
   ipAddress?: string | null;
 }) {
-  const record = await prisma.studioListingPack.findFirst({
-    where: {
-      shareCode: input.shareCode,
-      shareEnabled: true,
-    },
+  let record = await prisma.studioListingPack.findFirst({
+    where: buildStudioListingPrimaryShareWhere(input.shareCode),
     include: studioListingPackDetailInclude,
   });
+  let usesLegacyShareCode = false;
+  let legacyShareCodeExpiresAt: Date | null = null;
+
+  if (!record) {
+    const legacyRecord = await prisma.studioListingPack.findFirst({
+      where: buildStudioListingLegacyShareWhere(input.shareCode),
+      include: studioListingPackDetailInclude,
+    });
+
+    if (legacyRecord) {
+      record = legacyRecord;
+      usesLegacyShareCode = true;
+      legacyShareCodeExpiresAt = legacyRecord.legacyShareCodeExpiresAt ?? null;
+    }
+  }
 
   if (!record) {
     return null;
@@ -2859,6 +2894,8 @@ export async function getStudioListingPublicPack(input: {
 
   return {
     code: input.shareCode,
+    usesLegacyShareCode,
+    legacyShareCodeExpiresAt,
     title: detail.title,
     headline: detail.pack.headline || detail.title,
     summary: detail.pack.summary,
@@ -2896,21 +2933,33 @@ export async function getStudioListingAssetRecord(input: {
   organizationId?: string | null;
   shareCode?: string | null;
 }) {
-  const asset = await prisma.studioListingAsset.findFirst({
-    where: input.shareCode
-      ? {
+  if (input.shareCode) {
+    const asset =
+      (await prisma.studioListingAsset.findFirst({
+        where: {
           id: input.assetId,
           snapshot: {
-            pack: {
-              shareEnabled: true,
-              shareCode: input.shareCode,
-            },
+            pack: buildStudioListingPrimaryShareWhere(input.shareCode),
           },
-        }
-      : {
-          id: input.assetId,
-          organizationId: input.organizationId ?? undefined,
         },
+      })) ??
+      (await prisma.studioListingAsset.findFirst({
+        where: {
+          id: input.assetId,
+          snapshot: {
+            pack: buildStudioListingLegacyShareWhere(input.shareCode),
+          },
+        },
+      }));
+
+    return asset;
+  }
+
+  const asset = await prisma.studioListingAsset.findFirst({
+    where: {
+      id: input.assetId,
+      organizationId: input.organizationId ?? undefined,
+    },
   });
 
   return asset;

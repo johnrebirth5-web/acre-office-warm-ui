@@ -1,6 +1,7 @@
 import { getStudioListingPublicPack } from "@acre/db";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { formatDate } from "../../../../lib/i18n/format";
 import {
   consumePublicTokenRateLimit,
   PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
@@ -10,6 +11,21 @@ type ListingStudioPublicSharePageProps = {
   params: Promise<{ code: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+function formatLegacyShareRetirementDate(value: Date) {
+  return (
+    formatDate(value, "en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }) ||
+    value.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  );
+}
 
 export default async function ListingStudioPublicSharePage(
   props: ListingStudioPublicSharePageProps,
@@ -47,6 +63,20 @@ export default async function ListingStudioPublicSharePage(
   return (
     <main className="listing-studio-share-shell">
       <div className="listing-studio-share-page">
+        {snapshot.usesLegacyShareCode && snapshot.legacyShareCodeExpiresAt ? (
+          <div className="public-share-legacy-notice" role="status">
+            <p>
+              This link will be retired on{" "}
+              <strong>
+                {formatLegacyShareRetirementDate(
+                  snapshot.legacyShareCodeExpiresAt,
+                )}
+              </strong>
+              . Please ask the sender for an updated link.
+            </p>
+          </div>
+        ) : null}
+
         <section className="listing-studio-share-hero">
           <div className="listing-studio-share-copy">
             <span className="office-eyebrow">Acre listing</span>
