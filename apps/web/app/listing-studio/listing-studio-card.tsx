@@ -198,122 +198,124 @@ export function ListingStudioCard({
   }
 
   return (
-    <article className="listing-studio-card">
-      {showDeleteAction ? (
-        <div className="listing-studio-card-top-actions">
-          <button
-            aria-label={`Delete ${item.displayTitle || item.addressLine}`}
-            className="listing-studio-card-delete-button"
-            disabled={isDeleting}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setIsDeleteDialogOpen(true);
-            }}
-            title="Delete listing"
-            type="button"
-          >
-            <IconTrash />
-          </button>
-        </div>
-      ) : null}
+    <>
+      <article className="listing-studio-card">
+        {showDeleteAction ? (
+          <div className="listing-studio-card-top-actions">
+            <button
+              aria-label={`Delete ${item.displayTitle || item.addressLine}`}
+              className="listing-studio-card-delete-button"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsDeleteDialogOpen(true);
+              }}
+              title="Delete listing"
+              type="button"
+            >
+              <IconTrash />
+            </button>
+          </div>
+        ) : null}
 
-      <Link
-        className="listing-studio-card-link"
-        href={`/listing-studio/listings/${item.packId}`}
-      >
-        <div className="listing-studio-card-media">
-          {listingTypeLabel ? (
-            <span className="listing-studio-card-media-badge">{listingTypeLabel}</span>
-          ) : null}
-          {item.heroAssetId ? (
-            <img
-              alt={item.displayTitle || item.addressLine}
-              src={`/api/listing-studio/assets/${item.heroAssetId}`}
-            />
-          ) : (
-            <div className="listing-studio-card-media-fallback">
-              {item.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow"}
-            </div>
-          )}
-        </div>
-        <div className="listing-studio-card-body">
-          <div className="listing-studio-card-meta">
-            <span className="office-status-badge office-status-badge-neutral">
-              {item.sourceSite}
-            </span>
-            {item.shareEnabled ? (
-              <span className="office-status-badge office-status-badge-success">
-                Shared
-              </span>
+        <Link
+          className="listing-studio-card-link"
+          href={`/listing-studio/listings/${item.packId}`}
+        >
+          <div className="listing-studio-card-media">
+            {listingTypeLabel ? (
+              <span className="listing-studio-card-media-badge">{listingTypeLabel}</span>
             ) : null}
-            {companyFeedVisible ? (
-              <span className="office-status-badge office-status-badge-accent">
-                Company dashboard
+            {item.heroAssetId ? (
+              <img
+                alt={item.displayTitle || item.addressLine}
+                src={`/api/listing-studio/assets/${item.heroAssetId}`}
+              />
+            ) : (
+              <div className="listing-studio-card-media-fallback">
+                {item.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow"}
+              </div>
+            )}
+          </div>
+          <div className="listing-studio-card-body">
+            <div className="listing-studio-card-meta">
+              <span className="office-status-badge office-status-badge-neutral">
+                {item.sourceSite}
               </span>
+              {item.shareEnabled ? (
+                <span className="office-status-badge office-status-badge-success">
+                  Shared
+                </span>
+              ) : null}
+              {companyFeedVisible ? (
+                <span className="office-status-badge office-status-badge-accent">
+                  Company dashboard
+                </span>
+              ) : null}
+            </div>
+            <strong>{item.priceLabel}</strong>
+            {item.displayTitle ? (
+              <span className="listing-studio-card-title">{item.displayTitle}</span>
+            ) : null}
+            <span className="listing-studio-card-address">{item.addressLine}</span>
+            {item.locationLine ? (
+              <span className="listing-studio-card-location">{item.locationLine}</span>
+            ) : null}
+            <span className="listing-studio-card-facts">{item.factsLine}</span>
+            {item.statusLabel ? (
+              <span className="listing-studio-card-status">{item.statusLabel}</span>
             ) : null}
           </div>
-          <strong>{item.priceLabel}</strong>
-          {item.displayTitle ? (
-            <span className="listing-studio-card-title">{item.displayTitle}</span>
-          ) : null}
-          <span className="listing-studio-card-address">{item.addressLine}</span>
-          {item.locationLine ? (
-            <span className="listing-studio-card-location">{item.locationLine}</span>
-          ) : null}
-          <span className="listing-studio-card-facts">{item.factsLine}</span>
-          {item.statusLabel ? (
-            <span className="listing-studio-card-status">{item.statusLabel}</span>
-          ) : null}
-        </div>
-      </Link>
+        </Link>
 
-      {mode === "dashboard" || showCollectionPicker || canManageCompanyFeed ? (
-        <div className="listing-studio-card-footer listing-studio-card-footer-actions">
-          {mode === "dashboard" ? (
-            <button
-              className={`office-button ${isSavedToMyListings ? "office-button-secondary" : "office-button-primary"}`}
-              disabled={isSavingToMyListings || isSavedToMyListings}
-              onClick={() => void handleSaveToMyListings()}
-              type="button"
-            >
-              {isSavingToMyListings
-                ? "Adding..."
-                : isSavedToMyListings
-                  ? "Added to my listings"
-                  : "+ Add to my listings"}
-            </button>
-          ) : null}
+        {mode === "dashboard" || showCollectionPicker || canManageCompanyFeed ? (
+          <div className="listing-studio-card-footer listing-studio-card-footer-actions">
+            {mode === "dashboard" ? (
+              <button
+                className={`office-button ${isSavedToMyListings ? "office-button-secondary" : "office-button-primary"}`}
+                disabled={isSavingToMyListings || isSavedToMyListings}
+                onClick={() => void handleSaveToMyListings()}
+                type="button"
+              >
+                {isSavingToMyListings
+                  ? "Adding..."
+                  : isSavedToMyListings
+                    ? "Added to my listings"
+                    : "+ Add to my listings"}
+              </button>
+            ) : null}
 
-          {showCollectionPicker ? (
-            <StudioCollectionPicker
-              buttonLabel="Add to collection"
-              packId={item.packId}
-            />
-          ) : null}
+            {showCollectionPicker ? (
+              <StudioCollectionPicker
+                buttonLabel="Add to collection"
+                packId={item.packId}
+              />
+            ) : null}
 
-          {canManageCompanyFeed ? (
-            <button
-              className="office-button office-button-secondary"
-              disabled={isUpdatingCompanyFeed}
-              onClick={() =>
-                void handleCompanyFeedToggle(
-                  mode === "dashboard" ? false : !companyFeedVisible,
-                )
-              }
-              type="button"
-            >
-              {isUpdatingCompanyFeed
-                ? mode === "dashboard" || companyFeedVisible
-                  ? "Updating..."
-                  : "Publishing..."
-                : mode === "dashboard" || companyFeedVisible
-                  ? "Remove from dashboard"
-                  : "Publish to dashboard"}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+            {canManageCompanyFeed ? (
+              <button
+                className="office-button office-button-secondary"
+                disabled={isUpdatingCompanyFeed}
+                onClick={() =>
+                  void handleCompanyFeedToggle(
+                    mode === "dashboard" ? false : !companyFeedVisible,
+                  )
+                }
+                type="button"
+              >
+                {isUpdatingCompanyFeed
+                  ? mode === "dashboard" || companyFeedVisible
+                    ? "Updating..."
+                    : "Publishing..."
+                  : mode === "dashboard" || companyFeedVisible
+                    ? "Remove from dashboard"
+                    : "Publish to dashboard"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
 
       <ConfirmActionDialog
         cancelLabel="Keep listing"
@@ -333,6 +335,6 @@ export function ListingStudioCard({
       >
         <p>This action cannot be undone.</p>
       </ConfirmActionDialog>
-    </article>
+    </>
   );
 }
