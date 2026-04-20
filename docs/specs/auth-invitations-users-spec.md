@@ -109,6 +109,8 @@ Current routes:
 `/office/settings/users` now supports:
 
 - search / filter the internal account roster
+- default the roster to the current top-level company scope instead of showing the full organization by default
+- only show memberships whose company access includes the current company; to manage a company-only account for another company, admins must switch the top-level `Company` selector first
 - switch between `access` and `operations` views inside the same route
 - open a dedicated detail page for each membership
 - create invited users from a modal / drawer flow
@@ -117,6 +119,7 @@ Current routes:
 `/office/settings/users/[membershipId]` now supports:
 
 - review core account identity, office access, team context, and sign-in timestamps
+- return `404` when the target membership does not belong to the current top-level company scope
 - review and edit operational profile, team assignments, onboarding, goals, and workload context without leaving the user detail route
 - update role
 - update membership status
@@ -129,6 +132,7 @@ Current routes:
 - review a compact permission summary and open the dedicated permission editor
 - review commission summary
 - review recent audit/activity items tied to the user account
+- user update / invite / unlock / permission-override actions now enforce the same current-company scope as the list and detail routes
 
 `/office/settings/teams` now supports:
 

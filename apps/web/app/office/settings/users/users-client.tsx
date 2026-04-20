@@ -86,15 +86,20 @@ function buildUsersHref(
 
 function getDefaultOfficeId(snapshot: OfficeAdminUsersSnapshot) {
   const preferredOfficeId = snapshot.filters.officeId.trim();
-  if (preferredOfficeId && snapshot.filters.officeOptions.some((option) => option.id === preferredOfficeId)) {
+  if (
+    preferredOfficeId &&
+    snapshot.createOptions.officeOptions.some(
+      (option) => option.id === preferredOfficeId,
+    )
+  ) {
     return preferredOfficeId;
   }
 
-  return snapshot.filters.officeOptions.find((option) => option.id !== "__all__")?.id ?? "__all__";
+  return snapshot.createOptions.officeOptions[0]?.id ?? "__all__";
 }
 
 function getActualOfficeOptions(snapshot: OfficeAdminUsersSnapshot) {
-  return snapshot.filters.officeOptions.filter((option) => option.id !== "__all__");
+  return snapshot.createOptions.officeOptions;
 }
 
 function roleHasImplicitAllCompanyAccess(role: string) {

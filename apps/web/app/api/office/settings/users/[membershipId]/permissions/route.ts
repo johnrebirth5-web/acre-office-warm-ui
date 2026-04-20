@@ -107,6 +107,7 @@ export async function handleUpdateOfficeUserPermissionsPatch(
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
+            viewerOfficeId: context.currentOffice?.id ?? null,
             officeId: parsedBody.data.officeId ?? "",
             overrides,
           })
@@ -117,6 +118,7 @@ export async function handleUpdateOfficeUserPermissionsPatch(
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
+            viewerOfficeId: context.currentOffice?.id ?? null,
             overrides,
           });
 
@@ -154,6 +156,7 @@ export async function handleResetOfficeUserPermissionsDelete(
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
             membershipId,
+            viewerOfficeId: context.currentOffice?.id ?? null,
             officeId,
           })
         : await (
@@ -162,7 +165,8 @@ export async function handleResetOfficeUserPermissionsDelete(
           )({
             organizationId: context.currentOrganization.id,
             actorMembershipId: context.currentMembership.id,
-            membershipId
+            membershipId,
+            viewerOfficeId: context.currentOffice?.id ?? null,
           });
 
     return NextResponse.json({ permissions });

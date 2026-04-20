@@ -49,6 +49,9 @@ function createSessionContext() {
     currentOrganization: {
       id: "org_1",
     },
+    currentOffice: {
+      id: "office_1",
+    },
   } as never;
 }
 
@@ -142,6 +145,7 @@ test("handleUpdateOfficeUserPermissionsPatch passes normalized company overrides
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
     officeId: "office_2",
     overrides: [
       {
@@ -202,6 +206,7 @@ test("handleResetOfficeUserPermissionsDelete passes company scope reset through 
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
     officeId: "office_2",
   });
   assert.deepEqual(await readJson(response), {

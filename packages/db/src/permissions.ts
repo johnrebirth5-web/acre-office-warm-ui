@@ -9,7 +9,11 @@ import {
 } from "@acre/auth";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
-import { resolveMembershipAccessibleOffices, type MembershipOfficeAccessRecord } from "./membership-office-access";
+import {
+  membershipHasAccessToOffice,
+  resolveMembershipAccessibleOffices,
+  type MembershipOfficeAccessRecord,
+} from "./membership-office-access";
 
 type PermissionDbClient = Pick<
   typeof prisma,
@@ -91,6 +95,7 @@ export type SaveMembershipPermissionOverridesInput = {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
   overrides: Array<{
     permissionKey: string;
     effect: PermissionOverrideValue;
@@ -101,6 +106,7 @@ export type ResetMembershipPermissionOverridesInput = {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
 };
 
 export type SaveMembershipOfficePermissionOverridesInput = SaveMembershipPermissionOverridesInput & {
@@ -496,6 +502,75 @@ async function assertTargetMembershipCanAccessOfficeScope(
   }
 }
 
+async function assertTargetMembershipVisibleInViewerOfficeScope(
+  input: {
+    organizationId: string;
+    membershipId: string;
+    viewerOfficeId?: string | null;
+  },
+  db: PermissionDbClient,
+) {
+  if (!input.viewerOfficeId) {
+    return;
+  }
+
+  const [membership, allOffices] = await Promise.all([
+    db.membership.findFirst({
+      where: {
+        id: input.membershipId,
+        organizationId: input.organizationId,
+      },
+      select: {
+        id: true,
+        role: true,
+        officeId: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    db.office.findMany({
+      where: {
+        organizationId: input.organizationId,
+      },
+      orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true,
+      },
+    }),
+  ]);
+
+  if (!membership) {
+    throw new Error("Membership was not found.");
+  }
+
+  if (
+    !membershipHasAccessToOffice({
+      role: membership.role,
+      allOffices,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses as MembershipOfficeAccessRecord[],
+      officeId: input.viewerOfficeId,
+    })
+  ) {
+    throw new Error("This user is outside the current company scope.");
+  }
+}
+
 export async function ensureOrganizationRoleTemplates(
   organizationId: string,
   db: PermissionDbClient = prisma,
@@ -682,6 +757,14 @@ export async function saveMembershipPermissionOverrides(input: SaveMembershipPer
     );
 
     assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
 
     const membership = await tx.membership.findFirst({
       where: {
@@ -796,6 +879,14 @@ export async function resetMembershipPermissionOverrides(input: ResetMembershipP
     );
 
     assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
 
     const membership = await tx.membership.findFirst({
       where: {
@@ -870,6 +961,14 @@ export async function saveMembershipOfficePermissionOverrides(input: SaveMembers
     );
 
     assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
     await assertTargetMembershipCanAccessOfficeScope(
       {
         organizationId: input.organizationId,
@@ -1012,6 +1111,14 @@ export async function resetMembershipOfficePermissionOverrides(input: ResetMembe
     );
 
     assertActorCanManagePermissionOverrides(actorPermissionKeys);
+    await assertTargetMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
     await assertTargetMembershipCanAccessOfficeScope(
       {
         organizationId: input.organizationId,

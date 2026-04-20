@@ -72,6 +72,15 @@ async function createInternalAuthTestContext() {
       isPrimary: true
     }
   });
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Internal Secondary ${suffix}`,
+      slug: `internal-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false,
+    },
+  });
 
   const adminUser = await prisma.user.create({
     data: {
@@ -101,6 +110,7 @@ async function createInternalAuthTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     adminMembership,
     trackedUserIds,
     async cleanup() {
@@ -423,6 +433,45 @@ test("admins can unlock a locked account and restore password login", async () =
 
     const login = await authenticatePasswordUser(context.inviteEmail, "Unlock123!");
     assert.equal(login.status, "success");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("admins cannot unlock accounts outside the current company scope", async () => {
+  const context = await createAcceptedUserAccount("ScopedUnlock123!");
+
+  try {
+    await prisma.membership.update({
+      where: {
+        id: context.invitation.membershipId,
+      },
+      data: {
+        officeId: context.secondaryOffice.id,
+        officeAccesses: {
+          deleteMany: {},
+          create: {
+            organizationId: context.organization.id,
+            officeId: context.secondaryOffice.id,
+          },
+        },
+      },
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await authenticatePasswordUser(context.inviteEmail, "wrong-password");
+    }
+
+    await assert.rejects(
+      () =>
+        unlockInternalAccount({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          membershipId: context.invitation.membershipId,
+          viewerOfficeId: context.office.id,
+        }),
+      /This user is outside the current company scope\./,
+    );
   } finally {
     await context.cleanup();
   }

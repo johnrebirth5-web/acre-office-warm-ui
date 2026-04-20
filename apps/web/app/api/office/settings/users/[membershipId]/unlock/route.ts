@@ -25,7 +25,8 @@ export async function handleUnlockOfficeUserPost(
     await (dependencies.unlockInternalAccount ?? unlockInternalAccount)({
       organizationId: context.currentOrganization.id,
       actorMembershipId: context.currentMembership.id,
-      membershipId
+      membershipId,
+      viewerOfficeId: context.currentOffice?.id ?? null,
     });
 
     return NextResponse.json({ membershipId, unlocked: true });

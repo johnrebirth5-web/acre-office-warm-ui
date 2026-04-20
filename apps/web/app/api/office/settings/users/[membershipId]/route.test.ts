@@ -29,6 +29,9 @@ function createSessionContext(options: { canManageOfficeSettings?: boolean } = {
     currentOrganization: {
       id: "org_1",
     },
+    currentOffice: {
+      id: "office_1",
+    },
   } as never;
 }
 
@@ -102,6 +105,7 @@ test("handleUpdateOfficeUserPatch passes normalized office access fields through
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
     role: "agent",
     status: "active",
     defaultOfficeId: undefined,

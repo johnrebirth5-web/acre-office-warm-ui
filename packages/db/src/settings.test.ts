@@ -4,7 +4,11 @@ import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
 import { addAgentToTeam, createAgentTeam, getOfficeAgentsRosterSnapshot } from "./agents.ts";
 import { prisma } from "./client.ts";
-import { updateOfficeAdminUser } from "./settings.ts";
+import {
+  getOfficeAdminUserDetailSnapshot,
+  getOfficeAdminUsersSnapshot,
+  updateOfficeAdminUser,
+} from "./settings.ts";
 
 after(async () => {
   await prisma.$disconnect();
@@ -28,10 +32,29 @@ async function createSettingsTestContext() {
       isPrimary: true
     }
   });
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Settings Secondary ${suffix}`,
+      slug: `settings-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false,
+    },
+  });
 
   const trackedUserIds: string[] = [];
 
-  async function createMembership(role: UserRole, prefix: string, firstName: string, lastName: string, title?: string | null) {
+  async function createMembership(
+    role: UserRole,
+    prefix: string,
+    firstName: string,
+    lastName: string,
+    title?: string | null,
+    options: {
+      officeId?: string | null;
+      accessibleOfficeIds?: string[];
+    } = {},
+  ) {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${randomUUID().slice(0, 8)}@example.com`,
@@ -47,12 +70,22 @@ async function createSettingsTestContext() {
     const membership = await prisma.membership.create({
       data: {
         organizationId: organization.id,
-        officeId: office.id,
+        officeId: options.officeId ?? office.id,
         userId: user.id,
         role,
         status: "active",
         title: title ?? null,
-        permissions: Prisma.JsonNull
+        permissions: Prisma.JsonNull,
+        officeAccesses: options.accessibleOfficeIds?.length
+          ? {
+              createMany: {
+                data: options.accessibleOfficeIds.map((officeId) => ({
+                  organizationId: organization.id,
+                  officeId,
+                })),
+              },
+            }
+          : undefined,
       }
     });
 
@@ -67,6 +100,7 @@ async function createSettingsTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     adminMembership: admin.membership,
     createMembership,
     async cleanup() {
@@ -86,6 +120,98 @@ async function createSettingsTestContext() {
     }
   };
 }
+
+test("getOfficeAdminUsersSnapshot defaults to the current company scope", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const primaryOnly = await context.createMembership(
+      "agent",
+      "primary-only",
+      "Primary",
+      "Only",
+      "Agent",
+      {
+        officeId: context.office.id,
+        accessibleOfficeIds: [context.office.id],
+      },
+    );
+    const sharedUser = await context.createMembership(
+      "agent",
+      "shared-user",
+      "Shared",
+      "User",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id],
+      },
+    );
+    const secondaryOnly = await context.createMembership(
+      "agent",
+      "secondary-only",
+      "Secondary",
+      "Only",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.secondaryOffice.id],
+      },
+    );
+
+    const snapshot = await getOfficeAdminUsersSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+    });
+
+    assert.equal(snapshot.filters.officeId, context.office.id);
+    assert.equal(snapshot.summary.totalUsers, 3);
+    assert.equal(
+      snapshot.rows.some((row) => row.membershipId === primaryOnly.membership.id),
+      true,
+    );
+    assert.equal(
+      snapshot.rows.some((row) => row.membershipId === sharedUser.membership.id),
+      true,
+    );
+    assert.equal(
+      snapshot.rows.some((row) => row.membershipId === secondaryOnly.membership.id),
+      false,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("getOfficeAdminUserDetailSnapshot hides users outside the current company scope", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const secondaryOnly = await context.createMembership(
+      "agent",
+      "detail-secondary-only",
+      "Detail",
+      "Secondary",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.secondaryOffice.id],
+      },
+    );
+
+    const snapshot = await getOfficeAdminUserDetailSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      membershipId: secondaryOnly.membership.id,
+    });
+
+    assert.equal(snapshot, null);
+  } finally {
+    await context.cleanup();
+  }
+});
 
 test("updateOfficeAdminUser blocks downgrading an active team leader to agent", async () => {
   const context = await createSettingsTestContext();
@@ -135,6 +261,38 @@ test("updateOfficeAdminUser blocks downgrading an active team leader to agent", 
     });
 
     assert.equal(refreshedMembership?.role, "team_lead");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateOfficeAdminUser blocks managing users outside the current company scope", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const secondaryOnly = await context.createMembership(
+      "agent",
+      "update-secondary-only",
+      "Update",
+      "Secondary",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.secondaryOffice.id],
+      },
+    );
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          viewerOfficeId: context.office.id,
+          membershipId: secondaryOnly.membership.id,
+          status: "disabled",
+        }),
+      /This user is outside the current company scope\./,
+    );
   } finally {
     await context.cleanup();
   }

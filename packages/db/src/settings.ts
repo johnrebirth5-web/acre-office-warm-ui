@@ -16,6 +16,7 @@ import { prisma } from "./client";
 import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import {
+  membershipHasAccessToOffice,
   normalizeSelectedOfficeIds,
   resolveCurrentOfficeSelection,
   resolveMembershipAccessibleOffices,
@@ -322,6 +323,7 @@ export type OfficeAdminUsersSnapshot = {
   };
   createOptions: {
     assignableTeams: OfficeAdminAssignableTeam[];
+    officeOptions: Array<{ id: string; label: string }>;
   };
   rows: OfficeAdminUserRow[];
 };
@@ -553,6 +555,7 @@ export type UpdateOfficeAdminUserInput = {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
   role?: string;
   status?: string;
   defaultOfficeId?: string | null;
@@ -1497,6 +1500,13 @@ export async function getOfficeSettingsSummarySnapshot(input: {
 
 export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInput): Promise<OfficeAdminUsersSnapshot> {
   const officeFilterId = input.officeFilterId?.trim() ?? "";
+  const currentOfficeId = input.officeId?.trim() ?? "";
+  const effectiveOfficeFilterId =
+    officeFilterId === "__all__" ||
+    !currentOfficeId ||
+    officeFilterId === currentOfficeId
+      ? officeFilterId || currentOfficeId
+      : currentOfficeId;
   const roleFilter = normalizeUserRole(input.role);
   const q = input.q?.trim() ?? "";
   const statusFilter = input.status?.trim() ?? "";
@@ -1613,7 +1623,9 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     prisma.team.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(officeFilterId && officeFilterId !== "__all__" ? { OR: [{ officeId: officeFilterId }, { officeId: null }] } : {})
+        ...(effectiveOfficeFilterId && effectiveOfficeFilterId !== "__all__"
+          ? { OR: [{ officeId: effectiveOfficeFilterId }, { officeId: null }] }
+          : {})
       },
       select: {
         id: true,
@@ -1708,7 +1720,9 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     }),
     listCommissionSplitTemplateOptions(
       input.organizationId,
-      officeFilterId && officeFilterId !== "__all__" ? officeFilterId : null
+      effectiveOfficeFilterId && effectiveOfficeFilterId !== "__all__"
+        ? effectiveOfficeFilterId
+        : null
     ),
     listOfficeAdminAssignableTeams({
       organizationId: input.organizationId,
@@ -1731,7 +1745,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       officeAccesses?: MembershipOfficeAccessRecord[];
     },
   ) => {
-    if (!officeFilterId) {
+    if (!effectiveOfficeFilterId) {
       return true;
     }
 
@@ -1742,11 +1756,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       officeAccesses: membership.officeAccesses,
     });
 
-    if (officeFilterId === "__all__") {
+    if (effectiveOfficeFilterId === "__all__") {
       return officeScope.hasAllOfficeAccess;
     }
 
-    return officeScope.accessibleOfficeIds.includes(officeFilterId);
+    return officeScope.accessibleOfficeIds.includes(effectiveOfficeFilterId);
   };
 
   const summaryRows = summary.map((membership) =>
@@ -1756,13 +1770,29 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       allOffices: offices
     })
   );
-  const totalUsers = summaryRows.length;
-  const activeUsers = summaryRows.filter((entry) => entry.statusValue === "active").length;
-  const invitedUsers = summaryRows.filter((entry) => entry.statusValue === "invited").length;
-  const disabledUsers = summaryRows.filter((entry) => entry.statusValue === "disabled").length;
-  const lockedUsers = summaryRows.filter((entry) => entry.isLocked).length;
-  const pendingInvitationCount = summaryRows.filter((entry) => entry.hasActiveInvitation).length;
-  const allOfficeAccessCount = summaryRows.filter((entry) => entry.officeAccessValue === "__all__").length;
+  const scopedSummaryRows = summaryRows.filter((entry) => matchesOfficeFilter({
+    role: entry.roleValue,
+    officeId: entry.defaultOfficeId,
+    officeAccesses: entry.accessibleOfficeIds.map((accessibleOfficeId) => {
+      const office = offices.find((entry) => entry.id === accessibleOfficeId);
+
+      if (!office) {
+        throw new Error("Office access could not be resolved.");
+      }
+
+      return {
+        officeId: accessibleOfficeId,
+        office,
+      };
+    }),
+  }));
+  const totalUsers = scopedSummaryRows.length;
+  const activeUsers = scopedSummaryRows.filter((entry) => entry.statusValue === "active").length;
+  const invitedUsers = scopedSummaryRows.filter((entry) => entry.statusValue === "invited").length;
+  const disabledUsers = scopedSummaryRows.filter((entry) => entry.statusValue === "disabled").length;
+  const lockedUsers = scopedSummaryRows.filter((entry) => entry.isLocked).length;
+  const pendingInvitationCount = scopedSummaryRows.filter((entry) => entry.hasActiveInvitation).length;
+  const allOfficeAccessCount = scopedSummaryRows.filter((entry) => entry.officeAccessValue === "__all__").length;
 
   const roleOptions = [
     { value: "owner", label: "Owner" },
@@ -1782,6 +1812,15 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
   }
 
   const filteredMemberships = memberships.filter((membership) => matchesOfficeFilter(membership));
+  const filterOfficeOptions =
+    currentOfficeId && offices.some((office) => office.id === currentOfficeId)
+      ? [
+          { id: "__all__", label: "All companies" },
+          ...offices
+            .filter((office) => office.id === currentOfficeId)
+            .map((office) => ({ id: office.id, label: office.name })),
+        ]
+      : [{ id: "__all__", label: "All companies" }, ...offices.map((office) => ({ id: office.id, label: office.name }))];
 
   return {
     summary: {
@@ -1797,7 +1836,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       q,
       role: roleFilter ?? "",
       status: statusFilter,
-      officeId: officeFilterId,
+      officeId: effectiveOfficeFilterId,
       commissionTemplateOptions,
       roleOptions,
       statusOptions: [
@@ -1806,10 +1845,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         { value: "disabled", label: "Disabled" },
         { value: "locked", label: "Locked" }
       ],
-      officeOptions: [{ id: "__all__", label: "All companies" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
+      officeOptions: filterOfficeOptions,
     },
     createOptions: {
-      assignableTeams
+      assignableTeams,
+      officeOptions: offices.map((office) => ({ id: office.id, label: office.name })),
     },
     rows: filteredMemberships.map((membership) =>
       mapOfficeAdminUserRow({
@@ -2047,6 +2087,19 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     defaultOfficeId: membership.officeId,
     officeAccesses: membership.officeAccesses
   });
+
+  if (
+    input.officeId &&
+    !membershipHasAccessToOffice({
+      role: membership.role,
+      allOffices: offices,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses,
+      officeId: input.officeId,
+    })
+  ) {
+    return null;
+  }
 
   const scopedTeams = await prisma.team.findMany({
     where: {
@@ -2391,6 +2444,20 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       defaultOfficeId: membership.officeId,
       officeAccesses: membership.officeAccesses
     });
+
+    if (
+      input.viewerOfficeId &&
+      !membershipHasAccessToOffice({
+        role: membership.role,
+        allOffices: organizationOffices,
+        defaultOfficeId: membership.officeId,
+        officeAccesses: membership.officeAccesses,
+        officeId: input.viewerOfficeId,
+      })
+    ) {
+      throw new Error("This user is outside the current company scope.");
+    }
+
     const selectedOfficeIds =
       input.accessibleOfficeIds ??
       previousOfficeScope.accessibleOfficeIds;

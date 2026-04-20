@@ -51,6 +51,7 @@ export async function handleUpdateOfficeUserPatch(
       organizationId: context.currentOrganization.id,
       actorMembershipId: context.currentMembership.id,
       membershipId,
+      viewerOfficeId: context.currentOffice?.id ?? null,
       role: parsedBody.data.role,
       status: parsedBody.data.status,
       defaultOfficeId:

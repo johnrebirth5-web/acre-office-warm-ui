@@ -100,6 +100,25 @@ export function resolveCurrentOfficeSelection(input: {
   return accessibleOffices[0] ?? null;
 }
 
+export function membershipHasAccessToOffice(input: {
+  role: UserRole;
+  allOffices: readonly OfficeScopeRecord[];
+  defaultOfficeId: string | null;
+  officeAccesses?: readonly MembershipOfficeAccessRecord[];
+  officeId?: string | null;
+}) {
+  if (!input.officeId) {
+    return true;
+  }
+
+  return resolveMembershipAccessibleOffices({
+    role: input.role,
+    allOffices: input.allOffices,
+    defaultOfficeId: input.defaultOfficeId,
+    officeAccesses: input.officeAccesses,
+  }).some((office) => office.id === input.officeId);
+}
+
 export function normalizeSelectedOfficeIds(
   officeIds: readonly string[] | null | undefined,
 ) {

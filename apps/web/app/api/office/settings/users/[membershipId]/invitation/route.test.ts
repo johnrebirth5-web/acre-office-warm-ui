@@ -30,6 +30,9 @@ function createSessionContext() {
     currentOrganization: {
       id: "org_1",
     },
+    currentOffice: {
+      id: "office_1",
+    },
   } as never;
 }
 
@@ -81,6 +84,7 @@ test("handleOfficeUserInvitationPost revokes an invitation when action is revoke
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
   });
   assert.deepEqual(await readJson(response), {
     membershipId: "membership_2",
@@ -116,6 +120,7 @@ test("handleOfficeUserInvitationPost preserves invitation URL generation on succ
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
   });
   assert.deepEqual(await readJson(response), {
     membershipId: "membership_2",

@@ -48,7 +48,8 @@ export async function handleOfficeUserInvitationPost(
       )({
         organizationId: context.currentOrganization.id,
         actorMembershipId: context.currentMembership.id,
-        membershipId
+        membershipId,
+        viewerOfficeId: context.currentOffice?.id ?? null,
       });
 
       return NextResponse.json({ membershipId, revoked: true });
@@ -59,7 +60,8 @@ export async function handleOfficeUserInvitationPost(
     )({
       organizationId: context.currentOrganization.id,
       actorMembershipId: context.currentMembership.id,
-      membershipId
+      membershipId,
+      viewerOfficeId: context.currentOffice?.id ?? null,
     });
 
     return NextResponse.json({

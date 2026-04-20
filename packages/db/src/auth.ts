@@ -7,6 +7,7 @@ import { assignMembershipToTeamTx, materializeImplicitJuniorTeamsForManagementAc
 import { prisma } from "./client";
 import { saveMembershipCommissionSetting } from "./commission-defaults";
 import {
+  membershipHasAccessToOffice,
   resolveMembershipOfficeAssignment,
   resolveCurrentOfficeSelection,
   resolveMembershipAccessibleOffices,
@@ -247,6 +248,7 @@ export type UnlockInternalAccountInput = {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
 };
 
 function normalizeEmail(email: string) {
@@ -396,6 +398,49 @@ async function buildMembershipContext(
     currentOffice,
     accessibleOffices,
   });
+}
+
+async function assertMembershipVisibleInViewerOfficeScope(
+  input: {
+    organizationId: string;
+    membership: {
+      role: UserRole;
+      officeId: string | null;
+      officeAccesses: MembershipOfficeAccessRecord[];
+    };
+    viewerOfficeId?: string | null;
+  },
+  db: PrismaClient | Prisma.TransactionClient = prisma,
+) {
+  if (!input.viewerOfficeId) {
+    return;
+  }
+
+  const allOffices = await db.office.findMany({
+    where: {
+      organizationId: input.organizationId,
+    },
+    orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      market: true,
+      isPrimary: true,
+    },
+  });
+
+  if (
+    !membershipHasAccessToOffice({
+      role: input.membership.role,
+      allOffices,
+      defaultOfficeId: input.membership.officeId,
+      officeAccesses: input.membership.officeAccesses,
+      officeId: input.viewerOfficeId,
+    })
+  ) {
+    throw new Error("This user is outside the current company scope.");
+  }
 }
 
 async function getPrimaryOrganization() {
@@ -1392,6 +1437,7 @@ export async function issueInvitationForMembership(input: {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
 }) {
   return prisma.$transaction(async (tx) => {
     const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
@@ -1415,6 +1461,19 @@ export async function issueInvitationForMembership(input: {
             credential: true
           }
         },
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
         office: true,
         organization: true
       }
@@ -1423,6 +1482,19 @@ export async function issueInvitationForMembership(input: {
     if (!membership) {
       throw new Error("User membership was not found.");
     }
+
+    await assertMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membership: {
+          role: membership.role,
+          officeId: membership.officeId,
+          officeAccesses: membership.officeAccesses,
+        },
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
 
     assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 
@@ -1484,6 +1556,7 @@ export async function revokeInvitationForMembership(input: {
   organizationId: string;
   actorMembershipId: string;
   membershipId: string;
+  viewerOfficeId?: string | null;
 }) {
   return prisma.$transaction(async (tx) => {
     const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
@@ -1503,13 +1576,39 @@ export async function revokeInvitationForMembership(input: {
       },
       include: {
         user: true,
-        office: true
+        office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
       }
     });
 
     if (!membership) {
       throw new Error("User membership was not found.");
     }
+
+    await assertMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membership: {
+          role: membership.role,
+          officeId: membership.officeId,
+          officeAccesses: membership.officeAccesses,
+        },
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
 
     assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 
@@ -1580,13 +1679,39 @@ export async function unlockInternalAccount(input: UnlockInternalAccountInput) {
             credential: true
           }
         },
-        office: true
+        office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true,
+              },
+            },
+          },
+        },
       }
     });
 
     if (!membership || !membership.user.credential) {
       throw new Error("User credential was not found.");
     }
+
+    await assertMembershipVisibleInViewerOfficeScope(
+      {
+        organizationId: input.organizationId,
+        membership: {
+          role: membership.role,
+          officeId: membership.officeId,
+          officeAccesses: membership.officeAccesses,
+        },
+        viewerOfficeId: input.viewerOfficeId,
+      },
+      tx,
+    );
 
     assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 

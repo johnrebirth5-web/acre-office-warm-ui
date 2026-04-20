@@ -27,10 +27,26 @@ async function createPermissionsTestContext() {
       isPrimary: true
     }
   });
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Permissions Secondary ${suffix}`,
+      slug: `permissions-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false,
+    },
+  });
 
   const trackedUserIds: string[] = [];
 
-  async function createMembership(role: UserRole, prefix: string) {
+  async function createMembership(
+    role: UserRole,
+    prefix: string,
+    options: {
+      officeId?: string | null;
+      accessibleOfficeIds?: string[];
+    } = {},
+  ) {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${randomUUID().slice(0, 8)}@example.com`,
@@ -46,12 +62,22 @@ async function createPermissionsTestContext() {
     const membership = await prisma.membership.create({
       data: {
         organizationId: organization.id,
-        officeId: office.id,
+        officeId: options.officeId ?? office.id,
         userId: user.id,
         role,
         status: "active",
         title: role,
-        permissions: Prisma.JsonNull
+        permissions: Prisma.JsonNull,
+        officeAccesses: options.accessibleOfficeIds?.length
+          ? {
+              createMany: {
+                data: options.accessibleOfficeIds.map((officeId) => ({
+                  organizationId: organization.id,
+                  officeId,
+                })),
+              },
+            }
+          : undefined,
       }
     });
 
@@ -64,6 +90,7 @@ async function createPermissionsTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     createMembership,
     async cleanup() {
       await prisma.organization.delete({
@@ -82,6 +109,32 @@ async function createPermissionsTestContext() {
     }
   };
 }
+
+test("global user permission overrides stay blocked outside the current company scope", async () => {
+  const context = await createPermissionsTestContext();
+
+  try {
+    const admin = await context.createMembership("office_admin", "permissions-scope-admin");
+    const target = await context.createMembership("agent", "permissions-scope-target", {
+      officeId: context.secondaryOffice.id,
+      accessibleOfficeIds: [context.secondaryOffice.id],
+    });
+
+    await assert.rejects(
+      () =>
+        saveMembershipPermissionOverrides({
+          organizationId: context.organization.id,
+          actorMembershipId: admin.membership.id,
+          membershipId: target.membership.id,
+          viewerOfficeId: context.office.id,
+          overrides: [{ permissionKey: "notifications:view", effect: "deny" }],
+        }),
+      /This user is outside the current company scope\./,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
 
 test("only owner or office admin can save user permission overrides", async () => {
   const context = await createPermissionsTestContext();

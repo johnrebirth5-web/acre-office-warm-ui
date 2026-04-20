@@ -12,6 +12,9 @@ function createSessionContext() {
     currentOrganization: {
       id: "org_1",
     },
+    currentOffice: {
+      id: "office_1",
+    },
   } as never;
 }
 
@@ -37,6 +40,7 @@ test("handleUnlockOfficeUserPost calls unlockInternalAccount with the current ac
     organizationId: "org_1",
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
+    viewerOfficeId: "office_1",
   });
   assert.deepEqual(await readJson(response), {
     membershipId: "membership_2",
