@@ -144,6 +144,9 @@ export function ListingStudioCard({
   const [customCompanyFeedLabel, setCustomCompanyFeedLabel] = useState(
     initialCompanyFeedChoice.customLabel,
   );
+  const companyFeedMediaBadgeLabel = companyFeedVisible
+    ? companyFeedLabel || DEFAULT_COMPANY_FEED_LABEL
+    : null;
 
   if (isHidden || (mode === "dashboard" && !companyFeedVisible)) {
     return null;
@@ -329,8 +332,17 @@ export function ListingStudioCard({
           href={`/listing-studio/listings/${item.packId}`}
         >
           <div className="listing-studio-card-media">
-            {listingTypeLabel ? (
-              <span className="listing-studio-card-media-badge">{listingTypeLabel}</span>
+            {listingTypeLabel || companyFeedMediaBadgeLabel ? (
+              <div className="listing-studio-card-media-badges">
+                {companyFeedMediaBadgeLabel ? (
+                  <span className="listing-studio-card-media-badge">
+                    {companyFeedMediaBadgeLabel}
+                  </span>
+                ) : null}
+                {listingTypeLabel ? (
+                  <span className="listing-studio-card-media-badge">{listingTypeLabel}</span>
+                ) : null}
+              </div>
             ) : null}
             {item.heroAssetId ? (
               <img
@@ -351,11 +363,6 @@ export function ListingStudioCard({
               {item.shareEnabled ? (
                 <span className="office-status-badge office-status-badge-success">
                   Shared
-                </span>
-              ) : null}
-              {companyFeedVisible ? (
-                <span className="office-status-badge office-status-badge-accent">
-                  {companyFeedLabel || DEFAULT_COMPANY_FEED_LABEL}
                 </span>
               ) : null}
             </div>
