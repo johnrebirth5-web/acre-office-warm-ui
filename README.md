@@ -991,7 +991,13 @@ npm run dev
 
 当前仓库根目录的 `npm run dev` 会默认把 `@acre/web` 启动到 `3105`。
 
-为降低 `Docker + Colima + bind mount` 下新增/重命名文件时偶发的假性 `Module not found` 与 stale Turbopack 问题，当前开发脚本默认使用 `next dev --webpack`。
+当前根目录启动器 `scripts/dev-web.mjs` 会直接拉起 Next.js 开发服务器，并默认使用 Next.js 当前默认 bundler。这样可以避免 `Docker + Colima + bind mount` 下 `next dev --webpack` 首次请求后偶发的 clean exit / 重启循环。
+
+如果你明确需要 `webpack` 开发态，仍然可以直接运行：
+
+```bash
+npm run dev --workspace=@acre/web -- --port 3105 --hostname 0.0.0.0
+```
 
 如果你希望本地环境更稳定、重启后更容易恢复，也可以直接使用 Docker 开发基线：
 
@@ -1005,6 +1011,7 @@ npm run docker:dev:up
 - `db`：PostgreSQL 16，容器端口 `5432`，宿主机发布端口 `5433`
 - 持久化 volume：Postgres 数据、`node_modules`、Next cache、documents storage
 - 自动重启策略：`unless-stopped`
+- `web` 容器会保持 `stdin + tty` 打开，减少开发服务器在 detached compose 下被当成非交互 EOF 提前退出
 - `next dev` 子进程如果意外退出，当前本地启动器会在容器内自动拉起，避免 `localhost:3105` 长时间空响应
 
 首次启动数据库工作流时，建议依次执行：

@@ -986,7 +986,8 @@ ACRE_SECURE_COOKIES=false
 
 - 可以不配置真实数据库
 - 直接运行 `npm run dev`
-- 当前默认走 `next dev --webpack`，用来降低 `Docker/Colima` bind mount 下 Turbopack 对新增文件偶发报错的问题
+- 当前根目录 `npm run dev` 通过 `scripts/dev-web.mjs` 直接拉起 Next.js 开发服务器，并默认使用 Next.js 当前默认 bundler，避免 `Docker/Colima` detached 开发态里 `next dev --webpack` 首次请求后偶发 clean exit / 自动重启循环
+- 如果你明确要验证 `webpack` 行为，改为直接运行 `npm run dev --workspace=@acre/web -- --port 3105 --hostname 0.0.0.0`
 
 如果你要开始接数据库：
 
@@ -1009,6 +1010,7 @@ ACRE_SECURE_COOKIES=false
 - `db` 使用 `postgres:16-alpine`
 - `web` 使用仓库内 `Dockerfile.dev`
 - `web` 和 `db` 都配置为 `restart: unless-stopped`
+- `web` 容器额外保持 `stdin_open + tty`，减少 detached compose 下 dev server 因 stdin EOF 提前退出
 - `scripts/dev-web.mjs` 会在容器内自动重启意外退出的 `next dev` 子进程，减少 `localhost:3105` 偶发空响应
 - 文档文件会持久化到 Docker volume，而不是容器临时层
 - 如果你希望宿主机 `npm run dev` 与 Docker `web` 共享同一套本地数据库，宿主机 `.env.local` 的 `DATABASE_URL` 应保持为 `postgresql://postgres:postgres@127.0.0.1:5433/acre`
