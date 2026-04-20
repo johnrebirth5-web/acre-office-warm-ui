@@ -2,6 +2,7 @@ import type { FrontOfficeAppointmentExternalWorkflowStatus } from "@acre/db";
 
 export const calendarViewValues = [
   "all",
+  "month",
   "day",
   "week",
   "reply_due",
@@ -40,17 +41,23 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
     label: "All appointments",
     routeCopy: "All appointments",
   },
+  month: {
+    description:
+      "Use the Event Hub month board to balance shared office events with your appointment commitments.",
+    label: "Month board",
+    routeCopy: "Month board",
+  },
   day: {
     description:
-      "Use a true day agenda: appointments stay ordered by start time so today's calendar reads like a schedule.",
-    label: "Day agenda",
-    routeCopy: "Day agenda",
+      "Use the Event Hub day board to read appointments and shared events in one daily stack.",
+    label: "Day board",
+    routeCopy: "Day board",
   },
   week: {
     description:
-      "Use a true week agenda: appointments stay grouped by date and ordered by start time so the calendar feels like a weekly schedule.",
-    label: "Week agenda",
-    routeCopy: "Week agenda",
+      "Use the Event Hub week board to keep appointments and shared events visible in one sweep.",
+    label: "Week board",
+    routeCopy: "Week board",
   },
   reply_due: {
     description:
@@ -205,10 +212,15 @@ export function getCalendarViewRoutePatch(
   calendarView: CalendarViewKey,
 ): CalendarViewRoutePatch {
   switch (calendarView) {
+    case "month":
     case "day":
     case "week":
       return {
+        appointmentId: "",
         calendarView,
+        coordination: "all",
+        followUp: "all",
+        status: "all",
       };
     case "reply_due":
       return {

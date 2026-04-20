@@ -212,13 +212,6 @@ export function FrontOfficeCalendarClient(
   }
 
   function navigateToCalendarView(calendarView: CalendarViewKey) {
-    if (calendarView === "day" || calendarView === "week") {
-      navigateWithFilters({
-        calendarView,
-      });
-      return;
-    }
-
     navigateWithFilters(getCalendarViewRoutePatch(calendarView));
   }
 

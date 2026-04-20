@@ -137,6 +137,17 @@ enum EventVisibility {
   invite_only
 }
 
+enum EventType {
+  activity
+  training
+  admin
+}
+
+enum EventRecurrenceRule {
+  weekly_thursday
+  monthly_first_friday
+}
+
 enum RsvpStatus {
   going
   maybe
@@ -1938,11 +1949,18 @@ model Event {
   createdByMemberId   String?
   title               String
   description         String
+  eventType           EventType       @default(activity)
   visibility          EventVisibility @default(all_agents)
   startsAt            DateTime
   endsAt              DateTime?
+  isOnline            Boolean         @default(false)
   location            String?
+  area                String?
   meetingUrl          String?
+  meetingPassword     String?
+  isMandatory         Boolean         @default(false)
+  seriesId            String?
+  recurrenceRule      EventRecurrenceRule?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1952,6 +1970,7 @@ model Event {
   notifications       Notification[]
 
   @@index([organizationId, startsAt])
+  @@index([organizationId, seriesId, startsAt])
 }
 
 model EventRsvp {

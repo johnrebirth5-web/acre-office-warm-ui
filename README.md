@@ -811,6 +811,7 @@
   - `/office` -> `/office/dashboard`
   - `/login`
   - `/agent/dashboard`
+  - `/agent/calendar` (`Event Hub` + appointment workbench)
   - `/agent/listings`
   - `/agent/clients`
   - `/agent/notifications`

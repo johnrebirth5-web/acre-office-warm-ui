@@ -1266,7 +1266,9 @@ export async function getFrontOfficeActivitySnapshot(
             : event.rsvps[0]?.status === "declined"
               ? "You declined"
               : formatCountLabel(event._count.rsvps, "RSVP"),
-      href: event.meetingUrl?.trim() || "/agent/notifications",
+      href: `/agent/calendar?calendarView=month&focusDate=${encodeURIComponent(
+        event.startsAt.toISOString().slice(0, 10),
+      )}&eventId=${encodeURIComponent(event.id)}`,
     })),
     cleanup: {
       metrics: cleanupMetrics,

@@ -414,6 +414,20 @@ export {
   type FrontOfficeAppointmentTone,
 } from "./front-office-appointments";
 export {
+  createFrontOfficeSharedEvent,
+  getFrontOfficeEventHubSnapshot,
+  getFrontOfficeSharedEventsSnapshot,
+  resolveFrontOfficeEventCalendarView,
+  respondToFrontOfficeSharedEventRsvp,
+  updateFrontOfficeSharedEvent,
+  type CreateFrontOfficeSharedEventResult,
+  type FrontOfficeEventCalendarView,
+  type FrontOfficeEventHubAppointmentItem,
+  type FrontOfficeEventHubSnapshot,
+  type FrontOfficeSharedEventRecord,
+  type FrontOfficeSharedEventsSnapshot,
+} from "./front-office-events";
+export {
   buildFrontOfficeListingSharePath,
   createFrontOfficeListingShareLink,
   getFrontOfficeListingSharePageSnapshot,

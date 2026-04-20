@@ -168,6 +168,8 @@ export type GetFrontOfficeAppointmentsSnapshotInput = {
   viewerMembershipId: string;
   officeId?: string | null;
   timeZone?: string | null;
+  windowStartAt?: Date | null;
+  windowEndAt?: Date | null;
   clientId?: string | null;
   listingId?: string | null;
   type?: string | null;
@@ -2524,26 +2526,16 @@ export async function getFrontOfficeAppointmentsSnapshot(
   input: GetFrontOfficeAppointmentsSnapshotInput,
 ): Promise<FrontOfficeAppointmentsSnapshot> {
   const now = new Date();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfTomorrow = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate() + 1,
   );
-  const sevenDaysAgo = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - 7,
-  );
-  const fourteenDaysFromNow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 14,
-  );
+  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+  const fourteenDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
+  const appointmentWindowStart = input.windowStartAt ?? sevenDaysAgo;
+  const appointmentWindowEnd = input.windowEndAt ?? fourteenDaysFromNow;
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const listingWhere: Prisma.ListingWhereInput = {
     organizationId: input.organizationId,
@@ -2572,8 +2564,8 @@ export async function getFrontOfficeAppointmentsSnapshot(
           organizationId: input.organizationId,
           ownerMembershipId: input.viewerMembershipId,
           startsAt: {
-            gte: sevenDaysAgo,
-            lte: fourteenDaysFromNow,
+            gte: appointmentWindowStart,
+            lte: appointmentWindowEnd,
           },
         },
         input.officeId ?? null,

@@ -3189,8 +3189,10 @@ export async function getFrontOfficeDashboardSnapshot(
               : event.rsvps[0]?.status === "declined"
                 ? "You declined"
                 : `${formatEventVisibilityLabel(event.visibility)} · ${event._count.rsvps} RSVP(s)`,
-        actionLabel: "Open calendar",
-        href: "/agent/notifications",
+        actionLabel: "Open Event Hub",
+        href: `/agent/calendar?calendarView=month&focusDate=${encodeURIComponent(
+          event.startsAt.toISOString().slice(0, 10),
+        )}&eventId=${encodeURIComponent(event.id)}`,
       },
     })),
   ]

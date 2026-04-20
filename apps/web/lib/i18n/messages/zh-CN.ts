@@ -173,7 +173,7 @@ export const zhCNMessages = {
     items: {
       dashboard: "仪表盘",
       clients: "客户",
-      calendar: "日历",
+      calendar: "事件中心",
       listings: "房源",
       studio: "Studio",
       studioDashboard: "Dashboard",

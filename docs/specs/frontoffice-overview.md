@@ -141,6 +141,9 @@ Current implementation priority note:
 - `/agent/calendar` now also supports a route-persistent `calendarView` contract for the main writeback lanes, so `reply due`, `confirmation pending`, `externally confirmed`, `touch due`, `missing next touch`, `reschedule requested`, and `bridge logged` can reopen as stable calendar workbench states instead of ad-hoc filter combinations
 - that same calendar route now also surfaces explicit `touch scheduled` and `writeback pending` lanes, so future-dated outside touches and bridge-open / writeback-missing records can reopen through stable workbench aliases instead of falling back to mixed filter state
 - `/agent/calendar` now also supports true `day` and `week` agenda views on top of those writeback lanes, so agents can switch from coordination slices into a chronological schedule grouped by date and time without losing the same appointment-level bridge / writeback controls
+- `/agent/calendar` now defaults to a shared `Event Hub` month/week/day board instead of a standalone calendar shell, so shared office events, mandatory commitments, and appointment commitments can be scanned together while `appointmentId` and writeback lanes still reopen the full appointment workbench
+- that same Event Hub now also runs on the shared `Event` store with `eventType`, `isOnline`, `area`, `meetingPassword`, `isMandatory`, `seriesId`, and `recurrenceRule`, so office events do not fork into a second scheduling system just to support RSVP, privacy gating, or fixed recurring series
+- shared office events now also reconcile into the in-app reminder stream through `NotificationType.event`, so `24h`, `2h`, and `10m` event pressure can land in the same FO activity center without pretending a separate scheduler, push system, or worker already exists
 - FO client dossiers now also expose a direct `Open calendar writeback` deep link plus bridge-next-step copy on each appointment card, so the operator can reopen the exact appointment writeback flow from the dossier instead of re-scanning the calendar lane first
 - that same dossier-to-calendar re-entry now also preserves the most accurate writeback lane Acre can prove from the saved outside status, bridge state, and next-touch deadline, while appointments that already have a future next touch intentionally reopen as focused calendar records instead of being misrouted into a false due / missing lane
 - that same promised external touch deadline now also flows into the inbox reminder layer, so confirmation or reschedule pressure can reach the dashboard / notifications notice stream instead of staying cleanup-only
@@ -279,9 +282,10 @@ This is `Phase 1`, not a future-only placeholder.
 Expected coverage:
 
 - showing appointments
-- events
+- shared office events
+- mandatory event queue + RSVP
 - internal meetings
-- day/week views
+- month/week/day Event Hub views
 - chronological day agenda and week agenda groupings that sit beside the existing writeback lanes
 - in-app, email, and calendar reminders
 - meeting links for Zoom / Google Meet

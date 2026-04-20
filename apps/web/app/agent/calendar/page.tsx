@@ -1,5 +1,8 @@
 import { can, getDefaultAppPath } from "@acre/auth";
-import { getFrontOfficeAppointmentsSnapshot } from "@acre/db";
+import {
+  getFrontOfficeAppointmentsSnapshot,
+  getFrontOfficeEventHubSnapshot,
+} from "@acre/db";
 import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
@@ -10,6 +13,7 @@ import {
   resolveCalendarView,
   type CalendarViewKey,
 } from "./calendar-view";
+import { FrontOfficeEventHubClient } from "./front-office-event-hub-client";
 import {
   requireSessionContext,
 } from "../../../lib/auth-session";
@@ -45,19 +49,91 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   )?.trim();
   const requestedCalendarView = resolveCalendarView(requestedCalendarViewValue);
   const hasExplicitCalendarView = Boolean(requestedCalendarViewValue);
+  const targetAppointmentId = readSearchParamValue(
+    searchParams.appointmentId,
+  )?.trim();
+  const targetEventId = readSearchParamValue(searchParams.eventId)?.trim();
   const calendarViewFromFilters = deriveCalendarViewFromRoute({
     coordination:
       readSearchParamValue(searchParams.coordination)?.trim() ?? "all",
     followUp: readSearchParamValue(searchParams.followUp)?.trim() ?? "all",
     status: readSearchParamValue(searchParams.status)?.trim() ?? "all",
   });
-  const activeCalendarView: CalendarViewKey = hasExplicitCalendarView
-    ? requestedCalendarView
-    : calendarViewFromFilters;
+  const activeCalendarView: CalendarViewKey =
+    hasExplicitCalendarView
+      ? requestedCalendarView
+      : targetAppointmentId || calendarViewFromFilters !== "all"
+        ? calendarViewFromFilters
+        : "month";
   const activeCalendarViewConfig = getCalendarViewConfig(activeCalendarView);
   const activeCalendarViewPatch = hasExplicitCalendarView
     ? getCalendarViewRoutePatch(activeCalendarView)
     : null;
+  const shouldRenderEventHub =
+    !targetAppointmentId &&
+    (activeCalendarView === "month" ||
+      activeCalendarView === "week" ||
+      activeCalendarView === "day");
+
+  if (shouldRenderEventHub) {
+    const hubSnapshot = await getFrontOfficeEventHubSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      viewerRole: context.currentMembership.role,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+      view: activeCalendarView,
+      focusDate: readSearchParamValue(searchParams.focusDate)?.trim(),
+      targetEventId,
+    });
+
+    return (
+      <FrontOfficePageTemplate
+        description={
+          isZh
+            ? "用 Event Hub 统一查看 shared office event、mandatory 节点和 appointment coordination。"
+            : "Use Event Hub to manage shared office events, mandatory commitments, and appointment coordination in one place."
+        }
+        eyebrow={isZh ? "事件中枢" : "Event Hub"}
+        main={
+          <FrontOfficeEventHubClient
+            isZh={isZh}
+            snapshot={hubSnapshot}
+            timeZone={context.currentUser.timezone}
+          />
+        }
+        rail={null}
+        summary={
+          <>
+            <SummaryChip
+              label={isZh ? "当前视图" : "View"}
+              tone="accent"
+              value={activeCalendarViewConfig.label}
+            />
+            <SummaryChip
+              label={isZh ? "共享活动" : "Shared events"}
+              value={hubSnapshot.summary.sharedEventCount}
+            />
+            <SummaryChip
+              label={isZh ? "Mandatory" : "Mandatory"}
+              tone="accent"
+              value={hubSnapshot.summary.mandatoryEventCount}
+            />
+            <SummaryChip
+              label={isZh ? "预约" : "Appointments"}
+              value={hubSnapshot.summary.appointmentCount}
+            />
+            <SummaryChip
+              label={isZh ? "今日承诺" : "Today"}
+              value={hubSnapshot.summary.todayCommitmentCount}
+            />
+          </>
+        }
+        title={isZh ? "Event Hub" : "Event Hub"}
+      />
+    );
+  }
+
   const snapshot = await getFrontOfficeAppointmentsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -75,9 +151,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     followUp:
       activeCalendarViewPatch?.followUp ??
       readSearchParamValue(searchParams.followUp)?.trim(),
-    targetAppointmentId: readSearchParamValue(
-      searchParams.appointmentId,
-    )?.trim(),
+    targetAppointmentId,
   });
   const requestedClientId = readSearchParamValue(searchParams.clientId)?.trim();
   const initialClientId = snapshot.clientOptions.some(
@@ -96,7 +170,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      eyebrow={isZh ? "日历" : "Calendar"}
+      description={
+        isZh
+          ? "保留 appointment coordination 全能力，同时把月/周/日主入口交给 Event Hub。"
+          : "Keep the full appointment coordination workbench while Event Hub takes over the month, week, and day entry views."
+      }
+      eyebrow={isZh ? "事件中枢" : "Event Hub"}
       main={
         <FrontOfficeCalendarClient
           initialClientId={initialClientId}
@@ -114,7 +193,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             value={activeCalendarViewConfig.label}
           />
           <SummaryChip
-            label={isZh ? "即将到来" : "Upcoming"}
+            label={isZh ? "预约即将到来" : "Upcoming"}
             value={snapshot.summary.upcomingCount}
           />
           <SummaryChip
@@ -132,7 +211,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
           />
         </>
       }
-      title={isZh ? "日历" : "Calendar"}
+      title={isZh ? "Event Hub" : "Event Hub"}
     />
   );
 }

@@ -174,7 +174,7 @@ export const enUSMessages = {
     items: {
       dashboard: "Dashboard",
       clients: "Clients",
-      calendar: "Calendar",
+      calendar: "Event Hub",
       listings: "Listings",
       studio: "Studio",
       studioDashboard: "Dashboard",
