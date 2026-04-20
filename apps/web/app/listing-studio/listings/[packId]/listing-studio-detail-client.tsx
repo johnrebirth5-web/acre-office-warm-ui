@@ -1325,6 +1325,7 @@ function StageActionButton(props: {
 
 export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientProps) {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const editorScrollRef = useRef<HTMLDivElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
   const [mediaMode, setMediaMode] = useState<MediaMode>(() => getInitialMediaMode(detail));
   const [activePhotoId, setActivePhotoId] = useState<string | null>(() =>
@@ -1439,6 +1440,18 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
       preloadAssetImage(prevAsset.id);
     }
   }, [activePhoto?.id, photoAssets]);
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      editorScrollRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isEditorOpen]);
 
   function openEditor() {
     setEditorState(buildEditorState(detailState));
@@ -1614,6 +1627,33 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
         ? current.selectedAssetIds
         : [...current.selectedAssetIds, assetId],
     }));
+  }
+
+  function handleEditorWheel(event: React.WheelEvent<HTMLDivElement>) {
+    const scrollNode = editorScrollRef.current;
+    if (!scrollNode || event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    if (event.target instanceof HTMLElement && event.target.closest("textarea")) {
+      return;
+    }
+
+    const unit =
+      event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? scrollNode.clientHeight * 0.9 : 1;
+    const deltaTop = event.deltaY * unit;
+    const deltaLeft = event.deltaX * unit;
+
+    if (deltaTop === 0 && deltaLeft === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    scrollNode.scrollBy({
+      left: deltaLeft,
+      top: deltaTop,
+      behavior: "auto",
+    });
   }
 
   async function uploadEditorAssets(files: FileList | File[]) {
@@ -2147,7 +2187,7 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
       </div>
 
       {isEditorOpen ? (
-        <div className="listing-studio-editor-shell">
+        <div className="listing-studio-editor-shell" onWheel={handleEditorWheel}>
           <div className="listing-studio-editor-frame">
             <section
               aria-label="Edit listing"
@@ -2168,7 +2208,11 @@ export function ListingStudioDetailClient({ detail }: ListingStudioDetailClientP
                 <p className="listing-studio-editor-status">{statusMessage}</p>
               ) : null}
 
-              <div className="listing-studio-editor-scroll">
+              <div
+                className="listing-studio-editor-scroll"
+                ref={editorScrollRef}
+                tabIndex={0}
+              >
                 <section className="listing-studio-editor-section">
                 <div className="listing-studio-editor-section-head">
                   <strong>Listing Type</strong>

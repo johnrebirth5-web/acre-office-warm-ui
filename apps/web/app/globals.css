@@ -20370,6 +20370,7 @@ body,
   display: grid;
   padding: 14px;
   overflow: hidden;
+  overscroll-behavior: contain;
   background: #f7f7f5;
 }
 
@@ -20377,8 +20378,8 @@ body,
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   width: min(1280px, 100%);
-  height: 100%;
-  max-height: 100%;
+  height: min(100%, calc(100dvh - 28px));
+  max-height: calc(100dvh - 28px);
   min-height: 0;
   margin: 0 auto;
   overflow: hidden;
@@ -20568,7 +20569,12 @@ body,
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 14px 24px 132px;
+}
+
+.listing-studio-editor-scroll:focus {
+  outline: none;
 }
 
 .listing-studio-editor-scroll > * + * {
@@ -21104,6 +21110,11 @@ body,
 
   .listing-studio-editor-shell {
     padding: 10px;
+  }
+
+  .listing-studio-editor-frame {
+    height: min(100%, calc(100dvh - 20px));
+    max-height: calc(100dvh - 20px);
   }
 
   .listing-studio-editor-surface {
