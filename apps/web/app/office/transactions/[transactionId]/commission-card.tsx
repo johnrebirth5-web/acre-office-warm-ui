@@ -37,6 +37,12 @@ type CommissionBreakdownDisplayRow = {
   finalAmountLabel: string;
 };
 
+type ValidationErrorPayload = {
+  error?: string;
+  errorCode?: string;
+  fieldErrors?: Record<string, string>;
+};
+
 const calculationStatusOptions = [
   { value: "draft", label: "Draft" },
   { value: "calculated", label: "Calculated" },
@@ -103,6 +109,92 @@ function parseAmount(value: string) {
   }
 
   return Number(trimmed);
+}
+
+function omitFieldError(fieldErrors: Record<string, string>, fieldKey: string) {
+  if (!fieldErrors[fieldKey]) {
+    return fieldErrors;
+  }
+
+  const nextFieldErrors = {
+    ...fieldErrors
+  };
+
+  delete nextFieldErrors[fieldKey];
+  return nextFieldErrors;
+}
+
+function omitRowFieldErrors(fieldErrors: Record<string, string>, rowIndex: number) {
+  const rowPrefix = `stakeholderRows[${rowIndex}].`;
+  let changed = false;
+  const nextFieldErrors: Record<string, string> = {};
+
+  for (const [fieldKey, message] of Object.entries(fieldErrors)) {
+    if (fieldKey.startsWith(rowPrefix)) {
+      changed = true;
+      continue;
+    }
+
+    nextFieldErrors[fieldKey] = message;
+  }
+
+  return changed ? nextFieldErrors : fieldErrors;
+}
+
+function getOverrideFieldLabel(fieldKey: string, overrideRows: OverrideDraftRow[]) {
+  if (fieldKey === "body") {
+    return "the override form";
+  }
+
+  if (fieldKey === "overrideReason") {
+    return "the override reason";
+  }
+
+  const rowMatch = /^stakeholderRows\[(\d+)\]\.(.+)$/.exec(fieldKey);
+
+  if (!rowMatch) {
+    return "the override form";
+  }
+
+  const rowIndex = Number(rowMatch[1]);
+  const rowField = rowMatch[2];
+  const rowLabel = overrideRows[rowIndex]?.recipientLabel ?? `stakeholder row ${rowIndex + 1}`;
+
+  if (rowField === "amount") {
+    return `${rowLabel} amount`;
+  }
+
+  if (rowField === "membershipId") {
+    return `${rowLabel} participant`;
+  }
+
+  if (rowField === "key") {
+    return `${rowLabel} row`;
+  }
+
+  return rowLabel;
+}
+
+function buildOverrideFieldErrorSummary(fieldErrors: Record<string, string>, overrideRows: OverrideDraftRow[]) {
+  const labels = Array.from(new Set(Object.keys(fieldErrors).map((fieldKey) => getOverrideFieldLabel(fieldKey, overrideRows))));
+
+  if (labels.length === 0) {
+    return "";
+  }
+
+  if (labels.length === 1) {
+    return `Review ${labels[0]} and try again.`;
+  }
+
+  return `Review these override fields and try again: ${labels.join(", ")}.`;
+}
+
+function getOverrideRowErrorMessages(fieldErrors: Record<string, string>, rowIndex: number) {
+  const rowPrefix = `stakeholderRows[${rowIndex}].`;
+
+  return Object.entries(fieldErrors)
+    .filter(([fieldKey]) => fieldKey.startsWith(rowPrefix))
+    .map(([, message]) => message);
 }
 
 function buildCommissionBreakdownRows(snapshot: OfficeTransactionCommissionSnapshot): CommissionBreakdownDisplayRow[] {
@@ -198,6 +290,8 @@ export function TransactionCommissionCard({
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [overrideError, setOverrideError] = useState("");
+  const [overrideFieldErrors, setOverrideFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setStatusDrafts(Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue])));
@@ -206,6 +300,8 @@ export function TransactionCommissionCard({
     setParticipantSearchValue("");
     setIsParticipantPickerOpen(false);
     setHighlightedParticipantIndex(0);
+    setOverrideError("");
+    setOverrideFieldErrors({});
   }, [snapshot]);
 
   const availableManualParticipantOptions = snapshot.manualParticipantOptions.filter(
@@ -332,22 +428,28 @@ export function TransactionCommissionCard({
     setSelectedParticipantId("");
     setParticipantSearchValue("");
     setIsParticipantPickerOpen(false);
+    setOverrideError("");
+    setOverrideFieldErrors({});
   }
 
   function handleRemoveParticipant(key: string) {
     setOverrideRows((current) => current.filter((row) => row.key !== key));
+    setOverrideError("");
+    setOverrideFieldErrors({});
   }
 
   async function handleOverride(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPendingAction("override");
-    setError("");
+    setOverrideError("");
+    setOverrideFieldErrors({});
+
+    if (!totalsBalanced) {
+      setPendingAction(null);
+      return;
+    }
 
     try {
-      if (!totalsBalanced) {
-        throw new Error(overrideValidationMessage || "Override total must stay unchanged and every amount must be zero or greater.");
-      }
-
       const response = await fetch(`/api/office/transactions/${transactionId}/commissions/override`, {
         method: "POST",
         headers: {
@@ -363,18 +465,27 @@ export function TransactionCommissionCard({
         })
       });
 
-      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      const body = (await response.json().catch(() => null)) as ValidationErrorPayload | null;
 
       if (!response.ok) {
+        if (body?.errorCode === "validation_error") {
+          const fieldErrors = body.fieldErrors ?? {};
+          setOverrideFieldErrors(fieldErrors);
+          const summary = buildOverrideFieldErrorSummary(fieldErrors, overrideRows);
+          throw new Error(summary || "Override not saved. Review the highlighted fields and try again.");
+        }
+
         throw new Error(body?.error ?? "Failed to apply override.");
       }
 
       setOverrideReason("");
+      setOverrideError("");
+      setOverrideFieldErrors({});
       startTransition(() => {
         router.refresh();
       });
     } catch (overrideError) {
-      setError(overrideError instanceof Error ? overrideError.message : "Failed to apply override.");
+      setOverrideError(overrideError instanceof Error ? overrideError.message : "Failed to apply override.");
     } finally {
       setPendingAction(null);
     }
@@ -513,11 +624,17 @@ export function TransactionCommissionCard({
                     Override reason <strong>Required</strong>
                   </span>
                   <TextInput
+                    aria-invalid={Boolean(overrideFieldErrors.overrideReason)}
                     disabled={pendingAction === "override"}
                     required
-                    onChange={(event) => setOverrideReason(event.target.value)}
+                    onChange={(event) => {
+                      setOverrideReason(event.target.value);
+                      setOverrideError("");
+                      setOverrideFieldErrors((current) => omitFieldError(current, "overrideReason"));
+                    }}
                     value={overrideReason}
                   />
+                  {overrideFieldErrors.overrideReason ? <p className="office-form-error">{overrideFieldErrors.overrideReason}</p> : null}
                 </label>
                 {canManageOverrideParticipants ? (
                   <div className="office-detail-field office-detail-field-wide">
@@ -654,29 +771,42 @@ export function TransactionCommissionCard({
                     {canManageOverrideParticipants ? <span>Actions</span> : null}
                   </div>
 
-                  {overrideRows.map((row) => (
+                  {overrideRows.map((row, index) => {
+                    const rowErrors = getOverrideRowErrorMessages(overrideFieldErrors, index);
+
+                    return (
                     <div className="office-table-row office-table-row-commission" key={`override:${row.key}`}>
                       <div className="office-table-primary">
                         <strong>{row.recipientLabel}</strong>
                         <p>{row.isManualParticipant ? `${row.recipientRole} · Manual participant` : row.recipientRole}</p>
                       </div>
                       <span>{row.currentFinalLabel}</span>
-                      <TextInput
-                        disabled={pendingAction === "override"}
-                        onChange={(event) =>
-                          setOverrideRows((current) =>
-                            current.map((candidate) =>
-                              candidate.key === row.key
-                                ? {
-                                    ...candidate,
-                                    amount: event.target.value
-                                  }
-                                : candidate
-                            )
-                          )
-                        }
-                        value={row.amount}
-                      />
+                      <div className="office-table-primary">
+                        <TextInput
+                          aria-invalid={rowErrors.length > 0}
+                          disabled={pendingAction === "override"}
+                          onChange={(event) => {
+                            setOverrideRows((current) =>
+                              current.map((candidate) =>
+                                candidate.key === row.key
+                                  ? {
+                                      ...candidate,
+                                      amount: event.target.value
+                                    }
+                                  : candidate
+                              )
+                            );
+                            setOverrideError("");
+                            setOverrideFieldErrors((current) => omitRowFieldErrors(current, index));
+                          }}
+                          value={row.amount}
+                        />
+                        {rowErrors.map((message) => (
+                          <p className="office-form-error" key={`${row.key}:${message}`}>
+                            {message}
+                          </p>
+                        ))}
+                      </div>
                       {canManageOverrideParticipants ? (
                         <div className="office-accounting-inline-actions">
                           {row.isManualParticipant ? (
@@ -695,13 +825,15 @@ export function TransactionCommissionCard({
                         </div>
                       ) : null}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </HorizontalScrollArea>
 
               {overrideValidationMessage ? (
                 <p className="office-form-error">Apply override is blocked until the override total matches the current payout total.</p>
               ) : null}
+              {overrideError ? <p className="office-form-error">{overrideError}</p> : null}
               <div className="office-inline-form-actions">
                 <Button disabled={!canSubmitOverride} type="submit" variant="secondary">
                   {pendingAction === "override" ? "Saving override..." : "Apply override"}
