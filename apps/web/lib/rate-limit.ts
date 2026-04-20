@@ -47,6 +47,10 @@ type RateLimitRuntime = {
   fetch?: typeof fetch;
 };
 
+type HeaderReader = Pick<Headers, "get">;
+
+type RequestHeaderSource = HeaderReader | { headers: HeaderReader };
+
 type RedisRateLimitResult = {
   count: number;
   ttlMs: number;
@@ -543,16 +547,44 @@ async function executeRedisRateLimitScript(
   return parseRedisRateLimitScriptResult(result);
 }
 
-function getForwardedIp(request: { headers: Pick<Headers, "get"> }) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+function isHeaderReader(value: unknown): value is HeaderReader {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "get" in value &&
+      typeof (value as { get?: unknown }).get === "function",
+  );
 }
 
-function getRealIp(request: { headers: Pick<Headers, "get"> }) {
-  return request.headers.get("x-real-ip")?.trim();
+function resolveRequestHeaders(request: RequestHeaderSource): HeaderReader {
+  if (isHeaderReader(request)) {
+    return request;
+  }
+
+  if (isHeaderReader(request.headers)) {
+    return request.headers;
+  }
+
+  return {
+    get() {
+      return null;
+    },
+  };
 }
 
-function getCloudflareIp(request: { headers: Pick<Headers, "get"> }) {
-  return request.headers.get("cf-connecting-ip")?.trim();
+function getForwardedIp(request: RequestHeaderSource) {
+  return resolveRequestHeaders(request)
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
+}
+
+function getRealIp(request: RequestHeaderSource) {
+  return resolveRequestHeaders(request).get("x-real-ip")?.trim();
+}
+
+function getCloudflareIp(request: RequestHeaderSource) {
+  return resolveRequestHeaders(request).get("cf-connecting-ip")?.trim();
 }
 
 export function resolveTrustedProxyTier(
@@ -568,13 +600,13 @@ export function resolveTrustedProxyTier(
 }
 
 export function getRequestClientIdentifier(
-  request: { headers: Pick<Headers, "get"> },
+  request: RequestHeaderSource,
   env: RateLimitEnvironment = process.env,
 ) {
   const forwardedFor = getForwardedIp(request);
   const forwardedIp = getRealIp(request);
   const connectedIp = getCloudflareIp(request);
-  const host = request.headers.get("host")?.trim();
+  const host = resolveRequestHeaders(request).get("host")?.trim();
 
   if (resolveTrustedProxyTier(env) === "cloudflare") {
     return connectedIp || forwardedFor || forwardedIp || host || "unknown";
@@ -594,7 +626,11 @@ export function hashRateLimitSegment(value: string) {
     .slice(0, 24);
 }
 
-export function buildRateLimitKey(scope: string, request: { headers: Pick<Headers, "get"> }, ...segments: string[]) {
+export function buildRateLimitKey(
+  scope: string,
+  request: RequestHeaderSource,
+  ...segments: string[]
+) {
   return [scope, getRequestClientIdentifier(request), ...segments.filter(Boolean)].join(":");
 }
 
