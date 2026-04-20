@@ -156,9 +156,9 @@ If Prisma schema changed, also run:
 - If local commits already exist on `main` when that protection rejection is discovered, preserve them by branching from the current `HEAD` first; do not rewrite or discard those commits just to satisfy the PR workflow.
 - If the repo is already on a feature branch from earlier work, call that out before continuing instead of silently stacking new tasks onto it.
 - Current `main` branch protection baseline for `johnrebirth5-web/acre-office-warm-ui` is:
+  - pull requests are not required before merge
   - required status checks include `verify`
   - required status checks include `hardening-tests`
-  - `required_approving_review_count = 0`
   - `enforce_admins = true`
 - Treat that branch-protection block as the expected steady state, not as a timeless fact. Before merge work, protection changes, or any reasoning that depends on current GitHub policy, re-run:
   - `bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main`

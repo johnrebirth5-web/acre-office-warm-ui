@@ -4,16 +4,18 @@ set -euo pipefail
 REPO_NAME="johnrebirth5-web/acre-office-warm-ui"
 BRANCH_NAME="main"
 REQUIRED_CHECKS=("verify" "hardening-tests")
+REQUIRE_PULL_REQUESTS=0
 REQUIRED_APPROVALS=0
 CUSTOM_REQUIRED_CHECKS=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--required-approvals N] [--required-check NAME]
+  bash scripts/ops/verify-branch-protection.sh [--repo OWNER/NAME] [--branch NAME] [--require-pr] [--required-approvals N] [--required-check NAME]
 
 Example:
-  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --required-approvals 0 --required-check verify --required-check hardening-tests
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --required-check verify --required-check hardening-tests
+  bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main --require-pr --required-approvals 0 --required-check verify --required-check hardening-tests
 EOF
 }
 
@@ -48,6 +50,10 @@ while [[ $# -gt 0 ]]; do
       fi
       REQUIRED_CHECKS+=("$2")
       shift 2
+      ;;
+    --require-pr)
+      REQUIRE_PULL_REQUESTS=1
+      shift
       ;;
     --required-approvals)
       [[ $# -ge 2 ]] || { usage; exit 1; }
@@ -89,23 +95,35 @@ if ! gh api "repos/$REPO_NAME/branches/$BRANCH_NAME/protection" >"$response_tmp"
   exit 1
 fi
 
-if jq -e '.required_pull_request_reviews != null' "$response_tmp" >/dev/null; then
-  report_ok "pull requests are required before merge"
+if [[ "$REQUIRE_PULL_REQUESTS" -eq 1 ]]; then
+  if jq -e '.required_pull_request_reviews != null' "$response_tmp" >/dev/null; then
+    report_ok "pull requests are required before merge"
+  else
+    report_fail "pull requests are not required before merge"
+  fi
 else
-  report_fail "pull requests are not required before merge"
+  if jq -e '.required_pull_request_reviews == null' "$response_tmp" >/dev/null; then
+    report_ok "pull requests are not required before merge"
+  else
+    report_fail "pull requests are still required before merge"
+  fi
 fi
 
-approvals="$(jq -r '.required_pull_request_reviews.required_approving_review_count // 0' "$response_tmp")"
-if [[ "$REQUIRED_APPROVALS" =~ ^[0-9]+$ ]] && [[ "$approvals" =~ ^[0-9]+$ ]] && [[ "$approvals" -eq "$REQUIRED_APPROVALS" ]]; then
-  report_ok "required approvals is $approvals"
-else
-  report_fail "required approvals is ${approvals:-0} (expected $REQUIRED_APPROVALS)"
-fi
+if [[ "$REQUIRE_PULL_REQUESTS" -eq 1 ]]; then
+  approvals="$(jq -r '.required_pull_request_reviews.required_approving_review_count // 0' "$response_tmp")"
+  if [[ "$REQUIRED_APPROVALS" =~ ^[0-9]+$ ]] && [[ "$approvals" =~ ^[0-9]+$ ]] && [[ "$approvals" -eq "$REQUIRED_APPROVALS" ]]; then
+    report_ok "required approvals is $approvals"
+  else
+    report_fail "required approvals is ${approvals:-0} (expected $REQUIRED_APPROVALS)"
+  fi
 
-if jq -e '.required_pull_request_reviews.dismiss_stale_reviews == true' "$response_tmp" >/dev/null; then
-  report_ok "stale reviews are dismissed on new commits"
+  if jq -e '.required_pull_request_reviews.dismiss_stale_reviews == true' "$response_tmp" >/dev/null; then
+    report_ok "stale reviews are dismissed on new commits"
+  else
+    report_fail "stale reviews are not dismissed on new commits"
+  fi
 else
-  report_fail "stale reviews are not dismissed on new commits"
+  report_ok "approval-based PR review rules are not configured"
 fi
 
 if jq -e '.enforce_admins.enabled == true' "$response_tmp" >/dev/null; then
