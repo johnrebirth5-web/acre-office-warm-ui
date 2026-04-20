@@ -5,7 +5,7 @@ import type {
   FrontOfficeEventHubSnapshot,
   FrontOfficeSharedEventRecord,
 } from "@acre/db";
-import { Badge, Button, SummaryChip } from "@acre/ui";
+import { Badge, Button } from "@acre/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import styles from "./event-hub.module.css";
@@ -135,6 +135,18 @@ function getWeekdayLabel(dayKey: string) {
     weekday: "short",
     timeZone: "UTC",
   });
+}
+
+function getViewLabel(view: FrontOfficeEventCalendarView, isZh?: boolean) {
+  if (view === "month") {
+    return isZh ? "月视图" : "Month";
+  }
+
+  if (view === "week") {
+    return isZh ? "周视图" : "Week";
+  }
+
+  return isZh ? "日视图" : "Day";
 }
 
 function shiftFocusDate(
@@ -616,22 +628,24 @@ export function FrontOfficeEventHubClient({
     }
   }
 
-  const feedbackClassName =
-    feedbackTone === "error" ? styles.feedbackError : styles.feedbackInfo;
+  const feedbackClassName = feedbackTone === "error" ? "is-error" : "is-neutral";
 
   return (
     <div className={styles.hub}>
-      <section className={styles.hero}>
+      <section className={`office-list-card ${styles.hero}`}>
         <div className={styles.heroTop}>
           <div className={styles.heroCopy}>
             <span className={styles.heroEyebrow}>
-              {isZh ? "统一协调台" : "Unified coordination"}
+              {isZh ? "工作台控制" : "Board controls"}
             </span>
-            <h3>{isZh ? "Event Hub" : "Event Hub"}</h3>
+            <h3>
+              {getViewLabel(snapshot.view, isZh)}
+              {isZh ? "工作台" : " board"}
+            </h3>
             <p>
               {isZh
-                ? "把共享 office event、mandatory 节点和现有 appointment writeback 放到同一块工作台里。"
-                : "Keep shared office events, mandatory commitments, and appointment follow-through in one board."}
+                ? "在这里切换月、周、日视图，并保留 appointment lane 的快速返回入口。"
+                : "Switch the active board here while keeping the legacy appointment lanes one click away."}
             </p>
           </div>
 
@@ -647,17 +661,7 @@ export function FrontOfficeEventHubClient({
                   size="sm"
                   variant={snapshot.view === view ? "primary" : "secondary"}
                 >
-                  {view === "month"
-                    ? isZh
-                      ? "月视图"
-                      : "Month"
-                    : view === "week"
-                      ? isZh
-                        ? "周视图"
-                        : "Week"
-                      : isZh
-                        ? "日视图"
-                        : "Day"}
+                  {getViewLabel(view, isZh)}
                 </Button>
               ))}
             </div>
@@ -691,35 +695,45 @@ export function FrontOfficeEventHubClient({
           </div>
         </div>
 
-        <div className={styles.chipBar}>
-          <SummaryChip
-            label={isZh ? "当前范围" : "Range"}
-            tone="accent"
-            value={snapshot.rangeLabel}
-          />
-          <SummaryChip
-            label={isZh ? "共享活动" : "Shared events"}
-            value={snapshot.summary.sharedEventCount}
-          />
-          <SummaryChip
-            label={isZh ? "Mandatory" : "Mandatory"}
-            tone="accent"
-            value={snapshot.summary.mandatoryEventCount}
-          />
-          <SummaryChip
-            label={isZh ? "预约事项" : "Appointments"}
-            value={snapshot.summary.appointmentCount}
-          />
-          <SummaryChip
-            label={isZh ? "今日承诺" : "Today"}
-            value={snapshot.summary.todayCommitmentCount}
-          />
-        </div>
+        <dl className={`office-kpi-strip ${styles.heroFacts}`}>
+          <div className="office-kpi-strip-item office-kpi-strip-item-accent">
+            <dt className="office-kpi-strip-label">{isZh ? "范围" : "Range"}</dt>
+            <dd className="office-kpi-strip-value">{snapshot.rangeLabel}</dd>
+          </div>
+          <div className="office-kpi-strip-item">
+            <dt className="office-kpi-strip-label">
+              {isZh ? "共享活动" : "Shared events"}
+            </dt>
+            <dd className="office-kpi-strip-value">
+              {snapshot.summary.sharedEventCount}
+            </dd>
+          </div>
+          <div className="office-kpi-strip-item">
+            <dt className="office-kpi-strip-label">Mandatory</dt>
+            <dd className="office-kpi-strip-value">
+              {snapshot.summary.mandatoryEventCount}
+            </dd>
+          </div>
+          <div className="office-kpi-strip-item">
+            <dt className="office-kpi-strip-label">
+              {isZh ? "预约" : "Appointments"}
+            </dt>
+            <dd className="office-kpi-strip-value">
+              {snapshot.summary.appointmentCount}
+            </dd>
+          </div>
+          <div className="office-kpi-strip-item office-kpi-strip-item-muted">
+            <dt className="office-kpi-strip-label">{isZh ? "今天" : "Today"}</dt>
+            <dd className="office-kpi-strip-value">
+              {snapshot.summary.todayCommitmentCount}
+            </dd>
+          </div>
+        </dl>
 
         <div className={styles.laneStrip}>
           {legacyLaneLinks.map((lane) => (
             <button
-              className={styles.laneLink}
+              className={`front-office-action-card ${styles.laneLink}`}
               key={lane.key}
               onClick={() => navigateToLegacyLane(lane.key)}
               type="button"
@@ -732,14 +746,14 @@ export function FrontOfficeEventHubClient({
       </section>
 
       {feedbackTone && feedbackMessage ? (
-        <div className={`${styles.feedback} ${feedbackClassName}`}>
+        <div className={`front-office-calendar-feedback ${feedbackClassName}`}>
           {feedbackMessage}
         </div>
       ) : null}
 
       <div className={styles.workspace}>
         <div className={styles.boardColumn}>
-          <section className={styles.panel}>
+          <section className={`office-list-card ${styles.panel}`}>
             <div className={styles.panelHeader}>
               <div>
                 <h4>{isZh ? "混合看板" : "Combined board"}</h4>
@@ -917,7 +931,7 @@ export function FrontOfficeEventHubClient({
         </div>
 
         <div className={styles.detailColumn}>
-          <section className={styles.detailCard}>
+          <section className={`office-list-card ${styles.detailCard}`}>
             {selectedEvent ? (
               <>
                 <div className={styles.detailHeader}>
@@ -1063,7 +1077,7 @@ export function FrontOfficeEventHubClient({
             )}
           </section>
 
-          <section className={styles.queueCard}>
+          <section className={`office-list-card ${styles.queueCard}`}>
             <div className={styles.panelHeader}>
               <div>
                 <h4>{isZh ? "Mandatory 队列" : "Mandatory queue"}</h4>
@@ -1106,7 +1120,7 @@ export function FrontOfficeEventHubClient({
             </div>
           </section>
 
-          <section className={styles.queueCard}>
+          <section className={`office-list-card ${styles.queueCard}`}>
             <div className={styles.panelHeader}>
               <div>
                 <h4>{isZh ? "Upcoming shared events" : "Upcoming shared events"}</h4>
@@ -1150,7 +1164,9 @@ export function FrontOfficeEventHubClient({
           </section>
 
           {snapshot.canManageEvents ? (
-            <section className={`${styles.panel} ${styles.formPanel}`}>
+            <section
+              className={`office-list-card front-office-calendar-form ${styles.panel} ${styles.formPanel}`}
+            >
               <div className={styles.panelHeader}>
                 <div>
                   <h4>
@@ -1175,6 +1191,7 @@ export function FrontOfficeEventHubClient({
                   {isZh ? "AI 草稿入口" : "AI draft intake"}
                 </label>
                 <textarea
+                  className="office-textarea"
                   id="event-assist-note"
                   onChange={(event) => setAssistText(event.target.value)}
                   placeholder={
@@ -1208,6 +1225,7 @@ export function FrontOfficeEventHubClient({
                 <div className={styles.field}>
                   <label htmlFor="event-title">{isZh ? "标题" : "Title"}</label>
                   <input
+                    className="office-input"
                     id="event-title"
                     onChange={(event) => updateFormState("title", event.target.value)}
                     value={formState.title}
@@ -1216,6 +1234,7 @@ export function FrontOfficeEventHubClient({
                 <div className={styles.field}>
                   <label htmlFor="event-type">{isZh ? "类型" : "Type"}</label>
                   <select
+                    className="office-select"
                     id="event-type"
                     onChange={(event) =>
                       updateFormState(
@@ -1235,6 +1254,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "描述" : "Description"}
                   </label>
                   <textarea
+                    className="office-textarea"
                     id="event-description"
                     onChange={(event) =>
                       updateFormState("description", event.target.value)
@@ -1247,6 +1267,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "可见范围" : "Visibility"}
                   </label>
                   <select
+                    className="office-select"
                     id="event-visibility"
                     onChange={(event) =>
                       updateFormState(
@@ -1266,6 +1287,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "重复规则" : "Recurrence"}
                   </label>
                   <select
+                    className="office-select"
                     id="event-recurrence"
                     onChange={(event) =>
                       updateFormState(
@@ -1285,6 +1307,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "开始时间" : "Starts at"}
                   </label>
                   <input
+                    className="office-input"
                     id="event-startsAt"
                     onChange={(event) =>
                       updateFormState("startsAt", event.target.value)
@@ -1298,6 +1321,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "结束时间" : "Ends at"}
                   </label>
                   <input
+                    className="office-input"
                     id="event-endsAt"
                     onChange={(event) => updateFormState("endsAt", event.target.value)}
                     type="datetime-local"
@@ -1307,6 +1331,7 @@ export function FrontOfficeEventHubClient({
                 <div className={styles.field}>
                   <label htmlFor="event-area">{isZh ? "区域" : "Area"}</label>
                   <input
+                    className="office-input"
                     id="event-area"
                     onChange={(event) => updateFormState("area", event.target.value)}
                     value={formState.area}
@@ -1317,6 +1342,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "精确地点" : "Precise location"}
                   </label>
                   <input
+                    className="office-input"
                     id="event-location"
                     onChange={(event) =>
                       updateFormState("location", event.target.value)
@@ -1329,6 +1355,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "会议链接" : "Meeting URL"}
                   </label>
                   <input
+                    className="office-input"
                     id="event-meetingUrl"
                     onChange={(event) =>
                       updateFormState("meetingUrl", event.target.value)
@@ -1341,6 +1368,7 @@ export function FrontOfficeEventHubClient({
                     {isZh ? "会议密码" : "Meeting password"}
                   </label>
                   <input
+                    className="office-input"
                     id="event-meetingPassword"
                     onChange={(event) =>
                       updateFormState("meetingPassword", event.target.value)
