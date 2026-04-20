@@ -123,6 +123,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   const activitySubtitle = totalActivityRecords
     ? `Showing ${activityPageStartLabel}-${activityPageEndLabel} of ${totalActivityRecords} audit records`
     : "Showing 0 audit records";
+  const liveAlertsSummaryValue =
+    selectedView === "activity" ? "On demand" : selectedView === "alerts" ? "Alerts only" : "Included below";
   const activityPaginationBaseHref = buildActivityHref(normalizedSearchParams, { page: "" });
   const activitySidebar = (
     <SectionCard
@@ -261,7 +263,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
           <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Audit window" tone="accent" value={snapshot.latestWindowCount} />
-            <SummaryChip label="Live alerts" value={selectedView === "activity" ? "On demand" : "Loading..."} />
+            <SummaryChip label="Live alerts" value={liveAlertsSummaryValue} />
           </>
         }
         title="Account activity"
