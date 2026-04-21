@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
-import { addAgentToTeam, createAgentTeam, getOfficeAgentsRosterSnapshot } from "./agents.ts";
+import { addAgentToTeam, createAgentTeam, deleteAgentTeam, getOfficeAgentsRosterSnapshot } from "./agents.ts";
 import { prisma } from "./client.ts";
 import {
   getOfficeAdminUserDetailSnapshot,
@@ -864,6 +864,75 @@ test("team membership writes reject non team-hierarchy account roles", async () 
         }),
       /Only Agent \/ Team Lead accounts can own a Team or Junior Team\./
     );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("deleteAgentTeam removes the final owner assignment when it is the only remaining member", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const leader = await context.createMembership(
+      "team_lead",
+      "delete-team-owner",
+      "Delete",
+      "Owner",
+      "No active team"
+    );
+    const team = await createAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      name: `Delete Ready ${randomUUID().slice(0, 8)}`,
+      leaderMembershipId: leader.membership.id
+    });
+
+    const beforeDeleteLeader = await prisma.membership.findUnique({
+      where: {
+        id: leader.membership.id
+      },
+      select: {
+        title: true
+      }
+    });
+
+    assert.match(beforeDeleteLeader?.title ?? "", /Team Leader/);
+
+    await deleteAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id
+    });
+
+    const [deletedTeam, deletedTeamMembershipCount, refreshedLeader] = await Promise.all([
+      prisma.team.findUnique({
+        where: {
+          id: team.id
+        }
+      }),
+      prisma.teamMembership.count({
+        where: {
+          organizationId: context.organization.id,
+          teamId: team.id
+        }
+      }),
+      prisma.membership.findUnique({
+        where: {
+          id: leader.membership.id
+        },
+        select: {
+          role: true,
+          title: true
+        }
+      })
+    ]);
+
+    assert.equal(deletedTeam, null);
+    assert.equal(deletedTeamMembershipCount, 0);
+    assert.equal(refreshedLeader?.role, "team_lead");
+    assert.equal(refreshedLeader?.title, "No active team");
   } finally {
     await context.cleanup();
   }

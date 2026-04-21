@@ -41,7 +41,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - create `Team / Junior Team` with a required owner at creation time
   - rename
   - activate/deactivate
-  - delete empty teams with no remaining commission-plan assignments
+  - delete teams with no remaining Junior Teams or commission-plan assignments once all non-owner members are removed; if the current Team / Junior Team owner is the only remaining member, deleting the team also clears that final owner assignment
   - add/remove members
   - assign `Team Leader / Junior Team Leader / Member`
   - `Teams` directory visibility follows `teams:view` directly and must not be narrowed by `agents:view:*` or `transactions:view:*` scope math

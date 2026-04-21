@@ -429,11 +429,16 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
       throw new Error("Team was not found.");
     }
 
-    const [memberCount, childTeamCount, commissionAssignmentCount] = await Promise.all([
-      tx.teamMembership.count({
+    const expectedLeaderRole = getExpectedBranchLeaderRole(team.parentTeamId);
+    const [teamMemberships, childTeamCount, commissionAssignmentCount] = await Promise.all([
+      tx.teamMembership.findMany({
         where: {
           organizationId: input.organizationId,
           teamId: input.teamId
+        },
+        select: {
+          membershipId: true,
+          role: true
         }
       }),
       tx.team.count({
@@ -449,8 +454,43 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
         }
       })
     ]);
+    const allowOwnerCascadeDelete =
+      teamMemberships.length === 1 && teamMemberships[0]?.role === expectedLeaderRole;
+    const impactedMembershipIds = [...new Set(teamMemberships.map((teamMembership) => teamMembership.membershipId))];
+    const impactedMemberships =
+      allowOwnerCascadeDelete && impactedMembershipIds.length > 0
+        ? await tx.membership.findMany({
+            where: {
+              id: {
+                in: impactedMembershipIds
+              }
+            },
+            select: {
+              id: true,
+              role: true,
+              title: true,
+              teamMemberships: {
+                where: {
+                  NOT: {
+                    teamId: input.teamId
+                  }
+                },
+                include: {
+                  team: {
+                    select: {
+                      id: true,
+                      name: true,
+                      isActive: true,
+                      parentTeamId: true
+                    }
+                  }
+                }
+              }
+            }
+          })
+        : [];
 
-    if (memberCount > 0) {
+    if (teamMemberships.length > 0 && !allowOwnerCascadeDelete) {
       throw new Error("Remove all team members before deleting this team.");
     }
 
@@ -462,11 +502,41 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
       throw new Error("Remove this team's commission plan assignments before deleting it.");
     }
 
+    if (allowOwnerCascadeDelete) {
+      await tx.teamMembership.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId
+        }
+      });
+    }
+
     await tx.team.delete({
       where: {
         id: input.teamId
       }
     });
+
+    for (const membership of impactedMemberships) {
+      const nextTitle = resolveManagedMembershipStoredTitle({
+        role: membership.role,
+        fallbackTitle: membership.title,
+        teamMemberships: membership.teamMemberships
+      });
+
+      if ((membership.title ?? null) === nextTitle) {
+        continue;
+      }
+
+      await tx.membership.update({
+        where: {
+          id: membership.id
+        },
+        data: {
+          title: nextTitle
+        }
+      });
+    }
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -478,7 +548,9 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
         officeId: team.officeId,
         objectLabel: team.name,
         contextHref: "/office/settings/teams",
-        details: []
+        details: allowOwnerCascadeDelete
+          ? [`Final ${teamRoleLabelMap[expectedLeaderRole]} assignment removed with team deletion`]
+          : []
       }
     });
 

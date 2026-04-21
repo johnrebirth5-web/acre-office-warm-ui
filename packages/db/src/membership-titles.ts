@@ -45,7 +45,7 @@ export function isManagedMembershipTitle(value: string | null | undefined) {
     return true;
   }
 
-  return normalized.split(" / ").every((part) => managedTeamTitlePattern.test(part.trim()));
+  return normalized.split(" • ").every((part) => managedTeamTitlePattern.test(part.trim()));
 }
 
 export function buildManagedMembershipTitle(

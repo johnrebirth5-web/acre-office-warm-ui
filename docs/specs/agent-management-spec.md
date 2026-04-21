@@ -79,6 +79,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - branch-owner summaries and team-assignment dropdowns now only count leader roles that match the current branch shape
   - creating a `Team` or `Junior Team` now requires picking the corresponding owner up front
   - promoting another member to the owner role transfers leadership instead of leaving the team without an owner
+  - deleting a Team / Junior Team now removes the final owner assignment as part of the delete flow when that owner is the only remaining member, so the admin flow no longer deadlocks on the last branch owner
   - legacy `Junior Team Leader` records that still sit directly in the parent Team are now auto-normalized into a real Junior Team named after that leader, with direct reports moved into the same child team
   - that legacy normalization now runs only from explicit management actions instead of from roster/profile read paths
   - legacy ownerless child branches can still surface as `Leader: Unassigned` until they are cleaned up, but normal admin creation paths no longer create new empty branches
