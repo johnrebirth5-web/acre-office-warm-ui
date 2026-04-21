@@ -54,11 +54,13 @@
     - 列表主体只显示“我导入的房源 + 我从公司 dashboard 收录的房源”
   - `/listing-studio/listings/[packId]`
   - `/listing-studio/listings/[packId]/edit`
+  - `/listing-studio/listings/[packId]/share`
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
   - listings 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
+  - internal share flow 现在会先进入 owner-facing `Share Studio`，在五套竖版海报模板（`hero / editorial / card / cinematic / grid`）之间切换主图和状态，再导出 `2160 x 2880` PNG；公开二维码仍落到 `/share/packs/[code]`
   - 当前安装页：
     - `/listing-studio/extension/install`
     - listings 当前 tab 检测不到扩展时会打开 Chrome Web Store / 扩展设置入口，而不是假定用户尚未安装
@@ -1069,15 +1071,15 @@ npm run docker:dev:keepalive
 
 这条命令会循环确保三件事：
 
-- `DO -> 0.0.0.0:15432` 的 SSH 隧道还活着；Docker 容器经 `host.lima.internal:15432` 访问，宿主机工具仍可经 `127.0.0.1:15432` 访问
+- `DO -> 0.0.0.0:15432` 的 SSH 隧道还活着；Docker 容器经 `host.docker.internal:15432` 访问（OrbStack / Docker Desktop），宿主机工具仍可经 `127.0.0.1:15432` 访问
 - `docker compose` 的 `web + db` 仍在运行
 - `http://localhost:3105/login` 还能正常响应；如果不行就自动重启 `web`
 
-当前 `macOS + Colima` 基线说明：
+当前 `macOS + OrbStack` 基线说明（历史上也支持 Colima/Lima，但主机名已切到 `host.docker.internal`）：
 
-- `ssh -L` 默认只绑定 `localhost` 时，Docker 容器经 `host.lima.internal` 访问不到这条隧道
+- `ssh -L` 默认只绑定 `localhost` 时，Docker 容器经 `host.docker.internal` 访问不到这条隧道
 - `scripts/docker-dev-keepalive.sh` 现在默认把 DO 数据库隧道绑定到 `0.0.0.0:15432`
-- 这个脚本还会从 `db` 容器内探测 `host.lima.internal:15432`；如果容器侧探测失败，会自动重建隧道
+- 这个脚本还会从 `db` 容器内探测 `host.docker.internal:15432`；如果容器侧探测失败，会自动重建隧道
 - 如需覆盖默认值，可设置 `ACRE_DO_DB_TUNNEL_BIND_HOST`、`ACRE_DO_DB_TUNNEL_CONTAINER_HOST`、`ACRE_DO_DB_TUNNEL_PROBE_SERVICE`
 
 如果你需要把 `DigitalOcean` 线上最新数据库拉到本地，但又不希望本地操作回写线上，现在可以使用：

@@ -24,6 +24,7 @@
   - `/listing-studio/collections/[collectionId]`
   - `/listing-studio/shares`
   - `/listing-studio/listings/[packId]`
+  - `/listing-studio/listings/[packId]/share`
 - Chrome Extension `apps/extension`
 - 支持站点：
   - `StreetEasy`
@@ -58,18 +59,18 @@
 - PDF 导出：
   - `/api/listing-studio/listings/[packId]/pdf`
 - 海报 / 模板导出：
+  - `/listing-studio/listings/[packId]/share`
   - `/api/listing-studio/listings/[packId]/poster`
-  - editorial / open-house / social-square / factsheet 模板切换
-  - preview / print / downloadable HTML export
-  - agent info block + scan-ready packet path in the generated poster
-  - copy-ready marketing kit variants derived from the same saved packet and poster draft
-  - reusable campaign bundles such as social / listing / follow-up copy packs
-  - a delivery-plan layer that organizes those bundles into send-ready package sets, a manual sequence, and readiness checks
+  - `hero / editorial / card / cinematic / grid` 五套竖版 poster 模板切换
+  - right-rail `Listing status` controls：`JUST LISTED / IN CONTRACT / PRICE REDUCED / OPEN HOUSE / SOLD`
+  - main-photo selection tied to the current saved pack asset set
+  - preview / print / downloadable `SVG / HTML / PNG` export，其中 PNG 为 `2160 x 2880`
+  - generated poster carries the saved contact block + scan-ready packet path, but does not inject Acre / Listed / source-site branding into the poster artwork itself
 
 ### Explicitly not included in v1
 
 - share management center
-- Canva sync / PNG render pipeline
+- Canva sync
 - batch import
 - scheduled re-crawl
 - background queue / worker

@@ -5,82 +5,24 @@ import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import {
   buildListingStudioPosterDraft,
   buildListingStudioPosterFileName,
+  readListingStudioPosterStatusVariantId,
+  readListingStudioPosterTemplateId,
   renderListingStudioPosterHtml,
-  type ListingStudioPosterTemplateId,
+  renderListingStudioPosterSvg,
+  type ListingStudioPosterFormat,
 } from "../../../../../listing-studio/listings/[packId]/listing-studio-poster";
 
 export const runtime = "nodejs";
 
-function readPosterTemplateId(value: string | null): ListingStudioPosterTemplateId {
+function readPosterFormat(value: string | null): ListingStudioPosterFormat {
   switch (value) {
-    case "open-house":
-    case "social-square":
-    case "factsheet":
+    case "png":
+    case "svg":
       return value;
-    case "editorial":
+    case "html":
     default:
-      return "editorial";
+      return "html";
   }
-}
-
-function normalizeText(value: string | null, fallback: string) {
-  const trimmed = value?.trim();
-
-  return trimmed && trimmed.length ? trimmed : fallback;
-}
-
-function readContactOverride(url: URL, key: string) {
-  if (!url.searchParams.has(key)) {
-    return undefined;
-  }
-
-  const value = url.searchParams.get(key);
-  return value === null ? "" : value.trim();
-}
-
-function applyPosterContactOverrides(
-  detail: NonNullable<Awaited<ReturnType<typeof getStudioListingPackDetail>>>,
-  request: NextRequest,
-) {
-  const url = new URL(request.url);
-  const contactName = readContactOverride(url, "contactName");
-  const contactTitle = readContactOverride(url, "contactTitle");
-  const contactPhone = readContactOverride(url, "contactPhone");
-  const contactEmail = readContactOverride(url, "contactEmail");
-
-  if (
-    contactName === undefined &&
-    contactTitle === undefined &&
-    contactPhone === undefined &&
-    contactEmail === undefined
-  ) {
-    return detail;
-  }
-
-  return {
-    ...detail,
-    pack: {
-      ...detail.pack,
-      contactName: contactName === undefined ? detail.pack.contactName : contactName,
-      contactTitle: contactTitle === undefined ? detail.pack.contactTitle : contactTitle,
-      contactPhone: contactPhone === undefined ? detail.pack.contactPhone : contactPhone,
-      contactEmail: contactEmail === undefined ? detail.pack.contactEmail : contactEmail,
-    },
-  };
-}
-
-function buildPosterDraftFromRequest(
-  detail: NonNullable<Awaited<ReturnType<typeof getStudioListingPackDetail>>>,
-  request: NextRequest,
-) {
-  const url = new URL(request.url);
-  const templateId = readPosterTemplateId(url.searchParams.get("template"));
-
-  return buildListingStudioPosterDraft(
-    detail,
-    templateId,
-    url.searchParams.get("coverAssetId"),
-  );
 }
 
 export async function GET(
@@ -113,14 +55,75 @@ export async function GET(
     return NextResponse.json({ error: "Packet not found." }, { status: 404 });
   }
 
-  const detailWithContactOverrides = applyPosterContactOverrides(detail, request);
-  const draft = buildPosterDraftFromRequest(detailWithContactOverrides, request);
-  const html = renderListingStudioPosterHtml(detailWithContactOverrides, draft, {
+  const templateId = readListingStudioPosterTemplateId(
+    request.nextUrl.searchParams.get("template"),
+  );
+  const statusVariant = readListingStudioPosterStatusVariantId(
+    request.nextUrl.searchParams.get("statusVariant"),
+  );
+  const draft = buildListingStudioPosterDraft(
+    detail,
+    templateId,
+    request.nextUrl.searchParams.get("coverAssetId"),
+    statusVariant,
+  );
+  const format = readPosterFormat(request.nextUrl.searchParams.get("format"));
+  const download = request.nextUrl.searchParams.get("download") === "1";
+  const fileName = buildListingStudioPosterFileName(detail, draft, format);
+
+  if (format === "png") {
+    const sharp = (await import("sharp")).default;
+    const svg = await renderListingStudioPosterSvg(detail, draft, {
+      baseUrl: request.nextUrl.origin,
+      embedAssets: true,
+      requestHeaders: {
+        cookie: request.headers.get("cookie") ?? "",
+      },
+    });
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png({
+        compressionLevel: 9,
+        quality: 100,
+      })
+      .toBuffer();
+
+    return new NextResponse(new Uint8Array(pngBuffer), {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "image/png",
+        ...(download
+          ? {
+              "Content-Disposition": `attachment; filename="${fileName}"`,
+            }
+          : {}),
+      },
+    });
+  }
+
+  if (format === "svg") {
+    const svg = await renderListingStudioPosterSvg(detail, draft, {
+      baseUrl: request.nextUrl.origin,
+    });
+
+    return new NextResponse(svg, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        ...(download
+          ? {
+              "Content-Disposition": `attachment; filename="${fileName}"`,
+            }
+          : {}),
+      },
+    });
+  }
+
+  const html = renderListingStudioPosterHtml(detail, draft, {
+    autoPrint: request.nextUrl.searchParams.get("print") === "1",
     baseUrl: request.nextUrl.origin,
-    autoPrint: new URL(request.url).searchParams.get("print") === "1",
   });
-  const download = new URL(request.url).searchParams.get("download") === "1";
-  const fileName = buildListingStudioPosterFileName(detail, draft);
 
   return new NextResponse(html, {
     status: 200,
@@ -129,7 +132,7 @@ export async function GET(
       "Content-Type": "text/html; charset=utf-8",
       ...(download
         ? {
-            "Content-Disposition": `attachment; filename="${normalizeText(fileName, "listing-poster.html")}"`,
+            "Content-Disposition": `attachment; filename="${fileName}"`,
           }
         : {}),
     },

@@ -2016,7 +2016,7 @@ export function ListingStudioDetailClient({
     }
   }
 
-  async function openSharePage() {
+  async function openShareStudio() {
     setIsSharing(true);
     setStatusMessage("");
 
@@ -2050,20 +2050,21 @@ export function ListingStudioDetailClient({
         }));
       }
 
-      if (nextShareUrl) {
-        openExternalWindow(
-          nextShareUrl.startsWith("http")
-            ? nextShareUrl
-            : `${window.location.origin}${nextShareUrl}`,
-        );
+      const params = new URLSearchParams();
+      if (activePhoto?.id) {
+        params.set("coverAssetId", activePhoto.id);
       }
+      const nextStudioUrl = `/listing-studio/listings/${detailState.packId}/share${
+        params.size ? `?${params.toString()}` : ""
+      }`;
 
-      setStatusMessage("Share page is ready.");
+      router.push(nextStudioUrl);
+      setStatusMessage("Share studio is ready.");
     } catch (error) {
       setStatusMessage(
         error instanceof Error
           ? error.message
-          : "Unable to open the share page.",
+          : "Unable to open the share studio.",
       );
     } finally {
       setIsSharing(false);
@@ -2109,9 +2110,9 @@ export function ListingStudioDetailClient({
                       />
 
                       <StageActionButton
-                        ariaLabel="Open share page"
+                        ariaLabel="Open share studio"
                         disabled={isSharing}
-                        onClick={() => void openSharePage()}
+                        onClick={() => void openShareStudio()}
                       >
                         <IconShare />
                       </StageActionButton>
