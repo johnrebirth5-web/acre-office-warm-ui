@@ -135,6 +135,10 @@ export async function GET(
     const svg = await renderListingStudioPosterSvg(detail, draft, {
       agent: posterAgent,
       baseUrl: request.nextUrl.origin,
+      embedAssets: true,
+      requestHeaders: {
+        cookie: request.headers.get("cookie") ?? "",
+      },
     });
 
     return new NextResponse(svg, {
