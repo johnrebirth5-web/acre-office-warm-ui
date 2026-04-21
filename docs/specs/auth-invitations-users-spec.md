@@ -119,6 +119,7 @@ Current routes:
 `/office/settings/users/[membershipId]` now supports:
 
 - review core account identity, office access, team context, and sign-in timestamps
+- update first name and last name for the target Back Office user
 - return `404` when the target membership does not belong to the current top-level company scope
 - review and edit operational profile, team assignments, onboarding, goals, and workload context without leaving the user detail route
 - update role

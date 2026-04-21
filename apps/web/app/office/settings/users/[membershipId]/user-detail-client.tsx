@@ -39,6 +39,8 @@ type OfficeSettingsUserDetailClientProps = {
 };
 
 type DetailDraft = {
+  firstName: string;
+  lastName: string;
   role: string;
   status: string;
   defaultOfficeId: string;
@@ -71,6 +73,8 @@ export function OfficeSettingsUserDetailClient({
 }: OfficeSettingsUserDetailClientProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<DetailDraft>({
+    firstName: snapshot.profile.firstName,
+    lastName: snapshot.profile.lastName,
     role: snapshot.profile.roleValue,
     status: snapshot.profile.statusValue,
     defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
@@ -118,12 +122,16 @@ export function OfficeSettingsUserDetailClient({
 
   useEffect(() => {
     setDraft({
+      firstName: snapshot.profile.firstName,
+      lastName: snapshot.profile.lastName,
       role: snapshot.profile.roleValue,
       status: snapshot.profile.statusValue,
       defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
       accessibleOfficeIds: snapshot.profile.accessibleOfficeIds,
     });
   }, [
+    snapshot.profile.firstName,
+    snapshot.profile.lastName,
     snapshot.profile.accessibleOfficeIds,
     snapshot.profile.defaultOfficeId,
     snapshot.profile.roleValue,
@@ -261,6 +269,8 @@ export function OfficeSettingsUserDetailClient({
           },
           body: JSON.stringify({
             ...draft,
+            firstName: draft.firstName.trim(),
+            lastName: draft.lastName.trim(),
             accessibleOfficeIds: effectiveAccessibleOfficeIds,
           }),
         },
@@ -275,7 +285,7 @@ export function OfficeSettingsUserDetailClient({
         );
       }
 
-      setActionNotice("User access updated.");
+      setActionNotice("User account updated.");
       refreshCurrentPage();
     } catch (error) {
       setSubmitError(
@@ -399,6 +409,8 @@ export function OfficeSettingsUserDetailClient({
     }
   }
 
+  const firstNameChanged = draft.firstName.trim() !== snapshot.profile.firstName;
+  const lastNameChanged = draft.lastName.trim() !== snapshot.profile.lastName;
   const roleChanged = draft.role !== snapshot.profile.roleValue;
   const membershipChanged = draft.status !== snapshot.profile.statusValue;
   const defaultOfficeChanged =
@@ -407,6 +419,8 @@ export function OfficeSettingsUserDetailClient({
     serializeStringList(effectiveAccessibleOfficeIds) !==
     serializeStringList(snapshot.profile.accessibleOfficeIds);
   const accountAccessChanged =
+    firstNameChanged ||
+    lastNameChanged ||
     roleChanged ||
     membershipChanged ||
     defaultOfficeChanged ||
@@ -597,7 +611,7 @@ export function OfficeSettingsUserDetailClient({
             )
           }
           className="office-settings-user-access-card"
-          subtitle="Update role, membership lifecycle, company access, and invitation state from one place."
+          subtitle="Update name, role, membership lifecycle, company access, and invitation state from one place."
           title="Account access"
         >
           <form
@@ -605,6 +619,30 @@ export function OfficeSettingsUserDetailClient({
             onSubmit={handleSaveUser}
           >
             <div className="office-form-grid office-form-grid-2 office-settings-user-access-controls">
+              <FormField label="First name">
+                <TextInput
+                  autoComplete="given-name"
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("firstName", event.target.value)
+                  }
+                  required
+                  value={draft.firstName}
+                />
+              </FormField>
+
+              <FormField label="Last name">
+                <TextInput
+                  autoComplete="family-name"
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("lastName", event.target.value)
+                  }
+                  required
+                  value={draft.lastName}
+                />
+              </FormField>
+
               <FormField label="Role">
                 <SelectInput
                   disabled={!canManageAccountAccess}
@@ -884,7 +922,7 @@ export function OfficeSettingsUserDetailClient({
               {canManageAccountAccess ? (
                 <>
                   <Button disabled={pendingAction === "save"} type="submit">
-                    {pendingAction === "save" ? "Saving..." : "Save access"}
+                    {pendingAction === "save" ? "Saving..." : "Save account"}
                   </Button>
                   <Button
                     disabled={pendingAction === "issue"}

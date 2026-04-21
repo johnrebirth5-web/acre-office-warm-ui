@@ -358,6 +358,8 @@ export type OfficeAdminUserDetailSnapshot = {
   profile: {
     membershipId: string;
     userId: string;
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: string;
@@ -556,6 +558,8 @@ export type UpdateOfficeAdminUserInput = {
   actorMembershipId: string;
   membershipId: string;
   viewerOfficeId?: string | null;
+  firstName?: string;
+  lastName?: string;
   role?: string;
   status?: string;
   defaultOfficeId?: string | null;
@@ -649,6 +653,24 @@ function buildChange(label: string, previousValue: string, nextValue: string): A
 function parseOptionalText(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeRequiredText(
+  value: string | undefined,
+  label: string,
+  fallback: string,
+) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new Error(`${label} is required.`);
+  }
+
+  return trimmed;
 }
 
 function parseOptionalInteger(value: string | undefined) {
@@ -2233,6 +2255,8 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     profile: {
       membershipId: membership.id,
       userId: membership.userId,
+      firstName: membership.user.firstName,
+      lastName: membership.user.lastName,
       name: row.name,
       email: membership.user.email,
       role: formatUserRoleLabel(membership.role),
@@ -2390,6 +2414,18 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
 
     const nextRole = normalizeUserRole(input.role) ?? membership.role;
     const nextStatus = normalizeMembershipStatus(input.status) ?? membership.status;
+    const nextFirstName = normalizeRequiredText(
+      input.firstName,
+      "First name",
+      membership.user.firstName,
+    );
+    const nextLastName = normalizeRequiredText(
+      input.lastName,
+      "Last name",
+      membership.user.lastName,
+    );
+    const nextUserLabel =
+      `${nextFirstName} ${nextLastName}`.trim() || membership.user.email;
 
     assertActorCanAssignPrivilegedRole(actorPermissionKeys, nextRole);
 
@@ -2491,6 +2527,22 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
     const previousStatusLabel = formatMembershipStatusLabel(membership.status);
     const nextStatusLabel = formatMembershipStatusLabel(nextStatus);
     const previousOfficeLabel = previousOfficeScope.officeAccessLabel;
+    const identityChanges = [
+      buildChange("First name", membership.user.firstName, nextFirstName),
+      buildChange("Last name", membership.user.lastName, nextLastName),
+    ].filter(Boolean) as ActivityLogChange[];
+
+    if (identityChanges.length > 0) {
+      await tx.user.update({
+        where: {
+          id: membership.userId,
+        },
+        data: {
+          firstName: nextFirstName,
+          lastName: nextLastName,
+        },
+      });
+    }
 
     const updatedMembership = await tx.membership.update({
       where: {
@@ -2525,8 +2577,23 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       }
     });
 
-    const userLabel = `${membership.user.firstName} ${membership.user.lastName}`;
     const contextHref = "/office/settings/users";
+
+    if (identityChanges.length > 0) {
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "membership",
+        entityId: membership.id,
+        action: activityLogActions.settingsUserIdentityChanged,
+        payload: {
+          objectLabel: nextUserLabel,
+          contextHref,
+          details: [],
+          changes: identityChanges,
+        },
+      });
+    }
 
     if (membership.role !== nextRole) {
       await recordActivityLogEvent(tx, {
@@ -2536,7 +2603,7 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
         entityId: membership.id,
         action: activityLogActions.settingsUserRoleChanged,
         payload: {
-          objectLabel: userLabel,
+          objectLabel: nextUserLabel,
           contextHref,
           details: [],
           changes: [buildChange("Role", previousRoleLabel, nextRoleLabel)].filter(Boolean) as ActivityLogChange[]
@@ -2552,7 +2619,7 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
         entityId: membership.id,
         action: nextStatus === "active" ? activityLogActions.settingsUserActivated : activityLogActions.settingsUserDeactivated,
         payload: {
-          objectLabel: userLabel,
+          objectLabel: nextUserLabel,
           contextHref,
           details: [],
           changes: [buildChange("Status", previousStatusLabel, nextStatusLabel)].filter(Boolean) as ActivityLogChange[]
@@ -2577,7 +2644,7 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
         entityId: membership.id,
         action: activityLogActions.settingsOfficeAccessChanged,
         payload: {
-          objectLabel: userLabel,
+          objectLabel: nextUserLabel,
           contextHref,
           details: [],
           changes: [buildChange("Company access", previousOfficeLabel, nextOfficeScope.officeAccessLabel)].filter(Boolean) as ActivityLogChange[]

@@ -15,6 +15,8 @@ const manageableUserRoles = [
 export const updateOfficeUserBodySchema = z.preprocess(
   (value) => value ?? {},
   z.object({
+    firstName: z.string().trim().min(1, "First name is required.").optional(),
+    lastName: z.string().trim().min(1, "Last name is required.").optional(),
     role: z
       .string()
       .trim()

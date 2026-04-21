@@ -60,6 +60,27 @@ test("handleUpdateOfficeUserPatch returns 400 validation_error for unsupported s
   });
 });
 
+test("handleUpdateOfficeUserPatch returns 400 validation_error for blank name fields", async () => {
+  const response = await handleUpdateOfficeUserPatch(
+    createOfficeUserPatchRequest(
+      JSON.stringify({
+        firstName: "  ",
+      }),
+    ),
+    "membership_2",
+    createSessionContext({ canManageOfficeSettings: true }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await readJson(response), {
+    error: "User access payload is invalid.",
+    errorCode: "validation_error",
+    fieldErrors: {
+      firstName: "First name is required.",
+    },
+  });
+});
+
 test("handleUpdateOfficeUserPatch preserves the admin-tier 403 guard", async () => {
   const response = await handleUpdateOfficeUserPatch(
     createOfficeUserPatchRequest(
@@ -83,6 +104,8 @@ test("handleUpdateOfficeUserPatch passes normalized office access fields through
   const response = await handleUpdateOfficeUserPatch(
     createOfficeUserPatchRequest(
       JSON.stringify({
+        firstName: "Ada",
+        lastName: "Lovelace",
         role: "agent",
         status: "active",
         defaultOfficeId: "__all__",
@@ -106,6 +129,8 @@ test("handleUpdateOfficeUserPatch passes normalized office access fields through
     actorMembershipId: "membership_1",
     membershipId: "membership_2",
     viewerOfficeId: "office_1",
+    firstName: "Ada",
+    lastName: "Lovelace",
     role: "agent",
     status: "active",
     defaultOfficeId: undefined,

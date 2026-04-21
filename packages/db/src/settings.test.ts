@@ -593,6 +593,55 @@ test("updateOfficeAdminUser still allows non-role updates for legacy non-hierarc
   }
 });
 
+test("updateOfficeAdminUser lets admins rename a back-office user", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const member = await context.createMembership(
+      "agent",
+      "rename-target",
+      "Original",
+      "Name",
+      "Agent",
+    );
+    await prisma.userCredential.create({
+      data: {
+        userId: member.user.id,
+        passwordHash: "test-password-hash",
+      },
+    });
+
+    await updateOfficeAdminUser({
+      organizationId: context.organization.id,
+      actorMembershipId: context.adminMembership.id,
+      membershipId: member.membership.id,
+      viewerOfficeId: context.office.id,
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+
+    const savedUser = await prisma.user.findUnique({
+      where: {
+        id: member.user.id,
+      },
+    });
+    const snapshot = await getOfficeAdminUserDetailSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: member.membership.id,
+      viewerMembershipId: context.adminMembership.id,
+    });
+
+    assert.equal(savedUser?.firstName, "Ada");
+    assert.equal(savedUser?.lastName, "Lovelace");
+    assert.equal(snapshot?.profile.firstName, "Ada");
+    assert.equal(snapshot?.profile.lastName, "Lovelace");
+    assert.equal(snapshot?.profile.name, "Ada Lovelace");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("team membership writes reject non team-hierarchy account roles", async () => {
   const context = await createSettingsTestContext();
 

@@ -34,6 +34,7 @@ export const activityLogActions = {
   agentGoalCreated: "agent.goal_created",
   agentGoalUpdated: "agent.goal_updated",
   authBootstrapAdminCreated: "auth.bootstrap_admin_created",
+  settingsUserIdentityChanged: "settings.user_identity_changed",
   settingsUserRoleChanged: "settings.user_role_changed",
   settingsUserInvited: "settings.user_invited",
   settingsUserInvitationRevoked: "settings.user_invitation_revoked",
@@ -461,6 +462,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "agent.onboarding_template_applied": "Onboarding template applied",
   "agent.goal_created": "Goal created",
   "agent.goal_updated": "Goal updated",
+  "settings.user_identity_changed": "User identity updated",
   "settings.user_role_changed": "User role changed",
   "settings.user_activated": "User activated",
   "settings.user_deactivated": "User deactivated",
@@ -619,6 +621,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.teamDeleted ||
       action === activityLogActions.teamMemberAdded ||
       action === activityLogActions.teamMemberRemoved ||
+      action === activityLogActions.settingsUserIdentityChanged ||
       action === activityLogActions.settingsUserRoleChanged ||
       action === activityLogActions.settingsUserActivated ||
       action === activityLogActions.settingsUserDeactivated ||
@@ -1460,6 +1463,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
         : "updated an agent goal";
     case activityLogActions.authBootstrapAdminCreated:
       return "created the bootstrap admin account";
+    case activityLogActions.settingsUserIdentityChanged:
+      return "updated a user's name";
     case activityLogActions.settingsUserRoleChanged:
       return "changed a user role";
     case activityLogActions.settingsRoleTemplateUpdated:
