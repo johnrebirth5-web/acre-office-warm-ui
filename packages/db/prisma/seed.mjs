@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
@@ -70,70 +70,51 @@ async function writeSeedStoredDocument({
   });
 }
 
-async function writeSeedStoredLibraryDocument({
-  organizationId,
-  officeId,
-  fileName,
-  content,
-}) {
-  return writeSeedStoredFile({
-    organizationId,
-    scopeSegments: ["library", officeId ? `office-${officeId}` : "company"],
-    fileName,
-    content,
+async function deleteLegacySeedLibraryData({ organizationId }) {
+  const legacySeedDocuments = await prisma.libraryDocument.findMany({
+    where: {
+      organizationId,
+      id: {
+        startsWith: "seed-library-",
+      },
+    },
+    select: {
+      id: true,
+      storageKey: true,
+    },
   });
-}
 
-function escapePdfText(value) {
-  return String(value)
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
+  await Promise.all(
+    legacySeedDocuments.map((document) =>
+      rm(document.storageKey, {
+        force: true,
+      }).catch(() => null),
+    ),
+  );
 
-function buildMinimalPdf({ title, lines }) {
-  const commands = [
-    "BT",
-    "/F1 16 Tf",
-    "50 760 Td",
-    `(${escapePdfText(title)}) Tj`,
-    "/F1 10 Tf",
-  ];
-
-  for (const line of lines) {
-    commands.push("0 -20 Td", `(${escapePdfText(line)}) Tj`);
+  if (legacySeedDocuments.length) {
+    await prisma.libraryDocument.deleteMany({
+      where: {
+        organizationId,
+        id: {
+          in: legacySeedDocuments.map((document) => document.id),
+        },
+      },
+    });
   }
 
-  commands.push("ET");
+  await prisma.libraryFolder.deleteMany({
+    where: {
+      organizationId,
+      id: {
+        startsWith: "seed-library-",
+      },
+    },
+  });
 
-  const stream = `${commands.join("\n")}\n`;
-  const objects = [
-    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n",
-    `4 0 obj\n<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}endstream\nendobj\n`,
-    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  for (const object of objects) {
-    offsets.push(Buffer.byteLength(pdf, "utf8"));
-    pdf += object;
-  }
-
-  const xrefOffset = Buffer.byteLength(pdf, "utf8");
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-
-  for (let index = 1; index < offsets.length; index += 1) {
-    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
-  }
-
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
-
-  return Buffer.from(pdf, "utf8");
+  return {
+    deletedDocumentCount: legacySeedDocuments.length,
+  };
 }
 
 async function upsertUser({ email, firstName, lastName }) {
@@ -2478,334 +2459,11 @@ async function main() {
     }),
   };
 
-  const storedSeedLibraryFiles = {
-    userManual: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: null,
-      fileName: "acre-agent-os-user-manual.pdf",
-      content: buildMinimalPdf({
-        title: "Acre Agent OS User Manual",
-        lines: [
-          "Internal reference for the Office / Back Office workspace.",
-          "Covers navigation, daily operating flows, and audit expectations.",
-          "Use this as the first-stop guide for new office users.",
-        ],
-      }),
-    }),
-    financialGuide: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: null,
-      fileName: "financial-document-controls.pdf",
-      content: buildMinimalPdf({
-        title: "Financial Document Controls",
-        lines: [
-          "Checklist for invoices, brokerage receipts, and reimbursement packets.",
-          "Store statement-ready PDFs with clean naming and office scoping.",
-          "Accounting review remains manager-driven in the MVP.",
-        ],
-      }),
-    }),
-    legalGuide: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: null,
-      fileName: "legal-compliance-reference.pdf",
-      content: buildMinimalPdf({
-        title: "Legal and Compliance Reference",
-        lines: [
-          "Quick handbook for disclosures, fair housing reminders, and audit prep.",
-          "Pair this library copy with transaction-level compliance tasks.",
-          "Update whenever office policy or state guidance changes.",
-        ],
-      }),
-    }),
-    onboardingGuide: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: null,
-      fileName: "new-agent-onboarding-packet.pdf",
-      content: buildMinimalPdf({
-        title: "New Agent Onboarding Packet",
-        lines: [
-          "Day 1 through Day 14 checklist for office onboarding.",
-          "Includes account setup, compliance reading, and training milestones.",
-          "Managers should assign related onboarding items separately.",
-        ],
-      }),
-    }),
-    offerPlaybook: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: office.id,
-      fileName: "offer-review-playbook.pdf",
-      content: buildMinimalPdf({
-        title: "Offer Review Playbook",
-        lines: [
-          "Office-only playbook for structuring and comparing offer packages.",
-          "Use with transaction offers, supporting documents, and approval queues.",
-          "Keep office-specific negotiation notes here, not in the public site.",
-        ],
-      }),
-    }),
-    benefitsReference: await writeSeedStoredLibraryDocument({
-      organizationId: organization.id,
-      officeId: null,
-      fileName: "company-benefits-reference.pdf",
-      content: buildMinimalPdf({
-        title: "Company Benefits Quick Reference",
-        lines: [
-          "Unfiled sample document for root-level library behavior.",
-          "Useful for testing search, preview, and download flows.",
-          "Move into a folder once the final category is agreed.",
-        ],
-      }),
-    }),
-  };
-
-  const seededLibraryFolders = [
-    {
-      id: "seed-library-folder-manuals",
-      officeId: null,
-      parentFolderId: null,
-      createdByEmail: "naomi@acre.com",
-      name: "User Manual Documents",
-      description:
-        "Core company manuals and how-to PDFs for office operations.",
-      sortOrder: 0,
-    },
-    {
-      id: "seed-library-folder-financial",
-      officeId: null,
-      parentFolderId: null,
-      createdByEmail: "simon@acre.com",
-      name: "Financial Documents",
-      description:
-        "Accounting policies, internal financial references, and support packets.",
-      sortOrder: 1,
-    },
-    {
-      id: "seed-library-folder-legal",
-      officeId: null,
-      parentFolderId: null,
-      createdByEmail: "naomi@acre.com",
-      name: "Legal Documents",
-      description: "Compliance and legal guidance used by the back office.",
-      sortOrder: 2,
-    },
-    {
-      id: "seed-library-folder-onboarding",
-      officeId: null,
-      parentFolderId: null,
-      createdByEmail: "naomi@acre.com",
-      name: "Onboarding Documents",
-      description: "Internal onboarding references and training packets.",
-      sortOrder: 3,
-    },
-    {
-      id: "seed-library-folder-onboarding-packets",
-      officeId: null,
-      parentFolderId: "seed-library-folder-onboarding",
-      createdByEmail: "naomi@acre.com",
-      name: "Starter Packets",
-      description:
-        "Nested onboarding packet examples for new hires and transfers.",
-      sortOrder: 0,
-    },
-    {
-      id: "seed-library-folder-playbooks",
-      officeId: office.id,
-      parentFolderId: null,
-      createdByEmail: "simon@acre.com",
-      name: "Templates and Playbooks",
-      description:
-        "Office-only playbooks, quick-start packets, and reusable internal guides.",
-      sortOrder: 4,
-    },
-  ];
-
-  for (const folder of seededLibraryFolders) {
-    const createdByMembership = folder.createdByEmail
-      ? (membershipByEmail.get(folder.createdByEmail) ?? null)
-      : null;
-
-    await prisma.libraryFolder.upsert({
-      where: { id: folder.id },
-      update: {
-        organizationId: organization.id,
-        officeId: folder.officeId,
-        parentFolderId: folder.parentFolderId,
-        createdByMembershipId: createdByMembership?.id ?? null,
-        name: folder.name,
-        description: folder.description,
-        sortOrder: folder.sortOrder,
-        isActive: true,
-      },
-      create: {
-        id: folder.id,
-        organizationId: organization.id,
-        officeId: folder.officeId,
-        parentFolderId: folder.parentFolderId,
-        createdByMembershipId: createdByMembership?.id ?? null,
-        name: folder.name,
-        description: folder.description,
-        sortOrder: folder.sortOrder,
-        isActive: true,
-      },
-    });
-  }
-
-  const seededLibraryDocuments = [
-    {
-      id: "seed-library-doc-user-manual",
-      officeId: null,
-      folderId: "seed-library-folder-manuals",
-      uploadedByEmail: "naomi@acre.com",
-      title: "Acre Agent OS User Manual",
-      originalFileName: "acre-agent-os-user-manual.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.userManual.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.userManual.storageKey,
-      pageCount: 1,
-      summary:
-        "Primary internal user manual for the company back-office workspace.",
-      tags: ["manual", "office", "training"],
-      category: "User Manual Documents",
-      visibility: "company_wide",
-      sortOrder: 0,
-    },
-    {
-      id: "seed-library-doc-financial-guide",
-      officeId: null,
-      folderId: "seed-library-folder-financial",
-      uploadedByEmail: "simon@acre.com",
-      title: "Financial Document Controls",
-      originalFileName: "financial-document-controls.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.financialGuide.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.financialGuide.storageKey,
-      pageCount: 1,
-      summary:
-        "Reference guide for internal accounting and finance document handling.",
-      tags: ["finance", "accounting", "policy"],
-      category: "Financial Documents",
-      visibility: "company_wide",
-      sortOrder: 1,
-    },
-    {
-      id: "seed-library-doc-legal-guide",
-      officeId: null,
-      folderId: "seed-library-folder-legal",
-      uploadedByEmail: "naomi@acre.com",
-      title: "Legal and Compliance Reference",
-      originalFileName: "legal-compliance-reference.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.legalGuide.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.legalGuide.storageKey,
-      pageCount: 1,
-      summary:
-        "Internal legal and compliance quick-reference used by office operations.",
-      tags: ["legal", "compliance", "policy"],
-      category: "Legal Documents",
-      visibility: "company_wide",
-      sortOrder: 2,
-    },
-    {
-      id: "seed-library-doc-onboarding-packet",
-      officeId: null,
-      folderId: "seed-library-folder-onboarding-packets",
-      uploadedByEmail: "naomi@acre.com",
-      title: "New Agent Onboarding Packet",
-      originalFileName: "new-agent-onboarding-packet.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.onboardingGuide.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.onboardingGuide.storageKey,
-      pageCount: 1,
-      summary:
-        "Starter onboarding packet for first-week office setup and training.",
-      tags: ["onboarding", "training", "packet"],
-      category: "Onboarding Documents",
-      visibility: "company_wide",
-      sortOrder: 3,
-    },
-    {
-      id: "seed-library-doc-offer-playbook",
-      officeId: office.id,
-      folderId: "seed-library-folder-playbooks",
-      uploadedByEmail: "simon@acre.com",
-      title: "Offer Review Playbook",
-      originalFileName: "offer-review-playbook.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.offerPlaybook.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.offerPlaybook.storageKey,
-      pageCount: 1,
-      summary:
-        "Office-only playbook for document-heavy offer review and negotiation prep.",
-      tags: ["playbook", "offers", "office-only"],
-      category: "Templates and Playbooks",
-      visibility: "office_only",
-      sortOrder: 4,
-    },
-    {
-      id: "seed-library-doc-benefits-reference",
-      officeId: null,
-      folderId: null,
-      uploadedByEmail: "naomi@acre.com",
-      title: "Company Benefits Quick Reference",
-      originalFileName: "company-benefits-reference.pdf",
-      mimeType: "application/pdf",
-      fileSizeBytes: storedSeedLibraryFiles.benefitsReference.fileSizeBytes,
-      storageKey: storedSeedLibraryFiles.benefitsReference.storageKey,
-      pageCount: 1,
-      summary:
-        "Unfiled sample reference used to verify root-level library document behavior.",
-      tags: ["reference", "benefits", "unfiled"],
-      category: "General",
-      visibility: "company_wide",
-      sortOrder: 5,
-    },
-  ];
-
-  for (const document of seededLibraryDocuments) {
-    const uploadedByMembership = document.uploadedByEmail
-      ? (membershipByEmail.get(document.uploadedByEmail) ?? null)
-      : null;
-
-    await prisma.libraryDocument.upsert({
-      where: { id: document.id },
-      update: {
-        organizationId: organization.id,
-        officeId: document.officeId,
-        folderId: document.folderId,
-        uploadedByMembershipId: uploadedByMembership?.id ?? null,
-        title: document.title,
-        originalFileName: document.originalFileName,
-        mimeType: document.mimeType,
-        fileSizeBytes: document.fileSizeBytes,
-        storageKey: document.storageKey,
-        pageCount: document.pageCount,
-        summary: document.summary,
-        tags: document.tags,
-        category: document.category,
-        visibility: document.visibility,
-        sortOrder: document.sortOrder,
-      },
-      create: {
-        id: document.id,
-        organizationId: organization.id,
-        officeId: document.officeId,
-        folderId: document.folderId,
-        uploadedByMembershipId: uploadedByMembership?.id ?? null,
-        title: document.title,
-        originalFileName: document.originalFileName,
-        mimeType: document.mimeType,
-        fileSizeBytes: document.fileSizeBytes,
-        storageKey: document.storageKey,
-        pageCount: document.pageCount,
-        summary: document.summary,
-        tags: document.tags,
-        category: document.category,
-        visibility: document.visibility,
-        sortOrder: document.sortOrder,
-      },
-    });
-  }
+  const clearedLegacyLibrarySeedData = await deleteLegacySeedLibraryData({
+    organizationId: organization.id,
+  });
+  const seededLibraryFolders = [];
+  const seededLibraryDocuments = [];
 
   const acreTrainingPlaylist = JSON.parse(
     String.raw`[{"videoId":"UsWXoZerYEk","title":"房屋不查收入贷款 - 主讲人：Jing"},{"videoId":"Dbk0dVONnX8","title":"如何与客户建立第一次电话沟通 - 主讲人：Cathy"},{"videoId":"DrZMJnDSzxk","title":"新泽西买卖房市场 - 主讲人：Brittani"},{"videoId":"DkJyySIfCyU","title":"如何利用地推和校园大使拓展客户 - 主讲人：Marketing小简"},{"videoId":"EcbbxeBK_yI","title":"与客户沟通技巧 - 主讲人：yueyue"},{"videoId":"tIW4gzS2WnM","title":"购房财务策略之税务规划 - 主讲人：向京"},{"videoId":"clJvDB-R9mY","title":"新泽西学区房介绍 - 主讲人：Brittani"},{"videoId":"NQqya-0KLmY","title":"外国人买卖的税务 - 主讲人：向京"},{"videoId":"qMOZb7Hhpnw","title":"Bulk Sale 培训 - 主讲人：Maggie"},{"videoId":"S51EXRkEmCA","title":"社交媒体运营-如何生成内容 - 主讲人：小简"},{"videoId":"00TOyQ5lwCQ","title":"新泽西买卖房流程及考证分享 - 主讲人：Brittani"},{"videoId":"nzPUD94qors","title":"如何close deal，房产成交中的注意事项 - 主讲人：Cathy"},{"videoId":"Rwxf2biKTNQ","title":"买卖房基础知识 - 买卖房流程 主讲人：Lynn"},{"videoId":"riw3zzd6Izs","title":"暑期如何获取房源 - 主讲人：Lee"},{"videoId":"ziVTaN9JVRk","title":"新泽西如何下offer和如何写offer - 主讲人：Brittani"},{"videoId":"jFXtkKoHdSE","title":"新人如何做单以及如何登单 - 主讲人：Jacyco"},{"videoId":"EwXOnFYKB9M","title":"社交媒体运营培训 - 主讲人：小简"},{"videoId":"FMIhns2Brvs","title":"如何从租赁转型到买卖房 - 主讲人：Joseph"},{"videoId":"SUUN4WUrjYM","title":"NYC Zoning Workshop - 主讲人：Wilson"},{"videoId":"YR10924809s","title":"新泽西暑期学区房培训 - 主讲人：Brittani"},{"videoId":"C8teiicYNFY","title":"关于房产法，信托法和移民法的问题 - 主讲人：Alina Sun"},{"videoId":"BfeYKsw75mU","title":"如何和大楼Listing Office 沟通 - 主讲人：Kun"},{"videoId":"qAmLVWaafFU","title":"如何使用olr等平台查找简单数据了解/分析市场信息和趋势 - 主讲人：Mario"},{"videoId":"chWbvKBJGtE","title":"RMB的交易流程以及方法 - 主讲人：Maggie"},{"videoId":"iCdopJIEJoc","title":"纽约学区房介绍 - 主讲人：Marketing小简"},{"videoId":"CD-i5a0ktpc","title":"如何在新泽西的竞价中脱颖而出 - 主讲人：Emma"},{"videoId":"NcqBe_EZgs0","title":"贷款基础知识了解，以及重新贷款 - 主讲人：Ron"},{"videoId":"Q92Z77afueU","title":"新泽西挂证以及MLS培训 - 主讲人：Brittani"},{"videoId":"-Q98IHLVKoc","title":"新泽西买卖房流程 - 主讲人：Brittani"},{"videoId":"ljcyp5M8iMY","title":"新泽西的房地产法律和法规 - 主讲人: Maggie"},{"videoId":"xAsMrEORJvo","title":"探索宜居之道 揭秘买房风水智慧 - 主讲人：张柳阳"},{"videoId":"LiUgGvmuPL4","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"Yrgt8gxY1pQ","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"6xSUsIyuRAQ","title":"投资房产培训- 主讲人: Cathy X Huihe"},{"videoId":"LDAk4qM_6YM","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"6V5ZBHzgBnw","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"krCXpLa2Oo4","title":"赢得客户尊重的“必杀技” - 主讲人：李老师"},{"videoId":"clNM6VqqG18","title":"社交媒体运营培训 - 主讲人 : 惠和Marketing"},{"videoId":"DY1-FOhfQac","title":"社交媒体运营培训 视频拍摄+剪辑滤镜+社群運營培訓 - 主讲人 : 惠和Marketing"},{"videoId":"ISd2W_8e0XE","title":"买卖培训一：如何获客与初步沟通"},{"videoId":"FjHLhTabA_E","title":"哥大地区培训"},{"videoId":"5uOQz9iGFdM","title":"家族信托知识培训 - 褚楚律师"},{"videoId":"UrlRBk9d42Y","title":"布鲁克林地区培训"},{"videoId":"EZ8nxpZzzkY","title":"Rental 101 - 入职后第一次新人培训"},{"videoId":"f8czN8dT-wg","title":"Social Media Workshop - 口播/房源文案写作技巧 + 近期“聚光”内容更新"},{"videoId":"rn9VTu7VsmU","title":"Mortgage 101 基础知识: 查收入&不查收入 贷款基础培训 - Yusheng(Ron) Liu"},{"videoId":"-tDdNDrWxvI","title":"Rental 102 - 如何找房源以及使用好网络搜索工具"},{"videoId":"nmx5CHGvsAs","title":"Rental 103 - 入职后的第三次培训 - 如何带看房"},{"videoId":"RUPzosUUQU4","title":"华美银行：海外买家如何远程开户以及资金如何转账合规 - Stanley Lau"},{"videoId":"tJ7e7qiEdyc","title":"商业地产培训：如何转化买卖和租赁客人到商业地产 - Ivan Shao"},{"videoId":"pn5LjvpE4ME","title":"租赁104 - 入职后的第四次培训 - 入住申请以及保险流程"},{"videoId":"CqRJTjsi_VI","title":"商业买卖法律相关知识 - Maggie律师"},{"videoId":"U07Qjcvi2Vo","title":"Rental 105 - LIC地区与租赁楼盘介绍"},{"videoId":"Q-dc4BgbONM","title":"Forten at Columbia信息更新与答疑 - Joey"},{"videoId":"xu1hyR1m5Dw","title":"人民币买卖房流程 - Maggie律师"},{"videoId":"ZhqYpQYBOl4","title":"How to Protect Your Assets and Ensure Wealth Transfer with Trusts - Lin Wang"},{"videoId":"KDgiLw3NUHQ","title":"商业地产培训 - Ivan"},{"videoId":"uVaXZUYoaSc","title":"Social Media Workshop - Xiaohongshu Training & AI in Video Creation"},{"videoId":"S5_UYa_gQwY","title":"Rental 106 - NJ 地区与租赁楼盘介绍"},{"videoId":"E04i0bnNF2M","title":"Social Media Workshop - 美国本地热门社交媒体获客内容 Workshop — TikTok / Reddit / Threads"},{"videoId":"B3wxPXw4cOk","title":"NJ下 Offer 实操培训——详解 NJ offer 填写流程、HCMLS/NJMLS CMA 制作与进阶功能使用技巧"},{"videoId":"vU4AnYvg37E","title":"House和 Condo 的区别与不同的销售技巧"},{"videoId":"XJfI3mmpgUU","title":"Rental 108 - 哥大地区房源介绍"},{"videoId":"-XOsExyknxg","title":"纽约学区介绍 - Stella"},{"videoId":"RF-jH5j-_Ew","title":"Rental 107 - 曼哈顿热门十大租赁楼"},{"videoId":"ZIKswuanWyk","title":"Acre Orientation"},{"videoId":"4hV4vRKZQes","title":"Rental法案更新培训"},{"videoId":"tzVdQlLl_AM","title":"Social Media Workshop - 拍摄技巧×剪辑方法×精准投流×热点趋势全掌握！"},{"videoId":"Re9lRqrRLt8","title":"Social Media Workshop - 美网案例分析"},{"videoId":"aXCmatK_tJg","title":"Mortgage 101 English Training - Ron Liu"},{"videoId":"6sZqfJprdW0","title":"旺季租赁交流会 - Ding & Chelsea"},{"videoId":"pwI6Mpa2pGg","title":"Social Media Workshop - Huihe"},{"videoId":"ebe8JQ6DpBs","title":"买卖案例答疑分享会 - Yueyue"},{"videoId":"RMBaE3d1kU0","title":"Acre July Orientation - NYS MLS Blank Listing User Guide"},{"videoId":"SFBtE_orpTk","title":"Social Media Workshop - Krystal"},{"videoId":"8pblYoyAYvs","title":"Social Media Workshop - Xinyao"},{"videoId":"y85odv_uX64","title":"Rental 101 入职后的第一次培训 - Ollie"},{"videoId":"CKHfQJTvhFA","title":"Rental 102 - 沟通话术 & LIC房源下集"},{"videoId":"qYkUmCYm3-I","title":"Social Media Workshop - Yinglin Wang"},{"videoId":"A8sA11QaWyQ","title":"Commercial Workshop 1 - Ivan"},{"videoId":"las4vkdyA0k","title":"Commercial Workshop 2 - Ivan"},{"videoId":"nFCqGk72Xgg","title":"Acre September Orientation - Ollie"},{"videoId":"o5Mcsajp4q0","title":"Commercial Workshop 3 - Ivan"},{"videoId":"l60JrGMjxGI","title":"Commercial Workshop 4 - Ivan"},{"videoId":"PABmL5_BKPM","title":"Social Media Workshop - Jiake"},{"videoId":"lk698QkkTCQ","title":"October Onboarding Training 2 - Ollie"},{"videoId":"CHGBjQVYBuA","title":"October Onboarding Training 1 - Ollie"},{"videoId":"VWxbwD_LpuU","title":"Commercial Workshop 6 - Ivan"},{"videoId":"qzvlsADTEzo","title":"Commercial Workshop 5 - Ivan"},{"videoId":"C4rgmyt6_V0","title":"Social Media Workshop - Yueqi"},{"videoId":"VqpLHfNYIlQ","title":"Acre November Orientation - Ollie"},{"videoId":"c_POirbRsDY","title":"Commercial Workshop 8 - Ivan"},{"videoId":"XGtBWUUX6R0","title":"Acre Sales Masterclass - Yueyue"},{"videoId":"dcZ7IoV6dog","title":"Social Media Workshop - Ivy"},{"videoId":"j-GuiFOlQnE","title":"2026 Commercial Workshop 01 - Ivan"},{"videoId":"7vuhF-h8RLE","title":"Social Media Workshop - Cris"},{"videoId":"hJIjvpf7Z3M","title":"Social Media Workshop - Xinfei"},{"videoId":"L1Vrlr9EYYs","title":"How to Get New Jersey Listings - Brittani"},{"videoId":"SelSjiYjqOk","title":"Commercial Workshop - Ivan"},{"videoId":"MgsfqxH5O90","title":"NJ Real Estate Legal Seminar - Maggie"}]`,
@@ -5106,7 +4764,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${seededFrontOfficeResources.length} front-office resources, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`,
+    `Seeded organization ${organization.slug} with office ${office.slug}, ${memberships.length} memberships, ${seededAgentProfiles.length} agent profiles, ${seededTeams.length} teams, ${seededRequiredContactRoleSettings.length} required contact role settings, ${seededTransactionFieldSettings.length} transaction field settings, ${seededChecklistTemplates.length} checklist templates, ${seededAgentOnboardingTemplates.length} onboarding templates, ${seededAgentOnboardingItems.length} onboarding items, ${seededAgentGoals.length} agent goals, ${seededTransactions.length} transactions, ${seededClients.length} clients, ${seededTasks.length} follow-up tasks, ${seededEvents.length} events, ${seededNotifications.length} notifications, ${seededTransactionTasks.length} transaction tasks, ${seededLibraryFolders.length} library folders, ${seededLibraryDocuments.length} library documents, ${clearedLegacyLibrarySeedData.deletedDocumentCount} deleted legacy library seed documents, ${seededFrontOfficeResources.length} front-office resources, ${seededFormTemplates.length} form templates, ${seededTransactionDocuments.length} transaction documents, ${seededTransactionForms.length} transaction forms, ${seededSignatureRequests.length} signature requests, ${seededIncomingUpdates.length} incoming updates, ${seededLedgerAccounts.length} ledger accounts, ${seededAccountingTransactions.length} accounting transactions, ${seededCommissionPlans.length} commission plans, ${seededCommissionAssignments.length} commission assignments, ${seededCommissionCalculations.length} commission calculations, ${seededEarnestMoneyRecords.length} earnest money records, and ${seededAuditLogs.length} audit logs.`,
   );
 }
 

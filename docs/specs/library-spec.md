@@ -30,6 +30,12 @@ The current MVP is a real Prisma-backed document workspace with:
 - search and lightweight filtering
 - activity log coverage for major actions
 
+Seeded dev environments now start with an empty library by default.
+
+- no sample folders are inserted
+- no sample files are uploaded
+- real content appears only after office users create folders or upload files
+
 Route remains:
 
 - `/office/library`
