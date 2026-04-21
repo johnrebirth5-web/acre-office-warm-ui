@@ -32,6 +32,8 @@ import {
 
 import { prisma } from "../client";
 
+import { membershipHasAccessToOffice } from "../membership-office-access";
+
 import {
   getMembershipCommissionEditorSnapshot,
   saveMembershipCommissionSetting,
@@ -860,12 +862,24 @@ export async function ensureMembershipExists(
   const membership = await tx.membership.findFirst({
     where: {
       id: membershipId,
-      organizationId,
-      ...(officeId ? { OR: [{ officeId }, { officeId: null }] } : {})
+      organizationId
     },
     include: {
       user: true,
       office: true,
+      officeAccesses: {
+        include: {
+          office: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              market: true,
+              isPrimary: true
+            }
+          }
+        }
+      },
       agentProfile: true,
       agentBankInformation: true
     }
@@ -873,6 +887,34 @@ export async function ensureMembershipExists(
 
   if (!membership) {
     throw new Error("Agent membership was not found.");
+  }
+
+  if (officeId) {
+    const allOffices = await tx.office.findMany({
+      where: {
+        organizationId
+      },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true
+      }
+    });
+
+    if (
+      !membershipHasAccessToOffice({
+        role: membership.role,
+        allOffices,
+        defaultOfficeId: membership.officeId,
+        officeAccesses: membership.officeAccesses,
+        officeId
+      })
+    ) {
+      throw new Error("Agent membership was not found.");
+    }
   }
 
   return membership;

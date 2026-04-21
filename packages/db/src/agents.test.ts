@@ -27,10 +27,29 @@ async function createAgentsTestContext() {
       isPrimary: true
     }
   });
+  const secondaryOffice = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Agents Secondary ${suffix}`,
+      slug: `agents-secondary-${suffix}`,
+      market: "New Jersey",
+      isPrimary: false
+    }
+  });
 
   const trackedUserIds: string[] = [];
 
-  async function createMembership(role: UserRole, prefix: string, firstName: string, lastName: string, title?: string | null) {
+  async function createMembership(
+    role: UserRole,
+    prefix: string,
+    firstName: string,
+    lastName: string,
+    title?: string | null,
+    options: {
+      officeId?: string | null;
+      accessibleOfficeIds?: string[];
+    } = {}
+  ) {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${randomUUID().slice(0, 8)}@example.com`,
@@ -46,12 +65,22 @@ async function createAgentsTestContext() {
     const membership = await prisma.membership.create({
       data: {
         organizationId: organization.id,
-        officeId: office.id,
+        officeId: options.officeId ?? office.id,
         userId: user.id,
         role,
         status: "active",
         title: title ?? null,
-        permissions: Prisma.JsonNull
+        permissions: Prisma.JsonNull,
+        officeAccesses: options.accessibleOfficeIds?.length
+          ? {
+              createMany: {
+                data: options.accessibleOfficeIds.map((officeId) => ({
+                  organizationId: organization.id,
+                  officeId
+                }))
+              }
+            }
+          : undefined
       }
     });
 
@@ -64,6 +93,7 @@ async function createAgentsTestContext() {
   return {
     organization,
     office,
+    secondaryOffice,
     createMembership,
     async cleanup() {
       await prisma.organization.delete({
@@ -216,6 +246,77 @@ test("saving an agent profile persists payee name through the existing bank info
     assert.equal(snapshot?.bankInformation.address, "101 Broadway, New York, NY 10004");
     assert.equal(snapshot?.bankInformation.taxIdType, "ein");
     assert.equal(snapshot?.bankInformation.taxIdValue, "98-7654321");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("agent profile is readable from an office where the membership has access but is not home-based", async () => {
+  const context = await createAgentsTestContext();
+
+  try {
+    const admin = await context.createMembership("office_admin", "cross-office-admin", "Cross", "Admin", "Office Admin");
+    const agent = await context.createMembership(
+      "agent",
+      "cross-office-agent",
+      "Cross",
+      "Agent",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id]
+      }
+    );
+
+    const snapshot = await getOfficeAgentProfileSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: admin.membership.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.profile.membershipId, agent.membership.id);
+    assert.equal(snapshot?.profile.officeName, context.secondaryOffice.name);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("saving an agent profile works from an office where the membership has explicit access", async () => {
+  const context = await createAgentsTestContext();
+
+  try {
+    const admin = await context.createMembership("office_admin", "cross-save-admin", "Cross", "Save Admin", "Office Admin");
+    const agent = await context.createMembership(
+      "agent",
+      "cross-save-agent",
+      "Cross",
+      "Save Agent",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id]
+      }
+    );
+
+    await saveAgentProfile({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id,
+      actorMembershipId: admin.membership.id,
+      displayName: "Cross Office Agent"
+    });
+
+    const snapshot = await getOfficeAgentProfileSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: admin.membership.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.profile.displayName, "Cross Office Agent");
   } finally {
     await context.cleanup();
   }

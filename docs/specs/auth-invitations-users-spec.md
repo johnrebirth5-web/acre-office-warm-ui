@@ -112,6 +112,7 @@ Current routes:
 - default the roster to the current top-level company scope instead of showing the full organization by default
 - only show memberships whose company access includes the current company; to manage a company-only account for another company, admins must switch the top-level `Company` selector first
 - switch between `access` and `operations` views inside the same route
+- keep `operations` aligned to current-company access as well: if a membership can access the current company, it stays visible in `operations` even when its home office differs
 - open a dedicated detail page for each membership
 - create invited users from a modal / drawer flow
 - copy the generated invite link without leaving the page

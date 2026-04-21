@@ -32,6 +32,8 @@ import {
 
 import { prisma } from "../client";
 
+import { membershipHasAccessToOffice } from "../membership-office-access";
+
 import {
   getMembershipCommissionEditorSnapshot,
   saveMembershipCommissionSetting,
@@ -105,61 +107,98 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
   });
   const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
   const filteredTeamIds = input.teamId ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
-  const memberships = await prisma.membership.findMany({
-    where: {
-      organizationId: input.organizationId,
-      ...buildMembershipVisibilityWhere(scope),
-      ...(membershipStatusFilter ?? {}),
-      ...(scopedOfficeId ? { officeId: scopedOfficeId } : {}),
-      ...(input.role ? { role: input.role as UserRole } : {}),
-      ...(input.teamId
-        ? {
-            teamMemberships: {
-              some: {
-                teamId: {
-                  in: filteredTeamIds.length > 0 ? filteredTeamIds : ["__no_team__"]
+  const [allOffices, rawMemberships] = await Promise.all([
+    prisma.office.findMany({
+      where: {
+        organizationId: input.organizationId
+      },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        market: true,
+        isPrimary: true
+      }
+    }),
+    prisma.membership.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...buildMembershipVisibilityWhere(scope),
+        ...(membershipStatusFilter ?? {}),
+        ...(input.role ? { role: input.role as UserRole } : {}),
+        ...(input.teamId
+          ? {
+              teamMemberships: {
+                some: {
+                  teamId: {
+                    in: filteredTeamIds.length > 0 ? filteredTeamIds : ["__no_team__"]
+                  }
                 }
               }
             }
+          : {}),
+        ...(input.q?.trim()
+          ? {
+              OR: [
+                { user: { firstName: { contains: input.q.trim(), mode: "insensitive" } } },
+                { user: { lastName: { contains: input.q.trim(), mode: "insensitive" } } },
+                { user: { email: { contains: input.q.trim(), mode: "insensitive" } } },
+                { title: { contains: input.q.trim(), mode: "insensitive" } },
+                { agentProfile: { displayName: { contains: input.q.trim(), mode: "insensitive" } } },
+                { teamMemberships: { some: { team: { name: { contains: input.q.trim(), mode: "insensitive" } } } } }
+              ]
+            }
+          : {})
+      },
+      include: {
+        user: true,
+        office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
           }
-        : {}),
-      ...(input.q?.trim()
-        ? {
-            OR: [
-              { user: { firstName: { contains: input.q.trim(), mode: "insensitive" } } },
-              { user: { lastName: { contains: input.q.trim(), mode: "insensitive" } } },
-              { user: { email: { contains: input.q.trim(), mode: "insensitive" } } },
-              { title: { contains: input.q.trim(), mode: "insensitive" } },
-              { agentProfile: { displayName: { contains: input.q.trim(), mode: "insensitive" } } },
-              { teamMemberships: { some: { team: { name: { contains: input.q.trim(), mode: "insensitive" } } } } }
-            ]
-          }
-        : {})
-    },
-    include: {
-      user: true,
-      office: true,
-      agentProfile: true,
-      teamMemberships: {
-        where: {
-          ...(scopedTeams.length ? { teamId: { in: scopedTeams.map((team) => team.id) } } : {})
         },
-        include: {
-          team: true,
-          reportsToTeamMembership: {
-            include: {
-              membership: {
-                include: {
-                  user: true
+        agentProfile: true,
+        teamMemberships: {
+          where: {
+            ...(scopedTeams.length ? { teamId: { in: scopedTeams.map((team) => team.id) } } : {})
+          },
+          include: {
+            team: true,
+            reportsToTeamMembership: {
+              include: {
+                membership: {
+                  include: {
+                    user: true
+                  }
                 }
               }
             }
           }
         }
-      }
-    },
-    orderBy: [{ createdAt: "asc" }]
-  });
+      },
+      orderBy: [{ createdAt: "asc" }]
+    })
+  ]);
+
+  const memberships = rawMemberships.filter((membership) =>
+    membershipHasAccessToOffice({
+      role: membership.role,
+      allOffices,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses,
+      officeId: scopedOfficeId ?? null
+    })
+  );
 
   const membershipIds = memberships.map((membership) => membership.id);
   const recentClosedCutoff = new Date();
@@ -589,12 +628,24 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     where: {
       id: input.membershipId,
       organizationId: input.organizationId,
-      ...buildMembershipVisibilityWhere(scope),
-      ...(input.officeId ? { officeId: input.officeId } : {})
+      ...buildMembershipVisibilityWhere(scope)
     },
     include: {
       user: true,
       office: true,
+      officeAccesses: {
+        include: {
+          office: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              market: true,
+              isPrimary: true
+            }
+          }
+        }
+      },
       agentProfile: true,
       agentBankInformation: true,
       teamMemberships: {
@@ -621,7 +672,33 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     return null;
   }
 
-  await ensureAgentProfileFoundation(input.organizationId, input.membershipId, input.officeId);
+  const allOffices = await prisma.office.findMany({
+    where: {
+      organizationId: input.organizationId
+    },
+    orderBy: [{ name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      market: true,
+      isPrimary: true
+    }
+  });
+
+  if (
+    !membershipHasAccessToOffice({
+      role: membership.role,
+      allOffices,
+      defaultOfficeId: membership.officeId,
+      officeAccesses: membership.officeAccesses,
+      officeId: input.officeId ?? null
+    })
+  ) {
+    return null;
+  }
+
+  await ensureAgentProfileFoundation(input.organizationId, input.membershipId, membership.officeId);
 
   membership =
     (await prisma.membership.findUnique({
@@ -631,6 +708,19 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       include: {
         user: true,
         office: true,
+        officeAccesses: {
+          include: {
+            office: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                market: true,
+                isPrimary: true
+              }
+            }
+          }
+        },
         agentProfile: true,
         agentBankInformation: true,
         teamMemberships: {

@@ -450,6 +450,37 @@ test("getOfficeAgentsRosterSnapshot honors agent visibility instead of transacti
   }
 });
 
+test("getOfficeAgentsRosterSnapshot includes memberships whose current company access is explicit even when home office differs", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const sharedUser = await context.createMembership(
+      "agent",
+      "cross-office-roster",
+      "Cross",
+      "Roster",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id]
+      }
+    );
+
+    const snapshot = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    assert.equal(
+      snapshot.rows.some((row) => row.membershipId === sharedUser.membership.id),
+      true
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("getOfficeAgentsRosterSnapshot paginates filtered roster results at 50 rows per page", async () => {
   const context = await createSettingsTestContext();
 

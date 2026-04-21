@@ -1043,7 +1043,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `AgentOnboardingItem` 作为独立 onboarding checklist，不和 transaction tasks 混成一套
 - `AgentOnboardingTemplateItem` 作为组织级/office 级默认 onboarding 模板条目，避免每个 agent 从零创建 checklist
 - `AgentGoal` 提供月 / 季 / 年目标，并尽量从 transactions / accounting 派生实际进度
-- `/office/settings/users?view=operations` 作为管理 roster，会集中展示 onboarding progress、goal progress、transaction summary、billing summary、membership status
+- `/office/settings/users?view=operations` 作为管理 roster，会集中展示 onboarding progress、goal progress、transaction summary、billing summary、membership status，并按当前 company access 显示成员，而不是只按 home office 归属显示
 - `/office/settings/users/:membershipId` 聚合 profile basics、bank information、teams、onboarding、goals、recent transactions、billing summary、recent activity，并额外展示 operational agenda 和 template defaults
 
 当前明确没做的部分：
