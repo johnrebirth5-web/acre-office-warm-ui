@@ -614,7 +614,11 @@ function renderAvatar(input: {
 }
 
 function renderPhoneIcon(x: number, y: number, color: string) {
-  return `<path d="M${x + 3} ${y + 5}c1.3-1.3 3.5-.7 4 .9l.5 1.8c.2.7 0 1.4-.6 1.8l-1.1.8c1 1.9 2.5 3.4 4.4 4.4l.8-1.1c.5-.6 1.2-.9 1.8-.6l1.8.5c1.6.4 2.1 2.7.9 4l-1.1 1.1c-.8.8-2 .9-3 .5C8.8 18.7 5.3 15.2 3.5 10.6c-.4-1.1-.2-2.3.5-3.1L${x + 3} ${y + 5}Z" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />`;
+  return `
+    <g transform="translate(${x} ${y})">
+      <path d="M3 5c1.3-1.3 3.5-.7 4 .9l.5 1.8c.2.7 0 1.4-.6 1.8l-1.1.8c1 1.9 2.5 3.4 4.4 4.4l.8-1.1c.5-.6 1.2-.9 1.8-.6l1.8.5c1.6.4 2.1 2.7.9 4l-1.1 1.1c-.8.8-2 .9-3 .5C8.8 18.7 5.3 15.2 3.5 10.6c-.4-1.1-.2-2.3.5-3.1L3 5Z" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+  `;
 }
 
 function renderMailIcon(x: number, y: number, color: string) {
