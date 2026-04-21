@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "@acre/ui";
 import { StudioCollectionPicker } from "../../studio-collection-picker";
+import { ListingStudioMortgageCalculator } from "./listing-studio-mortgage-calculator";
 
 const preloadedAssetIds = new Set<string>();
 
@@ -278,18 +279,36 @@ const AMENITY_CATALOG: AmenityCatalogSection[] = [
   },
   {
     title: "Views / Exposure",
-    options: ["City View", "Skyline View", "Water View", "Park View", "Garden View"],
+    options: [
+      "City View",
+      "Skyline View",
+      "Water View",
+      "Park View",
+      "Garden View",
+    ],
   },
   {
     title: "Highlight Tags",
-    options: ["Doorman", "Elevator", "Pets Allowed", "Private Outdoor Space", "Washer/Dryer", "Gym"],
+    options: [
+      "Doorman",
+      "Elevator",
+      "Pets Allowed",
+      "Private Outdoor Space",
+      "Washer/Dryer",
+      "Gym",
+    ],
   },
 ];
 
 function IconPlus() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
     </svg>
   );
 }
@@ -346,7 +365,12 @@ function IconEdit() {
         strokeLinejoin="round"
         strokeWidth="1.8"
       />
-      <path d="m13.5 7.5 3 3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path
+        d="m13.5 7.5 3 3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -559,7 +583,9 @@ function buildShareUrl(shareCode: string | null) {
   return shareCode ? `/share/packs/${shareCode}` : null;
 }
 
-function isPhotoAssetKind(kind: StudioListingDetailSnapshot["assets"][number]["kind"]) {
+function isPhotoAssetKind(
+  kind: StudioListingDetailSnapshot["assets"][number]["kind"],
+) {
   return kind === "hero" || kind === "gallery";
 }
 
@@ -572,13 +598,18 @@ function isLikelyPdf(url: string | null, mimeType?: string | null) {
 }
 
 function getInitialPhotoId(detail: StudioListingDetailSnapshot) {
-  const photoAssets = detail.assets.filter((asset) => isPhotoAssetKind(asset.kind));
-  const preferredIds = [detail.pack.coverAssetId, ...detail.pack.selectedAssetIds].filter(
-    (value): value is string => Boolean(value),
+  const photoAssets = detail.assets.filter((asset) =>
+    isPhotoAssetKind(asset.kind),
   );
+  const preferredIds = [
+    detail.pack.coverAssetId,
+    ...detail.pack.selectedAssetIds,
+  ].filter((value): value is string => Boolean(value));
 
   return (
-    preferredIds.find((assetId) => photoAssets.some((asset) => asset.id === assetId)) ??
+    preferredIds.find((assetId) =>
+      photoAssets.some((asset) => asset.id === assetId),
+    ) ??
     photoAssets[0]?.id ??
     null
   );
@@ -589,11 +620,18 @@ function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
     return "photo";
   }
 
-  if (detail.assets.some((asset) => asset.kind === "floor_plan") || detail.floorPlans.length) {
+  if (
+    detail.assets.some((asset) => asset.kind === "floor_plan") ||
+    detail.floorPlans.length
+  ) {
     return "floorplan";
   }
 
-  if (detail.latitude !== null || detail.longitude !== null || detail.addressLine) {
+  if (
+    detail.latitude !== null ||
+    detail.longitude !== null ||
+    detail.addressLine
+  ) {
     return "map";
   }
 
@@ -601,10 +639,15 @@ function getInitialMediaMode(detail: StudioListingDetailSnapshot): MediaMode {
 }
 
 function isVideoAssetMime(mimeType: string | null) {
-  return typeof mimeType === "string" && mimeType.toLowerCase().startsWith("video/");
+  return (
+    typeof mimeType === "string" && mimeType.toLowerCase().startsWith("video/")
+  );
 }
 
-function findSourceFactValue(items: Array<{ label: string; value: string }>, matcher: RegExp) {
+function findSourceFactValue(
+  items: Array<{ label: string; value: string }>,
+  matcher: RegExp,
+) {
   return items.find((item) => matcher.test(item.label))?.value ?? null;
 }
 
@@ -639,7 +682,10 @@ function buildMapEmbedUrl(detail: StudioListingDetailSnapshot) {
     return `https://www.google.com/maps?q=${detail.latitude},${detail.longitude}&z=16&output=embed`;
   }
 
-  const query = [detail.addressLine, detail.locationLine].filter(Boolean).join(", ").trim();
+  const query = [detail.addressLine, detail.locationLine]
+    .filter(Boolean)
+    .join(", ")
+    .trim();
   if (!query) {
     return null;
   }
@@ -676,7 +722,9 @@ function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
   return [
     {
       label: "HOA",
-      value: formatFinancialHighlightValue(values.get("hoa") ?? values.get("common charges") ?? ""),
+      value: formatFinancialHighlightValue(
+        values.get("hoa") ?? values.get("common charges") ?? "",
+      ),
     },
     {
       label: "Taxes",
@@ -730,15 +778,15 @@ function extractTransitDistanceKilometers(value: string) {
   return null;
 }
 
-function parseTransitSummary(
-  transit: TransitItem[],
-): TransitSummary {
+function parseTransitSummary(transit: TransitItem[]): TransitSummary {
   let nearestWalkMinutes: number | null = null;
   let withinFiveHundredMeters = 0;
   let foundDistance = false;
 
   for (const item of transit) {
-    const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
+    const haystack = [item.detail, item.distanceLabel, item.label]
+      .filter(Boolean)
+      .join(" ");
     const walkMatch = haystack.match(/(\d+)\s*min(?:ute)?(?:s)?\s*walk/i);
     const kilometers = extractTransitDistanceKilometers(haystack);
 
@@ -746,7 +794,9 @@ function parseTransitSummary(
       const minutes = Number(walkMatch[1]);
       if (Number.isFinite(minutes)) {
         nearestWalkMinutes =
-        nearestWalkMinutes === null ? minutes : Math.min(nearestWalkMinutes, minutes);
+          nearestWalkMinutes === null
+            ? minutes
+            : Math.min(nearestWalkMinutes, minutes);
       }
     }
 
@@ -771,12 +821,19 @@ function parseFallbackTransitItem(value: string): TransitItem | null {
   }
 
   const compact = trimmed.replace(/\s+/g, " ").trim();
-  const parts = compact.split("·").map((part) => part.trim()).filter(Boolean);
+  const parts = compact
+    .split("·")
+    .map((part) => part.trim())
+    .filter(Boolean);
   const labelCandidate =
-    parts[0]?.replace(/\s+[0-9.]+\s*(?:km|mi|miles?|meters?|m)\b.*$/i, "").trim() ?? compact;
+    parts[0]
+      ?.replace(/\s+[0-9.]+\s*(?:km|mi|miles?|meters?|m)\b.*$/i, "")
+      .trim() ?? compact;
   const label = labelCandidate || compact;
   const minutesMatch = compact.match(/(\d+)\s*min(?:ute)?(?:s)?(?:\s*walk)?/i);
-  const distanceMatch = compact.match(/([0-9.]+\s*(?:km|mi|miles?|meters?|m))/i);
+  const distanceMatch = compact.match(
+    /([0-9.]+\s*(?:km|mi|miles?|meters?|m))/i,
+  );
   const detailParts: string[] = [];
 
   if (distanceMatch?.[1]) {
@@ -789,25 +846,33 @@ function parseFallbackTransitItem(value: string): TransitItem | null {
 
   return {
     label,
-    detail: detailParts.length ? detailParts.join(" • ") : parts.slice(1).join(" • ") || null,
+    detail: detailParts.length
+      ? detailParts.join(" • ")
+      : parts.slice(1).join(" • ") || null,
     distanceLabel: minutesMatch?.[1]
       ? `${minutesMatch[1]} min`
-      : distanceMatch?.[1] ?? null,
+      : (distanceMatch?.[1] ?? null),
   };
 }
 
 function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
   const candidates = [
     detail.availabilityLabel,
-    findSourceFactValue(detail.sourceFacts, /availability|available|move[- ]?in|occupancy/i),
+    findSourceFactValue(
+      detail.sourceFacts,
+      /availability|available|move[- ]?in|occupancy/i,
+    ),
     ...detail.capturedSections
-      .filter((section) => /availability|move[- ]?in|occupancy/i.test(section.title))
+      .filter((section) =>
+        /availability|move[- ]?in|occupancy/i.test(section.title),
+      )
       .flatMap((section) => section.items),
   ]
     .map((value) => value?.trim() || "")
     .filter(Boolean);
 
-  const best = candidates.sort((left, right) => right.length - left.length)[0] ?? "";
+  const best =
+    candidates.sort((left, right) => right.length - left.length)[0] ?? "";
   if (!best) {
     return null;
   }
@@ -817,7 +882,9 @@ function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
     return null;
   }
 
-  const yearFirstDateMatch = normalized.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  const yearFirstDateMatch = normalized.match(
+    /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,
+  );
   if (yearFirstDateMatch) {
     const [, year, month, day] = yearFirstDateMatch;
     const parsed = new Date(Number(year), Number(month) - 1, Number(day));
@@ -826,7 +893,9 @@ function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
     }
   }
 
-  const monthFirstDateMatch = normalized.match(/(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/);
+  const monthFirstDateMatch = normalized.match(
+    /(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/,
+  );
   if (monthFirstDateMatch) {
     const [, month, day] = monthFirstDateMatch;
     const parsed = new Date(2026, Number(month) - 1, Number(day));
@@ -839,7 +908,9 @@ function resolveAvailabilityValue(detail: StudioListingDetailSnapshot) {
     return "Available";
   }
 
-  return /^available/i.test(normalized) ? normalized : `Available ${normalized}`;
+  return /^available/i.test(normalized)
+    ? normalized
+    : `Available ${normalized}`;
 }
 
 function resolveSqftValue(detail: StudioListingDetailSnapshot) {
@@ -859,7 +930,9 @@ function resolveSqftValue(detail: StudioListingDetailSnapshot) {
     return null;
   }
 
-  const sqftMatch = rawSqftValue.match(/([\d,]+(?:\.\d+)?)\s*(?:sq\.?\s*ft|sqft|square feet|square foot)?/i);
+  const sqftMatch = rawSqftValue.match(
+    /([\d,]+(?:\.\d+)?)\s*(?:sq\.?\s*ft|sqft|square feet|square foot)?/i,
+  );
   if (!sqftMatch?.[1]) {
     return rawSqftValue;
   }
@@ -870,7 +943,9 @@ function resolveSqftValue(detail: StudioListingDetailSnapshot) {
     : rawSqftValue;
 }
 
-function buildPrimaryFactCards(detail: StudioListingDetailSnapshot): PrimaryFactCard[] {
+function buildPrimaryFactCards(
+  detail: StudioListingDetailSnapshot,
+): PrimaryFactCard[] {
   const sqftValue = resolveSqftValue(detail);
   const availabilityValue = resolveAvailabilityValue(detail);
 
@@ -931,7 +1006,9 @@ function ListingStudioDisclosure(props: {
 }
 
 function normalizeAmenityKey(value: string) {
-  return formatAmenityLabel(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return formatAmenityLabel(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function formatAmenityLabel(value: string) {
@@ -1049,9 +1126,14 @@ function buildAmenityEditorSections(
     isAddingCustom: false,
     open: false,
   }));
-  const sectionMap = new Map(sections.map((section) => [section.title, section]));
+  const sectionMap = new Map(
+    sections.map((section) => [section.title, section]),
+  );
   const sectionByKey = new Map(
-    sections.map((section) => [normalizeAmenityKey(section.title), section.title]),
+    sections.map((section) => [
+      normalizeAmenityKey(section.title),
+      section.title,
+    ]),
   );
   const optionSectionMap = new Map<string, string>();
   const optionValueMap = new Map<string, string>();
@@ -1066,7 +1148,9 @@ function buildAmenityEditorSections(
 
   for (const amenitySection of amenities) {
     const preferredSectionTitle =
-      sectionByKey.get(normalizeAmenityKey(amenitySection.title)) ?? sections[0]?.title ?? "";
+      sectionByKey.get(normalizeAmenityKey(amenitySection.title)) ??
+      sections[0]?.title ??
+      "";
 
     for (const item of amenitySection.items) {
       const formatted = formatAmenityLabel(item);
@@ -1102,9 +1186,14 @@ function buildDisplayAmenitySections(
     items: [] as string[],
     title: section.title,
   }));
-  const sectionMap = new Map(baseSections.map((section) => [section.title, section]));
+  const sectionMap = new Map(
+    baseSections.map((section) => [section.title, section]),
+  );
   const sectionByKey = new Map(
-    baseSections.map((section) => [normalizeAmenityKey(section.title), section.title]),
+    baseSections.map((section) => [
+      normalizeAmenityKey(section.title),
+      section.title,
+    ]),
   );
   const optionSectionMap = new Map<string, string>();
   const optionValueMap = new Map<string, string>();
@@ -1122,7 +1211,8 @@ function buildDisplayAmenitySections(
   for (const amenitySection of amenities) {
     const normalizedSectionKey = normalizeAmenityKey(amenitySection.title);
     const preferredSectionTitle =
-      sectionByKey.get(normalizedSectionKey) ?? formatAmenityLabel(amenitySection.title);
+      sectionByKey.get(normalizedSectionKey) ??
+      formatAmenityLabel(amenitySection.title);
 
     for (const item of amenitySection.items) {
       const formatted = formatAmenityLabel(item);
@@ -1150,12 +1240,10 @@ function buildDisplayAmenitySections(
         continue;
       }
 
-      const nextExtraSection =
-        extraSections.get(preferredSectionTitle) ??
-        {
-          items: [],
-          title: preferredSectionTitle,
-        };
+      const nextExtraSection = extraSections.get(preferredSectionTitle) ?? {
+        items: [],
+        title: preferredSectionTitle,
+      };
 
       if (!nextExtraSection.items.includes(normalizedValue)) {
         nextExtraSection.items.push(normalizedValue);
@@ -1166,21 +1254,29 @@ function buildDisplayAmenitySections(
 
   return [
     ...baseSections.filter((section) => section.items.length),
-    ...Array.from(extraSections.values()).filter((section) => section.items.length),
+    ...Array.from(extraSections.values()).filter(
+      (section) => section.items.length,
+    ),
   ];
 }
 
-function buildDisplayTransit(detail: StudioListingDetailSnapshot): TransitItem[] {
+function buildDisplayTransit(
+  detail: StudioListingDetailSnapshot,
+): TransitItem[] {
   if (detail.transit.length) {
     return detail.transit;
   }
 
   const fallbackItems = [
     ...detail.capturedSections
-      .filter((section) => /transit|transportation|subway|station/i.test(section.title))
+      .filter((section) =>
+        /transit|transportation|subway|station/i.test(section.title),
+      )
       .flatMap((section) => section.items),
     ...detail.sourceFacts
-      .filter((fact) => /transit|transportation|subway|station/i.test(fact.label))
+      .filter((fact) =>
+        /transit|transportation|subway|station/i.test(fact.label),
+      )
       .map((fact) => `${fact.label}: ${fact.value}`),
   ]
     .map((item) => parseFallbackTransitItem(item))
@@ -1212,7 +1308,9 @@ function buildAmenityPayload(sections: EditorAmenitySection[]) {
     .filter((section) => section.items.length > 0);
 }
 
-function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorState {
+function buildEditorState(
+  detail: StudioListingDetailSnapshot,
+): ListingEditorState {
   const photoAssetIds = detail.assets
     .filter((asset) => isPhotoAssetKind(asset.kind))
     .map((asset) => asset.id);
@@ -1221,7 +1319,8 @@ function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorSta
     listingKind: /sale/i.test(detail.listingType ?? "") ? "sale" : "rental",
     selectedAssetIds: photoAssetIds,
     coverAssetId:
-      (detail.pack.coverAssetId && photoAssetIds.includes(detail.pack.coverAssetId)
+      (detail.pack.coverAssetId &&
+      photoAssetIds.includes(detail.pack.coverAssetId)
         ? detail.pack.coverAssetId
         : null) ??
       photoAssetIds[0] ??
@@ -1238,7 +1337,8 @@ function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorSta
     beds: formatNumericInput(detail.bedrooms),
     baths: formatNumericInput(detail.bathrooms),
     sqft: formatNumericInput(detail.sqft),
-    propertyType: findSourceFactValue(detail.sourceFacts, /property type/i) ?? "",
+    propertyType:
+      findSourceFactValue(detail.sourceFacts, /property type/i) ?? "",
     status: detail.statusLabel ?? "Active",
     availability: detail.availabilityLabel ?? "",
     yearBuilt: findSourceFactValue(detail.sourceFacts, /year built/i) ?? "",
@@ -1246,7 +1346,10 @@ function buildEditorState(detail: StudioListingDetailSnapshot): ListingEditorSta
       findSourceFactValue(detail.sourceFacts, /(list|listed) date/i),
     ),
     commonCharges:
-      findSourceFactValue(detail.sourceFacts, /common charges|hoa|maintenance/i) ?? "",
+      findSourceFactValue(
+        detail.sourceFacts,
+        /common charges|hoa|maintenance/i,
+      ) ?? "",
     taxes: findSourceFactValue(detail.sourceFacts, /tax/i) ?? "",
     description: buildEditorDescription(detail),
     amenitySections: buildAmenityEditorSections(detail.amenities),
@@ -1257,7 +1360,11 @@ function buildEditedAddressTitle(editorState: ListingEditorState) {
   const lineOne = [editorState.streetAddress.trim(), editorState.unit.trim()]
     .filter(Boolean)
     .join(" ");
-  const lineTwo = [editorState.city.trim(), editorState.state.trim(), editorState.postalCode.trim()]
+  const lineTwo = [
+    editorState.city.trim(),
+    editorState.state.trim(),
+    editorState.postalCode.trim(),
+  ]
     .filter(Boolean)
     .join(", ");
 
@@ -1282,9 +1389,14 @@ function buildEditedSourceFacts(
     editorState.propertyType
       ? { label: "Property type", value: editorState.propertyType.trim() }
       : null,
-    editorState.yearBuilt ? { label: "Year built", value: editorState.yearBuilt.trim() } : null,
+    editorState.yearBuilt
+      ? { label: "Year built", value: editorState.yearBuilt.trim() }
+      : null,
     editorState.listDate
-      ? { label: "List date", value: formatSourceFactDate(editorState.listDate) }
+      ? {
+          label: "List date",
+          value: formatSourceFactDate(editorState.listDate),
+        }
       : null,
     editorState.commonCharges
       ? {
@@ -1295,8 +1407,12 @@ function buildEditedSourceFacts(
           value: editorState.commonCharges.trim(),
         }
       : null,
-    editorState.taxes ? { label: "Taxes (/mo)", value: editorState.taxes.trim() } : null,
-  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+    editorState.taxes
+      ? { label: "Taxes (/mo)", value: editorState.taxes.trim() }
+      : null,
+  ].filter((entry): entry is { label: string; value: string } =>
+    Boolean(entry),
+  );
 
   return [...preservedFacts, ...editedFacts];
 }
@@ -1333,7 +1449,9 @@ export function ListingStudioDetailClient({
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const editorScrollRef = useRef<HTMLDivElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
-  const [mediaMode, setMediaMode] = useState<MediaMode>(() => getInitialMediaMode(detail));
+  const [mediaMode, setMediaMode] = useState<MediaMode>(() =>
+    getInitialMediaMode(detail),
+  );
   const [activePhotoId, setActivePhotoId] = useState<string | null>(() =>
     getInitialPhotoId(detail),
   );
@@ -1344,7 +1462,9 @@ export function ListingStudioDetailClient({
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
   const isStandaloneEditor = mode === "edit";
   const [isEditorOpen, setIsEditorOpen] = useState(isStandaloneEditor);
-  const [editorState, setEditorState] = useState(() => buildEditorState(detail));
+  const [editorState, setEditorState] = useState(() =>
+    buildEditorState(detail),
+  );
   const [isDropzoneActive, setIsDropzoneActive] = useState(false);
   const [isAddressCopied, setIsAddressCopied] = useState(false);
 
@@ -1354,28 +1474,44 @@ export function ListingStudioDetailClient({
     [detailState.assets],
   );
   const activePhoto =
-    photoAssets.find((asset) => asset.id === activePhotoId) ?? photoAssets[0] ?? null;
+    photoAssets.find((asset) => asset.id === activePhotoId) ??
+    photoAssets[0] ??
+    null;
   const floorPlanAsset =
     detailState.assets.find((asset) => asset.kind === "floor_plan") ?? null;
   const floorPlanSrc =
-    (floorPlanAsset ? `/api/listing-studio/assets/${floorPlanAsset.id}` : null) ??
+    (floorPlanAsset
+      ? `/api/listing-studio/assets/${floorPlanAsset.id}`
+      : null) ??
     (detailState.floorPlans[0]?.assetId
       ? `/api/listing-studio/assets/${detailState.floorPlans[0].assetId}`
       : null) ??
     detailState.floorPlans[0]?.url ??
     null;
-  const floorPlanIsPdf = isLikelyPdf(floorPlanSrc, floorPlanAsset?.mimeType ?? null);
+  const floorPlanIsPdf = isLikelyPdf(
+    floorPlanSrc,
+    floorPlanAsset?.mimeType ?? null,
+  );
   const floorPlanLabel =
     floorPlanAsset?.label ?? detailState.floorPlans[0]?.label ?? "Floor plan";
-  const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(detailState), [detailState]);
+  const mapEmbedUrl = useMemo(
+    () => buildMapEmbedUrl(detailState),
+    [detailState],
+  );
   const statusPill = getListingStateLabel(detailState);
   const headerEyebrow = getHeaderEyebrow(detailState);
-  const primaryFactCards = useMemo(() => buildPrimaryFactCards(detailState), [detailState]);
+  const primaryFactCards = useMemo(
+    () => buildPrimaryFactCards(detailState),
+    [detailState],
+  );
   const displayAmenitySections = useMemo(
     () => buildDisplayAmenitySections(detailState.amenities),
     [detailState.amenities],
   );
-  const displayTransit = useMemo(() => buildDisplayTransit(detailState), [detailState]);
+  const displayTransit = useMemo(
+    () => buildDisplayTransit(detailState),
+    [detailState],
+  );
   const financialHighlights = useMemo(
     () => collectFinancialHighlights(detailState),
     [detailState],
@@ -1384,11 +1520,16 @@ export function ListingStudioDetailClient({
     () => parseTransitSummary(displayTransit),
     [displayTransit],
   );
-  const visibleTransit = useMemo(() => displayTransit.slice(0, 3), [displayTransit]);
+  const visibleTransit = useMemo(
+    () => displayTransit.slice(0, 3),
+    [displayTransit],
+  );
   const hiddenTransitWithinOneKilometer = useMemo(() => {
     const countWithinOneKilometer = (items: TransitItem[]) =>
       items.reduce((count, item) => {
-        const haystack = [item.detail, item.distanceLabel, item.label].filter(Boolean).join(" ");
+        const haystack = [item.detail, item.distanceLabel, item.label]
+          .filter(Boolean)
+          .join(" ");
         const kilometers = extractTransitDistanceKilometers(haystack);
         if (kilometers === null) {
           return count;
@@ -1398,7 +1539,8 @@ export function ListingStudioDetailClient({
       }, 0);
 
     return Math.max(
-      countWithinOneKilometer(displayTransit) - countWithinOneKilometer(visibleTransit),
+      countWithinOneKilometer(displayTransit) -
+        countWithinOneKilometer(visibleTransit),
       0,
     );
   }, [displayTransit, visibleTransit]);
@@ -1518,9 +1660,10 @@ export function ListingStudioDetailClient({
       coverAssetId:
         current.coverAssetId && nextPhotoAssetIds.includes(current.coverAssetId)
           ? current.coverAssetId
-          : nextDetail.pack.coverAssetId && nextPhotoAssetIds.includes(nextDetail.pack.coverAssetId)
+          : nextDetail.pack.coverAssetId &&
+              nextPhotoAssetIds.includes(nextDetail.pack.coverAssetId)
             ? nextDetail.pack.coverAssetId
-            : nextPhotoAssetIds[0] ?? null,
+            : (nextPhotoAssetIds[0] ?? null),
     }));
   }
 
@@ -1550,9 +1693,12 @@ export function ListingStudioDetailClient({
   function toggleAddCustom(sectionTitle: string, nextValue?: boolean) {
     updateAmenitySection(sectionTitle, (section) => ({
       ...section,
-      isAddingCustom: typeof nextValue === "boolean" ? nextValue : !section.isAddingCustom,
+      isAddingCustom:
+        typeof nextValue === "boolean" ? nextValue : !section.isAddingCustom,
       draftCustom:
-        typeof nextValue === "boolean" && nextValue === false ? "" : section.draftCustom,
+        typeof nextValue === "boolean" && nextValue === false
+          ? ""
+          : section.draftCustom,
     }));
   }
 
@@ -1611,7 +1757,8 @@ export function ListingStudioDetailClient({
       ? photoAssets.findIndex((asset) => asset.id === activePhoto.id)
       : 0;
     const safeIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = (safeIndex + direction + photoAssets.length) % photoAssets.length;
+    const nextIndex =
+      (safeIndex + direction + photoAssets.length) % photoAssets.length;
     const nextAsset = photoAssets[nextIndex];
     if (nextAsset) {
       handleSelectPhoto(nextAsset.id);
@@ -1653,12 +1800,19 @@ export function ListingStudioDetailClient({
       return;
     }
 
-    if (event.target instanceof HTMLElement && event.target.closest("textarea")) {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("textarea")
+    ) {
       return;
     }
 
     const unit =
-      event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? scrollNode.clientHeight * 0.9 : 1;
+      event.deltaMode === 1
+        ? 20
+        : event.deltaMode === 2
+          ? scrollNode.clientHeight * 0.9
+          : 1;
     const deltaTop = event.deltaY * unit;
     const deltaLeft = event.deltaX * unit;
 
@@ -1689,13 +1843,18 @@ export function ListingStudioDetailClient({
         formData.append("files", file);
       }
 
-      const response = await fetch(`/api/listing-studio/listings/${detailState.packId}/assets`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `/api/listing-studio/listings/${detailState.packId}/assets`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error || "Unable to upload media.");
       }
 
@@ -1704,7 +1863,9 @@ export function ListingStudioDetailClient({
       syncEditorPhotos(nextDetail);
       setStatusMessage("Media uploaded.");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Unable to upload media.");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Unable to upload media.",
+      );
     } finally {
       setIsUploadingAssets(false);
       setIsDropzoneActive(false);
@@ -1731,7 +1892,9 @@ export function ListingStudioDetailClient({
       );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error || "Unable to delete media.");
       }
 
@@ -1740,7 +1903,9 @@ export function ListingStudioDetailClient({
       syncEditorPhotos(nextDetail);
       setStatusMessage("Media removed.");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Unable to delete media.");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Unable to delete media.",
+      );
     } finally {
       setDeletingAssetId(null);
     }
@@ -1759,7 +1924,12 @@ export function ListingStudioDetailClient({
       if (current === "floorplan" && !nextDetail.floorPlans.length) {
         return getInitialMediaMode(nextDetail);
       }
-      if (current === "map" && nextDetail.latitude === null && nextDetail.longitude === null && !nextDetail.addressLine) {
+      if (
+        current === "map" &&
+        nextDetail.latitude === null &&
+        nextDetail.longitude === null &&
+        !nextDetail.addressLine
+      ) {
         return getInitialMediaMode(nextDetail);
       }
       return current;
@@ -1778,40 +1948,49 @@ export function ListingStudioDetailClient({
           : photoAssets[0]
             ? [photoAssets[0].id]
             : [];
-      const response = await fetch(`/api/listing-studio/listings/${detailState.packId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/listing-studio/listings/${detailState.packId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: nextTitle,
+            headline: nextTitle,
+            summary: editorState.description.trim(),
+            selectedAssetIds: nextSelectedAssetIds,
+            coverAssetId:
+              editorState.coverAssetId ?? nextSelectedAssetIds[0] ?? null,
+            sourceUrl: editorState.listingUrl.trim() || detailState.sourceUrl,
+            listingType: editorState.listingKind === "sale" ? "Sale" : "Rental",
+            statusLabel: editorState.status.trim() || null,
+            price: parseNumberishInput(editorState.price),
+            streetAddress: editorState.streetAddress.trim() || null,
+            unit: editorState.unit.trim() || null,
+            city: editorState.city.trim() || null,
+            state: editorState.state.trim() || null,
+            postalCode: editorState.postalCode.trim() || null,
+            neighborhood: editorState.neighborhood.trim() || null,
+            buildingName: editorState.buildingName.trim() || null,
+            bedrooms: parseNumberishInput(editorState.beds),
+            bathrooms: parseNumberishInput(editorState.baths),
+            sqft: parseWholeNumberInput(editorState.sqft),
+            availabilityLabel: editorState.availability.trim() || null,
+            descriptionText: editorState.description.trim() || null,
+            amenities: buildAmenityPayload(editorState.amenitySections),
+            sourceFacts: buildEditedSourceFacts(
+              editorState,
+              detailState.sourceFacts,
+            ),
+          }),
         },
-        body: JSON.stringify({
-          title: nextTitle,
-          headline: nextTitle,
-          summary: editorState.description.trim(),
-          selectedAssetIds: nextSelectedAssetIds,
-          coverAssetId: editorState.coverAssetId ?? nextSelectedAssetIds[0] ?? null,
-          sourceUrl: editorState.listingUrl.trim() || detailState.sourceUrl,
-          listingType: editorState.listingKind === "sale" ? "Sale" : "Rental",
-          statusLabel: editorState.status.trim() || null,
-          price: parseNumberishInput(editorState.price),
-          streetAddress: editorState.streetAddress.trim() || null,
-          unit: editorState.unit.trim() || null,
-          city: editorState.city.trim() || null,
-          state: editorState.state.trim() || null,
-          postalCode: editorState.postalCode.trim() || null,
-          neighborhood: editorState.neighborhood.trim() || null,
-          buildingName: editorState.buildingName.trim() || null,
-          bedrooms: parseNumberishInput(editorState.beds),
-          bathrooms: parseNumberishInput(editorState.baths),
-          sqft: parseWholeNumberInput(editorState.sqft),
-          availabilityLabel: editorState.availability.trim() || null,
-          descriptionText: editorState.description.trim() || null,
-          amenities: buildAmenityPayload(editorState.amenitySections),
-          sourceFacts: buildEditedSourceFacts(editorState, detailState.sourceFacts),
-        }),
-      });
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error || "Unable to save the listing.");
       }
 
@@ -1853,7 +2032,9 @@ export function ListingStudioDetailClient({
         );
 
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
           throw new Error(body?.error || "Unable to publish the share link.");
         }
 
@@ -1880,7 +2061,9 @@ export function ListingStudioDetailClient({
       setStatusMessage("Share page is ready.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to open the share page.",
+        error instanceof Error
+          ? error.message
+          : "Unable to open the share page.",
       );
     } finally {
       setIsSharing(false);
@@ -1894,320 +2077,380 @@ export function ListingStudioDetailClient({
           <div className="listing-studio-listed-frame">
             <div className="listing-studio-listed-main">
               <div className="listing-studio-view-page">
-              <header className="listing-studio-view-header">
-                <div className="listing-studio-view-header-copy">
-                  <span className="listing-studio-view-eyebrow">{headerEyebrow}</span>
-                  <h1>{detailState.addressLine}</h1>
-                  {detailState.locationLine ? <p>{detailState.locationLine}</p> : null}
-                </div>
-              </header>
-
-              {statusMessage ? <p className="listing-studio-view-feedback">{statusMessage}</p> : null}
-
-              <section className="listing-studio-view-stage-card">
-          <div className="listing-studio-view-stage">
-            <span className="listing-studio-view-status-pill">{statusPill}</span>
-
-            <div className="listing-studio-view-stage-actions">
-              <StudioCollectionPicker
-                className="listing-studio-view-stage-collections"
-                packId={detailState.packId}
-                variant="icon"
-              />
-
-              <StageActionButton
-                ariaLabel="Open share page"
-                disabled={isSharing}
-                onClick={() => void openSharePage()}
-              >
-                <IconShare />
-              </StageActionButton>
-              <StageActionButton
-                ariaLabel="Open original listing"
-                onClick={() => openExternalWindow(detailState.sourceUrl)}
-              >
-                <IconLink />
-              </StageActionButton>
-              <StageActionButton ariaLabel="Edit listing" onClick={openEditor}>
-                <IconEdit />
-              </StageActionButton>
-            </div>
-
-            {mediaMode === "map" && mapEmbedUrl ? (
-              <iframe
-                allowFullScreen
-                className="listing-studio-view-stage-frame"
-                loading="lazy"
-                src={mapEmbedUrl}
-                title={`${detailState.addressLine} map`}
-              />
-            ) : mediaMode === "floorplan" && floorPlanSrc ? (
-              floorPlanIsPdf ? (
-                <iframe
-                  allowFullScreen
-                  className="listing-studio-view-stage-frame"
-                  loading="lazy"
-                  src={floorPlanSrc}
-                  title={floorPlanLabel}
-                />
-              ) : (
-                <img
-                  alt={floorPlanLabel}
-                  className="listing-studio-view-stage-image is-contained"
-                  src={floorPlanSrc}
-                />
-              )
-            ) : activePhoto ? (
-              <>
-                {photoAssets.length > 1 ? (
-                  <>
-                    <button
-                      aria-label="Previous photo"
-                      className="listing-studio-view-stage-nav listing-studio-view-stage-nav--prev"
-                      onClick={() => handleCyclePhoto(-1)}
-                      type="button"
-                    >
-                      <IconArrowLeft />
-                    </button>
-                    <button
-                      aria-label="Next photo"
-                      className="listing-studio-view-stage-nav listing-studio-view-stage-nav--next"
-                      onClick={() => handleCyclePhoto(1)}
-                      type="button"
-                    >
-                      <IconArrowRight />
-                    </button>
-                  </>
-                ) : null}
-
-                <img
-                  alt={activePhoto.label ?? detailState.title}
-                  className="listing-studio-view-stage-image"
-                  decoding="async"
-                  fetchPriority="high"
-                  src={`/api/listing-studio/assets/${activePhoto.id}`}
-                />
-              </>
-            ) : (
-              <div className="listing-studio-view-stage-empty">
-                No media was captured for this listing yet.
-              </div>
-            )}
-
-            {mediaMode === "photo" && activePhoto && photoAssets.length ? (
-              <span className="listing-studio-view-stage-count">
-                {activePhotoIndex}/{photoAssets.length}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="listing-studio-view-stage-rail">
-            <div className="listing-studio-view-thumbnail-row">
-              {photoAssets.map((asset) => (
-                <button
-                  className={`listing-studio-view-thumbnail${mediaMode === "photo" && activePhoto?.id === asset.id ? " is-active" : ""}`}
-                  key={asset.id}
-                  onClick={() => handleSelectPhoto(asset.id)}
-                  type="button"
-                >
-                  <img
-                    alt={asset.label ?? detailState.title}
-                    decoding="async"
-                    loading="lazy"
-                    src={`/api/listing-studio/assets/${asset.id}`}
-                  />
-                </button>
-              ))}
-            </div>
-
-            <div className="listing-studio-view-mode-row">
-              {floorPlanSrc ? (
-                <button
-                  className={`listing-studio-view-mode-button${mediaMode === "floorplan" ? " is-active" : ""}`}
-                  onClick={() => setMediaMode("floorplan")}
-                  type="button"
-                >
-                  Floor Plan
-                </button>
-              ) : null}
-              {mapEmbedUrl ? (
-                <button
-                  className={`listing-studio-view-mode-button${mediaMode === "map" ? " is-active" : ""}`}
-                  onClick={() => setMediaMode("map")}
-                  type="button"
-                >
-                  Map
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="listing-studio-view-summary-card">
-          <div className="listing-studio-view-price-block">
-            <strong>{detailState.priceLabel}</strong>
-            <span>{headerEyebrow}</span>
-          </div>
-
-          <div className="listing-studio-view-address-block">
-            <strong>{detailState.addressLine}</strong>
-            {detailState.locationLine ? (
-              <div className="listing-studio-view-address-meta">
-                <span>
-                  <IconLocation />
-                  <span>{detailState.locationLine}</span>
-                </span>
-                <button
-                  aria-label={isAddressCopied ? "Address copied" : "Copy address"}
-                  className={`listing-studio-view-address-copy${isAddressCopied ? " is-copied" : ""}`}
-                  onClick={() => void copyAddressLine()}
-                  type="button"
-                >
-                  <IconCopy />
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          {primaryFactCards.length ? (
-            <div className="listing-studio-view-facts-grid">
-              {primaryFactCards.map((fact) => (
-                <div
-                  className={`listing-studio-view-fact-card${fact.accent === "success" ? " is-accent-success" : ""}`}
-                  key={fact.label}
-                >
-                  <div className="listing-studio-view-fact-icon">
-                    {renderPrimaryFactIcon(fact.label)}
-                  </div>
-                  <strong>{fact.value}</strong>
-                  <span>{fact.label}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {financialHighlights.length ? (
-            <div className="listing-studio-view-chip-row">
-              {financialHighlights.map((item) => (
-                <span className="listing-studio-view-chip" key={item.label}>
-                  {item.label} {item.value}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        {displayAmenitySections.length ? (
-          <section className="listing-studio-view-info-card">
-            <div className="listing-studio-view-section-head">
-              <h2>Building amenities</h2>
-            </div>
-            <div className="listing-studio-view-amenities-sections">
-              {displayAmenitySections.map((section) => (
-                <div className="listing-studio-view-amenity-group" key={section.title}>
-                  <strong>{section.title}</strong>
-                  <ul className="listing-studio-view-amenity-list">
-                    {section.items.map((item) => (
-                      <li key={`${section.title}-${item}`}>{formatAmenityLabel(item)}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {displayTransit.length ? (
-          <section className="listing-studio-view-info-card">
-            <div className="listing-studio-view-section-head">
-              <div className="listing-studio-view-section-title">
-                <IconTransit />
-                <h2>Nearby Transit</h2>
-              </div>
-            </div>
-
-            {transitSummary.nearestWalkMinutes !== null ||
-            transitSummary.withinFiveHundredMeters !== null ? (
-              <div className="listing-studio-view-transit-summary">
-                {transitSummary.nearestWalkMinutes !== null ? (
-                  <div className="listing-studio-view-transit-summary-card">
-                    <span>Nearest station</span>
-                    <strong>{transitSummary.nearestWalkMinutes} min walk</strong>
-                  </div>
-                ) : null}
-                {transitSummary.withinFiveHundredMeters !== null ? (
-                  <div className="listing-studio-view-transit-summary-card">
-                    <span>Within 500m</span>
-                    <strong>{transitSummary.withinFiveHundredMeters} stations</strong>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="listing-studio-view-transit-list">
-              {visibleTransit.map((item) => (
-                <div
-                  className="listing-studio-view-transit-item"
-                  key={`${item.label}-${item.distanceLabel ?? ""}`}
-                >
-                  <div className="listing-studio-view-transit-item-main">
-                    <span className="listing-studio-view-transit-item-icon" aria-hidden="true">
-                      <IconTransit />
+                <header className="listing-studio-view-header">
+                  <div className="listing-studio-view-header-copy">
+                    <span className="listing-studio-view-eyebrow">
+                      {headerEyebrow}
                     </span>
-                    <div>
-                      <strong>{item.label}</strong>
-                      {item.detail ? <span>{item.detail}</span> : null}
+                    <h1>{detailState.addressLine}</h1>
+                    {detailState.locationLine ? (
+                      <p>{detailState.locationLine}</p>
+                    ) : null}
+                  </div>
+                </header>
+
+                {statusMessage ? (
+                  <p className="listing-studio-view-feedback">
+                    {statusMessage}
+                  </p>
+                ) : null}
+
+                <section className="listing-studio-view-stage-card">
+                  <div className="listing-studio-view-stage">
+                    <span className="listing-studio-view-status-pill">
+                      {statusPill}
+                    </span>
+
+                    <div className="listing-studio-view-stage-actions">
+                      <StudioCollectionPicker
+                        className="listing-studio-view-stage-collections"
+                        packId={detailState.packId}
+                        variant="icon"
+                      />
+
+                      <StageActionButton
+                        ariaLabel="Open share page"
+                        disabled={isSharing}
+                        onClick={() => void openSharePage()}
+                      >
+                        <IconShare />
+                      </StageActionButton>
+                      <StageActionButton
+                        ariaLabel="Open original listing"
+                        onClick={() =>
+                          openExternalWindow(detailState.sourceUrl)
+                        }
+                      >
+                        <IconLink />
+                      </StageActionButton>
+                      <StageActionButton
+                        ariaLabel="Edit listing"
+                        onClick={openEditor}
+                      >
+                        <IconEdit />
+                      </StageActionButton>
+                    </div>
+
+                    {mediaMode === "map" && mapEmbedUrl ? (
+                      <iframe
+                        allowFullScreen
+                        className="listing-studio-view-stage-frame"
+                        loading="lazy"
+                        src={mapEmbedUrl}
+                        title={`${detailState.addressLine} map`}
+                      />
+                    ) : mediaMode === "floorplan" && floorPlanSrc ? (
+                      floorPlanIsPdf ? (
+                        <iframe
+                          allowFullScreen
+                          className="listing-studio-view-stage-frame"
+                          loading="lazy"
+                          src={floorPlanSrc}
+                          title={floorPlanLabel}
+                        />
+                      ) : (
+                        <img
+                          alt={floorPlanLabel}
+                          className="listing-studio-view-stage-image is-contained"
+                          src={floorPlanSrc}
+                        />
+                      )
+                    ) : activePhoto ? (
+                      <>
+                        {photoAssets.length > 1 ? (
+                          <>
+                            <button
+                              aria-label="Previous photo"
+                              className="listing-studio-view-stage-nav listing-studio-view-stage-nav--prev"
+                              onClick={() => handleCyclePhoto(-1)}
+                              type="button"
+                            >
+                              <IconArrowLeft />
+                            </button>
+                            <button
+                              aria-label="Next photo"
+                              className="listing-studio-view-stage-nav listing-studio-view-stage-nav--next"
+                              onClick={() => handleCyclePhoto(1)}
+                              type="button"
+                            >
+                              <IconArrowRight />
+                            </button>
+                          </>
+                        ) : null}
+
+                        <img
+                          alt={activePhoto.label ?? detailState.title}
+                          className="listing-studio-view-stage-image"
+                          decoding="async"
+                          fetchPriority="high"
+                          src={`/api/listing-studio/assets/${activePhoto.id}`}
+                        />
+                      </>
+                    ) : (
+                      <div className="listing-studio-view-stage-empty">
+                        No media was captured for this listing yet.
+                      </div>
+                    )}
+
+                    {mediaMode === "photo" &&
+                    activePhoto &&
+                    photoAssets.length ? (
+                      <span className="listing-studio-view-stage-count">
+                        {activePhotoIndex}/{photoAssets.length}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="listing-studio-view-stage-rail">
+                    <div className="listing-studio-view-thumbnail-row">
+                      {photoAssets.map((asset) => (
+                        <button
+                          className={`listing-studio-view-thumbnail${mediaMode === "photo" && activePhoto?.id === asset.id ? " is-active" : ""}`}
+                          key={asset.id}
+                          onClick={() => handleSelectPhoto(asset.id)}
+                          type="button"
+                        >
+                          <img
+                            alt={asset.label ?? detailState.title}
+                            decoding="async"
+                            loading="lazy"
+                            src={`/api/listing-studio/assets/${asset.id}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="listing-studio-view-mode-row">
+                      {floorPlanSrc ? (
+                        <button
+                          className={`listing-studio-view-mode-button${mediaMode === "floorplan" ? " is-active" : ""}`}
+                          onClick={() => setMediaMode("floorplan")}
+                          type="button"
+                        >
+                          Floor Plan
+                        </button>
+                      ) : null}
+                      {mapEmbedUrl ? (
+                        <button
+                          className={`listing-studio-view-mode-button${mediaMode === "map" ? " is-active" : ""}`}
+                          onClick={() => setMediaMode("map")}
+                          type="button"
+                        >
+                          Map
+                        </button>
+                      ) : null}
                     </div>
                   </div>
-                  {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
-                </div>
-              ))}
-            </div>
-            {hiddenTransitWithinOneKilometer > 0 ? (
-              <p className="listing-studio-view-transit-more">
-                + {hiddenTransitWithinOneKilometer} more station
-                {hiddenTransitWithinOneKilometer === 1 ? "" : "s"} within 1km
-              </p>
-            ) : null}
-          </section>
-        ) : null}
+                </section>
 
-        {detailState.propertyHistory.length ? (
-          <ListingStudioDisclosure description="" title="Property history">
-            <div className="listing-studio-detail-section-list">
-              {detailState.propertyHistory.map((section) => (
-                <div className="listing-studio-detail-section-block" key={section.title}>
-                  <strong>{section.title}</strong>
-                  <div className="listing-studio-detail-section-items">
-                    {section.items.map((item) => (
-                      <span key={`${section.title}-${item}`}>{item}</span>
-                    ))}
+                <section className="listing-studio-view-summary-card">
+                  <div className="listing-studio-view-price-block">
+                    <strong>{detailState.priceLabel}</strong>
+                    <span>{headerEyebrow}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </ListingStudioDisclosure>
-        ) : null}
 
-        {detailState.capturedSections.length ? (
-          <ListingStudioDisclosure description="" title="Additional details">
-            <div className="listing-studio-detail-section-list">
-              {detailState.capturedSections.map((section) => (
-                <div className="listing-studio-detail-section-block" key={section.title}>
-                  <strong>{section.title}</strong>
-                  <div className="listing-studio-detail-section-items">
-                    {section.items.map((item) => (
-                      <span key={`${section.title}-${item}`}>{item}</span>
-                    ))}
+                  <div className="listing-studio-view-address-block">
+                    <strong>{detailState.addressLine}</strong>
+                    {detailState.locationLine ? (
+                      <div className="listing-studio-view-address-meta">
+                        <span>
+                          <IconLocation />
+                          <span>{detailState.locationLine}</span>
+                        </span>
+                        <button
+                          aria-label={
+                            isAddressCopied ? "Address copied" : "Copy address"
+                          }
+                          className={`listing-studio-view-address-copy${isAddressCopied ? " is-copied" : ""}`}
+                          onClick={() => void copyAddressLine()}
+                          type="button"
+                        >
+                          <IconCopy />
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              ))}
-            </div>
-          </ListingStudioDisclosure>
-        ) : null}
+
+                  {primaryFactCards.length ? (
+                    <div className="listing-studio-view-facts-grid">
+                      {primaryFactCards.map((fact) => (
+                        <div
+                          className={`listing-studio-view-fact-card${fact.accent === "success" ? " is-accent-success" : ""}`}
+                          key={fact.label}
+                        >
+                          <div className="listing-studio-view-fact-icon">
+                            {renderPrimaryFactIcon(fact.label)}
+                          </div>
+                          <strong>{fact.value}</strong>
+                          <span>{fact.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {financialHighlights.length ? (
+                    <div className="listing-studio-view-chip-row">
+                      {financialHighlights.map((item) => (
+                        <span
+                          className="listing-studio-view-chip"
+                          key={item.label}
+                        >
+                          {item.label} {item.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <ListingStudioMortgageCalculator
+                    facts={detailState.facts}
+                    price={detailState.price}
+                    priceLabel={detailState.priceLabel}
+                    sourceFacts={detailState.sourceFacts}
+                  />
+                </section>
+
+                {displayAmenitySections.length ? (
+                  <section className="listing-studio-view-info-card">
+                    <div className="listing-studio-view-section-head">
+                      <h2>Building amenities</h2>
+                    </div>
+                    <div className="listing-studio-view-amenities-sections">
+                      {displayAmenitySections.map((section) => (
+                        <div
+                          className="listing-studio-view-amenity-group"
+                          key={section.title}
+                        >
+                          <strong>{section.title}</strong>
+                          <ul className="listing-studio-view-amenity-list">
+                            {section.items.map((item) => (
+                              <li key={`${section.title}-${item}`}>
+                                {formatAmenityLabel(item)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {displayTransit.length ? (
+                  <section className="listing-studio-view-info-card">
+                    <div className="listing-studio-view-section-head">
+                      <div className="listing-studio-view-section-title">
+                        <IconTransit />
+                        <h2>Nearby Transit</h2>
+                      </div>
+                    </div>
+
+                    {transitSummary.nearestWalkMinutes !== null ||
+                    transitSummary.withinFiveHundredMeters !== null ? (
+                      <div className="listing-studio-view-transit-summary">
+                        {transitSummary.nearestWalkMinutes !== null ? (
+                          <div className="listing-studio-view-transit-summary-card">
+                            <span>Nearest station</span>
+                            <strong>
+                              {transitSummary.nearestWalkMinutes} min walk
+                            </strong>
+                          </div>
+                        ) : null}
+                        {transitSummary.withinFiveHundredMeters !== null ? (
+                          <div className="listing-studio-view-transit-summary-card">
+                            <span>Within 500m</span>
+                            <strong>
+                              {transitSummary.withinFiveHundredMeters} stations
+                            </strong>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="listing-studio-view-transit-list">
+                      {visibleTransit.map((item) => (
+                        <div
+                          className="listing-studio-view-transit-item"
+                          key={`${item.label}-${item.distanceLabel ?? ""}`}
+                        >
+                          <div className="listing-studio-view-transit-item-main">
+                            <span
+                              className="listing-studio-view-transit-item-icon"
+                              aria-hidden="true"
+                            >
+                              <IconTransit />
+                            </span>
+                            <div>
+                              <strong>{item.label}</strong>
+                              {item.detail ? <span>{item.detail}</span> : null}
+                            </div>
+                          </div>
+                          {item.distanceLabel ? (
+                            <em>{item.distanceLabel}</em>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    {hiddenTransitWithinOneKilometer > 0 ? (
+                      <p className="listing-studio-view-transit-more">
+                        + {hiddenTransitWithinOneKilometer} more station
+                        {hiddenTransitWithinOneKilometer === 1 ? "" : "s"}{" "}
+                        within 1km
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {detailState.propertyHistory.length ? (
+                  <ListingStudioDisclosure
+                    description=""
+                    title="Property history"
+                  >
+                    <div className="listing-studio-detail-section-list">
+                      {detailState.propertyHistory.map((section) => (
+                        <div
+                          className="listing-studio-detail-section-block"
+                          key={section.title}
+                        >
+                          <strong>{section.title}</strong>
+                          <div className="listing-studio-detail-section-items">
+                            {section.items.map((item) => (
+                              <span key={`${section.title}-${item}`}>
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ListingStudioDisclosure>
+                ) : null}
+
+                {detailState.capturedSections.length ? (
+                  <ListingStudioDisclosure
+                    description=""
+                    title="Additional details"
+                  >
+                    <div className="listing-studio-detail-section-list">
+                      {detailState.capturedSections.map((section) => (
+                        <div
+                          className="listing-studio-detail-section-block"
+                          key={section.title}
+                        >
+                          <strong>{section.title}</strong>
+                          <div className="listing-studio-detail-section-items">
+                            {section.items.map((item) => (
+                              <span key={`${section.title}-${item}`}>
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ListingStudioDisclosure>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       ) : null}
 
@@ -2234,7 +2477,11 @@ export function ListingStudioDetailClient({
               role={isStandaloneEditor ? undefined : "dialog"}
             >
               <header className="listing-studio-editor-header">
-                <button className="listing-studio-editor-back" onClick={closeEditor} type="button">
+                <button
+                  className="listing-studio-editor-back"
+                  onClick={closeEditor}
+                  type="button"
+                >
                   <IconArrowLeft />
                 </button>
                 <div className="listing-studio-editor-header-copy">
@@ -2252,442 +2499,520 @@ export function ListingStudioDetailClient({
                 tabIndex={isStandaloneEditor ? undefined : 0}
               >
                 <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>Listing Type</strong>
-                </div>
-                <div className="listing-studio-editor-type-toggle">
-                  <button
-                    className={`listing-studio-editor-type-button${editorState.listingKind === "rental" ? " is-active" : ""}`}
-                    onClick={() => updateEditorField("listingKind", "rental")}
-                    type="button"
-                  >
-                    Rental
-                  </button>
-                  <button
-                    className={`listing-studio-editor-type-button${editorState.listingKind === "sale" ? " is-active" : ""}`}
-                    onClick={() => updateEditorField("listingKind", "sale")}
-                    type="button"
-                  >
-                    Sale
-                  </button>
-                </div>
-              </section>
+                  <div className="listing-studio-editor-section-head">
+                    <strong>Listing Type</strong>
+                  </div>
+                  <div className="listing-studio-editor-type-toggle">
+                    <button
+                      className={`listing-studio-editor-type-button${editorState.listingKind === "rental" ? " is-active" : ""}`}
+                      onClick={() => updateEditorField("listingKind", "rental")}
+                      type="button"
+                    >
+                      Rental
+                    </button>
+                    <button
+                      className={`listing-studio-editor-type-button${editorState.listingKind === "sale" ? " is-active" : ""}`}
+                      onClick={() => updateEditorField("listingKind", "sale")}
+                      type="button"
+                    >
+                      Sale
+                    </button>
+                  </div>
+                </section>
 
-              <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>Photos &amp; Videos</strong>
-                  <span>{photoAssets.length} photos</span>
-                </div>
+                <section className="listing-studio-editor-section">
+                  <div className="listing-studio-editor-section-head">
+                    <strong>Photos &amp; Videos</strong>
+                    <span>{photoAssets.length} photos</span>
+                  </div>
 
-                <div className="listing-studio-editor-photo-grid">
-                  {photoAssets.map((asset) => {
-                    const isCover = editorState.coverAssetId === asset.id;
-                    const isDeletingAsset = deletingAssetId === asset.id;
-                    const assetUrl = `/api/listing-studio/assets/${asset.id}`;
+                  <div className="listing-studio-editor-photo-grid">
+                    {photoAssets.map((asset) => {
+                      const isCover = editorState.coverAssetId === asset.id;
+                      const isDeletingAsset = deletingAssetId === asset.id;
+                      const assetUrl = `/api/listing-studio/assets/${asset.id}`;
 
-                    return (
-                      <div
-                        className={`listing-studio-editor-photo-card${isCover ? " is-cover" : ""}`}
-                        key={asset.id}
-                        onClick={() => setEditorCoverPhoto(asset.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setEditorCoverPhoto(asset.id);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <div className="listing-studio-editor-photo-frame">
-                          {isVideoAssetMime(asset.mimeType) ? (
-                            <video muted playsInline preload="metadata" src={assetUrl} />
-                          ) : (
-                            <img alt={asset.label ?? detailState.title} src={assetUrl} />
-                          )}
-                          {isCover ? (
-                            <span className="listing-studio-editor-photo-badge">Cover</span>
-                          ) : null}
-                          <button
-                            aria-label={`Delete ${asset.label ?? "photo"}`}
-                            className="listing-studio-editor-photo-remove"
-                            disabled={isDeletingAsset}
-                            onClick={(event) => {
+                      return (
+                        <div
+                          className={`listing-studio-editor-photo-card${isCover ? " is-cover" : ""}`}
+                          key={asset.id}
+                          onClick={() => setEditorCoverPhoto(asset.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              event.stopPropagation();
-                              void deleteEditorAsset(asset.id);
-                            }}
-                            type="button"
-                          >
-                            <IconClose />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <input
-                  accept="image/*,video/*"
-                  hidden
-                  multiple
-                  onChange={(event) => {
-                    if (event.target.files?.length) {
-                      void uploadEditorAssets(event.target.files);
-                    }
-                  }}
-                  ref={uploadInputRef}
-                  type="file"
-                />
-                <button
-                  className={`listing-studio-editor-dropzone${isDropzoneActive ? " is-active" : ""}`}
-                  onClick={() => uploadInputRef.current?.click()}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setIsDropzoneActive(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    const related = event.relatedTarget;
-                    if (!(related instanceof Node) || !event.currentTarget.contains(related)) {
-                      setIsDropzoneActive(false);
-                    }
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsDropzoneActive(true);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    setIsDropzoneActive(false);
-                    if (event.dataTransfer.files?.length) {
-                      void uploadEditorAssets(event.dataTransfer.files);
-                    }
-                  }}
-                  type="button"
-                >
-                  <span className="listing-studio-editor-dropzone-copy">
-                    <IconUpload />
-                    <span>
-                      {isUploadingAssets
-                        ? "Uploading media..."
-                        : "Drop files or click to upload"}
-                    </span>
-                  </span>
-                </button>
-              </section>
-
-              <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>Address</strong>
-                </div>
-                <div className="listing-studio-editor-grid">
-                  <label className="listing-studio-editor-field is-span-3">
-                    <span>Street Address</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("streetAddress", event.target.value)}
-                      value={editorState.streetAddress}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>City</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("city", event.target.value)}
-                      value={editorState.city}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>State</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("state", event.target.value)}
-                      value={editorState.state}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>ZIP</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("postalCode", event.target.value)}
-                      value={editorState.postalCode}
-                    />
-                  </label>
-                </div>
-              </section>
-
-              <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>Details</strong>
-                </div>
-                <div className="listing-studio-editor-grid">
-                  <label className="listing-studio-editor-field">
-                    <span>Price</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("price", event.target.value)}
-                      value={editorState.price}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Beds</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("beds", event.target.value)}
-                      value={editorState.beds}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Baths</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("baths", event.target.value)}
-                      value={editorState.baths}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Sqft</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("sqft", event.target.value)}
-                      value={editorState.sqft}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Property Type</span>
-                    <SelectInput
-                      className="listing-studio-editor-select"
-                      onChange={(event) => updateEditorField("propertyType", event.target.value)}
-                      value={editorState.propertyType}
-                    >
-                      <option value="">Select type</option>
-                      {PROPERTY_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Status</span>
-                    <SelectInput
-                      className="listing-studio-editor-select"
-                      onChange={(event) => updateEditorField("status", event.target.value)}
-                      value={editorState.status}
-                    >
-                      {STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </label>
-                </div>
-              </section>
-
-              <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>
-                    {editorState.listingKind === "sale" ? "Sale Details" : "Rental Details"}
-                  </strong>
-                </div>
-                <div className="listing-studio-editor-grid">
-                  <label className="listing-studio-editor-field">
-                    <span>Year Built</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("yearBuilt", event.target.value)}
-                      value={editorState.yearBuilt}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>List Date</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("listDate", event.target.value)}
-                      type="date"
-                      value={editorState.listDate}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Common Charges (HOA, /mo)</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) =>
-                        updateEditorField("commonCharges", event.target.value)
-                      }
-                      value={editorState.commonCharges}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Taxes (/mo)</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("taxes", event.target.value)}
-                      value={editorState.taxes}
-                    />
-                  </label>
-                </div>
-              </section>
-
-              <section className="listing-studio-editor-section">
-                <div className="listing-studio-editor-section-head">
-                  <strong>Additional</strong>
-                </div>
-
-                <label className="listing-studio-editor-field">
-                  <span>Description</span>
-                  <TextareaInput
-                    className="listing-studio-editor-textarea"
-                    onChange={(event) => updateEditorField("description", event.target.value)}
-                    rows={4}
-                    value={editorState.description}
-                  />
-                </label>
-
-                <div className="listing-studio-editor-subsection-label">
-                  <span>Building Amenities</span>
-                </div>
-
-                <div className="listing-studio-editor-amenity-stack">
-                  {editorState.amenitySections.map((section) => (
-                    <div className="listing-studio-editor-amenity-section" key={section.title}>
-                      <button
-                        className="listing-studio-editor-amenity-toggle"
-                        onClick={() => toggleAmenityOpen(section.title)}
-                        type="button"
-                      >
-                        <span>{section.title}</span>
-                        <em>{section.selected.length + section.customItems.length}</em>
-                        <IconChevronDown isOpen={section.open} />
-                      </button>
-
-                      {section.open ? (
-                        <div className="listing-studio-editor-amenity-body">
-                          <div className="listing-studio-editor-amenity-grid">
-                            {section.options.map((option) => (
-                              <CheckboxField
-                                className="listing-studio-editor-checkbox"
-                                key={`${section.title}-${option}`}
-                                label={option}
-                              >
-                                <input
-                                  checked={section.selected.includes(option)}
-                                  onChange={() => toggleAmenityOption(section.title, option)}
-                                  type="checkbox"
-                                />
-                              </CheckboxField>
-                            ))}
-                          </div>
-
-                          <div className="listing-studio-editor-custom-block">
-                            {section.customItems.length ? (
-                              <div className="listing-studio-editor-custom-chip-stack">
-                                <span className="listing-studio-editor-custom-label">
-                                  Custom amenities:
-                                </span>
-                                <div className="listing-studio-editor-chip-row">
-                                  {section.customItems.map((item) => (
-                                    <span className="listing-studio-editor-chip" key={item}>
-                                      {item}
-                                      <button
-                                        aria-label={`Remove ${item}`}
-                                        onClick={() => removeCustomAmenity(section.title, item)}
-                                        type="button"
-                                      >
-                                        ×
-                                      </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null}
-
-                            {section.isAddingCustom ? (
-                              <div className="listing-studio-editor-custom-input-row">
-                                <TextInput
-                                  className="listing-studio-editor-input"
-                                  onChange={(event) =>
-                                    updateAmenityDraft(section.title, event.target.value)
-                                  }
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      addCustomAmenity(section.title);
-                                    }
-                                    if (event.key === "Escape") {
-                                      event.preventDefault();
-                                      toggleAddCustom(section.title, false);
-                                    }
-                                  }}
-                                  placeholder="Add custom amenity"
-                                  value={section.draftCustom}
-                                />
-                                <Button
-                                  onClick={() => addCustomAmenity(section.title)}
-                                  type="button"
-                                  variant="secondary"
-                                >
-                                  Add
-                                </Button>
-                                <Button
-                                  onClick={() => toggleAddCustom(section.title, false)}
-                                  type="button"
-                                  variant="ghost"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
+                              setEditorCoverPhoto(asset.id);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="listing-studio-editor-photo-frame">
+                            {isVideoAssetMime(asset.mimeType) ? (
+                              <video
+                                muted
+                                playsInline
+                                preload="metadata"
+                                src={assetUrl}
+                              />
                             ) : (
-                              <button
-                                className="listing-studio-editor-add-custom"
-                                onClick={() => toggleAddCustom(section.title, true)}
-                                type="button"
-                              >
-                                <IconPlus />
-                                <span>Add custom</span>
-                              </button>
+                              <img
+                                alt={asset.label ?? detailState.title}
+                                src={assetUrl}
+                              />
                             )}
+                            {isCover ? (
+                              <span className="listing-studio-editor-photo-badge">
+                                Cover
+                              </span>
+                            ) : null}
+                            <button
+                              aria-label={`Delete ${asset.label ?? "photo"}`}
+                              className="listing-studio-editor-photo-remove"
+                              disabled={isDeletingAsset}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void deleteEditorAsset(asset.id);
+                              }}
+                              type="button"
+                            >
+                              <IconClose />
+                            </button>
                           </div>
                         </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
 
-                <div className="listing-studio-editor-grid listing-studio-editor-meta-grid">
+                  <input
+                    accept="image/*,video/*"
+                    hidden
+                    multiple
+                    onChange={(event) => {
+                      if (event.target.files?.length) {
+                        void uploadEditorAssets(event.target.files);
+                      }
+                    }}
+                    ref={uploadInputRef}
+                    type="file"
+                  />
+                  <button
+                    className={`listing-studio-editor-dropzone${isDropzoneActive ? " is-active" : ""}`}
+                    onClick={() => uploadInputRef.current?.click()}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      setIsDropzoneActive(true);
+                    }}
+                    onDragLeave={(event) => {
+                      event.preventDefault();
+                      const related = event.relatedTarget;
+                      if (
+                        !(related instanceof Node) ||
+                        !event.currentTarget.contains(related)
+                      ) {
+                        setIsDropzoneActive(false);
+                      }
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDropzoneActive(true);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setIsDropzoneActive(false);
+                      if (event.dataTransfer.files?.length) {
+                        void uploadEditorAssets(event.dataTransfer.files);
+                      }
+                    }}
+                    type="button"
+                  >
+                    <span className="listing-studio-editor-dropzone-copy">
+                      <IconUpload />
+                      <span>
+                        {isUploadingAssets
+                          ? "Uploading media..."
+                          : "Drop files or click to upload"}
+                      </span>
+                    </span>
+                  </button>
+                </section>
+
+                <section className="listing-studio-editor-section">
+                  <div className="listing-studio-editor-section-head">
+                    <strong>Address</strong>
+                  </div>
+                  <div className="listing-studio-editor-grid">
+                    <label className="listing-studio-editor-field is-span-3">
+                      <span>Street Address</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("streetAddress", event.target.value)
+                        }
+                        value={editorState.streetAddress}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>City</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("city", event.target.value)
+                        }
+                        value={editorState.city}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>State</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("state", event.target.value)
+                        }
+                        value={editorState.state}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>ZIP</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("postalCode", event.target.value)
+                        }
+                        value={editorState.postalCode}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="listing-studio-editor-section">
+                  <div className="listing-studio-editor-section-head">
+                    <strong>Details</strong>
+                  </div>
+                  <div className="listing-studio-editor-grid">
+                    <label className="listing-studio-editor-field">
+                      <span>Price</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("price", event.target.value)
+                        }
+                        value={editorState.price}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Beds</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("beds", event.target.value)
+                        }
+                        value={editorState.beds}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Baths</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("baths", event.target.value)
+                        }
+                        value={editorState.baths}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Sqft</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("sqft", event.target.value)
+                        }
+                        value={editorState.sqft}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Property Type</span>
+                      <SelectInput
+                        className="listing-studio-editor-select"
+                        onChange={(event) =>
+                          updateEditorField("propertyType", event.target.value)
+                        }
+                        value={editorState.propertyType}
+                      >
+                        <option value="">Select type</option>
+                        {PROPERTY_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Status</span>
+                      <SelectInput
+                        className="listing-studio-editor-select"
+                        onChange={(event) =>
+                          updateEditorField("status", event.target.value)
+                        }
+                        value={editorState.status}
+                      >
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </label>
+                  </div>
+                </section>
+
+                <section className="listing-studio-editor-section">
+                  <div className="listing-studio-editor-section-head">
+                    <strong>
+                      {editorState.listingKind === "sale"
+                        ? "Sale Details"
+                        : "Rental Details"}
+                    </strong>
+                  </div>
+                  <div className="listing-studio-editor-grid">
+                    <label className="listing-studio-editor-field">
+                      <span>Year Built</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("yearBuilt", event.target.value)
+                        }
+                        value={editorState.yearBuilt}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>List Date</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("listDate", event.target.value)
+                        }
+                        type="date"
+                        value={editorState.listDate}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Common Charges (HOA, /mo)</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("commonCharges", event.target.value)
+                        }
+                        value={editorState.commonCharges}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Taxes (/mo)</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("taxes", event.target.value)
+                        }
+                        value={editorState.taxes}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="listing-studio-editor-section">
+                  <div className="listing-studio-editor-section-head">
+                    <strong>Additional</strong>
+                  </div>
+
                   <label className="listing-studio-editor-field">
-                    <span>Unit Number</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("unit", event.target.value)}
-                      value={editorState.unit}
+                    <span>Description</span>
+                    <TextareaInput
+                      className="listing-studio-editor-textarea"
+                      onChange={(event) =>
+                        updateEditorField("description", event.target.value)
+                      }
+                      rows={4}
+                      value={editorState.description}
                     />
                   </label>
-                  <label className="listing-studio-editor-field">
-                    <span>Neighborhood</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("neighborhood", event.target.value)}
-                      value={editorState.neighborhood}
-                    />
-                  </label>
-                  <label className="listing-studio-editor-field listing-studio-editor-meta-url">
-                    <span>Listing URL</span>
-                    <TextInput
-                      className="listing-studio-editor-input"
-                      onChange={(event) => updateEditorField("listingUrl", event.target.value)}
-                      value={editorState.listingUrl}
-                    />
-                  </label>
-                </div>
-              </section>
+
+                  <div className="listing-studio-editor-subsection-label">
+                    <span>Building Amenities</span>
+                  </div>
+
+                  <div className="listing-studio-editor-amenity-stack">
+                    {editorState.amenitySections.map((section) => (
+                      <div
+                        className="listing-studio-editor-amenity-section"
+                        key={section.title}
+                      >
+                        <button
+                          className="listing-studio-editor-amenity-toggle"
+                          onClick={() => toggleAmenityOpen(section.title)}
+                          type="button"
+                        >
+                          <span>{section.title}</span>
+                          <em>
+                            {section.selected.length +
+                              section.customItems.length}
+                          </em>
+                          <IconChevronDown isOpen={section.open} />
+                        </button>
+
+                        {section.open ? (
+                          <div className="listing-studio-editor-amenity-body">
+                            <div className="listing-studio-editor-amenity-grid">
+                              {section.options.map((option) => (
+                                <CheckboxField
+                                  className="listing-studio-editor-checkbox"
+                                  key={`${section.title}-${option}`}
+                                  label={option}
+                                >
+                                  <input
+                                    checked={section.selected.includes(option)}
+                                    onChange={() =>
+                                      toggleAmenityOption(section.title, option)
+                                    }
+                                    type="checkbox"
+                                  />
+                                </CheckboxField>
+                              ))}
+                            </div>
+
+                            <div className="listing-studio-editor-custom-block">
+                              {section.customItems.length ? (
+                                <div className="listing-studio-editor-custom-chip-stack">
+                                  <span className="listing-studio-editor-custom-label">
+                                    Custom amenities:
+                                  </span>
+                                  <div className="listing-studio-editor-chip-row">
+                                    {section.customItems.map((item) => (
+                                      <span
+                                        className="listing-studio-editor-chip"
+                                        key={item}
+                                      >
+                                        {item}
+                                        <button
+                                          aria-label={`Remove ${item}`}
+                                          onClick={() =>
+                                            removeCustomAmenity(
+                                              section.title,
+                                              item,
+                                            )
+                                          }
+                                          type="button"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {section.isAddingCustom ? (
+                                <div className="listing-studio-editor-custom-input-row">
+                                  <TextInput
+                                    className="listing-studio-editor-input"
+                                    onChange={(event) =>
+                                      updateAmenityDraft(
+                                        section.title,
+                                        event.target.value,
+                                      )
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        addCustomAmenity(section.title);
+                                      }
+                                      if (event.key === "Escape") {
+                                        event.preventDefault();
+                                        toggleAddCustom(section.title, false);
+                                      }
+                                    }}
+                                    placeholder="Add custom amenity"
+                                    value={section.draftCustom}
+                                  />
+                                  <Button
+                                    onClick={() =>
+                                      addCustomAmenity(section.title)
+                                    }
+                                    type="button"
+                                    variant="secondary"
+                                  >
+                                    Add
+                                  </Button>
+                                  <Button
+                                    onClick={() =>
+                                      toggleAddCustom(section.title, false)
+                                    }
+                                    type="button"
+                                    variant="ghost"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="listing-studio-editor-add-custom"
+                                  onClick={() =>
+                                    toggleAddCustom(section.title, true)
+                                  }
+                                  type="button"
+                                >
+                                  <IconPlus />
+                                  <span>Add custom</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="listing-studio-editor-grid listing-studio-editor-meta-grid">
+                    <label className="listing-studio-editor-field">
+                      <span>Unit Number</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("unit", event.target.value)
+                        }
+                        value={editorState.unit}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>Neighborhood</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("neighborhood", event.target.value)
+                        }
+                        value={editorState.neighborhood}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field listing-studio-editor-meta-url">
+                      <span>Listing URL</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("listingUrl", event.target.value)
+                        }
+                        value={editorState.listingUrl}
+                      />
+                    </label>
+                  </div>
+                </section>
               </div>
 
               <footer className="listing-studio-editor-footer">
                 <div className="listing-studio-editor-footer-actions">
-                  <Button onClick={closeEditor} type="button" variant="secondary">
+                  <Button
+                    onClick={closeEditor}
+                    type="button"
+                    variant="secondary"
+                  >
                     Cancel
                   </Button>
                   <Button

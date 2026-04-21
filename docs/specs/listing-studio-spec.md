@@ -173,6 +173,7 @@
 - hero image
 - gallery
 - price / address / facts
+- monthly payment calculator with editable home price, down payment, term, and rate inputs, rolling up mortgage payment + HOA/common charges + taxes into one estimate when those source facts are available
 - quick-jump row for the main working zones
 - curated-page editor as the primary editing surface
 - compact publish / export rail for save, share, PDF, poster, and scan actions
