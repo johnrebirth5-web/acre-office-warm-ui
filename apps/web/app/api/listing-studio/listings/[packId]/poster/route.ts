@@ -1,5 +1,5 @@
 import { canAccessListingStudio } from "@acre/auth";
-import { getStudioListingPackDetail } from "@acre/db";
+import { getOfficeAccountSnapshot, getStudioListingPackDetail } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import {
@@ -10,6 +10,7 @@ import {
   renderListingStudioPosterHtml,
   renderListingStudioPosterSvg,
   type ListingStudioPosterFormat,
+  type ListingStudioPosterAgentSnapshot,
 } from "../../../../../listing-studio/listings/[packId]/listing-studio-poster";
 
 export const runtime = "nodejs";
@@ -70,10 +71,39 @@ export async function GET(
   const format = readPosterFormat(request.nextUrl.searchParams.get("format"));
   const download = request.nextUrl.searchParams.get("download") === "1";
   const fileName = buildListingStudioPosterFileName(detail, draft, format);
+  const accountSnapshot = await getOfficeAccountSnapshot({
+    membershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    organizationId: context.currentOrganization.id,
+  });
+  const posterAgent: ListingStudioPosterAgentSnapshot | null = accountSnapshot
+    ? {
+        avatarUrl: accountSnapshot.profile.avatarUrl.trim() || null,
+        companyName:
+          accountSnapshot.officeTeam.officeName ||
+          context.currentOffice?.name ||
+          context.currentOrganization.name,
+        email:
+          accountSnapshot.profile.email.trim() || detail.pack.contactEmail.trim(),
+        name:
+          accountSnapshot.profile.displayName.trim() ||
+          accountSnapshot.profile.fullName.trim() ||
+          detail.pack.contactName.trim(),
+        phone:
+          accountSnapshot.profile.phone.trim() || detail.pack.contactPhone.trim(),
+        title:
+          accountSnapshot.officeTeam.title !== "Not assigned"
+            ? accountSnapshot.officeTeam.title
+            : context.currentMembership.title?.trim() ||
+              detail.pack.contactTitle.trim() ||
+              "Licensed Real Estate Salesperson",
+      }
+    : null;
 
   if (format === "png") {
     const sharp = (await import("sharp")).default;
     const svg = await renderListingStudioPosterSvg(detail, draft, {
+      agent: posterAgent,
       baseUrl: request.nextUrl.origin,
       embedAssets: true,
       requestHeaders: {
@@ -103,6 +133,7 @@ export async function GET(
 
   if (format === "svg") {
     const svg = await renderListingStudioPosterSvg(detail, draft, {
+      agent: posterAgent,
       baseUrl: request.nextUrl.origin,
     });
 

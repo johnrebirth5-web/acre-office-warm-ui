@@ -1,13 +1,13 @@
 import { canShareListingStudio } from "@acre/auth";
 import { getStudioListingPackDetail } from "@acre/db";
 import { redirect } from "next/navigation";
-import { requireSessionContext } from "../../../../../lib/auth-session";
+import { requireSessionContext } from "../../../../../../lib/auth-session";
 import {
   buildListingStudioPosterDraft,
   readListingStudioPosterStatusVariantId,
   readListingStudioPosterTemplateId,
-} from "../listing-studio-poster";
-import { ListingStudioShareStudioClient } from "./listing-studio-share-studio-client";
+} from "../../../../../listing-studio/listings/[packId]/listing-studio-poster";
+import { ListingStudioShareStudioClient } from "../../../../../listing-studio/listings/[packId]/share/listing-studio-share-studio-client";
 
 type ListingStudioShareStudioPageProps = {
   params: Promise<{ packId: string }>;
@@ -52,11 +52,13 @@ export default async function ListingStudioShareStudioPage(
   );
 
   return (
-    <div className="office-list-page listing-studio-page">
-      <ListingStudioShareStudioClient
-        detail={detail}
-        initialDraft={initialDraft}
-      />
+    <div className="listing-studio-share-route-shell">
+      <div className="listing-studio-share-route-page">
+        <ListingStudioShareStudioClient
+          detail={detail}
+          initialDraft={initialDraft}
+        />
+      </div>
     </div>
   );
 }

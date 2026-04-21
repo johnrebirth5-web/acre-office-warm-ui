@@ -250,7 +250,7 @@
   - `/share/packs/[code]`
   - `/api/listing-studio/*`
   - 页面入口虽仍保留 `listing-studio` 路由前缀，但当前已挂到 `Front Office` workspace shell 中，而不是单独第三个 workspace；`Studio` 现在在 FO 侧边栏中作为可展开父级导航出现
-  - `Share Studio` 是当前 owner-facing poster/export 工作面：detail 页上的 `share` 动作会先确保 pack 已发布，再进入内部 `/share` route，在五套竖版 poster 模板之间切换主图和 listing status，然后通过 `/api/listing-studio/listings/[packId]/poster` 输出同源 `svg / html / png`
+  - `Share Studio` 是当前 owner-facing poster/export 工作面：detail 页上的 `share` 动作会进入独立的内部 `/share` route（不再套 Acre workspace 外壳），在五套竖版 poster 模板之间切换主图和 listing status，然后通过 `/api/listing-studio/listings/[packId]/poster` 输出同源 `svg / html / png`
   - 核心复用：
     - `StudioListingImport / Snapshot / Asset / Pack / ShareEvent`
     - `StudioListingCollection / StudioListingCollectionItem`

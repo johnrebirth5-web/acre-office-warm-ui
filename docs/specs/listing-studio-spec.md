@@ -65,7 +65,7 @@
   - right-rail `Listing status` controls：`JUST LISTED / IN CONTRACT / PRICE REDUCED / OPEN HOUSE / SOLD`
   - main-photo selection tied to the current saved pack asset set
   - preview / print / downloadable `SVG / HTML / PNG` export，其中 PNG 为 `2160 x 2880`
-  - generated poster carries the saved contact block + scan-ready packet path, but does not inject Acre / Listed / source-site branding into the poster artwork itself
+  - generated poster carries the current logged-in agent contact block（avatar / company / phone / email）and does not inject Acre / Listed / source-site branding or QR blocks into the poster artwork itself
 
 ### Explicitly not included in v1
 
@@ -322,8 +322,8 @@
 - 详情页默认分成 `main working column + compact action rail`，不要再把所有编辑、输出、原始抓取信息都堆成同一级长滚动页
 - 原始抓取细节、营销扩展块、长文案派生块应优先用 disclosure / collapsible 方式收纳，默认先展示高频动作和最关键摘要
 - public share 页和 PDF 可以更偏展示，但不能和后台彻底脱节
-- poster output should keep the agent contact block and scan path readable in preview, print, and downloaded HTML, not only inside the editor shell
-- the saved packet contact block should act as the shared manual source for share, PDF, and poster outputs instead of drifting per export surface
+- poster output should keep the current agent contact block readable in preview, print, and downloaded HTML, not only inside the editor shell
+- the saved packet contact block still acts as the editable fallback source for share / PDF / poster, but poster export should prefer the current logged-in agent snapshot when it is available
 - marketing-kit copy should stay manual and review-first, using the saved packet plus current poster draft as its source instead of pretending there is an external campaign service
 - campaign bundles should remain derivations of the same local marketing kit; they are copy helpers, not background campaign orchestration or auto-send
 
@@ -335,8 +335,8 @@
 - `Collections` 目前只支持当前用户私有视图，不做组织共享或办公室共享
 - `Shares` 目前仍是 placeholder，不是正式 share management center
 - `Collections` 地图与 POI 依赖 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`；缺失时页面会降级到 card-only 模式
-- 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并带本地生成的 scan-ready code；它还不是服务端 PNG 渲染或 Canva 工作流
+- 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并由服务端 `svg -> png` 输出 `2160 x 2880` PNG；它还不是 Canva 工作流
 - 联系人信息现在可在 packet editor 里直接修改，并会流入 share / PDF / poster，但它仍然是手动维护的 packet 字段，不是独立 CRM 同步或外部模板同步
-- 如果 packet share 尚未发布，scan path 会回退到原始 source listing，而不是假装始终存在 Acre public packet
+- live-share page 仍需 pack publish / `shareCode`，但它现在是 studio 里的独立动作，不再作为 poster artwork 的二维码依赖
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
 - listings 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖

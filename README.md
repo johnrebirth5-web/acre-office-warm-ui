@@ -60,7 +60,7 @@
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
   - listings 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
-  - internal share flow 现在会先进入 owner-facing `Share Studio`，在五套竖版海报模板（`hero / editorial / card / cinematic / grid`）之间切换主图和状态，再导出 `2160 x 2880` PNG；公开二维码仍落到 `/share/packs/[code]`
+  - internal share flow 现在会先进入 owner-facing `Share Studio`，在五套竖版海报模板（`hero / editorial / card / cinematic / grid`）之间切换主图和状态，再导出 `2160 x 2880` PNG；海报成品不再注入二维码，而公开 `/share/packs/[code]` 继续作为独立 live-share 落地页按需打开
   - 当前安装页：
     - `/listing-studio/extension/install`
     - listings 当前 tab 检测不到扩展时会打开 Chrome Web Store / 扩展设置入口，而不是假定用户尚未安装

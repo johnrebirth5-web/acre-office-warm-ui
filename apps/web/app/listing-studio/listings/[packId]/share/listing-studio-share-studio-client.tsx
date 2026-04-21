@@ -143,13 +143,10 @@ export function ListingStudioShareStudioClient({
   const [detailState, setDetailState] = useState(detail);
   const [draft, setDraft] = useState(initialDraft);
   const [statusMessage, setStatusMessage] = useState("");
-  const [isPreparingShare, setIsPreparingShare] = useState(
-    !Boolean(detail.pack.shareCode?.trim()),
-  );
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
   const [isDownloadingPng, setIsDownloadingPng] = useState(false);
   const [isOpeningHtml, setIsOpeningHtml] = useState(false);
   const shareCode = detailState.pack.shareCode?.trim() || null;
-  const sharePath = shareCode ? `/share/packs/${shareCode}` : null;
   const queryString = useMemo(
     () => buildPosterStudioQueryString(draft),
     [draft],
@@ -207,71 +204,6 @@ export function ListingStudioShareStudioClient({
   }, [detailState, draft.coverAssetId, draft.statusVariant, previewStamp, templates]);
 
   useEffect(() => {
-    if (shareCode) {
-      setIsPreparingShare(false);
-      return;
-    }
-
-    let isCancelled = false;
-
-    async function ensureSharePublished() {
-      setIsPreparingShare(true);
-      setStatusMessage("");
-
-      try {
-        const response = await fetch(
-          `/api/listing-studio/listings/${detailState.packId}/share`,
-          {
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(body?.error || "Unable to publish the share page.");
-        }
-
-        const body = (await response.json()) as {
-          shareCode: string;
-        };
-
-        if (isCancelled) {
-          return;
-        }
-
-        setDetailState((current) => ({
-          ...current,
-          pack: {
-            ...current.pack,
-            shareCode: body.shareCode,
-            shareEnabled: true,
-          },
-        }));
-      } catch (error) {
-        if (!isCancelled) {
-          setStatusMessage(
-            error instanceof Error
-              ? error.message
-              : "Unable to publish the share page.",
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsPreparingShare(false);
-        }
-      }
-    }
-
-    void ensureSharePublished();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [detailState.packId, shareCode]);
-
-  useEffect(() => {
     const nextHref = `/listing-studio/listings/${detailState.packId}/share?${queryString}`;
 
     startTransition(() => {
@@ -307,6 +239,55 @@ export function ListingStudioShareStudioClient({
       ...current,
       coverAssetId,
     }));
+  }
+
+  async function ensureSharePublished() {
+    if (shareCode) {
+      return shareCode;
+    }
+
+    setIsPreparingShare(true);
+    setStatusMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/listing-studio/listings/${detailState.packId}/share`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(body?.error || "Unable to publish the share page.");
+      }
+
+      const body = (await response.json()) as {
+        shareCode: string;
+      };
+
+      setDetailState((current) => ({
+        ...current,
+        pack: {
+          ...current.pack,
+          shareCode: body.shareCode,
+          shareEnabled: true,
+        },
+      }));
+
+      return body.shareCode;
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to publish the share page.",
+      );
+      return null;
+    } finally {
+      setIsPreparingShare(false);
+    }
   }
 
   async function downloadPng() {
@@ -355,13 +336,14 @@ export function ListingStudioShareStudioClient({
     }
   }
 
-  function openLiveShare() {
-    if (!sharePath) {
-      setStatusMessage("The public share page is still being prepared.");
+  async function openLiveShare() {
+    const nextShareCode = shareCode ?? (await ensureSharePublished());
+
+    if (!nextShareCode) {
       return;
     }
 
-    openExternalWindow(`${window.location.origin}${sharePath}`);
+    openExternalWindow(`${window.location.origin}/share/packs/${nextShareCode}`);
   }
 
   function openPrintPreview() {
@@ -426,18 +408,12 @@ export function ListingStudioShareStudioClient({
                   className="listing-studio-share-studio-preview-image"
                   src={previewHref}
                 />
-                {isPreparingShare ? (
-                  <div className="listing-studio-share-studio-preview-overlay">
-                    <strong>Preparing live share</strong>
-                    <span>The QR code will switch to the public share page when ready.</span>
-                  </div>
-                ) : null}
               </div>
 
               <div className="listing-studio-share-studio-preview-actions">
                 <button
                   className="listing-studio-share-studio-download"
-                  disabled={isDownloadingPng || isPreparingShare}
+                  disabled={isDownloadingPng}
                   onClick={() => void downloadPng()}
                   type="button"
                 >
@@ -527,7 +503,7 @@ export function ListingStudioShareStudioClient({
                   <button
                     className="office-button"
                     disabled={isPreparingShare}
-                    onClick={openLiveShare}
+                    onClick={() => void openLiveShare()}
                     type="button"
                   >
                     <IconExternalLink />

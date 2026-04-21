@@ -33,9 +33,19 @@ export type ListingStudioPosterDraft = {
   statusVariant: ListingStudioPosterStatusVariantId;
 };
 
+export type ListingStudioPosterAgentSnapshot = {
+  avatarUrl: string | null;
+  companyName: string;
+  email: string;
+  name: string;
+  phone: string;
+  title: string;
+};
+
 type PosterImageAsset = StudioListingDetailSnapshot["assets"][number];
 
 type PosterRenderOptions = {
+  agent?: ListingStudioPosterAgentSnapshot | null;
   baseUrl?: string;
   embedAssets?: boolean;
   requestHeaders?: HeadersInit;
@@ -61,27 +71,32 @@ const posterTemplates: ListingStudioPosterTemplate[] = [
   {
     id: "hero",
     label: "Hero",
-    description: "Centered headline, price callout, hero image, fact bar, and contact footer.",
+    description:
+      "Centered headline, floating price chip, full-width photo, fact bar, and clean footer.",
   },
   {
     id: "editorial",
     label: "Editorial",
-    description: "Magazine-like sheet with hero, supporting photos, plan block, and property facts.",
+    description:
+      "Magazine-like sheet with hero image, supporting gallery, floor plan block, and footer.",
   },
   {
     id: "card",
     label: "Card",
-    description: "Image-led card with a clean information panel and bottom contact strip.",
+    description:
+      "Image-led card with a soft white information panel and bottom contact strip.",
   },
   {
     id: "cinematic",
     label: "Cinematic",
-    description: "Full-bleed image poster with a dramatic lower overlay and QR anchor.",
+    description:
+      "Full-bleed image poster with a dramatic lower overlay and anchored contact footer.",
   },
   {
     id: "grid",
     label: "Grid",
-    description: "Split gallery composition with price rail, three facts, and footer.",
+    description:
+      "Split gallery composition with a price rail, three facts, and a clean footer.",
   },
 ];
 
@@ -113,6 +128,32 @@ function truncateText(value: string, maxLength: number) {
 function normalizeText(value: string | null | undefined, fallback: string) {
   const trimmed = value?.trim();
   return trimmed && trimmed.length ? trimmed : fallback;
+}
+
+function formatPosterNumericValue(
+  value: string | null | undefined,
+  options?: { maximumFractionDigits?: number; round?: boolean },
+) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return "—";
+  }
+
+  const numericToken = trimmed.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+  const numeric = numericToken?.[0] ? Number(numericToken[0]) : Number.NaN;
+
+  if (!Number.isFinite(numeric)) {
+    return trimmed;
+  }
+
+  if (options?.round) {
+    return Math.round(numeric).toLocaleString("en-US");
+  }
+
+  return numeric.toLocaleString("en-US", {
+    maximumFractionDigits: options?.maximumFractionDigits ?? 1,
+  });
 }
 
 function normalizeTemplateId(
@@ -243,161 +284,6 @@ function buildPosterImageSources(
   };
 }
 
-function buildPosterPacketTarget(detail: StudioListingDetailSnapshot) {
-  if (detail.pack.shareCode?.trim()) {
-    return `/share/packs/${detail.pack.shareCode}`;
-  }
-
-  return detail.sourceUrl;
-}
-
-function buildPosterPacketAbsoluteUrl(
-  detail: StudioListingDetailSnapshot,
-  baseUrl?: string,
-) {
-  const href = buildPosterPacketTarget(detail);
-
-  if (!baseUrl) {
-    return href;
-  }
-
-  try {
-    return new URL(href, baseUrl).toString();
-  } catch {
-    return href;
-  }
-}
-
-function buildDeterministicDigestBytes(value: string, length = 32) {
-  const encoder = new TextEncoder();
-  const input = encoder.encode(value);
-  const source = input.length ? input : new Uint8Array([0]);
-  const bytes: number[] = [];
-  let seed = 0x811c9dc5;
-
-  for (const unit of source) {
-    seed ^= unit;
-    seed = Math.imul(seed, 0x01000193) >>> 0;
-    seed ^= seed >>> 13;
-    seed = Math.imul(seed, 0x85ebca6b) >>> 0;
-  }
-
-  while (bytes.length < length) {
-    seed = (seed + 0x9e3779b9) >>> 0;
-    let mixed = seed;
-    mixed ^= mixed >>> 16;
-    mixed = Math.imul(mixed, 0x85ebca6b) >>> 0;
-    mixed ^= mixed >>> 13;
-    mixed = Math.imul(mixed, 0xc2b2ae35) >>> 0;
-    mixed ^= mixed >>> 16;
-    bytes.push(
-      mixed & 0xff,
-      (mixed >>> 8) & 0xff,
-      (mixed >>> 16) & 0xff,
-      (mixed >>> 24) & 0xff,
-    );
-  }
-
-  return bytes.slice(0, length);
-}
-
-function buildQrLikeMatrix(value: string, size = 29) {
-  const matrix = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => false),
-  );
-  const reserved = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => false),
-  );
-  const digest = buildDeterministicDigestBytes(value);
-
-  function mark(x: number, y: number, dark: boolean) {
-    if (x < 0 || y < 0 || x >= size || y >= size) {
-      return;
-    }
-
-    matrix[y][x] = dark;
-    reserved[y][x] = true;
-  }
-
-  function fillFinder(originX: number, originY: number) {
-    for (let y = 0; y < 7; y += 1) {
-      for (let x = 0; x < 7; x += 1) {
-        const isBorder = x === 0 || y === 0 || x === 6 || y === 6;
-        const isCenter = x >= 2 && x <= 4 && y >= 2 && y <= 4;
-        mark(originX + x, originY + y, isBorder || isCenter);
-      }
-    }
-  }
-
-  function fillAlignment(originX: number, originY: number) {
-    for (let y = 0; y < 5; y += 1) {
-      for (let x = 0; x < 5; x += 1) {
-        const isBorder = x === 0 || y === 0 || x === 4 || y === 4;
-        const isCenter = x === 2 && y === 2;
-        mark(originX + x, originY + y, isBorder || isCenter);
-      }
-    }
-  }
-
-  fillFinder(0, 0);
-  fillFinder(size - 7, 0);
-  fillFinder(0, size - 7);
-  fillAlignment(size - 9, size - 9);
-
-  for (let i = 8; i < size - 8; i += 1) {
-    if (!reserved[6][i]) {
-      mark(i, 6, i % 2 === 0);
-    }
-    if (!reserved[i][6]) {
-      mark(6, i, i % 2 === 0);
-    }
-  }
-
-  let bitIndex = 0;
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      if (reserved[y][x]) {
-        continue;
-      }
-
-      const byte = digest[(x * 5 + y * 7 + bitIndex) % digest.length];
-      const bit = (byte >> (bitIndex % 8)) & 1;
-      const mix = ((x + y + bitIndex) % 3) === 0;
-      matrix[y][x] = Boolean(bit ^ Number(mix));
-      bitIndex += 1;
-    }
-  }
-
-  return matrix;
-}
-
-function renderQrCode(value: string, x: number, y: number, size: number) {
-  const matrix = buildQrLikeMatrix(value);
-  const quietZone = 4;
-  const unit = size / (matrix.length + quietZone * 2);
-  const rects: string[] = [];
-
-  for (let row = 0; row < matrix.length; row += 1) {
-    for (let column = 0; column < matrix.length; column += 1) {
-      if (!matrix[row][column]) {
-        continue;
-      }
-
-      rects.push(
-        `<rect x="${(x + (column + quietZone) * unit).toFixed(2)}" y="${(y + (row + quietZone) * unit).toFixed(2)}" width="${unit.toFixed(2)}" height="${unit.toFixed(2)}" rx="${Math.max(unit * 0.08, 0.4).toFixed(2)}" />`,
-      );
-    }
-  }
-
-  return `
-    <g>
-      <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${Math.max(size * 0.08, 10)}" fill="#ffffff" />
-      <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${Math.max(size * 0.08, 10)}" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="2" />
-      <g fill="#111827">${rects.join("")}</g>
-    </g>
-  `;
-}
-
 function extractFactValue(
   detail: StudioListingDetailSnapshot,
   matcher: RegExp,
@@ -427,9 +313,15 @@ function buildPosterFacts(detail: StudioListingDetailSnapshot): PosterFact[] {
     ) ?? "—";
 
   return [
-    { label: "BEDROOMS", value: bedrooms },
-    { label: "BATHROOMS", value: bathrooms },
-    { label: "SF", value: squareFeet },
+    {
+      label: "BEDROOMS",
+      value: formatPosterNumericValue(bedrooms, { maximumFractionDigits: 1 }),
+    },
+    {
+      label: "BATHROOMS",
+      value: formatPosterNumericValue(bathrooms, { maximumFractionDigits: 1 }),
+    },
+    { label: "SF", value: formatPosterNumericValue(squareFeet, { round: true }) },
   ];
 }
 
@@ -498,11 +390,34 @@ function buildLocationLine(detail: StudioListingDetailSnapshot) {
   return truncateText(normalizeText(detail.locationLine, detail.addressLine), 72);
 }
 
-function buildContactSnapshot(detail: StudioListingDetailSnapshot) {
-  const name = normalizeText(detail.pack.contactName, "Listing contact");
-  const title = normalizeText(detail.pack.contactTitle, "Licensed real estate salesperson");
-  const phone = normalizeText(detail.pack.contactPhone, "Phone on request");
-  const email = normalizeText(detail.pack.contactEmail, "Email on request");
+function buildPropertyDisplayName(detail: StudioListingDetailSnapshot) {
+  return truncateText(normalizeText(detail.buildingName, detail.addressLine), 48);
+}
+
+function buildContactSnapshot(
+  detail: StudioListingDetailSnapshot,
+  agent?: ListingStudioPosterAgentSnapshot | null,
+) {
+  const name = normalizeText(
+    agent?.name,
+    normalizeText(detail.pack.contactName, "Listing contact"),
+  );
+  const title = normalizeText(
+    agent?.title,
+    normalizeText(detail.pack.contactTitle, "Licensed Real Estate Salesperson"),
+  );
+  const phone = normalizeText(
+    agent?.phone,
+    normalizeText(detail.pack.contactPhone, "Phone on request"),
+  );
+  const email = normalizeText(
+    agent?.email,
+    normalizeText(detail.pack.contactEmail, "Email on request"),
+  );
+  const companyName = normalizeText(
+    agent?.companyName,
+    normalizeText(detail.pack.companyFeedLabel, "Acre NY Realty"),
+  );
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -511,12 +426,33 @@ function buildContactSnapshot(detail: StudioListingDetailSnapshot) {
     .join("");
 
   return {
+    avatarUrl: agent?.avatarUrl?.trim() || null,
+    companyName,
     email,
     initials: initials || "LS",
     name,
     phone,
     title,
   };
+}
+
+function buildPosterFactsInline(
+  facts: PosterFact[],
+  tone: "compact" | "long" = "compact",
+) {
+  return facts
+    .map((fact) => {
+      if (fact.label === "SF") {
+        return `${fact.value} SF`;
+      }
+
+      if (fact.label === "BATHROOMS") {
+        return tone === "long" ? `${fact.value} baths` : `${fact.value} Bath`;
+      }
+
+      return tone === "long" ? `${fact.value} beds` : `${fact.value} Bed`;
+    })
+    .join(" · ");
 }
 
 function renderImageSlot(input: {
@@ -635,71 +571,108 @@ function renderFactsRow(
   `;
 }
 
-function renderAvatar(initials: string, x: number, y: number, size: number) {
+function renderAvatar(input: {
+  contact: ReturnType<typeof buildContactSnapshot>;
+  id: string;
+  size: number;
+  x: number;
+  y: number;
+}) {
+  const centerX = input.x + input.size / 2;
+  const centerY = input.y + input.size / 2;
+  const radius = input.size / 2;
+  const clipId = `poster-avatar-${input.id}`;
+
+  if (!input.contact.avatarUrl) {
+    return `
+      <g>
+        <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="#dbe4f5" />
+        <circle cx="${centerX}" cy="${centerY}" r="${
+          radius - 4
+        }" fill="#f8fafc" />
+        <text x="${centerX}" y="${centerY + 18}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${
+          input.size * 0.32
+        }" font-weight="700" text-anchor="middle">${escapeXml(
+          input.contact.initials,
+        )}</text>
+      </g>
+    `;
+  }
+
   return `
-    <g>
-      <circle cx="${x + size / 2}" cy="${y + size / 2}" r="${
-        size / 2
-      }" fill="#dbe4f5" />
-      <circle cx="${x + size / 2}" cy="${y + size / 2}" r="${
-        size / 2 - 4
-      }" fill="#f8fafc" />
-      <text x="${x + size / 2}" y="${y + size / 2 + 18}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${
-        size * 0.32
-      }" font-weight="700" text-anchor="middle">${escapeXml(initials)}</text>
-    </g>
+    <defs>
+      <clipPath id="${clipId}">
+        <circle cx="${centerX}" cy="${centerY}" r="${radius}" />
+      </clipPath>
+    </defs>
+    <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="#f8fafc" />
+    <image href="${escapeXml(
+      input.contact.avatarUrl,
+    )}" x="${input.x}" y="${input.y}" width="${input.size}" height="${input.size}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})" />
+    <circle cx="${centerX}" cy="${centerY}" r="${radius - 2}" fill="none" stroke="rgba(15,23,42,0.12)" stroke-width="4" />
+  `;
+}
+
+function renderPhoneIcon(x: number, y: number, color: string) {
+  return `<path d="M${x + 3} ${y + 5}c1.3-1.3 3.5-.7 4 .9l.5 1.8c.2.7 0 1.4-.6 1.8l-1.1.8c1 1.9 2.5 3.4 4.4 4.4l.8-1.1c.5-.6 1.2-.9 1.8-.6l1.8.5c1.6.4 2.1 2.7.9 4l-1.1 1.1c-.8.8-2 .9-3 .5C8.8 18.7 5.3 15.2 3.5 10.6c-.4-1.1-.2-2.3.5-3.1L${x + 3} ${y + 5}Z" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />`;
+}
+
+function renderMailIcon(x: number, y: number, color: string) {
+  return `
+    <rect x="${x + 2}" y="${y + 4}" width="15" height="11" rx="2.2" fill="none" stroke="${color}" stroke-width="1.8" />
+    <path d="M${x + 3.5} ${y + 6.2} L${x + 9.5} ${y + 11.2} L${x + 15.5} ${y + 6.2}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
   `;
 }
 
 function renderFooterLight(input: {
   contact: ReturnType<typeof buildContactSnapshot>;
-  qrMarkup: string;
   y: number;
 }) {
   return `
     <g>
       <line x1="0" y1="${input.y}" x2="2160" y2="${input.y}" stroke="rgba(15,23,42,0.10)" stroke-width="2" />
-      ${renderAvatar(input.contact.initials, 70, input.y + 44, 112)}
+      ${renderAvatar({
+        contact: input.contact,
+        id: `footer-light-${input.y}`,
+        size: 112,
+        x: 70,
+        y: input.y + 44,
+      })}
       <text x="220" y="${input.y + 88}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42" font-weight="700">${escapeXml(
         truncateText(input.contact.name, 28),
       )}</text>
       <text x="220" y="${input.y + 132}" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
         truncateText(input.contact.title, 44),
       )}</text>
-      <text x="220" y="${input.y + 186}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
+      <text x="220" y="${input.y + 174}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
+        truncateText(input.contact.companyName, 40),
+      )}</text>
+      ${renderPhoneIcon(1440, input.y + 118, "#6b7280")}
+      <text x="1472" y="${input.y + 140}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="600">${escapeXml(
         truncateText(input.contact.phone, 30),
       )}</text>
-      <text x="220" y="${input.y + 226}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
+      ${renderMailIcon(1440, input.y + 162, "#6b7280")}
+      <text x="1472" y="${input.y + 184}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
         truncateText(input.contact.email, 38),
       )}</text>
-
-      <text x="1450" y="${input.y + 140}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="600">${escapeXml(
-        truncateText(input.contact.phone, 30),
-      )}</text>
-      <text x="1450" y="${input.y + 184}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
-        truncateText(input.contact.email, 38),
-      )}</text>
-
-      ${input.qrMarkup}
-      <text x="1880" y="${input.y + 262}" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4" text-anchor="middle">SCAN TO VIEW</text>
     </g>
   `;
 }
 
 function renderFooterDark(input: {
   contact: ReturnType<typeof buildContactSnapshot>;
-  qrMarkup: string;
 }) {
   return `
     <g>
-      <text x="72" y="2680" fill="#f8fafc" font-family="'Helvetica Neue', Arial, sans-serif" font-size="38" font-weight="700">${escapeXml(
+      <text x="72" y="2648" fill="#f8fafc" font-family="'Helvetica Neue', Arial, sans-serif" font-size="36" font-weight="700">${escapeXml(
         truncateText(input.contact.name, 28),
       )}</text>
-      <text x="72" y="2726" fill="rgba(248,250,252,0.80)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
-        truncateText(input.contact.phone, 30),
-      )} · ${escapeXml(truncateText(input.contact.email, 32))}</text>
-      ${input.qrMarkup}
-      <text x="1930" y="2754" fill="rgba(248,250,252,0.76)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4" text-anchor="middle">SCAN TO VIEW</text>
+      <text x="72" y="2692" fill="rgba(248,250,252,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26">${escapeXml(
+        truncateText(`${input.contact.companyName} · ${input.contact.title}`, 56),
+      )}</text>
+      <text x="72" y="2734" fill="rgba(248,250,252,0.76)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24">${escapeXml(
+        truncateText(`${input.contact.phone} · ${input.contact.email}`, 60),
+      )}</text>
     </g>
   `;
 }
@@ -708,12 +681,16 @@ async function resolveImageHref(
   source: PosterImageSource,
   options: PosterRenderOptions,
 ) {
-  if (!source.href || !options.embedAssets || !options.baseUrl) {
+  if (!source.href || !options.embedAssets) {
     return source;
   }
 
   try {
-    const response = await fetch(source.href, {
+    const target =
+      options.baseUrl && source.href.startsWith("/")
+        ? new URL(source.href, options.baseUrl).toString()
+        : source.href;
+    const response = await fetch(target, {
       cache: "no-store",
       headers: options.requestHeaders,
     });
@@ -732,6 +709,42 @@ async function resolveImageHref(
     };
   } catch {
     return source;
+  }
+}
+
+async function resolveContactSnapshot(
+  detail: StudioListingDetailSnapshot,
+  options: PosterRenderOptions,
+) {
+  const contact = buildContactSnapshot(detail, options.agent);
+
+  if (!contact.avatarUrl || !options.embedAssets) {
+    return contact;
+  }
+
+  try {
+    const target =
+      options.baseUrl && contact.avatarUrl.startsWith("/")
+        ? new URL(contact.avatarUrl, options.baseUrl).toString()
+        : contact.avatarUrl;
+    const response = await fetch(target, {
+      cache: "no-store",
+      headers: options.requestHeaders,
+    });
+
+    if (!response.ok) {
+      return contact;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get("content-type") ?? "image/jpeg";
+
+    return {
+      ...contact,
+      avatarUrl: `data:${contentType};base64,${buffer.toString("base64")}`,
+    };
+  } catch {
+    return contact;
   }
 }
 
@@ -757,7 +770,6 @@ function renderHeroTemplate(input: {
   images: Awaited<ReturnType<typeof resolvePosterImageSources>>;
   contact: ReturnType<typeof buildContactSnapshot>;
   facts: PosterFact[];
-  qrMarkup: string;
   status: PosterStatusConfig;
   topline: string;
   locationLine: string;
@@ -772,10 +784,6 @@ function renderHeroTemplate(input: {
     )}</text>
     <text x="1080" y="316" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="500" letter-spacing="2" text-anchor="middle">${escapeXml(
       truncateText(input.detail.addressLine, 44),
-    )}</text>
-    <rect x="1668" y="64" width="200" height="52" rx="14" fill="#2d2e33" />
-    <text x="1768" y="98" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="2" text-anchor="middle">${escapeXml(
-      input.status.badgeLabel,
     )}</text>
 
     <rect x="760" y="370" width="640" height="154" rx="26" fill="#d7d4cf" stroke="rgba(15,23,42,0.08)" stroke-width="2" />
@@ -798,7 +806,6 @@ function renderHeroTemplate(input: {
     ${renderFactsRow(input.facts, 2070, { width: 2160, x: 0 })}
     ${renderFooterLight({
       contact: input.contact,
-      qrMarkup: input.qrMarkup,
       y: 2240,
     })}
   `;
@@ -808,7 +815,6 @@ function renderCardTemplate(input: {
   detail: StudioListingDetailSnapshot;
   images: Awaited<ReturnType<typeof resolvePosterImageSources>>;
   contact: ReturnType<typeof buildContactSnapshot>;
-  qrMarkup: string;
   status: PosterStatusConfig;
   locationLine: string;
   amenityLabels: string[];
@@ -849,9 +855,7 @@ function renderCardTemplate(input: {
       truncateText(input.detail.addressLine, 42),
     )}</text>
     <text x="70" y="2100" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="40">${escapeXml(
-      buildPosterFacts(input.detail)
-        .map((fact) => `${fact.value} ${fact.label === "SF" ? "SF" : fact.label === "BATHROOMS" ? "Bath" : "Bed"}`)
-        .join(" · "),
+      buildPosterFactsInline(buildPosterFacts(input.detail), "compact"),
     )}</text>
 
     ${renderAmenityChips({
@@ -862,7 +866,6 @@ function renderCardTemplate(input: {
     })}
     ${renderFooterLight({
       contact: input.contact,
-      qrMarkup: input.qrMarkup,
       y: 2448,
     })}
   `;
@@ -872,7 +875,6 @@ function renderCinematicTemplate(input: {
   detail: StudioListingDetailSnapshot;
   images: Awaited<ReturnType<typeof resolvePosterImageSources>>;
   contact: ReturnType<typeof buildContactSnapshot>;
-  qrMarkup: string;
   status: PosterStatusConfig;
   locationLine: string;
   facts: PosterFact[];
@@ -903,9 +905,7 @@ function renderCinematicTemplate(input: {
       input.detail.priceLabel,
     )}</text>
     <text x="68" y="2400" fill="rgba(255,255,255,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42">${escapeXml(
-      input.facts
-        .map((fact) => `${fact.value} ${fact.label === "SF" ? "SF" : fact.label === "BATHROOMS" ? "Bath" : "Bed"}`)
-        .join(" · "),
+      buildPosterFactsInline(input.facts, "compact"),
     )}</text>
     <text x="68" y="2498" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700">${escapeXml(
       truncateText(input.detail.addressLine, 44),
@@ -915,7 +915,6 @@ function renderCinematicTemplate(input: {
     )}</text>
     ${renderFooterDark({
       contact: input.contact,
-      qrMarkup: input.qrMarkup,
     })}
   `;
 }
@@ -925,7 +924,6 @@ function renderGridTemplate(input: {
   images: Awaited<ReturnType<typeof resolvePosterImageSources>>;
   contact: ReturnType<typeof buildContactSnapshot>;
   facts: PosterFact[];
-  qrMarkup: string;
   status: PosterStatusConfig;
   topline: string;
 }) {
@@ -986,7 +984,6 @@ function renderGridTemplate(input: {
     ${renderFactsRow(input.facts, 1950, { width: 2160, x: 0 })}
     ${renderFooterLight({
       contact: input.contact,
-      qrMarkup: input.qrMarkup,
       y: 2110,
     })}
   `;
@@ -997,9 +994,9 @@ function renderEditorialTemplate(input: {
   images: Awaited<ReturnType<typeof resolvePosterImageSources>>;
   contact: ReturnType<typeof buildContactSnapshot>;
   facts: PosterFact[];
-  qrMarkup: string;
   status: PosterStatusConfig;
   topline: string;
+  propertyName: string;
   unitLabel: string;
   locationLine: string;
   amenityLabels: string[];
@@ -1018,7 +1015,7 @@ function renderEditorialTemplate(input: {
       input.status.title,
     )}</text>
     <text x="70" y="204" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42" font-weight="700">${escapeXml(
-      truncateText(input.topline, 32),
+      truncateText(input.propertyName, 32),
     )}</text>
     <text x="70" y="272" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
       truncateText(input.detail.addressLine, 48),
@@ -1094,9 +1091,7 @@ function renderEditorialTemplate(input: {
       input.detail.priceLabel,
     )}</text>
     <text x="960" y="2140" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42">${escapeXml(
-      input.facts
-        .map((fact) => `${fact.value} ${fact.label === "SF" ? "SF" : fact.label === "BATHROOMS" ? "baths" : "beds"}`)
-        .join(" · "),
+      buildPosterFactsInline(input.facts, "long"),
     )}</text>
     <text x="960" y="2228" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700">${escapeXml(
       truncateText(
@@ -1119,7 +1114,6 @@ function renderEditorialTemplate(input: {
 
     ${renderFooterLight({
       contact: input.contact,
-      qrMarkup: input.qrMarkup,
       y: 2560,
     })}
   `;
@@ -1133,17 +1127,12 @@ async function renderPosterBody(
   const facts = buildPosterFacts(detail);
   const topline = buildToplineLabel(detail);
   const locationLine = buildLocationLine(detail);
+  const propertyName = buildPropertyDisplayName(detail);
   const unitLabel = buildUnitLabel(detail);
   const status = buildPosterStatusConfig(draft.statusVariant);
-  const contact = buildContactSnapshot(detail);
   const amenityLabels = buildAmenityLabels(detail);
   const images = await resolvePosterImageSources(detail, draft, options);
-  const qrMarkup = renderQrCode(
-    buildPosterPacketAbsoluteUrl(detail, options.baseUrl),
-    1798,
-    draft.templateId === "cinematic" ? 2558 : 2600,
-    draft.templateId === "cinematic" ? 248 : 218,
-  );
+  const contact = await resolveContactSnapshot(detail, options);
 
   switch (draft.templateId) {
     case "card":
@@ -1153,7 +1142,6 @@ async function renderPosterBody(
         detail,
         images,
         locationLine,
-        qrMarkup,
         status,
       });
     case "editorial":
@@ -1164,7 +1152,7 @@ async function renderPosterBody(
         facts,
         images,
         locationLine,
-        qrMarkup,
+        propertyName,
         status,
         topline,
         unitLabel,
@@ -1176,7 +1164,6 @@ async function renderPosterBody(
         facts,
         images,
         locationLine,
-        qrMarkup,
         status,
       });
     case "grid":
@@ -1185,7 +1172,6 @@ async function renderPosterBody(
         detail,
         facts,
         images,
-        qrMarkup,
         status,
         topline,
       });
@@ -1198,7 +1184,6 @@ async function renderPosterBody(
         facts,
         images,
         locationLine,
-        qrMarkup,
         status,
         topline,
       });
