@@ -55,13 +55,13 @@ Name parsing:
 User import behavior:
 
 - dedupe key is normalized email
-- duplicate CSV email rows are skipped and reported
+- duplicate CSV email rows are merged into one membership with multi-company access
+- when the same email appears with different roles, the merged account keeps the higher `team_lead` role
 - imported accounts become `active`
 - imported accounts receive a credential immediately
 - initial password is `Acreny2026`
 - `mustChangePassword = true`
-- office access is fixed to the single company from the source file
-- no cross-company access is created from this import
+- office access follows every company that the merged email appears in
 - no team graph, reports-to chain, title, commission template, or split template is rebuilt
 
 ## Reset scope
@@ -106,6 +106,8 @@ Owner matching:
 - matching is case-insensitive
 - whitespace is normalized
 - parenthetical aliases are removed before compare
+- slash-separated owner fragments can be recombined when the export split a name across two columns or tokens
+- imported roster names also expose nickname / email-local-part aliases when they safely resolve to a unique person
 - zero matches => fail row and report it
 - multiple matches => fail row and report it
 
@@ -185,7 +187,6 @@ Reports include:
 
 ## Known limitations
 
-- duplicate email rows across company CSVs are not merged into cross-company access
-- owner matching is exact after normalization; near-miss names still require manual cleanup
+- owner matching is still deterministic and conservative; true missing agents, outside brokers, and opaque aliases still require manual cleanup
 - dry-run simulates the post-reset contact set instead of reusing current test contacts
 - the script is meant for this 2026-04 migration batch only

@@ -59,10 +59,13 @@ type ImportedUserPlanEntry = {
   firstName: string;
   lastName: string;
   role: "agent" | "team_lead";
-  officeSlug: OfficeFileConfig["officeSlug"];
-  officeId: string;
-  officeLabel: string;
-  sourceFile: string;
+  defaultOfficeSlug: OfficeFileConfig["officeSlug"];
+  defaultOfficeId: string;
+  defaultOfficeLabel: string;
+  accessibleOfficeSlugs: OfficeFileConfig["officeSlug"][];
+  accessibleOfficeIds: string[];
+  accessibleOfficeLabels: string[];
+  sourceFiles: string[];
   warnings: string[];
 };
 
@@ -82,7 +85,7 @@ type ImportedMembershipRecord = {
   membershipId: string;
   email: string;
   fullName: string;
-  officeSlug: string;
+  officeSlugs: string[];
 };
 
 type ContactCacheRecord = {
@@ -431,21 +434,47 @@ async function buildUserImportPlan(context: RuntimeContext) {
         firstName: splitName.firstName,
         lastName: splitName.lastName,
         role: roleResult.role,
-        officeSlug: config.officeSlug,
-        officeId: office.id,
-        officeLabel: office.name,
-        sourceFile: config.fileName,
+        defaultOfficeSlug: config.officeSlug,
+        defaultOfficeId: office.id,
+        defaultOfficeLabel: office.name,
+        accessibleOfficeSlugs: [config.officeSlug],
+        accessibleOfficeIds: [office.id],
+        accessibleOfficeLabels: [office.name],
+        sourceFiles: [config.fileName],
         warnings: splitName.warnings.map((warning) => warning.message),
       };
       const existing = emailOwner.get(email);
 
       if (existing) {
-        issues.push({
-          email,
-          sourceFile: config.fileName,
-          reason: `Duplicate imported email already claimed by ${existing.sourceFile} (${existing.officeLabel}).`,
-        });
-        countsByFile[config.fileName].issues += 1;
+        if (!existing.accessibleOfficeIds.includes(office.id)) {
+          existing.accessibleOfficeIds.push(office.id);
+          existing.accessibleOfficeSlugs.push(config.officeSlug);
+          existing.accessibleOfficeLabels.push(office.name);
+        }
+
+        if (!existing.sourceFiles.includes(config.fileName)) {
+          existing.sourceFiles.push(config.fileName);
+        }
+
+        if (existing.role !== roleResult.role) {
+          existing.role = existing.role === "team_lead" || roleResult.role === "team_lead"
+            ? "team_lead"
+            : "agent";
+          existing.warnings.push(
+            `Email ${email} appeared with multiple roles; elevated to ${existing.role}.`,
+          );
+        }
+
+        if (
+          `${existing.firstName} ${existing.lastName}`.trim().toLowerCase() !==
+          `${entry.firstName} ${entry.lastName}`.trim().toLowerCase()
+        ) {
+          existing.warnings.push(
+            `Email ${email} appeared with multiple names; kept "${existing.firstName} ${existing.lastName}" and also saw "${entry.firstName} ${entry.lastName}".`,
+          );
+        }
+
+        countsByFile[config.fileName].imported += 1;
         continue;
       }
 
@@ -463,19 +492,165 @@ async function buildUserImportPlan(context: RuntimeContext) {
 }
 
 function buildImportedMembershipIndex(records: ImportedMembershipRecord[]) {
-  const officeMap = new Map<string, Map<string, ImportedMembershipRecord[]>>();
+  const officeMap = new Map<
+    string,
+    {
+      byExact: Map<string, ImportedMembershipRecord[]>;
+      records: Array<ImportedMembershipRecord & { aliasKeys: string[] }>;
+    }
+  >();
 
   for (const record of records) {
-    const officeIndex = officeMap.get(record.officeSlug) ?? new Map<string, ImportedMembershipRecord[]>();
-    const normalizedName = normalizeLegacyImportNameForLookup(record.fullName);
-    const existing = officeIndex.get(normalizedName) ?? [];
+    const aliasKeys = buildImportedNameAliasKeys(record.fullName, record.email);
 
-    existing.push(record);
-    officeIndex.set(normalizedName, existing);
-    officeMap.set(record.officeSlug, officeIndex);
+    for (const officeSlug of record.officeSlugs) {
+      const officeIndex = officeMap.get(officeSlug) ?? {
+        byExact: new Map<string, ImportedMembershipRecord[]>(),
+        records: [],
+      };
+
+      for (const aliasKey of aliasKeys) {
+        const existing = officeIndex.byExact.get(aliasKey) ?? [];
+
+        existing.push(record);
+        officeIndex.byExact.set(aliasKey, existing);
+      }
+
+      officeIndex.records.push({
+        ...record,
+        aliasKeys,
+      });
+      officeMap.set(officeSlug, officeIndex);
+    }
   }
 
   return officeMap;
+}
+
+function normalizeCandidateOwnerLabel(value: string) {
+  return value.trim().replace(/[\s.]+$/g, "");
+}
+
+function buildImportedNameAliasKeys(fullName: string, email: string) {
+  const variants = new Set<string>();
+  const trimmed = fullName.trim();
+  const normalizedFull = normalizeLegacyImportNameForLookup(trimmed);
+
+  if (normalizedFull) {
+    variants.add(normalizedFull);
+  }
+
+  const match = trimmed.match(/^(.*?)\(([^)]+)\)(.*)$/);
+
+  if (match) {
+    const prefix = match[1]?.trim() ?? "";
+    const nickname = match[2]?.trim() ?? "";
+    const suffix = match[3]?.trim() ?? "";
+    const candidateVariants = [
+      [prefix, suffix].filter(Boolean).join(" "),
+      [nickname, suffix].filter(Boolean).join(" "),
+      [prefix, nickname, suffix].filter(Boolean).join(" "),
+    ];
+
+    for (const candidate of candidateVariants) {
+      const normalized = normalizeLegacyImportNameForLookup(candidate);
+
+      if (normalized) {
+        variants.add(normalized);
+      }
+    }
+  }
+
+  const emailLocalPart = email.trim().toLowerCase().split("@")[0] ?? "";
+  const emailTokens = emailLocalPart
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const lastName = trimmed.split(/\s+/).filter(Boolean).at(-1) ?? "";
+
+  if (emailTokens.length > 0 && lastName) {
+    const candidateVariants = new Set<string>([
+      `${emailTokens.join(" ")} ${lastName}`,
+      `${emailTokens[0]} ${lastName}`,
+    ]);
+
+    for (const candidate of candidateVariants) {
+      const normalized = normalizeLegacyImportNameForLookup(candidate);
+
+      if (normalized) {
+        variants.add(normalized);
+      }
+    }
+  }
+
+  return [...variants];
+}
+
+function buildOwnerCandidateVariants(candidateNames: string[]) {
+  const variants = new Set<string>();
+  const cleanedCandidates = candidateNames
+    .map((entry) => normalizeCandidateOwnerLabel(entry))
+    .filter(Boolean);
+
+  for (const cleaned of cleanedCandidates) {
+    variants.add(cleaned);
+
+    const slashParts = cleaned
+      .split("/")
+      .map((entry) => normalizeCandidateOwnerLabel(entry))
+      .filter(Boolean);
+
+    for (const part of slashParts) {
+      variants.add(part);
+    }
+
+    if (slashParts.length === 2 && slashParts.every((part) => part.split(/\s+/).length === 1)) {
+      variants.add(`${slashParts[0]} ${slashParts[1]}`);
+    }
+
+    const ampersandParts = cleaned
+      .split(/\s+(?:and|&)\s+/i)
+      .map((entry) => normalizeCandidateOwnerLabel(entry))
+      .filter(Boolean);
+
+    for (const part of ampersandParts) {
+      variants.add(part);
+    }
+  }
+
+  for (let index = 0; index < cleanedCandidates.length - 1; index += 1) {
+    const current = cleanedCandidates[index] ?? "";
+    const next = cleanedCandidates[index + 1] ?? "";
+
+    if (
+      current.split(/\s+/).filter(Boolean).length === 1 &&
+      next.split(/\s+/).filter(Boolean).length === 1
+    ) {
+      variants.add(`${current} ${next}`);
+    }
+  }
+
+  return [...variants];
+}
+
+function findOwnerMatchesByTokenSubset(
+  normalizedCandidate: string,
+  officeRecords: Array<ImportedMembershipRecord & { aliasKeys: string[] }>,
+) {
+  const candidateTokens = normalizedCandidate.split(" ").filter(Boolean);
+
+  if (candidateTokens.length < 2) {
+    return [];
+  }
+
+  return officeRecords.filter((record) =>
+    record.aliasKeys.some((aliasKey) => {
+      const aliasTokens = aliasKey.split(" ").filter(Boolean);
+
+      return candidateTokens.every((token) => aliasTokens.includes(token));
+    }),
+  );
 }
 
 function summarizeTransactionStatuses(rows: Record<string, string>[]) {
@@ -535,13 +710,13 @@ async function executeUserImport(
     const saved = await upsertImportedActiveUser({
       organizationId: context.organizationId,
       actorMembershipId: context.bootstrapMembershipId,
-      viewerOfficeId: entry.officeId,
+      viewerOfficeId: entry.defaultOfficeId,
       email: entry.email,
       firstName: entry.firstName,
       lastName: entry.lastName,
       role: entry.role,
-      defaultOfficeId: entry.officeId,
-      accessibleOfficeIds: [entry.officeId],
+      defaultOfficeId: entry.defaultOfficeId,
+      accessibleOfficeIds: entry.accessibleOfficeIds,
       title: null,
       initialPassword: "Acreny2026",
     });
@@ -550,7 +725,7 @@ async function executeUserImport(
       membershipId: saved.membershipId,
       email: entry.email,
       fullName: `${entry.firstName} ${entry.lastName}`.trim(),
-      officeSlug: entry.officeSlug,
+      officeSlugs: entry.accessibleOfficeSlugs,
     });
   }
 
@@ -559,10 +734,10 @@ async function executeUserImport(
 
 function simulateUserImport(plan: ImportedUserPlan) {
   return plan.entries.map((entry) => ({
-    membershipId: `dry-run:${entry.officeSlug}:${entry.email}`,
+    membershipId: `dry-run:${entry.defaultOfficeSlug}:${entry.email}`,
     email: entry.email,
     fullName: `${entry.firstName} ${entry.lastName}`.trim(),
-    officeSlug: entry.officeSlug,
+    officeSlugs: entry.accessibleOfficeSlugs,
   })) satisfies ImportedMembershipRecord[];
 }
 
@@ -583,12 +758,27 @@ async function loadImportedUsersFromDatabase(
     include: {
       user: true,
       office: true,
+      officeAccesses: {
+        include: {
+          office: true,
+        },
+      },
     },
   });
   const imported = rows.flatMap((row) => {
     const planned = plannedEntriesByEmail.get(row.user.email);
 
-    if (!planned || !row.office || row.office.slug !== planned.officeSlug) {
+    if (!planned || !row.office) {
+      return [];
+    }
+
+    const officeSlugs = new Set<string>([row.office.slug]);
+
+    for (const access of row.officeAccesses) {
+      officeSlugs.add(access.office.slug);
+    }
+
+    if (!planned.accessibleOfficeSlugs.every((officeSlug) => officeSlugs.has(officeSlug))) {
       return [];
     }
 
@@ -597,7 +787,7 @@ async function loadImportedUsersFromDatabase(
         membershipId: row.id,
         email: row.user.email,
         fullName: `${row.user.firstName} ${row.user.lastName}`.trim(),
-        officeSlug: planned.officeSlug,
+        officeSlugs: [...officeSlugs],
       } satisfies ImportedMembershipRecord,
     ];
   });
@@ -672,11 +862,18 @@ function resolveOwnerMatch(
   normalizedRow: LegacyNormalizedTransactionRow,
   ownerIndex: ReturnType<typeof buildImportedMembershipIndex>,
 ) {
-  const officeOwners = ownerIndex.get(officeSlug) ?? new Map<string, ImportedMembershipRecord[]>();
+  const officeOwners = ownerIndex.get(officeSlug) ?? {
+    byExact: new Map<string, ImportedMembershipRecord[]>(),
+    records: [],
+  };
 
-  for (const candidate of normalizedRow.ownerCandidateNames) {
+  for (const candidate of buildOwnerCandidateVariants(normalizedRow.ownerCandidateNames)) {
     const normalizedCandidate = normalizeLegacyImportNameForLookup(candidate);
-    const matches = officeOwners.get(normalizedCandidate) ?? [];
+    const exactMatches = officeOwners.byExact.get(normalizedCandidate) ?? [];
+    const matches =
+      exactMatches.length > 0
+        ? exactMatches
+        : findOwnerMatchesByTokenSubset(normalizedCandidate, officeOwners.records);
 
     if (matches.length === 1) {
       return {
