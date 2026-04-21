@@ -971,14 +971,42 @@ async function resolveOrCreateContact(
     intent: "Unknown",
   });
 
+  const resolvedCreatedContact =
+    created && typeof created.id === "string"
+      ? {
+          id: created.id,
+          fullName: created.fullName,
+          email: created.email ?? "",
+        }
+      : await prisma.client.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            ownerMembershipId: input.ownerMembershipId,
+            fullName: createName || email,
+            email: email || null,
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        });
+
+  if (!resolvedCreatedContact) {
+    throw new Error(
+      `Contact create returned no visible record for "${createName || email}".`,
+    );
+  }
+
   addContactToCache(cache, {
-    id: created.id,
-    fullName: created.fullName,
-    email: created.email ?? "",
+    id: resolvedCreatedContact.id,
+    fullName: resolvedCreatedContact.fullName,
+    email: resolvedCreatedContact.email ?? "",
   });
 
   return {
-    id: created.id,
+    id: resolvedCreatedContact.id,
     created: true,
   };
 }
@@ -1036,43 +1064,53 @@ async function executeTransactionImport(
         continue;
       }
 
-      const contact = await resolveOrCreateContact(contactCache, normalized, {
-        organizationId: context.organizationId,
-        ownerMembershipId: ownerMatch.owner.membershipId,
-        actorMembershipId: context.bootstrapMembershipId,
-        officeId: office.id,
-        execute,
-      });
-
-      if (!contact) {
-        warnings.push("No contact identifiers were available, so no contact link was created.");
-      }
-
-      if (execute) {
-        const transaction = await createTransaction({
+      try {
+        const contact = await resolveOrCreateContact(contactCache, normalized, {
           organizationId: context.organizationId,
-          officeId: office.id,
           ownerMembershipId: ownerMatch.owner.membershipId,
           actorMembershipId: context.bootstrapMembershipId,
-          ...normalized.createInput,
+          officeId: office.id,
+          execute,
         });
 
-        if (contact) {
-          await linkContactToTransaction(context.organizationId, contact.id, transaction.id, {
-            actorMembershipId: context.bootstrapMembershipId,
-            isPrimary: true,
-          });
+        if (!contact) {
+          warnings.push("No contact identifiers were available, so no contact link was created.");
         }
-      }
 
-      successes.push({
-        officeSlug: config.officeSlug,
-        sourceFile: config.fileName,
-        sourceRowId: normalized.sourceRowId,
-        transactionName: normalized.createInput.transactionName,
-        ownerEmail: ownerMatch.owner.email,
-        warnings: warnings.join(" | "),
-      });
+        if (execute) {
+          const transaction = await createTransaction({
+            organizationId: context.organizationId,
+            officeId: office.id,
+            ownerMembershipId: ownerMatch.owner.membershipId,
+            actorMembershipId: context.bootstrapMembershipId,
+            ...normalized.createInput,
+          });
+
+          if (contact) {
+            await linkContactToTransaction(context.organizationId, contact.id, transaction.id, {
+              actorMembershipId: context.bootstrapMembershipId,
+              isPrimary: true,
+            });
+          }
+        }
+
+        successes.push({
+          officeSlug: config.officeSlug,
+          sourceFile: config.fileName,
+          sourceRowId: normalized.sourceRowId,
+          transactionName: normalized.createInput.transactionName,
+          ownerEmail: ownerMatch.owner.email,
+          warnings: warnings.join(" | "),
+        });
+      } catch (error) {
+        failed.push({
+          officeSlug: config.officeSlug,
+          sourceFile: config.fileName,
+          sourceRowId: normalized.sourceRowId,
+          transactionName: normalized.createInput.transactionName,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 

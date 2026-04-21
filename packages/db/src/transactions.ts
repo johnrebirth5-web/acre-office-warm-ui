@@ -1003,7 +1003,7 @@ async function getTransactionFilterContext(input: {
         in: selectableTransactionOwnerStatuses
       },
       ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
-      ...(input.officeId ? { officeId: input.officeId } : {}),
+      ...(buildTransactionOwnerOfficeWhere(input.officeId) ?? {}),
       role: {
         in: [
           "owner",
@@ -1056,7 +1056,17 @@ function buildTransactionOwnerOfficeWhere(officeId: string | null | undefined): 
   }
 
   return {
-    OR: [{ officeId }, { officeId: null }]
+    OR: [
+      { officeId },
+      { officeId: null },
+      {
+        officeAccesses: {
+          some: {
+            officeId
+          }
+        }
+      }
+    ]
   };
 }
 
