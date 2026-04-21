@@ -66,6 +66,7 @@ const backOfficeUserRoleCatalog: UserRole[] = [
 ];
 
 const privilegedBackOfficeRoles = new Set<UserRole>(["owner", "office_admin"]);
+const managedUserEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isPrivilegedBackOfficeRole(role: UserRole) {
   return privilegedBackOfficeRoles.has(role);
@@ -560,6 +561,7 @@ export type UpdateOfficeAdminUserInput = {
   viewerOfficeId?: string | null;
   firstName?: string;
   lastName?: string;
+  email?: string;
   role?: string;
   status?: string;
   defaultOfficeId?: string | null;
@@ -668,6 +670,24 @@ function normalizeRequiredText(
 
   if (!trimmed) {
     throw new Error(`${label} is required.`);
+  }
+
+  return trimmed;
+}
+
+function normalizeManagedUserEmail(value: string | undefined, fallback: string) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const trimmed = value.trim().toLowerCase();
+
+  if (!trimmed) {
+    throw new Error("Email is required.");
+  }
+
+  if (!managedUserEmailPattern.test(trimmed)) {
+    throw new Error("Email must be a valid email address.");
   }
 
   return trimmed;
@@ -2424,8 +2444,9 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       "Last name",
       membership.user.lastName,
     );
+    const nextEmail = normalizeManagedUserEmail(input.email, membership.user.email);
     const nextUserLabel =
-      `${nextFirstName} ${nextLastName}`.trim() || membership.user.email;
+      `${nextFirstName} ${nextLastName}`.trim() || nextEmail;
 
     assertActorCanAssignPrivilegedRole(actorPermissionKeys, nextRole);
 
@@ -2530,18 +2551,31 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
     const identityChanges = [
       buildChange("First name", membership.user.firstName, nextFirstName),
       buildChange("Last name", membership.user.lastName, nextLastName),
+      buildChange("Email", membership.user.email, nextEmail),
     ].filter(Boolean) as ActivityLogChange[];
 
     if (identityChanges.length > 0) {
-      await tx.user.update({
-        where: {
-          id: membership.userId,
-        },
-        data: {
-          firstName: nextFirstName,
-          lastName: nextLastName,
-        },
-      });
+      try {
+        await tx.user.update({
+          where: {
+            id: membership.userId,
+          },
+          data: {
+            firstName: nextFirstName,
+            lastName: nextLastName,
+            email: nextEmail,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new Error("Another user already uses that email address.");
+        }
+
+        throw error;
+      }
     }
 
     const updatedMembership = await tx.membership.update({

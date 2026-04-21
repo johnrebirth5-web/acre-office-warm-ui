@@ -593,7 +593,7 @@ test("updateOfficeAdminUser still allows non-role updates for legacy non-hierarc
   }
 });
 
-test("updateOfficeAdminUser lets admins rename a back-office user", async () => {
+test("updateOfficeAdminUser lets admins update a back-office user's identity", async () => {
   const context = await createSettingsTestContext();
 
   try {
@@ -618,6 +618,7 @@ test("updateOfficeAdminUser lets admins rename a back-office user", async () => 
       viewerOfficeId: context.office.id,
       firstName: "Ada",
       lastName: "Lovelace",
+      email: " Ada.Lovelace@example.com ",
     });
 
     const savedUser = await prisma.user.findUnique({
@@ -634,9 +635,52 @@ test("updateOfficeAdminUser lets admins rename a back-office user", async () => 
 
     assert.equal(savedUser?.firstName, "Ada");
     assert.equal(savedUser?.lastName, "Lovelace");
+    assert.equal(savedUser?.email, "ada.lovelace@example.com");
     assert.equal(snapshot?.profile.firstName, "Ada");
     assert.equal(snapshot?.profile.lastName, "Lovelace");
     assert.equal(snapshot?.profile.name, "Ada Lovelace");
+    assert.equal(snapshot?.profile.email, "ada.lovelace@example.com");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateOfficeAdminUser rejects duplicate email addresses", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const target = await context.createMembership(
+      "agent",
+      "email-target",
+      "Target",
+      "Member",
+      "Agent",
+    );
+    const duplicate = await context.createMembership(
+      "accountant",
+      "email-duplicate",
+      "Existing",
+      "Member",
+      "Accountant",
+    );
+    await prisma.userCredential.create({
+      data: {
+        userId: target.user.id,
+        passwordHash: "test-password-hash",
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          membershipId: target.membership.id,
+          viewerOfficeId: context.office.id,
+          email: duplicate.user.email,
+        }),
+      /Another user already uses that email address\./,
+    );
   } finally {
     await context.cleanup();
   }

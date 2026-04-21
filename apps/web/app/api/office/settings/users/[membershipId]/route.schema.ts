@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeEmail } from "../../../../../../lib/api/field-validators";
 
 const manageableUserStatuses = ["active", "invited", "disabled"] as const;
 const manageableUserRoles = [
@@ -17,6 +18,12 @@ export const updateOfficeUserBodySchema = z.preprocess(
   z.object({
     firstName: z.string().trim().min(1, "First name is required.").optional(),
     lastName: z.string().trim().min(1, "Last name is required.").optional(),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Email is required.")
+      .pipe(safeEmail())
+      .optional(),
     role: z
       .string()
       .trim()

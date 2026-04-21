@@ -81,6 +81,27 @@ test("handleUpdateOfficeUserPatch returns 400 validation_error for blank name fi
   });
 });
 
+test("handleUpdateOfficeUserPatch returns 400 validation_error for invalid email payloads", async () => {
+  const response = await handleUpdateOfficeUserPatch(
+    createOfficeUserPatchRequest(
+      JSON.stringify({
+        email: "not-an-email",
+      }),
+    ),
+    "membership_2",
+    createSessionContext({ canManageOfficeSettings: true }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await readJson(response), {
+    error: "User access payload is invalid.",
+    errorCode: "validation_error",
+    fieldErrors: {
+      email: "Enter a valid email address.",
+    },
+  });
+});
+
 test("handleUpdateOfficeUserPatch preserves the admin-tier 403 guard", async () => {
   const response = await handleUpdateOfficeUserPatch(
     createOfficeUserPatchRequest(
@@ -106,6 +127,7 @@ test("handleUpdateOfficeUserPatch passes normalized office access fields through
       JSON.stringify({
         firstName: "Ada",
         lastName: "Lovelace",
+        email: " Ada@example.com ",
         role: "agent",
         status: "active",
         defaultOfficeId: "__all__",
@@ -131,6 +153,7 @@ test("handleUpdateOfficeUserPatch passes normalized office access fields through
     viewerOfficeId: "office_1",
     firstName: "Ada",
     lastName: "Lovelace",
+    email: "Ada@example.com",
     role: "agent",
     status: "active",
     defaultOfficeId: undefined,

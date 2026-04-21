@@ -41,6 +41,7 @@ type OfficeSettingsUserDetailClientProps = {
 type DetailDraft = {
   firstName: string;
   lastName: string;
+  email: string;
   role: string;
   status: string;
   defaultOfficeId: string;
@@ -75,6 +76,7 @@ export function OfficeSettingsUserDetailClient({
   const [draft, setDraft] = useState<DetailDraft>({
     firstName: snapshot.profile.firstName,
     lastName: snapshot.profile.lastName,
+    email: snapshot.profile.email,
     role: snapshot.profile.roleValue,
     status: snapshot.profile.statusValue,
     defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
@@ -124,6 +126,7 @@ export function OfficeSettingsUserDetailClient({
     setDraft({
       firstName: snapshot.profile.firstName,
       lastName: snapshot.profile.lastName,
+      email: snapshot.profile.email,
       role: snapshot.profile.roleValue,
       status: snapshot.profile.statusValue,
       defaultOfficeId: snapshot.profile.defaultOfficeId ?? "",
@@ -132,6 +135,7 @@ export function OfficeSettingsUserDetailClient({
   }, [
     snapshot.profile.firstName,
     snapshot.profile.lastName,
+    snapshot.profile.email,
     snapshot.profile.accessibleOfficeIds,
     snapshot.profile.defaultOfficeId,
     snapshot.profile.roleValue,
@@ -271,6 +275,7 @@ export function OfficeSettingsUserDetailClient({
             ...draft,
             firstName: draft.firstName.trim(),
             lastName: draft.lastName.trim(),
+            email: draft.email.trim(),
             accessibleOfficeIds: effectiveAccessibleOfficeIds,
           }),
         },
@@ -411,6 +416,8 @@ export function OfficeSettingsUserDetailClient({
 
   const firstNameChanged = draft.firstName.trim() !== snapshot.profile.firstName;
   const lastNameChanged = draft.lastName.trim() !== snapshot.profile.lastName;
+  const emailChanged =
+    draft.email.trim().toLowerCase() !== snapshot.profile.email;
   const roleChanged = draft.role !== snapshot.profile.roleValue;
   const membershipChanged = draft.status !== snapshot.profile.statusValue;
   const defaultOfficeChanged =
@@ -421,6 +428,7 @@ export function OfficeSettingsUserDetailClient({
   const accountAccessChanged =
     firstNameChanged ||
     lastNameChanged ||
+    emailChanged ||
     roleChanged ||
     membershipChanged ||
     defaultOfficeChanged ||
@@ -611,7 +619,7 @@ export function OfficeSettingsUserDetailClient({
             )
           }
           className="office-settings-user-access-card"
-          subtitle="Update name, role, membership lifecycle, company access, and invitation state from one place."
+          subtitle="Update name, email, role, membership lifecycle, company access, and invitation state from one place."
           title="Account access"
         >
           <form
@@ -640,6 +648,19 @@ export function OfficeSettingsUserDetailClient({
                   }
                   required
                   value={draft.lastName}
+                />
+              </FormField>
+
+              <FormField label="Email">
+                <TextInput
+                  autoComplete="email"
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("email", event.target.value)
+                  }
+                  required
+                  type="email"
+                  value={draft.email}
                 />
               </FormField>
 
