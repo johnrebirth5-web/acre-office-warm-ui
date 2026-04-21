@@ -184,6 +184,60 @@ test("getOfficeAdminUsersSnapshot defaults to the current company scope", async 
   }
 });
 
+test("getOfficeAdminUsersSnapshot paginates filtered user results at 50 rows per page", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    for (let index = 0; index < 55; index += 1) {
+      await context.createMembership(
+        "agent",
+        `paged-agent-${index}`,
+        `Paged${String(index).padStart(2, "0")}`,
+        "Agent",
+        "Agent",
+        {
+          officeId: context.office.id,
+          accessibleOfficeIds: [context.office.id],
+        },
+      );
+    }
+
+    const firstPage = await getOfficeAdminUsersSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      role: "agent",
+      page: 1,
+      pageSize: 50,
+    });
+    const secondPage = await getOfficeAdminUsersSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      role: "agent",
+      page: 2,
+      pageSize: 50,
+    });
+
+    assert.equal(firstPage.totalCount, 55);
+    assert.equal(firstPage.page, 1);
+    assert.equal(firstPage.pageSize, 50);
+    assert.equal(firstPage.totalPages, 2);
+    assert.equal(firstPage.rows.length, 50);
+    assert.equal(secondPage.totalCount, 55);
+    assert.equal(secondPage.page, 2);
+    assert.equal(secondPage.rows.length, 5);
+
+    const firstPageIds = new Set(firstPage.rows.map((row) => row.membershipId));
+    assert.equal(
+      secondPage.rows.some((row) => firstPageIds.has(row.membershipId)),
+      false,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("getOfficeAdminUserDetailSnapshot hides users outside the current company scope", async () => {
   const context = await createSettingsTestContext();
 
@@ -391,6 +445,61 @@ test("getOfficeAgentsRosterSnapshot honors agent visibility instead of transacti
     });
 
     assert.equal(snapshot.rows.some((row) => row.membershipId === teammate.membership.id), true);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("getOfficeAgentsRosterSnapshot paginates filtered roster results at 50 rows per page", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    for (let index = 0; index < 55; index += 1) {
+      await context.createMembership(
+        "agent",
+        `roster-agent-${index}`,
+        `Roster${String(index).padStart(2, "0")}`,
+        "Agent",
+        "Agent",
+        {
+          officeId: context.office.id,
+          accessibleOfficeIds: [context.office.id],
+        },
+      );
+    }
+
+    const firstPage = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      role: "agent",
+      page: 1,
+      pageSize: 50,
+    });
+    const secondPage = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      role: "agent",
+      page: 2,
+      pageSize: 50,
+    });
+
+    assert.equal(firstPage.totalCount, 55);
+    assert.equal(firstPage.page, 1);
+    assert.equal(firstPage.pageSize, 50);
+    assert.equal(firstPage.totalPages, 2);
+    assert.equal(firstPage.summary.totalMembers, 55);
+    assert.equal(firstPage.rows.length, 50);
+    assert.equal(secondPage.totalCount, 55);
+    assert.equal(secondPage.page, 2);
+    assert.equal(secondPage.rows.length, 5);
+
+    const firstPageIds = new Set(firstPage.rows.map((row) => row.membershipId));
+    assert.equal(
+      secondPage.rows.some((row) => firstPageIds.has(row.membershipId)),
+      false,
+    );
   } finally {
     await context.cleanup();
   }

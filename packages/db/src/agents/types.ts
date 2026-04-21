@@ -238,6 +238,10 @@ export type OfficeAgentsRosterSnapshot = {
     activeTeamCount: number;
     inactiveMemberCount: number;
   };
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   filters: OfficeAgentRosterFilters;
   rows: OfficeAgentRosterRow[];
   teams: OfficeAgentTeamSummary[];
@@ -441,6 +445,8 @@ export type GetOfficeAgentsRosterInput = {
   onboardingStatus?: string;
   membershipStatus?: string;
   q?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 

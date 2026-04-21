@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { Button, DataTable, DataTableBody, DataTableHeader, EmptyState, FilterField, ListPageFooter, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import type { OfficeAgentsRosterSnapshot } from "@acre/db";
+import { OfficeListPagePagination } from "../../_components/office-list-page-template";
 
 type OfficeSettingsUsersOperationsViewProps = {
   snapshot: OfficeAgentsRosterSnapshot;
 };
+
+const usersSettingsPath = "/office/settings/users";
+const usersPageSizeOptions = [50] as const;
 
 const onboardingStatusOptions = [
   { value: "", label: "All onboarding states" },
@@ -43,6 +47,50 @@ function getOnboardingTone(value: string) {
   return "warning" as const;
 }
 
+function buildOperationsHref(filters: {
+  q: string;
+  officeId: string;
+  role: string;
+  teamId: string;
+  onboardingStatus: string;
+  membershipStatus: string;
+  page?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("view", "operations");
+
+  if (filters.q.trim()) {
+    searchParams.set("q", filters.q.trim());
+  }
+
+  if (filters.officeId.trim()) {
+    searchParams.set("officeId", filters.officeId.trim());
+  }
+
+  if (filters.role.trim()) {
+    searchParams.set("role", filters.role.trim());
+  }
+
+  if (filters.teamId.trim()) {
+    searchParams.set("teamId", filters.teamId.trim());
+  }
+
+  if (filters.onboardingStatus.trim()) {
+    searchParams.set("onboardingStatus", filters.onboardingStatus.trim());
+  }
+
+  if (filters.membershipStatus.trim()) {
+    searchParams.set("membershipStatus", filters.membershipStatus.trim());
+  }
+
+  if ((filters.page ?? 1) > 1) {
+    searchParams.set("page", String(filters.page));
+  }
+
+  const query = searchParams.toString();
+  return query ? `${usersSettingsPath}?${query}` : usersSettingsPath;
+}
+
 export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUsersOperationsViewProps) {
   const hasActiveRosterFilters = Boolean(
     snapshot.filters.q ||
@@ -52,13 +100,17 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
       snapshot.filters.onboardingStatus ||
       snapshot.filters.membershipStatus
   );
+  const pageStart = snapshot.totalCount === 0 ? 0 : (snapshot.page - 1) * snapshot.pageSize + 1;
+  const pageEnd = snapshot.totalCount === 0 ? 0 : Math.min(snapshot.page * snapshot.pageSize, snapshot.totalCount);
 
   return (
     <section className="office-section-card office-settings-users-roster-card">
       <header className="office-section-head office-settings-users-roster-head">
         <div className="office-section-copy">
           <h3>Operational roster</h3>
-          <p>Search the member roster and review team, onboarding, workload, transaction, goal, and billing summaries from one list.</p>
+          <p>
+            <strong>{snapshot.totalCount}</strong> roster members in the current result set. Search the member roster and review team, onboarding, workload, transaction, goal, and billing summaries from one list.
+          </p>
         </div>
       </header>
 
@@ -125,7 +177,7 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
 
           <div className="office-filter-actions office-agents-filter-actions">
             <Button type="submit">Apply filters</Button>
-            <Link className="office-button-secondary" href="/office/settings/users?view=operations">
+            <Link className="office-button-secondary" href={usersSettingsPath + "?view=operations"}>
               Reset
             </Link>
           </div>
@@ -195,13 +247,49 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
 
         <ListPageFooter
           controls={
-            hasActiveRosterFilters ? (
-              <Link className="office-list-page-button" href="/office/settings/users?view=operations">
-                Clear filters
-              </Link>
-            ) : null
+            <>
+              {hasActiveRosterFilters ? (
+                <Link className="office-list-page-button" href={usersSettingsPath + "?view=operations"}>
+                  Clear filters
+                </Link>
+              ) : null}
+              <OfficeListPagePagination
+                nextHref={
+                  snapshot.page < snapshot.totalPages
+                    ? buildOperationsHref({
+                        q: snapshot.filters.q,
+                        officeId: snapshot.filters.officeId,
+                        role: snapshot.filters.role,
+                        teamId: snapshot.filters.teamId,
+                        onboardingStatus: snapshot.filters.onboardingStatus,
+                        membershipStatus: snapshot.filters.membershipStatus,
+                        page: snapshot.page + 1
+                      })
+                    : undefined
+                }
+                onPageSizeChange={() => undefined}
+                page={snapshot.page}
+                pageSize={snapshot.pageSize}
+                pageSizeOptions={usersPageSizeOptions}
+                previousHref={
+                  snapshot.page > 1
+                    ? buildOperationsHref({
+                        q: snapshot.filters.q,
+                        officeId: snapshot.filters.officeId,
+                        role: snapshot.filters.role,
+                        teamId: snapshot.filters.teamId,
+                        onboardingStatus: snapshot.filters.onboardingStatus,
+                        membershipStatus: snapshot.filters.membershipStatus,
+                        page: snapshot.page - 1
+                      })
+                    : undefined
+                }
+                showPageSize={false}
+                totalPages={snapshot.totalPages}
+              />
+            </>
           }
-          summary={`${snapshot.rows.length} roster rows in the current scope`}
+          summary={`${pageStart}-${pageEnd} of ${snapshot.totalCount} roster rows`}
         />
       </div>
     </section>

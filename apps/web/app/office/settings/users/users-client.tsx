@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { startTransition, useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, DataTable, DataTableBody, DataTableHeader, EmptyState, FilterField, FormField, ListPageFooter, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import type { OfficeAdminUsersSnapshot } from "@acre/db";
+import { OfficeListPagePagination } from "../../_components/office-list-page-template";
 import {
   copyTextToClipboard,
   formatInviteExpiry,
@@ -53,6 +54,8 @@ type MutationResponse = {
   email?: string;
 } | null;
 
+const usersPageSizeOptions = [50] as const;
+
 function buildUsersHref(
   pathname: string,
   filters: {
@@ -60,9 +63,11 @@ function buildUsersHref(
     role: string;
     status: string;
     officeId: string;
+    page?: number;
   }
 ) {
   const searchParams = new URLSearchParams();
+  searchParams.set("view", "access");
 
   if (filters.q.trim()) {
     searchParams.set("q", filters.q.trim());
@@ -78,6 +83,10 @@ function buildUsersHref(
 
   if (filters.officeId.trim()) {
     searchParams.set("officeId", filters.officeId.trim());
+  }
+
+  if ((filters.page ?? 1) > 1) {
+    searchParams.set("page", String(filters.page));
   }
 
   const query = searchParams.toString();
@@ -173,6 +182,8 @@ export function OfficeSettingsUsersClient({
   const assignableCreateRoleOptions = getCreateRoleOptions(canManageAdminRoles);
   const createAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.defaultOfficeId);
   const selectedCreateTeam = createAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
+  const pageStart = snapshot.totalCount === 0 ? 0 : (snapshot.page - 1) * snapshot.pageSize + 1;
+  const pageEnd = snapshot.totalCount === 0 ? 0 : Math.min(snapshot.page * snapshot.pageSize, snapshot.totalCount);
 
   useEffect(() => {
     setSearchQuery(snapshot.filters.q);
@@ -320,7 +331,8 @@ export function OfficeSettingsUsersClient({
         q: searchQuery,
         role: roleFilter,
         status: statusFilter,
-        officeId: officeFilter
+        officeId: officeFilter,
+        page: 1
       })
     );
   }
@@ -335,7 +347,8 @@ export function OfficeSettingsUsersClient({
         q: "",
         role: "",
         status: "",
-        officeId: ""
+        officeId: "",
+        page: 1
       })
     );
   }
@@ -427,7 +440,9 @@ export function OfficeSettingsUsersClient({
         <header className="office-section-head office-settings-users-roster-head">
           <div className="office-section-copy">
             <h3>Internal accounts</h3>
-            <p>Search by name, email, role, or company, then open a user to manage access, invitation state, and activity.</p>
+            <p>
+              <strong>{snapshot.totalCount}</strong> internal accounts in the current result set. Search by name, email, role, or company, then open a user to manage access, invitation state, and activity.
+            </p>
           </div>
           {canManageUsers ? (
             <Button className="office-settings-users-create-button" onClick={openCreateModal} type="button">
@@ -535,7 +550,41 @@ export function OfficeSettingsUsersClient({
             </DataTableBody>
           </DataTable>
 
-          <ListPageFooter summary={`${snapshot.rows.length} internal account rows`} />
+          <ListPageFooter
+            controls={
+              <OfficeListPagePagination
+                nextHref={
+                  snapshot.page < snapshot.totalPages
+                    ? buildUsersHref(pathname, {
+                        q: snapshot.filters.q,
+                        role: snapshot.filters.role,
+                        status: snapshot.filters.status,
+                        officeId: snapshot.filters.officeId,
+                        page: snapshot.page + 1
+                      })
+                    : undefined
+                }
+                onPageSizeChange={() => undefined}
+                page={snapshot.page}
+                pageSize={snapshot.pageSize}
+                pageSizeOptions={usersPageSizeOptions}
+                previousHref={
+                  snapshot.page > 1
+                    ? buildUsersHref(pathname, {
+                        q: snapshot.filters.q,
+                        role: snapshot.filters.role,
+                        status: snapshot.filters.status,
+                        officeId: snapshot.filters.officeId,
+                        page: snapshot.page - 1
+                      })
+                    : undefined
+                }
+                showPageSize={false}
+                totalPages={snapshot.totalPages}
+              />
+            }
+            summary={`${pageStart}-${pageEnd} of ${snapshot.totalCount} internal account rows`}
+          />
         </div>
       </section>
 

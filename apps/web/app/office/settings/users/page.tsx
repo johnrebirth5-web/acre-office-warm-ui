@@ -10,6 +10,7 @@ import { OfficeSettingsUsersWorkspaceClient } from "./users-workspace-client";
 type OfficeSettingsUsersPageProps = {
   searchParams?: Promise<{
     view?: string;
+    page?: string;
     q?: string;
     role?: string;
     status?: string;
@@ -19,6 +20,19 @@ type OfficeSettingsUsersPageProps = {
     membershipStatus?: string;
   }>;
 };
+
+const defaultOfficeUsersWorkspacePage = 1;
+const officeUsersWorkspacePageSize = 50;
+
+function parsePositiveInteger(value: string | undefined, fallback: number) {
+  const numeric = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return fallback;
+  }
+
+  return numeric;
+}
 
 function resolveActiveView(requestedView: string | undefined, canViewUsers: boolean, canViewAgents: boolean): OfficeUsersWorkspaceView {
   if (requestedView === "operations") {
@@ -47,6 +61,7 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
 
   const searchParams = (await props.searchParams) ?? {};
   const activeView = resolveActiveView(searchParams.view, canViewUsers, canViewAgents);
+  const page = parsePositiveInteger(searchParams.page, defaultOfficeUsersWorkspacePage);
   const snapshot: OfficeUsersWorkspaceSnapshot = {
     activeView,
     availableViews: [
@@ -65,7 +80,9 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
       q: searchParams.q,
       role: searchParams.role,
       status: searchParams.status,
-      officeFilterId: searchParams.officeId
+      officeFilterId: searchParams.officeId,
+      page,
+      pageSize: officeUsersWorkspacePageSize
     });
   }
 
@@ -79,7 +96,9 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
       teamId: searchParams.teamId,
       onboardingStatus: searchParams.onboardingStatus,
       membershipStatus: searchParams.membershipStatus,
-      q: searchParams.q
+      q: searchParams.q,
+      page,
+      pageSize: officeUsersWorkspacePageSize
     });
   }
 

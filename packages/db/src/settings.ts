@@ -65,6 +65,10 @@ const backOfficeUserRoleCatalog: UserRole[] = [
   "office_manager"
 ];
 
+const defaultOfficeUsersPage = 1;
+const defaultOfficeUsersPageSize = 50;
+const maxOfficeUsersPageSize = 100;
+
 const privilegedBackOfficeRoles = new Set<UserRole>(["owner", "office_admin"]);
 const managedUserEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -312,6 +316,10 @@ export type OfficeAdminUsersSnapshot = {
     pendingInvitationCount: number;
     allOfficeAccessCount: number;
   };
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   filters: {
     q: string;
     role: string;
@@ -545,6 +553,8 @@ export type GetOfficeAdminUsersInput = {
   role?: string;
   status?: string;
   officeFilterId?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 export type GetOfficeAdminUserDetailInput = {
@@ -1854,6 +1864,21 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
   }
 
   const filteredMemberships = memberships.filter((membership) => matchesOfficeFilter(membership));
+  const totalCount = filteredMemberships.length;
+  const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultOfficeUsersPage;
+  const requestedPageSize = Number.isFinite(input.pageSize)
+    ? Number(input.pageSize)
+    : defaultOfficeUsersPageSize;
+  const pageSize = Math.min(
+    Math.max(Math.trunc(requestedPageSize) || defaultOfficeUsersPageSize, 1),
+    maxOfficeUsersPageSize
+  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const page = Math.min(
+    Math.max(Math.trunc(requestedPage) || defaultOfficeUsersPage, 1),
+    totalPages
+  );
+  const pagedMemberships = filteredMemberships.slice((page - 1) * pageSize, page * pageSize);
   const filterOfficeOptions =
     currentOfficeId && offices.some((office) => office.id === currentOfficeId)
       ? [
@@ -1874,6 +1899,10 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       pendingInvitationCount,
       allOfficeAccessCount
     },
+    totalCount,
+    page,
+    pageSize,
+    totalPages,
     filters: {
       q,
       role: roleFilter ?? "",
@@ -1893,7 +1922,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       assignableTeams,
       officeOptions: offices.map((office) => ({ id: office.id, label: office.name })),
     },
-    rows: filteredMemberships.map((membership) =>
+    rows: pagedMemberships.map((membership) =>
       mapOfficeAdminUserRow({
         ...withTeamPathLabels(membership),
         title: membership.title ?? null,

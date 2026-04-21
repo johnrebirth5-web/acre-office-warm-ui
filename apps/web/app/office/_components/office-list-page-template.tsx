@@ -68,6 +68,7 @@ type OfficeListPagePaginationProps = {
   previousHref?: string;
   nextHref?: string;
   onPageSizeChange: (nextPageSize: number) => void;
+  showPageSize?: boolean;
   className?: string;
 };
 
@@ -136,24 +137,27 @@ export function OfficeListPagePagination(props: OfficeListPagePaginationProps) {
   const { t } = useI18n();
   const totalPageCount = Math.max(props.totalPages, 1);
   const currentPage = Math.min(Math.max(props.page, 1), totalPageCount);
+  const showPageSize = props.showPageSize ?? true;
 
   return (
     <div className={cx("office-list-page-pagination", props.className)}>
-      <label className="office-list-page-size">
-        <span>{t((messages) => messages.common.rows)}</span>
-        <SelectInput
-          onChange={(event) =>
-            props.onPageSizeChange(Number(event.target.value))
-          }
-          value={String(props.pageSize)}
-        >
-          {props.pageSizeOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </SelectInput>
-      </label>
+      {showPageSize ? (
+        <label className="office-list-page-size">
+          <span>{t((messages) => messages.common.rows)}</span>
+          <SelectInput
+            onChange={(event) =>
+              props.onPageSizeChange(Number(event.target.value))
+            }
+            value={String(props.pageSize)}
+          >
+            {props.pageSizeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </SelectInput>
+        </label>
+      ) : null}
 
       <div className="office-list-pager">
         {props.previousHref ? (

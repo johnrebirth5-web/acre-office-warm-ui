@@ -61,6 +61,10 @@ import {
 } from "../team-hierarchy";
 
 import { AddAgentToTeamInput, ApplyAgentOnboardingTemplateInput, ComparableAgentBankInformationRecord, CreateAgentGoalInput, CreateAgentOnboardingItemInput, CreateAgentTeamInput, DeleteAgentTeamInput, GetOfficeAgentProfileInput, GetOfficeAgentsRosterInput, OfficeAgentBankInformationRecord, OfficeAgentGoalRecord, OfficeAgentOnboardingItemRecord, OfficeAgentOnboardingTemplateRecord, OfficeAgentOperationalAgendaItem, OfficeAgentProfileActivityItem, OfficeAgentProfileAvailableTeam, OfficeAgentProfileAvailableTeamManager, OfficeAgentProfileSnapshot, OfficeAgentProfileTeam, OfficeAgentRosterFilters, OfficeAgentRosterRow, OfficeAgentTeamSummary, OfficeAgentsRosterSnapshot, RemoveAgentFromTeamInput, SaveAgentProfileInput, UpdateAgentGoalInput, UpdateAgentOnboardingItemInput, UpdateAgentTeamInput, agentBankInformationAccountTypeLabelMap, agentBankInformationTaxIdTypeLabelMap, buildAgentBankInformationSignature, buildUniqueTeamSlug, canManageAgentBankInformation, defaultOnboardingItems, formatCurrency, formatDateLabel, formatDateTimeLabel, formatDateValue, getPurchasedPriceValue, goalPeriodLabelMap, hasAnyAgentBankInformationValue, membershipStatusLabelMap, normalizeComparableAgentBankInformationRecord, onboardingItemStatusLabelMap, onboardingStatusLabelMap, parseOptionalAgentBankInformationAccountType, parseOptionalAgentBankInformationTaxIdType, parseOptionalDate, parseOptionalDecimal, parseOptionalText, roleLabelMap, slugify, teamRoleLabelMap } from "./types";
+
+const defaultOfficeAgentsRosterPage = 1;
+const defaultOfficeAgentsRosterPageSize = 50;
+const maxOfficeAgentsRosterPageSize = 100;
 import { ManagedMembershipRecord, applyOnboardingTemplateItems, assertTeamHierarchyAssignableMembership, buildChange, buildGoalProgressSummary, buildLeaderOwnedTeamName, buildOnboardingProgressLabel, buildTransactionSummaryLabel, ensureAgentProfileFoundation, ensureMembershipExists, formatDueDaysOffsetLabel, getActivityActionLabel, getBillingSummaryByMembership, getCurrentOrLatestGoal, getDefaultOnboardingTemplateSeedData, getGoalProgressSourceDate, getMembershipLabel, getPayloadObjectLabel, listActiveOnboardingTemplateItems, materializeImplicitJuniorTeamsForManagementAction, materializeImplicitJuniorTeamsForOrganization, normalizeGoalPeriod, normalizeMembershipStatusFilter, normalizeOnboardingItemStatus, normalizeOnboardingStatus, normalizeOptionalTeamId, normalizeOptionalTeamMembershipId, normalizeTeamRole, redactAgentCommissionSummary, redactAgentGoalFinancials, resolveOnboardingDueDate, syncAgentProfileOnboardingStatus, syncLeaderAccountRoleForTeamAssignment, syncManagedMembershipTitle, syncManagedMembershipTitlesForTeam, syncManagedMembershipTitlesForTeamBranch, validateTeamMembershipHierarchy, validateTeamParentAssignment } from "./helpers";
 import { addAgentToTeam, applyAgentOnboardingTemplate, assignMembershipToTeamTx, createAgentTeam, deleteAgentTeam, removeAgentFromTeam, updateAgentTeam } from "./team-management";
 import { createAgentGoal, createAgentOnboardingItem, updateAgentGoal, updateAgentOnboardingItem } from "./progress";
@@ -413,7 +417,23 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     });
   }
 
-  const rows = filteredMemberships.map((membership) => {
+  const totalCount = filteredMemberships.length;
+  const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultOfficeAgentsRosterPage;
+  const requestedPageSize = Number.isFinite(input.pageSize)
+    ? Number(input.pageSize)
+    : defaultOfficeAgentsRosterPageSize;
+  const pageSize = Math.min(
+    Math.max(Math.trunc(requestedPageSize) || defaultOfficeAgentsRosterPageSize, 1),
+    maxOfficeAgentsRosterPageSize
+  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const page = Math.min(
+    Math.max(Math.trunc(requestedPage) || defaultOfficeAgentsRosterPage, 1),
+    totalPages
+  );
+  const pagedMemberships = filteredMemberships.slice((page - 1) * pageSize, page * pageSize);
+
+  const rows = pagedMemberships.map((membership) => {
     const balance = billingSummary.get(membership.id);
     const canViewFinancials = canViewFinancialsForMembership(scope, membership.id);
     const onboardingProgress = onboardingProgressMap.get(membership.id) ?? {
@@ -465,7 +485,6 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
   });
 
   const activeTeamCount = teams.filter((team) => team.isActive && team.memberships.length > 0).length;
-  const onboardingInProgressCount = rows.filter((row) => row.onboardingStatus === "In progress").length;
   const roleOptions = [
     { value: "owner", label: "Owner" },
     { value: "office_admin", label: "Office Admin" },
@@ -483,12 +502,20 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
 
   return {
     summary: {
-      totalMembers: rows.length,
-      agentCount: rows.filter((row) => row.role === "Agent" || row.role === "Team Lead").length,
-      onboardingInProgressCount,
+      totalMembers: totalCount,
+      agentCount: filteredMemberships.filter((membership) => membership.role === "agent" || membership.role === "team_lead").length,
+      onboardingInProgressCount: filteredMemberships.filter((membership) => {
+        const onboardingProgress = onboardingProgressMap.get(membership.id);
+        const status = onboardingProgress?.status ?? membership.agentProfile?.onboardingStatus ?? "not_started";
+        return status === "in_progress";
+      }).length,
       activeTeamCount,
-      inactiveMemberCount: rows.filter((row) => row.membershipStatusValue !== "active").length
+      inactiveMemberCount: filteredMemberships.filter((membership) => membership.status !== "active").length
     },
+    totalCount,
+    page,
+    pageSize,
+    totalPages,
     filters: {
       officeId: scopedOfficeId ?? "",
       role: input.role ?? "",

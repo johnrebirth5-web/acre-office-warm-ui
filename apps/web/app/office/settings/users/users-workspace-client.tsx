@@ -16,6 +16,7 @@ type OfficeSettingsUsersWorkspaceClientProps = {
 function buildViewHref(pathname: string, searchParams: URLSearchParams, nextView: OfficeUsersWorkspaceView) {
   const nextSearchParams = new URLSearchParams(searchParams);
   nextSearchParams.set("view", nextView);
+  nextSearchParams.delete("page");
 
   if (nextView === "access") {
     nextSearchParams.delete("teamId");
