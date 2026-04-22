@@ -7994,10 +7994,14 @@ a {
   align-items: start;
 }
 
+.office-settings-user-operations-split {
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+}
+
 .office-agents-profile-secondary-columns {
   margin-top: 16px;
   align-items: start;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(220px, 0.84fr) minmax(0, 1.16fr);
   gap: 14px;
 }
 
@@ -8140,6 +8144,12 @@ a {
   white-space: nowrap;
 }
 
+@media (min-width: 1680px) {
+  .office-settings-user-operations-split .office-agents-profile-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1280px) {
   .office-settings-user-operations-split,
   .office-settings-user-activity-split {
@@ -8148,6 +8158,7 @@ a {
 }
 
 @media (max-width: 1500px) {
+  .office-agents-profile-secondary-columns,
   .office-agents-template-item {
     grid-template-columns: 1fr;
   }
