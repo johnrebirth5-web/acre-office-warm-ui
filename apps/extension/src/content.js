@@ -1658,6 +1658,23 @@
       panelState.message = "";
       renderPanel();
 
+      if (currentConfig?.connectionState === "pending") {
+        currentConfig = await sendMessage({ type: "CHECK_CONNECTION_STATUS" });
+      } else if (!currentConfig) {
+        currentConfig = await sendMessage({ type: "GET_CONFIG" });
+      }
+
+      if (currentConfig?.connectionState !== "connected") {
+        panelState.mode = "error";
+        panelState.message =
+          currentConfig?.connectionState === "pending"
+            ? "Finish the Acre approval tab, then try again."
+            : currentConfig?.connectionError ||
+              "Connect the Acre extension before saving listings.";
+        renderPanel();
+        return;
+      }
+
       const payloadForSave = await buildPayloadForSave();
       if (!payloadForSave) {
         panelState.mode = "error";
@@ -1679,8 +1696,12 @@
       } else {
         panelState.mode = "error";
         panelState.message = result?.error || "Unable to save the listing into Acre.";
-        if (result?.errorCode === "TOKEN_INVALID" || result?.errorCode === "NOT_CONNECTED") {
-          currentConfig = await sendMessage({ type: "GET_CONFIG" });
+        if (
+          result?.errorCode === "TOKEN_INVALID" ||
+          result?.errorCode === "NOT_CONNECTED" ||
+          result?.errorCode === "APPROVAL_PENDING"
+        ) {
+          currentConfig = await sendMessage({ type: "CHECK_CONNECTION_STATUS" });
         }
       }
 

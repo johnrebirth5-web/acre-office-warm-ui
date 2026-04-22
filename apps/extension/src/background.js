@@ -179,13 +179,21 @@ async function disconnect() {
 }
 
 async function saveListing(payload) {
-  const state = await getState();
+  let state = await getState();
+
+  if (state.connectionState === "pending" && state.challengeToken) {
+    state = await checkConnectionStatus();
+  }
 
   if (state.connectionState !== "connected" || !state.extensionToken) {
     return {
       ok: false,
-      errorCode: "NOT_CONNECTED",
-      error: "Connect the Acre extension before saving listings.",
+      errorCode:
+        state.connectionState === "pending" ? "APPROVAL_PENDING" : "NOT_CONNECTED",
+      error:
+        state.connectionState === "pending"
+          ? "Finish the Acre approval first, then try saving again."
+          : state.connectionError || "Connect the Acre extension before saving listings.",
     };
   }
 
