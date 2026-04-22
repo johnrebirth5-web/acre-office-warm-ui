@@ -11,10 +11,17 @@ type AgentNavProps = {
   currentCompanyId: string | null;
   companies: Array<{ id: string; name: string }>;
   homeHref: string;
+  permissions: string[];
 };
 
-export function AgentNav({ currentCompanyId, companies, homeHref }: AgentNavProps) {
+export function AgentNav({
+  currentCompanyId,
+  companies,
+  homeHref,
+  permissions,
+}: AgentNavProps) {
   const { t } = useI18n();
+  const canViewClients = permissions.includes("clients:view");
   const frontOfficeNavGroups: WorkspaceNavGroup[] = [
     {
       title: t((messages) => messages.agentNav.groups.execution),
@@ -24,10 +31,14 @@ export function AgentNav({ currentCompanyId, companies, homeHref }: AgentNavProp
           href: "/agent/dashboard",
           label: t((messages) => messages.agentNav.items.dashboard),
         },
-        {
-          href: "/agent/clients",
-          label: t((messages) => messages.agentNav.items.clients),
-        },
+        ...(canViewClients
+          ? [
+              {
+                href: "/agent/clients",
+                label: t((messages) => messages.agentNav.items.clients),
+              },
+            ]
+          : []),
         {
           href: "/agent/calendar",
           label: t((messages) => messages.agentNav.items.calendar),

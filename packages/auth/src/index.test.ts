@@ -90,6 +90,8 @@ test("team lead keeps scoped pipeline access without admin-only settings", () =>
 });
 
 test("agent role keeps scoped pipeline access without finance or admin-only powers", () => {
+  assert.equal(can("agent", "clients:view"), true);
+  assert.equal(can("agent", "clients:manage"), true);
   assert.equal(canViewOfficeTransactions("agent"), true);
   assert.equal(canCreateOfficeTransactions("agent"), true);
   assert.equal(canEditOfficeTransactions("agent"), true);
@@ -121,6 +123,11 @@ test("commission self-service dashboard summary follows dashboard access instead
 });
 
 test("required commission visibility baselines survive narrowed permission snapshots", () => {
+  assert.equal(can({ role: "agent", permissions: ["dashboard:view"] }, "clients:view"), true);
+  assert.equal(
+    can({ role: "agent", permissions: ["dashboard:view"] }, "clients:manage"),
+    true
+  );
   assert.equal(can({ role: "agent", permissions: ["dashboard:view"] }, "commissions:view"), true);
   assert.equal(
     can(

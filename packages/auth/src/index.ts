@@ -1301,6 +1301,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "dashboard:view",
     "agents:view",
     "reports:view:personal",
+    "clients:view",
+    "clients:manage",
     "transactions:view",
     "transactions:create",
     "transactions:edit",
@@ -1431,7 +1433,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
 };
 
 const requiredRoleBaselinePermissions: Partial<Record<UserRole, PermissionKey[]>> = {
-  agent: ["commissions:view"],
+  agent: ["clients:view", "clients:manage", "commissions:view"],
   team_lead: ["commissions:view", "commissions:view:team"]
 };
 

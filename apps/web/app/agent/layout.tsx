@@ -21,6 +21,7 @@ export default async function AgentLayout({ children }: { children: ReactNode })
           }))}
           currentCompanyId={context.currentOffice?.id ?? null}
           homeHref="/agent/dashboard"
+          permissions={context.currentMembership.permissions}
         />
         <div className="main-area acre-main-area office-dashboard-main">
           <WorkspaceSessionStatus context={context} />

@@ -31,6 +31,7 @@ export default async function ListingStudioLayout({
           }))}
           currentCompanyId={context.currentOffice?.id ?? null}
           homeHref="/listing-studio/listings"
+          permissions={context.currentMembership.permissions}
         />
         <div className="main-area acre-main-area office-dashboard-main">
           <WorkspaceSessionStatus context={context} />
