@@ -9402,6 +9402,92 @@ a {
   gap: 14px 16px;
 }
 
+.office-settings-users-company-access-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.office-settings-users-company-access-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 76px;
+  padding: 14px 16px;
+  border: 1px solid rgba(177, 188, 204, 0.42);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.office-settings-users-company-access-option:hover {
+  border-color: rgba(24, 67, 143, 0.28);
+  background: color-mix(in srgb, var(--office-accent-soft) 36%, white 64%);
+}
+
+.office-settings-users-company-access-option.is-selected {
+  border-color: rgba(24, 67, 143, 0.34);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--office-accent-soft) 48%, white 52%) 0%,
+    var(--office-surface) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(24, 67, 143, 0.12);
+}
+
+.office-settings-users-company-access-option.is-disabled,
+.office-settings-users-company-access-option.is-disabled:hover {
+  background: var(--office-surface-subtle);
+  cursor: default;
+}
+
+.office-settings-users-company-access-option-control {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.office-settings-users-company-access-option-control input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--office-accent-strong);
+  cursor: pointer;
+}
+
+.office-settings-users-company-access-option-control input:disabled {
+  cursor: not-allowed;
+}
+
+.office-settings-users-company-access-option-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+}
+
+.office-settings-users-company-access-option-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-settings-users-company-access-option-title strong {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.office-settings-users-company-access-option-description {
+  color: var(--office-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .office-settings-users-modal-note {
   margin: 0;
   padding: 12px 14px;
@@ -10995,6 +11081,7 @@ a {
 
   .office-settings-card-grid,
   .office-settings-checkbox-grid,
+  .office-settings-users-company-access-grid,
   .office-settings-template-item-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -11089,6 +11176,7 @@ a {
 
   .office-settings-card-grid,
   .office-settings-checkbox-grid,
+  .office-settings-users-company-access-grid,
   .office-settings-template-item-grid {
     grid-template-columns: 1fr;
   }

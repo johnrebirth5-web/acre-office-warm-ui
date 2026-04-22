@@ -312,6 +312,43 @@ export function OfficeSettingsUsersClient({
     }));
   }
 
+  function toggleCreateOfficeAccess(officeId: string, checked: boolean) {
+    setCreateUserDraft((current) => {
+      if (!checked && current.accessibleOfficeIds.length === 1 && current.accessibleOfficeIds.includes(officeId)) {
+        return current;
+      }
+
+      const accessibleOfficeIds = checked
+        ? [...new Set([...current.accessibleOfficeIds, officeId])]
+        : current.accessibleOfficeIds.filter((currentOfficeId) => currentOfficeId !== officeId);
+      const defaultOfficeId = checked
+        ? current.defaultOfficeId && current.defaultOfficeId !== "__all__"
+          ? current.defaultOfficeId
+          : officeId
+        : current.defaultOfficeId === officeId
+          ? (accessibleOfficeIds[0] ?? "")
+          : current.defaultOfficeId;
+
+      return {
+        ...current,
+        defaultOfficeId,
+        accessibleOfficeIds
+      };
+    });
+  }
+
+  function setCreateDefaultOffice(officeId: string) {
+    setCreateUserDraft((current) => ({
+      ...current,
+      defaultOfficeId: officeId,
+      accessibleOfficeIds: roleHasImplicitAllCompanyAccess(current.role)
+        ? current.accessibleOfficeIds
+        : current.accessibleOfficeIds.includes(officeId)
+          ? current.accessibleOfficeIds
+          : [...current.accessibleOfficeIds, officeId]
+    }));
+  }
+
   function openCreateModal() {
     setSubmitError("");
     setActionNotice("");
@@ -646,7 +683,7 @@ export function OfficeSettingsUsersClient({
                     </FormField>
 
                     <FormField label="Default company">
-                      <SelectInput onChange={(event) => setCreateField("defaultOfficeId", event.target.value)} value={createUserDraft.defaultOfficeId}>
+                      <SelectInput onChange={(event) => setCreateDefaultOffice(event.target.value)} value={createUserDraft.defaultOfficeId}>
                         {actualOfficeOptions.map((option) => (
                           <option key={option.id} value={option.id}>
                             {option.label}
@@ -656,33 +693,42 @@ export function OfficeSettingsUsersClient({
                     </FormField>
 
                     <FormField className="office-form-grid-span-3" label="Company access">
-                      <select
-                        className="office-select"
-                        disabled={hasImplicitAllCompanyAccess}
-                        multiple
-                        onChange={(event) =>
-                          setCreateUserDraft((current) => {
-                            const accessibleOfficeIds = Array.from(event.target.selectedOptions, (option) => option.value);
-                            const defaultOfficeId = accessibleOfficeIds.includes(current.defaultOfficeId)
-                              ? current.defaultOfficeId
-                              : accessibleOfficeIds[0] ?? current.defaultOfficeId;
+                      <div aria-label="Company access options" className="office-settings-users-company-access-grid" role="group">
+                        {actualOfficeOptions.map((option) => {
+                          const hasAccess = hasImplicitAllCompanyAccess || createUserDraft.accessibleOfficeIds.includes(option.id);
+                          const isDefault = createUserDraft.defaultOfficeId === option.id;
+                          const description = hasImplicitAllCompanyAccess
+                            ? "Included automatically for this role"
+                            : isDefault
+                              ? "Default sign-in company"
+                              : hasAccess
+                                ? "Access granted"
+                                : "Click to grant access";
 
-                            return {
-                              ...current,
-                              defaultOfficeId,
-                              accessibleOfficeIds
-                            };
-                          })
-                        }
-                        size={Math.min(4, Math.max(actualOfficeOptions.length, 3))}
-                        value={hasImplicitAllCompanyAccess ? actualOfficeOptions.map((option) => option.id) : createUserDraft.accessibleOfficeIds}
-                      >
-                        {actualOfficeOptions.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                          return (
+                            <label
+                              className={`office-settings-users-company-access-option${hasAccess ? " is-selected" : ""}${hasImplicitAllCompanyAccess ? " is-disabled" : ""}`}
+                              key={option.id}
+                            >
+                              <span className="office-settings-users-company-access-option-control">
+                                <input
+                                  checked={hasAccess}
+                                  disabled={hasImplicitAllCompanyAccess}
+                                  onChange={(event) => toggleCreateOfficeAccess(option.id, event.target.checked)}
+                                  type="checkbox"
+                                />
+                              </span>
+                              <span className="office-settings-users-company-access-option-copy">
+                                <span className="office-settings-users-company-access-option-title">
+                                  <strong>{option.label}</strong>
+                                  {isDefault ? <Badge tone="accent">Default</Badge> : null}
+                                </span>
+                                <span className="office-settings-users-company-access-option-description">{description}</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </FormField>
 
                     <FormField label="Title">
@@ -693,7 +739,7 @@ export function OfficeSettingsUsersClient({
                     <p className="office-form-grid-span-3 office-form-helper">
                       {hasImplicitAllCompanyAccess
                         ? "This role automatically receives access to all companies. You only need to pick the default company above."
-                        : "Hold Command/Ctrl to select multiple companies. The default company must stay inside the selected access list."}
+                        : "Use the checkboxes to choose every company this user can access. At least one company must stay selected, and the default company stays inside the selected access list automatically."}
                     </p>
                     {!canManageAdminRoles ? (
                       <p className="office-form-grid-span-3 office-form-helper">

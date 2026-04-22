@@ -115,6 +115,7 @@ Current routes:
 - keep `operations` aligned to current-company access as well: if a membership can access the current company, it stays visible in `operations` even when its home office differs
 - open a dedicated detail page for each membership
 - create invited users from a modal / drawer flow
+- assign company access from a visible checkbox list while keeping one default company selected
 - copy the generated invite link without leaving the page
 
 `/office/settings/users/[membershipId]` now supports:
