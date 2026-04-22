@@ -1062,6 +1062,34 @@ npm run db:sync:from-production
 - 同步前应保证本地 schema 与当前代码匹配；如果刚改过 Prisma schema，先运行 `npm run db:generate` 以及需要的 migration
 - 如果你本地之前跑过 seed 或旧测试数据，这些“线上不存在”的本地记录会默认保留；如果首次要做成纯线上基线，可临时开启 `ACRE_SYNC_RESET_LOCAL=1`
 
+如果你想直接把本地数据库重置成“当前线上库的纯镜像”，可以使用：
+
+```bash
+npm run db:mirror:from-production
+```
+
+这条命令会自动启用 `ACRE_SYNC_RESET_LOCAL=1`，因此会先清空本地 `public` schema 的业务数据，再导入当前生产数据。
+
+如果你还想把远端文档文件也镜像到本地 Docker 文档卷，可以使用：
+
+```bash
+npm run documents:mirror:from-production
+```
+
+这条命令会：
+
+- 通过 `rsync` 从远端 `ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT`（默认 `/var/lib/acre/documents`）拉取文件
+- 覆盖本地 `web` 容器里的 `ACRE_DOCUMENTS_STORAGE_DIR`（默认 `/app/.local-storage/documents`）
+- 删除本地文档卷里线上已经不存在的文件
+
+如果你要一次性做“数据库 + 文档文件”的本地完整镜像，可以使用：
+
+```bash
+npm run state:mirror:from-production
+```
+
+这条命令会先执行 `db:mirror:from-production`，再执行 `documents:mirror:from-production`，是当前仓库里最接近“把本地状态拉到和线上一样”的固定入口。
+
 ### 本地同步脚本相关变量
 
 以下变量是同步脚本的 operator override，不是 Web 应用 runtime 必填项：
@@ -1089,6 +1117,13 @@ npm run db:sync:from-production
 - `ACRE_SYNC_RESET_LOCAL`
   - 默认 `0`
   - 设为 `1` 时，会先清空本地 `public` schema 里的业务数据，再把线上数据导入本地
+- `ACRE_LOCAL_WEB_SERVICE`
+  - 默认 `web`
+- `ACRE_LOCAL_DOCUMENTS_DIR`
+  - 默认 `/app/.local-storage/documents`
+- `ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT`
+  - 默认 `/var/lib/acre/documents`
+  - `documents:mirror:from-production` 会使用它作为远端文件根目录
 
 当前实现说明：
 

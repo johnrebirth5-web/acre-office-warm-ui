@@ -276,6 +276,11 @@ main() {
   merge_stage_into_local
   cleanup_stage_schema
 
+  if [ "$RESET_LOCAL" = "1" ]; then
+    log "Production-to-local mirror completed. Production stayed read-only, and the local public schema now mirrors production rows."
+    return
+  fi
+
   log "Production-to-local sync completed. Production stayed read-only, and local-only rows were preserved."
 }
 

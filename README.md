@@ -1105,12 +1105,45 @@ npm run db:sync:from-production
 - 线上和本地 schema 需要基本一致；如果刚改过 Prisma schema，先跑本地 migration / generate
 - 如果你本地还保留着历史 seed 数据或旧测试数据，它们也会被视为“本地独有数据”继续保留；首次想做成纯线上基线时，可临时加 `ACRE_SYNC_RESET_LOCAL=1`
 
+如果你不想每次都手动记 `ACRE_SYNC_RESET_LOCAL=1`，现在也可以直接使用：
+
+```bash
+npm run db:mirror:from-production
+```
+
+这条命令会把本地数据库重置成当前线上库的纯镜像：
+
+- 先清空本地 `public` schema 的业务数据
+- 再导入当前生产数据
+- 不会把任何本地数据回写到线上
+
+如果你还想把远端文档文件也一并镜像到本地 Docker 文档卷，可以使用：
+
+```bash
+npm run documents:mirror:from-production
+```
+
+这条命令会：
+
+- 从 `root@45.55.247.137:/var/lib/acre/documents` 通过 `rsync` 拉取文件
+- 覆盖本地 `web` 容器里的 `/app/.local-storage/documents`
+- 删除本地文档卷里线上不存在的旧文件
+
+如果你要一次性做“数据库 + 文档文件”的完整本地镜像，可以直接运行：
+
+```bash
+npm run state:mirror:from-production
+```
+
+这条命令会先执行 `db:mirror:from-production`，再执行 `documents:mirror:from-production`，是当前仓库里最接近“把本地状态拉到和线上一样”的固定入口。
+
 建议：
 
 - 日常开发仍然只连本地数据库
 - 需要最新线上数据时，再手动执行一次同步
 - 不要把本地 `DATABASE_URL` 直接改成生产库连接串
 - 首次从老的 seed 本地库切到线上基线时，可执行 `ACRE_SYNC_RESET_LOCAL=1 npm run db:sync:from-production`；这会清空当前本地业务数据后再导入线上数据
+- 如果你还要预览历史 PDF、Listing Studio 资产、邮件附件等文件，只同步数据库不够，最好再跑一次 `npm run documents:mirror:from-production`
 
 Docker 本地开发说明：
 
