@@ -1,9 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import { getFrontOfficeResourcesSnapshot } from "@acre/db";
 import { EmptyState, SectionCard, StatusBadge } from "@acre/ui";
-import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
 import { FrontOfficeTrainingGallery } from "./front-office-training-gallery";
@@ -508,7 +508,13 @@ export default async function AgentResourcesPage(props: {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "resources:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="resources"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const resolvedSearchParams = props.searchParams

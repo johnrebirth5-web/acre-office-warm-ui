@@ -1,10 +1,10 @@
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import {
   getFrontOfficeAppointmentsSnapshot,
   getFrontOfficeEventHubSnapshot,
 } from "@acre/db";
 import { SummaryChip } from "@acre/ui";
-import { redirect } from "next/navigation";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import {
   deriveCalendarViewFromRoute,
@@ -14,9 +14,7 @@ import {
   type CalendarViewKey,
 } from "./calendar-view";
 import { FrontOfficeEventHubClient } from "./front-office-event-hub-client";
-import {
-  requireSessionContext,
-} from "../../../lib/auth-session";
+import { requireSessionContext } from "../../../lib/auth-session";
 import { getServerI18n } from "../../../lib/i18n/server";
 import { FrontOfficeCalendarClient } from "./front-office-calendar-client";
 
@@ -36,7 +34,13 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "dashboard:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="calendar"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const { locale } = await getServerI18n({
@@ -59,12 +63,11 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     followUp: readSearchParamValue(searchParams.followUp)?.trim() ?? "all",
     status: readSearchParamValue(searchParams.status)?.trim() ?? "all",
   });
-  const activeCalendarView: CalendarViewKey =
-    hasExplicitCalendarView
-      ? requestedCalendarView
-      : targetAppointmentId || calendarViewFromFilters !== "all"
-        ? calendarViewFromFilters
-        : "month";
+  const activeCalendarView: CalendarViewKey = hasExplicitCalendarView
+    ? requestedCalendarView
+    : targetAppointmentId || calendarViewFromFilters !== "all"
+      ? calendarViewFromFilters
+      : "month";
   const activeCalendarViewConfig = getCalendarViewConfig(activeCalendarView);
   const activeCalendarViewPatch = hasExplicitCalendarView
     ? getCalendarViewRoutePatch(activeCalendarView)

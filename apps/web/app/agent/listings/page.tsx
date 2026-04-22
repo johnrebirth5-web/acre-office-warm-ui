@@ -1,4 +1,4 @@
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import { getFrontOfficeListingsSnapshot } from "@acre/db";
 import {
   QueueItem,
@@ -7,8 +7,8 @@ import {
   StatCard,
   SummaryChip,
 } from "@acre/ui";
-import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-window";
@@ -28,7 +28,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "listings:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="listings"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const searchParams = (await props.searchParams) ?? {};

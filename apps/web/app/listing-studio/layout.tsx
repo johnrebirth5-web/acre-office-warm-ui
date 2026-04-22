@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { canAccessListingStudio, getDefaultAppPath } from "@acre/auth";
-import { redirect } from "next/navigation";
+import { canAccessListingStudio } from "@acre/auth";
 import { requireSessionContext } from "../../lib/auth-session";
 import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
+import { FrontOfficeAccessNotice } from "../agent/_components/front-office-access-notice";
 import { AgentNav } from "../agent/agent-nav";
 
 export default async function ListingStudioLayout({
@@ -11,10 +11,7 @@ export default async function ListingStudioLayout({
   children: ReactNode;
 }) {
   const context = await requireSessionContext();
-
-  if (!canAccessListingStudio(context.currentMembership)) {
-    redirect(getDefaultAppPath(context.currentMembership));
-  }
+  const canViewStudio = canAccessListingStudio(context.currentMembership);
 
   return (
     <main
@@ -35,7 +32,15 @@ export default async function ListingStudioLayout({
         />
         <div className="main-area acre-main-area office-dashboard-main">
           <WorkspaceSessionStatus context={context} />
-          {children}
+          {canViewStudio ? (
+            children
+          ) : (
+            <FrontOfficeAccessNotice
+              currentMembership={context.currentMembership}
+              featureKey="studio"
+              userLocale={context.currentUser.locale}
+            />
+          )}
         </div>
       </div>
     </main>

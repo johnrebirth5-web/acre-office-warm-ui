@@ -1,11 +1,11 @@
-import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
+import { hasAnyPermission } from "@acre/auth";
 import {
   buildFrontOfficeCleanupDigest,
   getFrontOfficeActivitySnapshot,
   getFrontOfficeDashboardSnapshot,
 } from "@acre/db";
 import { SectionCard } from "@acre/ui";
-import { redirect } from "next/navigation";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
 import {
@@ -45,7 +45,13 @@ export default async function AgentNotificationsPage(
       "dashboard:view",
     ])
   ) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="activity"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const [snapshot, dashboardSnapshot, cleanupDigest] = await Promise.all([
@@ -111,7 +117,9 @@ export default async function AgentNotificationsPage(
       description="Keep follow-up, appointment pressure, cleanup, and notices in one place."
       eyebrow="Activity"
       summary={
-        <span>Keep cleanup, reminders, notices, and team pressure in one pass.</span>
+        <span>
+          Keep cleanup, reminders, notices, and team pressure in one pass.
+        </span>
       }
       main={
         <AgentNotificationsClient

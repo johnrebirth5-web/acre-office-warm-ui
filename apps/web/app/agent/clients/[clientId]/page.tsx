@@ -1,12 +1,8 @@
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import { getContactById } from "@acre/db";
-import {
-  QueueItem,
-  SectionCard,
-  StatusBadge,
-  SummaryChip,
-} from "@acre/ui";
-import { notFound, redirect } from "next/navigation";
+import { QueueItem, SectionCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { notFound } from "next/navigation";
+import { FrontOfficeAccessNotice } from "../../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
 import { FrontOfficeClientExecutionClient } from "./front-office-client-execution-client";
 import { requireSessionContext } from "../../../../lib/auth-session";
@@ -23,7 +19,13 @@ export default async function AgentClientDetailPage(
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "clients:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="clients"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const { clientId } = await props.params;
@@ -74,15 +76,14 @@ export default async function AgentClientDetailPage(
               meta={
                 <>
                   <span>
-                    Last follow-up: {contact.lastContactAt || "Not followed up yet"}
+                    Last follow-up:{" "}
+                    {contact.lastContactAt || "Not followed up yet"}
                   </span>
                   <span>
                     Next reminder: {contact.nextFollowUpAt || "Not set"}
                   </span>
                   {legacyOpenTaskCount > 0 ? (
-                    <span>
-                      Legacy follow-up tasks: {legacyOpenTaskCount}
-                    </span>
+                    <span>Legacy follow-up tasks: {legacyOpenTaskCount}</span>
                   ) : null}
                 </>
               }

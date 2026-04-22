@@ -1,4 +1,4 @@
-import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
+import { hasAnyPermission } from "@acre/auth";
 import { openOfficeNotification } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../../../lib/auth-session";
@@ -54,7 +54,7 @@ export default async function AgentNotificationOpenPage({
       "dashboard:view",
     ])
   ) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    redirect("/agent/notifications");
   }
 
   const { notificationId } = await params;

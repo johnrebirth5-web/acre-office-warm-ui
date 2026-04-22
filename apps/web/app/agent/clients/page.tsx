@@ -1,4 +1,4 @@
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import { getFrontOfficeClientsSnapshot } from "@acre/db";
 import {
   EmptyState,
@@ -8,7 +8,7 @@ import {
   StatCard,
   SummaryChip,
 } from "@acre/ui";
-import { redirect } from "next/navigation";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/front-office-lead-intake-review";
@@ -20,7 +20,13 @@ export default async function AgentClientsPage() {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "clients:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="clients"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const snapshot = await getFrontOfficeClientsSnapshot({
@@ -111,12 +117,8 @@ export default async function AgentClientsPage() {
                     key={pair.id}
                     meta={
                       <>
-                        <span>
-                          Keep: {pair.recommendedClient.fullName}
-                        </span>
-                        <span>
-                          Review: {pair.duplicateClient.fullName}
-                        </span>
+                        <span>Keep: {pair.recommendedClient.fullName}</span>
+                        <span>Review: {pair.duplicateClient.fullName}</span>
                       </>
                     }
                     action={

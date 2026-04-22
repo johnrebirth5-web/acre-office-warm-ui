@@ -21,7 +21,34 @@ export function AgentNav({
   permissions,
 }: AgentNavProps) {
   const { t } = useI18n();
+  const canViewDashboard = permissions.includes("dashboard:view");
   const canViewClients = permissions.includes("clients:view");
+  const canViewListings = permissions.includes("listings:view");
+  const canViewStudio = permissions.includes("listing_studio:view");
+  const canViewResources = permissions.includes("resources:view");
+  const canViewActivity =
+    permissions.includes("notifications:view") ||
+    permissions.includes("events:view") ||
+    permissions.includes("clients:view") ||
+    permissions.includes("dashboard:view");
+  const restrictedBadge = t(
+    (messages) => messages.workspaceNav.restrictedNavBadge,
+  );
+
+  function buildAccessWarning(label: string) {
+    return {
+      title: t((messages) => messages.workspaceNav.restrictedNavTitle, {
+        feature: label,
+      }),
+      description: t(
+        (messages) => messages.workspaceNav.restrictedNavDescription,
+        {
+          feature: label,
+        },
+      ),
+    };
+  }
+
   const frontOfficeNavGroups: WorkspaceNavGroup[] = [
     {
       title: t((messages) => messages.agentNav.groups.execution),
@@ -30,52 +57,114 @@ export function AgentNav({
         {
           href: "/agent/dashboard",
           label: t((messages) => messages.agentNav.items.dashboard),
+          accessWarning: canViewDashboard
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.dashboard),
+              ),
+          badgeText: canViewDashboard ? undefined : restrictedBadge,
         },
-        ...(canViewClients
-          ? [
-              {
-                href: "/agent/clients",
-                label: t((messages) => messages.agentNav.items.clients),
-              },
-            ]
-          : []),
+        {
+          href: "/agent/clients",
+          label: t((messages) => messages.agentNav.items.clients),
+          accessWarning: canViewClients
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.clients),
+              ),
+          badgeText: canViewClients ? undefined : restrictedBadge,
+        },
         {
           href: "/agent/calendar",
           label: t((messages) => messages.agentNav.items.calendar),
+          accessWarning: canViewDashboard
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.calendar),
+              ),
+          badgeText: canViewDashboard ? undefined : restrictedBadge,
         },
         {
           href: "/agent/listings",
           label: t((messages) => messages.agentNav.items.listings),
+          accessWarning: canViewListings
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.listings),
+              ),
+          badgeText: canViewListings ? undefined : restrictedBadge,
         },
         {
           href: "/listing-studio/listings",
           label: t((messages) => messages.agentNav.items.studio),
+          accessWarning: canViewStudio
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.studio),
+              ),
+          badgeText: canViewStudio ? undefined : restrictedBadge,
           children: [
             {
               href: "/listing-studio/dashboard",
               label: t((messages) => messages.agentNav.items.studioDashboard),
+              accessWarning: canViewStudio
+                ? undefined
+                : buildAccessWarning(
+                    t((messages) => messages.agentNav.items.studio),
+                  ),
+              badgeText: canViewStudio ? undefined : restrictedBadge,
             },
             {
               href: "/listing-studio/listings",
               label: t((messages) => messages.agentNav.items.studioListings),
+              accessWarning: canViewStudio
+                ? undefined
+                : buildAccessWarning(
+                    t((messages) => messages.agentNav.items.studio),
+                  ),
+              badgeText: canViewStudio ? undefined : restrictedBadge,
             },
             {
               href: "/listing-studio/collections",
               label: t((messages) => messages.agentNav.items.studioCollections),
+              accessWarning: canViewStudio
+                ? undefined
+                : buildAccessWarning(
+                    t((messages) => messages.agentNav.items.studio),
+                  ),
+              badgeText: canViewStudio ? undefined : restrictedBadge,
             },
             {
               href: "/listing-studio/shares",
               label: t((messages) => messages.agentNav.items.studioShares),
+              accessWarning: canViewStudio
+                ? undefined
+                : buildAccessWarning(
+                    t((messages) => messages.agentNav.items.studio),
+                  ),
+              badgeText: canViewStudio ? undefined : restrictedBadge,
             },
           ],
         },
         {
           href: "/agent/notifications",
           label: t((messages) => messages.agentNav.items.activity),
+          accessWarning: canViewActivity
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.activity),
+              ),
+          badgeText: canViewActivity ? undefined : restrictedBadge,
         },
         {
           href: "/agent/resources",
           label: t((messages) => messages.agentNav.items.resources),
+          accessWarning: canViewResources
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.resources),
+              ),
+          badgeText: canViewResources ? undefined : restrictedBadge,
         },
       ],
     },

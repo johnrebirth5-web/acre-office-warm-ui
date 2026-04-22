@@ -94,7 +94,8 @@ export const enUSMessages = {
     errorCurrentPassword: "Current password is incorrect.",
     errorPasswordLength: "Password must be at least {min} characters.",
     errorMissingPassword: "Enter a new password to continue.",
-    errorRateLimited: "Too many password change attempts. Please wait a moment and try again.",
+    errorRateLimited:
+      "Too many password change attempts. Please wait a moment and try again.",
     errorUnknown: "Unable to change password. Try again.",
   },
   localeSwitcher: {
@@ -113,6 +114,10 @@ export const enUSMessages = {
     goToWorkspaceHome: "Go to workspace home",
     openNavigationMenu: "Open navigation menu",
     closeNavigationMenu: "Close navigation menu",
+    restrictedNavBadge: "Restricted",
+    restrictedNavTitle: "{feature} unavailable",
+    restrictedNavDescription:
+      'This account does not have permission to open the Front Office module "{feature}". Acre now shows that limit directly instead of automatically bouncing you back into Back Office.',
   },
   officeNav: {
     workspaceName: "Back Office",

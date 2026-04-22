@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@acre/ui";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,10 +10,16 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { useI18n } from "../../lib/i18n/client";
 import { SiteReleaseBadge } from "../site-release-badge";
 
+type WorkspaceNavAccessWarning = {
+  title: string;
+  description: string;
+};
+
 type WorkspaceNavChildItem = {
   label: string;
   badgeText?: string;
   href: string;
+  accessWarning?: WorkspaceNavAccessWarning;
 };
 
 type WorkspaceNavItem =
@@ -21,6 +28,7 @@ type WorkspaceNavItem =
       badgeText?: string;
       href: string;
       children?: WorkspaceNavChildItem[];
+      accessWarning?: WorkspaceNavAccessWarning;
     }
   | {
       label: string;
@@ -94,14 +102,18 @@ function isLinkItem(item: WorkspaceNavItem): item is LinkNavItem {
 }
 
 function isBranchItem(item: WorkspaceNavItem): item is BranchNavItem {
-  return isLinkItem(item) && Array.isArray(item.children) && item.children.length > 0;
+  return (
+    isLinkItem(item) && Array.isArray(item.children) && item.children.length > 0
+  );
 }
 
 function renderNavItemLabel(item: { label: string; badgeText?: string }) {
   return (
     <span className="office-nav-link-row">
       <span>{item.label}</span>
-      {item.badgeText ? <span className="office-nav-link-badge">{item.badgeText}</span> : null}
+      {item.badgeText ? (
+        <span className="office-nav-link-badge">{item.badgeText}</span>
+      ) : null}
     </span>
   );
 }
@@ -129,7 +141,11 @@ export function WorkspaceNav({
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
-  const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
+  const [expandedBranches, setExpandedBranches] = useState<
+    Record<string, boolean>
+  >({});
+  const [accessWarning, setAccessWarning] =
+    useState<WorkspaceNavAccessWarning | null>(null);
   const workspaceSwitcherRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -168,6 +184,7 @@ export function WorkspaceNav({
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsWorkspaceMenuOpen(false);
+    setAccessWarning(null);
   }, [actualLocationKey]);
 
   useEffect(() => {
@@ -214,10 +231,8 @@ export function WorkspaceNav({
       group.items.some(
         (item) =>
           isLinkItem(item) &&
-          (
-            item.href.startsWith(`${path}#`) ||
-            item.children?.some((child) => child.href.startsWith(`${path}#`))
-          ),
+          (item.href.startsWith(`${path}#`) ||
+            item.children?.some((child) => child.href.startsWith(`${path}#`))),
       ),
     );
   }
@@ -227,13 +242,15 @@ export function WorkspaceNav({
     const targetHash = hashFragment ? `#${hashFragment}` : "";
 
     if (targetHash) {
-      return effectiveLocation.path === path && effectiveLocation.hash === targetHash
+      return effectiveLocation.path === path &&
+        effectiveLocation.hash === targetHash
         ? 4_000 + path.length + targetHash.length
         : null;
     }
 
     if (hasHashVariant(path)) {
-      return effectiveLocation.path === path && effectiveLocation.hash.length === 0
+      return effectiveLocation.path === path &&
+        effectiveLocation.hash.length === 0
         ? 3_000 + path.length
         : null;
     }
@@ -278,6 +295,10 @@ export function WorkspaceNav({
 
   function handleNavIntent(href: string) {
     setPendingLocationKey(normalizeHref(href));
+  }
+
+  function handleAccessWarning(warning: WorkspaceNavAccessWarning) {
+    setAccessWarning(warning);
   }
 
   function getBranchKey(item: LinkNavItem) {
@@ -449,8 +470,7 @@ export function WorkspaceNav({
                 <strong>{currentWorkspaceName}</strong>
                 <span>
                   {t(
-                    (messages) =>
-                      messages.workspaceNav.currentActiveWorkspace,
+                    (messages) => messages.workspaceNav.currentActiveWorkspace,
                   )}
                 </span>
               </div>
@@ -500,6 +520,7 @@ export function WorkspaceNav({
                     if (isBranchItem(item)) {
                       const isActive = isBranchActive(item);
                       const isExpanded = isBranchExpanded(item);
+                      const branchAccessWarning = item.accessWarning;
 
                       return (
                         <div
@@ -510,13 +531,25 @@ export function WorkspaceNav({
                           key={item.label}
                         >
                           <div className="office-nav-branch-head">
-                            <Link
-                              className={`office-nav-link${isActive ? " is-active" : ""}`}
-                              href={href}
-                              onClick={() => handleNavIntent(href)}
-                            >
-                              {renderNavItemLabel(item)}
-                            </Link>
+                            {branchAccessWarning ? (
+                              <button
+                                className={`office-nav-link office-nav-link-button office-nav-link-blocked${isActive ? " is-active" : ""}`}
+                                onClick={() =>
+                                  handleAccessWarning(branchAccessWarning)
+                                }
+                                type="button"
+                              >
+                                {renderNavItemLabel(item)}
+                              </button>
+                            ) : (
+                              <Link
+                                className={`office-nav-link${isActive ? " is-active" : ""}`}
+                                href={href}
+                                onClick={() => handleNavIntent(href)}
+                              >
+                                {renderNavItemLabel(item)}
+                              </Link>
+                            )}
                             <button
                               aria-expanded={isExpanded}
                               aria-label={
@@ -537,19 +570,49 @@ export function WorkspaceNav({
 
                           {isExpanded ? (
                             <div className="office-nav-children">
-                              {item.children.map((child) => (
-                                <Link
-                                  className={`office-nav-child-link${isSidebarItemActive(child.href) ? " is-active" : ""}`}
-                                  href={child.href}
-                                  key={child.href}
-                                  onClick={() => handleNavIntent(child.href)}
-                                >
-                                  {renderNavItemLabel(child)}
-                                </Link>
-                              ))}
+                              {item.children.map((child) => {
+                                const childAccessWarning = child.accessWarning;
+
+                                return childAccessWarning ? (
+                                  <button
+                                    className={`office-nav-child-link office-nav-child-link-button office-nav-link-blocked${isSidebarItemActive(child.href) ? " is-active" : ""}`}
+                                    key={child.href}
+                                    onClick={() =>
+                                      handleAccessWarning(childAccessWarning)
+                                    }
+                                    type="button"
+                                  >
+                                    {renderNavItemLabel(child)}
+                                  </button>
+                                ) : (
+                                  <Link
+                                    className={`office-nav-child-link${isSidebarItemActive(child.href) ? " is-active" : ""}`}
+                                    href={child.href}
+                                    key={child.href}
+                                    onClick={() => handleNavIntent(child.href)}
+                                  >
+                                    {renderNavItemLabel(child)}
+                                  </Link>
+                                );
+                              })}
                             </div>
                           ) : null}
                         </div>
+                      );
+                    }
+
+                    const itemAccessWarning = item.accessWarning;
+
+                    if (itemAccessWarning) {
+                      return (
+                        <button
+                          key={item.label}
+                          className={`office-nav-link office-nav-link-button office-nav-link-blocked${isSidebarItemActive(href) ? " is-active" : ""}`}
+                          onClick={() => handleAccessWarning(itemAccessWarning)}
+                          type="button"
+                        >
+                          {renderNavItemLabel(item)}
+                        </button>
                       );
                     }
 
@@ -609,7 +672,9 @@ export function WorkspaceNav({
           </div>
 
           <Link
-            aria-label={t((messages) => messages.workspaceNav.goToWorkspaceHome)}
+            aria-label={t(
+              (messages) => messages.workspaceNav.goToWorkspaceHome,
+            )}
             className="office-mobile-rail-logo"
             href={homeHref}
             onClick={() => setIsMobileMenuOpen(false)}
@@ -698,6 +763,7 @@ export function WorkspaceNav({
                         if (isBranchItem(item)) {
                           const isActive = isBranchActive(item);
                           const isExpanded = isBranchExpanded(item);
+                          const branchAccessWarning = item.accessWarning;
 
                           return (
                             <div
@@ -708,16 +774,29 @@ export function WorkspaceNav({
                               key={item.label}
                             >
                               <div className="office-mobile-menu-branch-head">
-                                <Link
-                                  className={`office-mobile-menu-link${isActive ? " is-active" : ""}`}
-                                  href={href}
-                                  onClick={() => {
-                                    handleNavIntent(href);
-                                    setIsMobileMenuOpen(false);
-                                  }}
-                                >
-                                  {renderNavItemLabel(item)}
-                                </Link>
+                                {branchAccessWarning ? (
+                                  <button
+                                    className={`office-mobile-menu-link office-mobile-menu-link-button office-nav-link-blocked${isActive ? " is-active" : ""}`}
+                                    onClick={() => {
+                                      handleAccessWarning(branchAccessWarning);
+                                      setIsMobileMenuOpen(false);
+                                    }}
+                                    type="button"
+                                  >
+                                    {renderNavItemLabel(item)}
+                                  </button>
+                                ) : (
+                                  <Link
+                                    className={`office-mobile-menu-link${isActive ? " is-active" : ""}`}
+                                    href={href}
+                                    onClick={() => {
+                                      handleNavIntent(href);
+                                      setIsMobileMenuOpen(false);
+                                    }}
+                                  >
+                                    {renderNavItemLabel(item)}
+                                  </Link>
+                                )}
                                 <button
                                   aria-expanded={isExpanded}
                                   aria-label={
@@ -738,22 +817,59 @@ export function WorkspaceNav({
 
                               {isExpanded ? (
                                 <div className="office-mobile-menu-children">
-                                  {item.children.map((child) => (
-                                    <Link
-                                      className={`office-mobile-menu-child-link${isMobileMenuItemActive(child.href) ? " is-active" : ""}`}
-                                      href={child.href}
-                                      key={child.href}
-                                      onClick={() => {
-                                        handleNavIntent(child.href);
-                                        setIsMobileMenuOpen(false);
-                                      }}
-                                    >
-                                      {renderNavItemLabel(child)}
-                                    </Link>
-                                  ))}
+                                  {item.children.map((child) => {
+                                    const childAccessWarning =
+                                      child.accessWarning;
+
+                                    return childAccessWarning ? (
+                                      <button
+                                        className={`office-mobile-menu-child-link office-mobile-menu-link-button office-nav-link-blocked${isMobileMenuItemActive(child.href) ? " is-active" : ""}`}
+                                        key={child.href}
+                                        onClick={() => {
+                                          handleAccessWarning(
+                                            childAccessWarning,
+                                          );
+                                          setIsMobileMenuOpen(false);
+                                        }}
+                                        type="button"
+                                      >
+                                        {renderNavItemLabel(child)}
+                                      </button>
+                                    ) : (
+                                      <Link
+                                        className={`office-mobile-menu-child-link${isMobileMenuItemActive(child.href) ? " is-active" : ""}`}
+                                        href={child.href}
+                                        key={child.href}
+                                        onClick={() => {
+                                          handleNavIntent(child.href);
+                                          setIsMobileMenuOpen(false);
+                                        }}
+                                      >
+                                        {renderNavItemLabel(child)}
+                                      </Link>
+                                    );
+                                  })}
                                 </div>
                               ) : null}
                             </div>
+                          );
+                        }
+
+                        const itemAccessWarning = item.accessWarning;
+
+                        if (itemAccessWarning) {
+                          return (
+                            <button
+                              key={item.label}
+                              className={`office-mobile-menu-link office-mobile-menu-link-button office-nav-link-blocked${isMobileMenuItemActive(href) ? " is-active" : ""}`}
+                              onClick={() => {
+                                handleAccessWarning(itemAccessWarning);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              type="button"
+                            >
+                              {renderNavItemLabel(item)}
+                            </button>
                           );
                         }
 
@@ -806,6 +922,39 @@ export function WorkspaceNav({
           </>
         ) : null}
       </nav>
+
+      {accessWarning ? (
+        <div
+          className="office-modal-overlay"
+          onClick={() => setAccessWarning(null)}
+        >
+          <section
+            aria-label={accessWarning.title}
+            aria-modal="true"
+            className="office-modal office-confirm-dialog"
+            onClick={(event) => event.stopPropagation()}
+            role="alertdialog"
+          >
+            <header className="office-confirm-dialog-head">
+              <span className="office-confirm-dialog-kicker">
+                {t((messages) => messages.workspaceNav.restrictedNavBadge)}
+              </span>
+              <h3>{accessWarning.title}</h3>
+              <p>{accessWarning.description}</p>
+            </header>
+
+            <footer className="office-confirm-dialog-footer">
+              <Button
+                onClick={() => setAccessWarning(null)}
+                type="button"
+                variant="secondary"
+              >
+                {t((messages) => messages.common.close)}
+              </Button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }

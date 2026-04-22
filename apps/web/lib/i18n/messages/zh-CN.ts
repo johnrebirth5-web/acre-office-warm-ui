@@ -113,6 +113,10 @@ export const zhCNMessages = {
     goToWorkspaceHome: "返回工作区首页",
     openNavigationMenu: "打开导航菜单",
     closeNavigationMenu: "关闭导航菜单",
+    restrictedNavBadge: "受限",
+    restrictedNavTitle: "{feature} 暂不可用",
+    restrictedNavDescription:
+      "当前账号没有访问 Front Office 模块“{feature}”的权限。Acre 会直接提示这个限制，不再自动把你跳回 Back Office。",
   },
   officeNav: {
     workspaceName: "Back Office",

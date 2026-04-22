@@ -1,4 +1,4 @@
-import { can, getDefaultAppPath } from "@acre/auth";
+import { can } from "@acre/auth";
 import Link from "next/link";
 import {
   getFrontOfficeClientsSnapshot,
@@ -14,8 +14,8 @@ import {
   StatusBadge,
   SummaryChip,
 } from "@acre/ui";
-import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
 import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/front-office-lead-intake-review";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
@@ -246,9 +246,7 @@ function buildDashboardLaunchpadItems(input: {
       id: "intake",
       badgeLabel: isZh ? "录入" : "Intake",
       badgeTone: "accent",
-      title: isZh
-        ? "打开录入辅助"
-        : "Open intake assist",
+      title: isZh ? "打开录入辅助" : "Open intake assist",
       description: isZh
         ? "从截图或粘贴内容里抓关键字段，再决定是否写进正式表单。"
         : "Capture key fields from screenshots or pasted text before anything reaches the live form.",
@@ -446,7 +444,13 @@ export default async function AgentDashboardPage() {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "dashboard:view")) {
-    redirect(getDefaultAppPath(context.currentMembership));
+    return (
+      <FrontOfficeAccessNotice
+        currentMembership={context.currentMembership}
+        featureKey="dashboard"
+        userLocale={context.currentUser.locale}
+      />
+    );
   }
 
   const access = getSessionAccess(context);
@@ -751,7 +755,6 @@ export default async function AgentDashboardPage() {
               </div>
             ) : null}
           </SectionCard>
-
         </>
       }
       pageClassName="front-office-dashboard-page"
