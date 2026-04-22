@@ -230,7 +230,7 @@ export const enUSMessages = {
     market: "Market",
     titleField: "Title",
     membership: "Membership",
-    startDate: "Start date",
+    startDate: "Expiration date",
     onboarding: "Onboarding",
     teams: "Teams",
     currentAssignments: "{count} current assignments",

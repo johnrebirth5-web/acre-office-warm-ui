@@ -697,7 +697,7 @@
     - office assignment
     - role / membership status
     - team assignment
-    - onboarding status / start date
+    - onboarding status / license expiration date
   - 当前通知偏好使用显式持久化模型：
     - `MembershipNotificationPreference`
     - 支持 `in-app notifications`

@@ -165,6 +165,95 @@ function getCommissionStatusTone(status: string) {
   return "neutral" as const;
 }
 
+function getLicenseExpirationStatus(value: string) {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return {
+      tone: "neutral" as const,
+      badge: "Not set",
+      summary: "No expiration date recorded",
+      detail: "Add an expiration date to automatically track renewal timing for this agent."
+    };
+  }
+
+  const parsed = new Date(`${normalizedValue}T00:00:00.000Z`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      tone: "warning" as const,
+      badge: "Needs review",
+      summary: "Expiration date could not be read",
+      detail: "Enter a valid expiration date to calculate the renewal timing."
+    };
+  }
+
+  const now = new Date();
+  const startOfTodayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const expirationUtc = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  const daysUntilExpiration = Math.round((expirationUtc - startOfTodayUtc) / 86_400_000);
+  const expirationDateLabel = parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+
+  if (daysUntilExpiration < 0) {
+    const daysSinceExpiration = Math.abs(daysUntilExpiration);
+
+    return {
+      tone: "danger" as const,
+      badge: "Expired",
+      summary: daysSinceExpiration === 1 ? "Expired 1 day ago" : `Expired ${daysSinceExpiration} days ago`,
+      detail: `License expiration date was ${expirationDateLabel}.`
+    };
+  }
+
+  if (daysUntilExpiration === 0) {
+    return {
+      tone: "warning" as const,
+      badge: "Today",
+      summary: "Expires today",
+      detail: `License expiration date is ${expirationDateLabel}.`
+    };
+  }
+
+  if (daysUntilExpiration === 1) {
+    return {
+      tone: "warning" as const,
+      badge: "Tomorrow",
+      summary: "Expires tomorrow",
+      detail: `License expiration date is ${expirationDateLabel}.`
+    };
+  }
+
+  if (daysUntilExpiration <= 30) {
+    return {
+      tone: "warning" as const,
+      badge: "Renew soon",
+      summary: `Expires in ${daysUntilExpiration} days`,
+      detail: `License expiration date is ${expirationDateLabel}.`
+    };
+  }
+
+  if (daysUntilExpiration <= 90) {
+    return {
+      tone: "accent" as const,
+      badge: "Upcoming",
+      summary: `${daysUntilExpiration} days remaining`,
+      detail: `License expiration date is ${expirationDateLabel}.`
+    };
+  }
+
+  return {
+    tone: "success" as const,
+    badge: "Active",
+    summary: `${daysUntilExpiration} days remaining`,
+    detail: `License expiration date is ${expirationDateLabel}.`
+  };
+}
+
 function supportsTeamHierarchy(roleValue: string) {
   return roleValue === "agent" || roleValue === "team_lead";
 }
@@ -210,6 +299,7 @@ export function UserOperationsDetailSections({
     canManageTeams && !supportsTeamHierarchy(snapshot.profile.roleValue)
       ? "Only Agent / Team Lead accounts can be added to Teams / Junior Teams. Update the account role in Settings > Users first."
       : null;
+  const licenseExpirationStatus = getLicenseExpirationStatus(profileState.startDate);
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({ ...current, [field]: value }));
@@ -442,9 +532,17 @@ export function UserOperationsDetailSections({
                 <FormField className="office-detail-field" label="License state">
                   <TextInput onChange={(event) => setProfileField("licenseState", event.target.value)} readOnly={!canManageAgents} value={profileState.licenseState} />
                 </FormField>
-                <FormField className="office-detail-field" label="Start date">
+                <FormField className="office-detail-field" label="Expiration date">
                   <TextInput onChange={(event) => setProfileField("startDate", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.startDate} />
                 </FormField>
+                <div aria-live="polite" className="office-detail-field office-agent-expiration-field">
+                  <span>Expiration status</span>
+                  <StatusBadge className="office-agent-expiration-badge" tone={licenseExpirationStatus.tone}>
+                    {licenseExpirationStatus.badge}
+                  </StatusBadge>
+                  <strong>{licenseExpirationStatus.summary}</strong>
+                  <p>{licenseExpirationStatus.detail}</p>
+                </div>
                 <FormField className="office-detail-field" label="Default split template">
                   <SelectInput
                     disabled={!canManageAgents}
@@ -486,9 +584,6 @@ export function UserOperationsDetailSections({
                     type="date"
                     value={profileState.commissionEffectiveFrom}
                   />
-                </FormField>
-                <FormField className="office-detail-field" label="Internal extension">
-                  <TextInput onChange={(event) => setProfileField("internalExtension", event.target.value)} readOnly={!canManageAgents} value={profileState.internalExtension} />
                 </FormField>
                 <div className="office-detail-field">
                   <span>Current default split</span>

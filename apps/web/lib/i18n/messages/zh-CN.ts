@@ -228,7 +228,7 @@ export const zhCNMessages = {
     market: "市场",
     titleField: "头衔",
     membership: "成员身份",
-    startDate: "开始日期",
+    startDate: "到期日期",
     onboarding: "入职进度",
     teams: "团队",
     currentAssignments: "{count} 个当前归属",

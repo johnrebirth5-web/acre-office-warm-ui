@@ -27,7 +27,7 @@ Current MVP sections:
   - editable safe self-service fields
   - current email shown read-only
 - `Office / Team`
-  - office, role, title, membership status, start date, onboarding status
+  - office, role, title, membership status, license expiration date, onboarding status
   - current team memberships shown read-only
 - `Notifications`
   - explicit in-app inbox preference toggles

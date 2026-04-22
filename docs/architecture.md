@@ -1028,7 +1028,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `AgentProfile` 只补 membership 侧扩展字段：
   - display name
   - license info
-  - start date
+  - license expiration date
   - onboarding status
   - commission plan name
   - bio / notes

@@ -7017,6 +7017,21 @@ a {
   );
 }
 
+.office-agent-expiration-field {
+  gap: 8px;
+}
+
+.office-agent-expiration-badge {
+  justify-self: start;
+}
+
+.office-agent-expiration-field p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .office-kpi-grid,
 .office-dashboard-grid,
 .office-dashboard-grid-wide {
