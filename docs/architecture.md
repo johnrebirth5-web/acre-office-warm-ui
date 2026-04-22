@@ -203,7 +203,8 @@
   - 核心复用：
     - `User` 做 name / email / phone / locale / timezone
     - `Membership` 做 self scope / role / office assignment
-    - `AgentProfile` 做 avatar / license / extension / onboarding context
+    - `AgentProfile` 做共享 display/avatar/bio/commission-plan shadow fields
+    - `AgentOfficeProfile` 做 office-specific license / expiration / extension / notes / onboarding context
     - `MembershipNotificationPreference` 做当前 membership 的 inbox preference state
   - 当前 security section 只反映真实内部账号现状，不伪造 forgot-password、email delivery 或 2-step flows
 - 当前 `Office Mail` 也已通过 Prisma service 和 route handlers 落地到：
@@ -1025,13 +1026,16 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 
 当前实现方式：
 
-- `AgentProfile` 只补 membership 侧扩展字段：
+- `AgentProfile` 保留 membership 侧共享扩展字段：
   - display name
+  - avatar / bio
+  - commission plan name shadow label
+- `AgentOfficeProfile` 承载 office-specific operational profile 字段：
   - license info
   - license expiration date
   - onboarding status
-  - commission plan name
-  - bio / notes
+  - notes
+  - internal extension
 - `AgentBankInformation` 承载 membership 级 payout / tax reporting intake：
   - first / last name
   - email / phone

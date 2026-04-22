@@ -61,6 +61,7 @@ import {
   isValidBranchLeaderRole,
   resolveUserRoleForTeamMembershipRole
 } from "../team-hierarchy";
+import { buildAgentOfficeProfileSeed } from "../agent-office-profiles";
 
 import { AddAgentToTeamInput, ApplyAgentOnboardingTemplateInput, ComparableAgentBankInformationRecord, CreateAgentGoalInput, CreateAgentOnboardingItemInput, CreateAgentTeamInput, DeleteAgentTeamInput, GetOfficeAgentProfileInput, GetOfficeAgentsRosterInput, OfficeAgentBankInformationRecord, OfficeAgentGoalRecord, OfficeAgentOnboardingItemRecord, OfficeAgentOnboardingTemplateRecord, OfficeAgentOperationalAgendaItem, OfficeAgentProfileActivityItem, OfficeAgentProfileAvailableTeam, OfficeAgentProfileAvailableTeamManager, OfficeAgentProfileSnapshot, OfficeAgentProfileTeam, OfficeAgentRosterFilters, OfficeAgentRosterRow, OfficeAgentTeamSummary, OfficeAgentsRosterSnapshot, RemoveAgentFromTeamInput, SaveAgentProfileInput, UpdateAgentGoalInput, UpdateAgentOnboardingItemInput, UpdateAgentTeamInput, agentBankInformationAccountTypeLabelMap, agentBankInformationTaxIdTypeLabelMap, buildAgentBankInformationSignature, buildUniqueTeamSlug, canManageAgentBankInformation, defaultOnboardingItems, formatCurrency, formatDateLabel, formatDateTimeLabel, formatDateValue, getPurchasedPriceValue, goalPeriodLabelMap, hasAnyAgentBankInformationValue, membershipStatusLabelMap, normalizeComparableAgentBankInformationRecord, onboardingItemStatusLabelMap, onboardingStatusLabelMap, parseOptionalAgentBankInformationAccountType, parseOptionalAgentBankInformationTaxIdType, parseOptionalDate, parseOptionalDecimal, parseOptionalText, roleLabelMap, slugify, teamRoleLabelMap } from "./types";
 import { getOfficeAgentProfileSnapshot, getOfficeAgentsRosterSnapshot, saveAgentProfile } from "./roster-profile";
@@ -1143,6 +1144,29 @@ export async function syncAgentProfileOnboardingStatus(
       onboardingStatus: nextStatus
     }
   });
+
+  if (officeId) {
+    await tx.agentOfficeProfile.upsert({
+      where: {
+        membershipId_officeId: {
+          membershipId,
+          officeId,
+        },
+      },
+      update: {
+        organizationId,
+        officeId,
+        onboardingStatus: nextStatus,
+      },
+      create: {
+        organizationId,
+        officeId,
+        membershipId,
+        ...buildAgentOfficeProfileSeed(profile),
+        onboardingStatus: nextStatus,
+      },
+    });
+  }
 
   return nextStatus;
 }

@@ -15,6 +15,11 @@ import {
   recordActivityLogEvent,
   type ActivityLogChange,
 } from "./activity-log";
+import {
+  buildAgentOfficeProfileSeed,
+  findAgentOfficeProfileForOffice,
+  resolveAgentOfficeProfileFields,
+} from "./agent-office-profiles";
 import { prisma } from "./client";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
 import { officeNotificationInboxTypes } from "./notifications";
@@ -139,6 +144,7 @@ export type GetOfficeAccountSnapshotInput = {
 
 export type SaveOfficeAccountProfileInput = {
   organizationId: string;
+  officeId?: string | null;
   membershipId: string;
   firstName: string;
   lastName: string;
@@ -245,17 +251,23 @@ function buildChange(
 
 function hasEditableProfileData(input: {
   displayName: string;
-  internalExtension: string;
   avatarUrl: string;
   bio: string;
+}) {
+  return Boolean(
+    parseOptionalText(input.displayName) ||
+    parseOptionalText(input.avatarUrl) ||
+    parseOptionalText(input.bio),
+  );
+}
+
+function hasEditableOfficeProfileData(input: {
+  internalExtension: string;
   licenseNumber: string;
   licenseState: string;
 }) {
   return Boolean(
-    parseOptionalText(input.displayName) ||
     parseOptionalText(input.internalExtension) ||
-    parseOptionalText(input.avatarUrl) ||
-    parseOptionalText(input.bio) ||
     parseOptionalText(input.licenseNumber) ||
     parseOptionalText(input.licenseState),
   );
@@ -307,7 +319,18 @@ async function getScopedMembership(input: {
         },
       },
       office: true,
+      officeAccesses: {
+        include: {
+          office: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       agentProfile: true,
+      agentOfficeProfiles: true,
       teamMemberships: {
         include: {
           team: true,
@@ -334,6 +357,13 @@ export async function getOfficeAccountSnapshot(
   recentTransactionCutoff.setDate(recentTransactionCutoff.getDate() - 30);
   const recentNotificationCutoff = new Date();
   recentNotificationCutoff.setDate(recentNotificationCutoff.getDate() - 14);
+  const officeProfileFields = resolveAgentOfficeProfileFields(
+    membership.agentProfile,
+    findAgentOfficeProfileForOffice(
+      membership,
+      input.officeId ?? membership.officeId ?? null,
+    ),
+  );
   const credential = membership.user.credential;
   const hasCredential = Boolean(credential);
   const isLocked = Boolean(
@@ -547,11 +577,11 @@ export async function getOfficeAccountSnapshot(
       displayName: membership.agentProfile?.displayName?.trim() || fullName,
       email: membership.user.email,
       phone: membership.user.phone ?? "",
-      internalExtension: membership.agentProfile?.internalExtension ?? "",
+      internalExtension: officeProfileFields.internalExtension,
       avatarUrl: membership.agentProfile?.avatarUrl ?? "",
       bio: membership.agentProfile?.bio ?? "",
-      licenseNumber: membership.agentProfile?.licenseNumber ?? "",
-      licenseState: membership.agentProfile?.licenseState ?? "",
+      licenseNumber: officeProfileFields.licenseNumber,
+      licenseState: officeProfileFields.licenseState,
       timezone: membership.user.timezone,
       locale: membership.user.locale,
     },
@@ -566,10 +596,10 @@ export async function getOfficeAccountSnapshot(
           teamMemberships: membership.teamMemberships,
         }) || "Not assigned",
       membershipStatusLabel: membershipStatusLabelMap[membership.status],
-      startDateLabel: formatDateLabel(membership.agentProfile?.startDate),
+      startDateLabel: formatDateLabel(officeProfileFields.expirationDate),
       onboardingStatusLabel:
         onboardingStatusLabelMap[
-          membership.agentProfile?.onboardingStatus ??
+          officeProfileFields.onboardingStatus ??
             AgentOnboardingStatus.not_started
         ],
       teams: membership.teamMemberships.map((teamMembership) => ({
@@ -656,6 +686,21 @@ export async function saveOfficeAccountProfile(
   const nextLocale = normalizeRequiredText(input.locale, "Locale");
   const nextPhone = parseOptionalText(input.phone);
   const nextDisplayName = parseOptionalText(input.displayName);
+  const targetOfficeId = input.officeId ?? membership.officeId ?? null;
+  const previousOfficeProfile = targetOfficeId
+    ? await prisma.agentOfficeProfile.findUnique({
+        where: {
+          membershipId_officeId: {
+            membershipId: input.membershipId,
+            officeId: targetOfficeId,
+          },
+        },
+      })
+    : null;
+  const previousOfficeFields = resolveAgentOfficeProfileFields(
+    membership.agentProfile,
+    previousOfficeProfile,
+  );
   const nextInternalExtension = parseOptionalText(input.internalExtension);
   const nextAvatarUrl = parseOptionalText(input.avatarUrl);
   const nextBio = parseOptionalText(input.bio);
@@ -666,6 +711,14 @@ export async function saveOfficeAccountProfile(
     membership.user.firstName,
     membership.user.lastName,
   );
+  const targetOfficeLabel =
+    (targetOfficeId === membership.officeId
+      ? membership.office?.name
+      : membership.officeAccesses.find(
+          (access) => access.officeId === targetOfficeId,
+        )?.office?.name) ??
+    membership.office?.name ??
+    "All offices";
 
   const changes = [
     buildChange("First name", membership.user.firstName, nextFirstName),
@@ -678,7 +731,7 @@ export async function saveOfficeAccountProfile(
     buildChange("Phone", membership.user.phone ?? "", nextPhone ?? ""),
     buildChange(
       "Internal extension",
-      membership.agentProfile?.internalExtension ?? "",
+      previousOfficeFields.internalExtension,
       nextInternalExtension ?? "",
     ),
     buildChange(
@@ -688,12 +741,12 @@ export async function saveOfficeAccountProfile(
     ),
     buildChange(
       "License number",
-      membership.agentProfile?.licenseNumber ?? "",
+      previousOfficeFields.licenseNumber,
       nextLicenseNumber ?? "",
     ),
     buildChange(
       "License state",
-      membership.agentProfile?.licenseState ?? "",
+      previousOfficeFields.licenseState,
       nextLicenseState ?? "",
     ),
     buildChange("Timezone", membership.user.timezone, nextTimezone),
@@ -715,12 +768,17 @@ export async function saveOfficeAccountProfile(
     Boolean(membership.agentProfile) ||
     hasEditableProfileData({
       displayName: input.displayName,
-      internalExtension: input.internalExtension,
       avatarUrl: input.avatarUrl,
       bio: input.bio,
-      licenseNumber: input.licenseNumber,
-      licenseState: input.licenseState,
     });
+  const shouldPersistOfficeProfile =
+    Boolean(targetOfficeId) &&
+    (Boolean(previousOfficeProfile) ||
+      hasEditableOfficeProfileData({
+        internalExtension: input.internalExtension,
+        licenseNumber: input.licenseNumber,
+        licenseState: input.licenseState,
+      }));
 
   return prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -746,10 +804,7 @@ export async function saveOfficeAccountProfile(
           officeId: membership.officeId,
           displayName: nextDisplayName,
           bio: nextBio,
-          licenseNumber: nextLicenseNumber,
-          licenseState: nextLicenseState,
           avatarUrl: nextAvatarUrl,
-          internalExtension: nextInternalExtension,
         },
         create: {
           organizationId: input.organizationId,
@@ -757,10 +812,34 @@ export async function saveOfficeAccountProfile(
           membershipId: input.membershipId,
           displayName: nextDisplayName,
           bio: nextBio,
+          avatarUrl: nextAvatarUrl,
+        },
+      });
+    }
+
+    if (shouldPersistOfficeProfile && targetOfficeId) {
+      await tx.agentOfficeProfile.upsert({
+        where: {
+          membershipId_officeId: {
+            membershipId: input.membershipId,
+            officeId: targetOfficeId,
+          },
+        },
+        update: {
+          organizationId: input.organizationId,
+          officeId: targetOfficeId,
+          internalExtension: nextInternalExtension,
           licenseNumber: nextLicenseNumber,
           licenseState: nextLicenseState,
-          avatarUrl: nextAvatarUrl,
+        },
+        create: {
+          organizationId: input.organizationId,
+          officeId: targetOfficeId,
+          membershipId: input.membershipId,
+          ...buildAgentOfficeProfileSeed(membership.agentProfile),
           internalExtension: nextInternalExtension,
+          licenseNumber: nextLicenseNumber,
+          licenseState: nextLicenseState,
         },
       });
     }
@@ -772,12 +851,12 @@ export async function saveOfficeAccountProfile(
       entityId: input.membershipId,
       action: activityLogActions.accountProfileUpdated,
       payload: {
-        officeId: membership.officeId,
+        officeId: targetOfficeId ?? membership.officeId,
         objectLabel: nextDisplayName ?? nextFullName,
         contextHref: "/office/account",
         details: [
           `Role: ${getRoleSummary(membership.role).label}`,
-          `Office: ${membership.office?.name ?? "All offices"}`,
+          `Office: ${targetOfficeLabel}`,
         ],
         changes,
       },

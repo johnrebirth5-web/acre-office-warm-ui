@@ -87,6 +87,7 @@ test("handleUpdateOfficeAccountProfilePatch forwards normalized profile payloads
   assert.equal(response.status, 200);
   assert.deepEqual(capturedInput, {
     organizationId: "org_1",
+    officeId: null,
     membershipId: "membership_1",
     firstName: "Ada",
     lastName: "Lovelace",

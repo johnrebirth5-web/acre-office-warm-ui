@@ -321,3 +321,112 @@ test("saving an agent profile works from an office where the membership has expl
     await context.cleanup();
   }
 });
+
+test("saving company-specific agent profile fields keeps each office isolated", async () => {
+  const context = await createAgentsTestContext();
+
+  try {
+    const admin = await context.createMembership(
+      "office_admin",
+      "office-profile-admin",
+      "Office",
+      "Admin",
+      "Office Admin",
+    );
+    const agent = await context.createMembership(
+      "agent",
+      "office-profile-agent",
+      "Office",
+      "Agent",
+      "Agent",
+      {
+        officeId: context.secondaryOffice.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id],
+      },
+    );
+
+    await saveAgentProfile({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id,
+      actorMembershipId: admin.membership.id,
+      licenseState: "NY",
+      startDate: "2027-10-09",
+      notes: "NY notes",
+      customAgentPercent: "60",
+      commissionEffectiveFrom: "2026-04-22",
+    });
+    await saveAgentProfile({
+      organizationId: context.organization.id,
+      officeId: context.secondaryOffice.id,
+      membershipId: agent.membership.id,
+      actorMembershipId: admin.membership.id,
+      licenseState: "NJ",
+      startDate: "2028-11-10",
+      notes: "NJ notes",
+      customAgentPercent: "80",
+      commissionEffectiveFrom: "2026-04-22",
+    });
+
+    const nySnapshot = await getOfficeAgentProfileSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: admin.membership.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id,
+    });
+    const njSnapshot = await getOfficeAgentProfileSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: admin.membership.id,
+      officeId: context.secondaryOffice.id,
+      membershipId: agent.membership.id,
+    });
+    const membership = await prisma.membership.findUnique({
+      where: {
+        id: agent.membership.id,
+      },
+      include: {
+        agentOfficeProfiles: {
+          orderBy: [{ officeId: "asc" }],
+        },
+        membershipCommissionSettings: {
+          orderBy: [{ officeId: "asc" }, { createdAt: "asc" }],
+        },
+      },
+    });
+    const nyOfficeProfile = membership?.agentOfficeProfiles.find(
+      (profile) => profile.officeId === context.office.id,
+    );
+    const njOfficeProfile = membership?.agentOfficeProfiles.find(
+      (profile) => profile.officeId === context.secondaryOffice.id,
+    );
+    const nySplit = membership?.membershipCommissionSettings.find(
+      (setting) => setting.officeId === context.office.id,
+    );
+    const njSplit = membership?.membershipCommissionSettings.find(
+      (setting) => setting.officeId === context.secondaryOffice.id,
+    );
+
+    assert.ok(nySnapshot);
+    assert.ok(njSnapshot);
+    assert.equal(nySnapshot?.profile.licenseState, "NY");
+    assert.equal(njSnapshot?.profile.licenseState, "NJ");
+    assert.equal(nySnapshot?.profile.notes, "NY notes");
+    assert.equal(njSnapshot?.profile.notes, "NJ notes");
+    assert.equal(nySnapshot?.profile.startDate, "2027-10-09");
+    assert.equal(njSnapshot?.profile.startDate, "2028-11-10");
+    assert.equal(nyOfficeProfile?.licenseState, "NY");
+    assert.equal(njOfficeProfile?.licenseState, "NJ");
+    assert.equal(
+      nyOfficeProfile?.expirationDate?.toISOString().slice(0, 10),
+      "2027-10-09",
+    );
+    assert.equal(
+      njOfficeProfile?.expirationDate?.toISOString().slice(0, 10),
+      "2028-11-10",
+    );
+    assert.equal(Number(nySplit?.agentPercent ?? 0), 60);
+    assert.equal(Number(njSplit?.agentPercent ?? 0), 80);
+  } finally {
+    await context.cleanup();
+  }
+});

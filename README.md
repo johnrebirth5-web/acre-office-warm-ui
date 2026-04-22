@@ -1067,14 +1067,14 @@ npm run import:acre-2026-04 -- run --execute --supplemental-sheet-url='https://d
 - supplemental roster 会直接读取 Google Sheet workbook 导出，不要求手工先导出文件
 - supplemental roster 只使用四列：`User Name / License state / Custom agent split % / Expiration date`
 - supplemental roster 字段落点：
-  - `License state` -> `AgentProfile.licenseState`
-  - `Expiration date` -> `AgentProfile.startDate`
+  - `License state` -> `AgentOfficeProfile.licenseState`
+  - `Expiration date` -> `AgentOfficeProfile.expirationDate`
   - `Custom agent split %` -> `MembershipCommissionSetting`（经 `saveAgentProfile` 写入）
 - supplemental roster 规则：
   - 读取完整底表，不按当前页面筛选后的可见行
   - 同一 sheet 同名行会先合并，再去匹配已导入 membership
   - `agent split` 会从所有原始 split 文本里提取百分比并取最高值
-  - 原始 split 文本和冲突信息会追加进 `AgentProfile.notes`
+  - 原始 split 文本和冲突信息会追加进对应 office 的 `AgentOfficeProfile.notes`
   - `commissionEffectiveFrom` 使用导入当天
 
 详细映射、已知限制和执行说明见：

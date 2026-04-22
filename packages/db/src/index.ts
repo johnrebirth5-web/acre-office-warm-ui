@@ -52,6 +52,7 @@ export const databaseModules = [
   "agent_bank_information",
   "agent_1099_payment_records",
   "agent_profiles",
+  "agent_office_profiles",
   "teams",
   "team_memberships",
   "agent_onboarding_items",

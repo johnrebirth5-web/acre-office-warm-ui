@@ -17,6 +17,7 @@ import {
   splitImportedFullName,
   upsertImportedActiveUser,
 } from "@acre/db";
+import { resolveAgentOfficeProfileFields } from "../../../packages/db/src/agent-office-profiles";
 import {
   aggregateSupplementalRows,
   appendSupplementalNote,
@@ -867,6 +868,7 @@ async function loadSupplementalWorkbookData(
 async function loadSupplementalMembershipState(
   organizationId: string,
   membershipIds: string[],
+  officeIds: string[],
 ) {
   if (membershipIds.length === 0) {
     return new Map<string, SupplementalMembershipState>();
@@ -884,23 +886,53 @@ async function loadSupplementalMembershipState(
       agentProfile: {
         select: {
           notes: true,
+          licenseNumber: true,
           licenseState: true,
           startDate: true,
+          onboardingStatus: true,
+          internalExtension: true,
+        },
+      },
+      agentOfficeProfiles: {
+        where: {
+          officeId: {
+            in: officeIds,
+          },
+        },
+        select: {
+          id: true,
+          officeId: true,
+          notes: true,
+          licenseNumber: true,
+          licenseState: true,
+          expirationDate: true,
+          onboardingStatus: true,
+          internalExtension: true,
         },
       },
     },
   });
 
-  return new Map(
-    rows.map((row) => [
-      row.id,
-      {
-        notes: row.agentProfile?.notes ?? "",
-        licenseState: row.agentProfile?.licenseState ?? "",
-        startDate: formatDateValue(row.agentProfile?.startDate),
-      } satisfies SupplementalMembershipState,
-    ]),
-  );
+  const state = new Map<string, SupplementalMembershipState>();
+
+  for (const row of rows) {
+    for (const officeId of officeIds) {
+      const officeProfile = row.agentOfficeProfiles.find(
+        (profile) => profile.officeId === officeId,
+      );
+      const resolved = resolveAgentOfficeProfileFields(
+        row.agentProfile,
+        officeProfile,
+      );
+      state.set(`${row.id}::${officeId}`, {
+        notes: resolved.notes,
+        licenseState: resolved.licenseState,
+        startDate: formatDateValue(resolved.expirationDate),
+      });
+    }
+  }
+
+  return state;
 }
 
 function resolveSupplementalMembershipMatch(
@@ -962,10 +994,18 @@ export async function executeSupplementalImport(
     dependencies.loadSupplementalWorkbookData ?? loadSupplementalWorkbookData;
   const workbookData = await loadData(supplementalSheetUrl);
   const importedIndex = buildImportedMembershipIndex(importedUsers);
+  const supplementalOfficeIds = [
+    ...new Set(
+      workbookData.aggregatedUsers
+        .map((user) => context.officeBySlug.get(user.officeSlug)?.id ?? "")
+        .filter(Boolean),
+    ),
+  ];
   const membershipState = execute
     ? await loadSupplementalMembershipState(
         context.organizationId,
         importedUsers.map((user) => user.membershipId),
+        supplementalOfficeIds,
       )
     : new Map<string, SupplementalMembershipState>();
   const effectiveFrom = getCurrentNewYorkDateValue(dependencies.now);
@@ -992,7 +1032,11 @@ export async function executeSupplementalImport(
       continue;
     }
 
-    const existingState = membershipState.get(matched.membership.membershipId) ?? {
+    const viewerOffice = context.officeBySlug.get(user.officeSlug);
+    const membershipStateKey = viewerOffice?.id
+      ? `${matched.membership.membershipId}::${viewerOffice.id}`
+      : matched.membership.membershipId;
+    const existingState = membershipState.get(membershipStateKey) ?? {
       notes: "",
       licenseState: "",
       startDate: "",
@@ -1013,8 +1057,6 @@ export async function executeSupplementalImport(
           shouldUpdateStartDate ||
           shouldUpdateCommission)
       ) {
-        const viewerOffice = context.officeBySlug.get(user.officeSlug);
-
         await saveAgentProfile({
           organizationId: context.organizationId,
           officeId: viewerOffice?.id ?? null,
@@ -1048,6 +1090,15 @@ export async function executeSupplementalImport(
           shouldUpdateLicenseState || shouldUpdateStartDate ? "yes" : "no",
         commissionUpdated: shouldUpdateCommission ? "yes" : "no",
         noteUpdated: shouldUpdateNote ? "yes" : "no",
+      });
+      membershipState.set(membershipStateKey, {
+        notes: nextNotes,
+        licenseState: shouldUpdateLicenseState
+          ? user.licenseState
+          : existingState.licenseState,
+        startDate: shouldUpdateStartDate
+          ? user.expirationDate
+          : existingState.startDate,
       });
       if (sheetCounts) {
         sheetCounts.imported += 1;

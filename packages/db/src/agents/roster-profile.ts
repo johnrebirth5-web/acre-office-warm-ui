@@ -39,6 +39,11 @@ import {
   saveMembershipCommissionSetting,
   type OfficeMembershipCommissionEditorSnapshot
 } from "../commission-defaults";
+import {
+  buildAgentOfficeProfileSeed,
+  findAgentOfficeProfileForOffice,
+  resolveAgentOfficeProfileFields
+} from "../agent-office-profiles";
 
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "../commissions";
 
@@ -70,6 +75,36 @@ const maxOfficeAgentsRosterPageSize = 100;
 import { ManagedMembershipRecord, applyOnboardingTemplateItems, assertTeamHierarchyAssignableMembership, buildChange, buildGoalProgressSummary, buildLeaderOwnedTeamName, buildOnboardingProgressLabel, buildTransactionSummaryLabel, ensureAgentProfileFoundation, ensureMembershipExists, formatDueDaysOffsetLabel, getActivityActionLabel, getBillingSummaryByMembership, getCurrentOrLatestGoal, getDefaultOnboardingTemplateSeedData, getGoalProgressSourceDate, getMembershipLabel, getPayloadObjectLabel, listActiveOnboardingTemplateItems, materializeImplicitJuniorTeamsForManagementAction, materializeImplicitJuniorTeamsForOrganization, normalizeGoalPeriod, normalizeMembershipStatusFilter, normalizeOnboardingItemStatus, normalizeOnboardingStatus, normalizeOptionalTeamId, normalizeOptionalTeamMembershipId, normalizeTeamRole, redactAgentCommissionSummary, redactAgentGoalFinancials, resolveOnboardingDueDate, syncAgentProfileOnboardingStatus, syncLeaderAccountRoleForTeamAssignment, syncManagedMembershipTitle, syncManagedMembershipTitlesForTeam, syncManagedMembershipTitlesForTeamBranch, validateTeamMembershipHierarchy, validateTeamParentAssignment } from "./helpers";
 import { addAgentToTeam, applyAgentOnboardingTemplate, assignMembershipToTeamTx, createAgentTeam, deleteAgentTeam, removeAgentFromTeam, updateAgentTeam } from "./team-management";
 import { createAgentGoal, createAgentOnboardingItem, updateAgentGoal, updateAgentOnboardingItem } from "./progress";
+
+function getMembershipOfficeProfileFields(
+  membership: {
+    officeId?: string | null;
+    agentProfile?: {
+      notes?: string | null;
+      licenseNumber?: string | null;
+      licenseState?: string | null;
+      startDate?: Date | null;
+      onboardingStatus?: AgentOnboardingStatus | null;
+      internalExtension?: string | null;
+    } | null;
+    agentOfficeProfiles?: Array<{
+      id?: string;
+      officeId: string;
+      notes?: string | null;
+      licenseNumber?: string | null;
+      licenseState?: string | null;
+      expirationDate?: Date | null;
+      onboardingStatus?: AgentOnboardingStatus | null;
+      internalExtension?: string | null;
+    }>;
+  },
+  officeId?: string | null,
+) {
+  return resolveAgentOfficeProfileFields(
+    membership.agentProfile,
+    findAgentOfficeProfileForOffice(membership, officeId),
+  );
+}
 
 export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRosterInput): Promise<OfficeAgentsRosterSnapshot> {
   const membershipStatusFilter = normalizeMembershipStatusFilter(input.membershipStatus);
@@ -168,6 +203,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
           }
         },
         agentProfile: true,
+        agentOfficeProfiles: true,
         teamMemberships: {
           where: {
             ...(scopedTeams.length ? { teamId: { in: scopedTeams.map((team) => team.id) } } : {})
@@ -198,6 +234,12 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       officeAccesses: membership.officeAccesses,
       officeId: scopedOfficeId ?? null
     })
+  );
+  const officeProfileFieldsByMembershipId = new Map(
+    memberships.map((membership) => [
+      membership.id,
+      getMembershipOfficeProfileFields(membership, scopedOfficeId ?? membership.officeId ?? null),
+    ]),
   );
 
   const membershipIds = memberships.map((membership) => membership.id);
@@ -376,13 +418,14 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
   }
 
   for (const membership of memberships) {
+    const officeProfileFields = officeProfileFieldsByMembershipId.get(membership.id);
     const current = onboardingProgressMap.get(membership.id) ?? {
       totalCount: 0,
       completedCount: 0,
-      status: membership.agentProfile?.onboardingStatus ?? "not_started"
+      status: officeProfileFields?.onboardingStatus ?? "not_started"
     };
     current.status = normalizeOnboardingStatus(
-      membership.agentProfile?.onboardingStatus ?? "not_started",
+      officeProfileFields?.onboardingStatus ?? "not_started",
       Array.from({ length: current.totalCount }, (_, index) => ({
         status:
           index < current.completedCount
@@ -456,7 +499,8 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
   if (input.onboardingStatus) {
     filteredMemberships = filteredMemberships.filter((membership) => {
       const onboardingProgress = onboardingProgressMap.get(membership.id);
-      const status = onboardingProgress?.status ?? membership.agentProfile?.onboardingStatus ?? "not_started";
+      const officeProfileFields = officeProfileFieldsByMembershipId.get(membership.id);
+      const status = onboardingProgress?.status ?? officeProfileFields?.onboardingStatus ?? "not_started";
       return status === (input.onboardingStatus as AgentOnboardingStatus);
     });
   }
@@ -481,7 +525,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     const onboardingProgress = onboardingProgressMap.get(membership.id) ?? {
       totalCount: 0,
       completedCount: 0,
-      status: membership.agentProfile?.onboardingStatus ?? "not_started"
+      status:
+        officeProfileFieldsByMembershipId.get(membership.id)?.onboardingStatus ??
+        "not_started"
     };
     const teamLabels = membership.teamMemberships
       .filter((teamMembership) => teamMembership.team.isActive)
@@ -550,7 +596,8 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       agentCount: filteredMemberships.filter((membership) => membership.role === "agent" || membership.role === "team_lead").length,
       onboardingInProgressCount: filteredMemberships.filter((membership) => {
         const onboardingProgress = onboardingProgressMap.get(membership.id);
-        const status = onboardingProgress?.status ?? membership.agentProfile?.onboardingStatus ?? "not_started";
+        const officeProfileFields = officeProfileFieldsByMembershipId.get(membership.id);
+        const status = onboardingProgress?.status ?? officeProfileFields?.onboardingStatus ?? "not_started";
         return status === "in_progress";
       }).length,
       activeTeamCount,
@@ -654,6 +701,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         }
       },
       agentProfile: true,
+      agentOfficeProfiles: true,
       agentBankInformation: true,
       teamMemberships: {
         where: {
@@ -729,6 +777,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
           }
         },
         agentProfile: true,
+        agentOfficeProfiles: true,
         agentBankInformation: true,
         teamMemberships: {
           where: {
@@ -754,6 +803,10 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   const canManageBankInformationForProfile = canManageAgentBankInformation(scope, input.membershipId);
   const canViewBankInformationForProfile = canManageBankInformationForProfile;
   const canParticipateInTeamHierarchy = isTeamHierarchyAssignableUserRole(membership.role);
+  const officeProfileFields = getMembershipOfficeProfileFields(
+    membership,
+    input.officeId ?? membership.officeId ?? null,
+  );
 
   const [
     onboardingItems,
@@ -1024,7 +1077,10 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   const recentClosedTransactionCount = allTransactionsForSummary.filter(
     (transaction) => transaction.status === "closed" && getGoalProgressSourceDate(transaction) >= recentClosedCutoff
   ).length;
-  const profileStatus = normalizeOnboardingStatus(membership.agentProfile?.onboardingStatus, onboardingItems);
+  const profileStatus = normalizeOnboardingStatus(
+    officeProfileFields.onboardingStatus,
+    onboardingItems,
+  );
   const billingSummary = billingSummaryMap.get(input.membershipId);
   const currentGoalSummary = buildGoalProgressSummary(getCurrentOrLatestGoal(goalSnapshots));
   const onboardingAgenda = onboardingItems
@@ -1072,15 +1128,15 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         }))
       }),
       bio: membership.agentProfile?.bio ?? "",
-      notes: membership.agentProfile?.notes ?? "",
-      licenseNumber: membership.agentProfile?.licenseNumber ?? "",
-      licenseState: membership.agentProfile?.licenseState ?? "",
-      startDate: formatDateValue(membership.agentProfile?.startDate),
+      notes: officeProfileFields.notes,
+      licenseNumber: officeProfileFields.licenseNumber,
+      licenseState: officeProfileFields.licenseState,
+      startDate: formatDateValue(officeProfileFields.expirationDate),
       onboardingStatus: onboardingStatusLabelMap[profileStatus],
       onboardingStatusValue: profileStatus,
       commissionPlanName: membership.agentProfile?.commissionPlanName ?? "",
       avatarUrl: membership.agentProfile?.avatarUrl ?? "",
-      internalExtension: membership.agentProfile?.internalExtension ?? ""
+      internalExtension: officeProfileFields.internalExtension
     },
     bankInformation: {
       canView: canViewBankInformationForProfile,
@@ -1205,11 +1261,22 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
 export async function saveAgentProfile(input: SaveAgentProfileInput) {
   return prisma.$transaction(async (tx) => {
     const membership = await ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId);
+    const targetOfficeId = input.officeId ?? membership.officeId ?? null;
     const previousProfile = await tx.agentProfile.findUnique({
       where: {
         membershipId: input.membershipId
       }
     });
+    const previousOfficeProfile = targetOfficeId
+      ? await tx.agentOfficeProfile.findUnique({
+          where: {
+            membershipId_officeId: {
+              membershipId: input.membershipId,
+              officeId: targetOfficeId
+            }
+          }
+        })
+      : null;
     const previousBankInformation = await tx.agentBankInformation.findUnique({
       where: {
         membershipId: input.membershipId
@@ -1217,19 +1284,25 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
     });
 
     const previousDisplayName = previousProfile?.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
-    const previousLicense = previousProfile?.licenseNumber?.trim() || "—";
+    const previousOfficeFields = resolveAgentOfficeProfileFields(previousProfile, previousOfficeProfile);
+    const previousLicense = previousOfficeFields.licenseNumber.trim() || "—";
     const previousPlan = previousProfile?.commissionPlanName?.trim() || "—";
     const profileUpsertData = {
       organizationId: input.organizationId,
       officeId: membership.officeId,
       ...(input.displayName !== undefined ? { displayName: parseOptionalText(input.displayName) } : {}),
       ...(input.bio !== undefined ? { bio: parseOptionalText(input.bio) } : {}),
-      ...(input.notes !== undefined ? { notes: parseOptionalText(input.notes) } : {}),
-      ...(input.licenseNumber !== undefined ? { licenseNumber: parseOptionalText(input.licenseNumber) } : {}),
-      ...(input.licenseState !== undefined ? { licenseState: parseOptionalText(input.licenseState) } : {}),
-      ...(input.startDate !== undefined ? { startDate: parseOptionalDate(input.startDate) } : {}),
+      ...(input.commissionPlanName !== undefined
+        ? { commissionPlanName: parseOptionalText(input.commissionPlanName) }
+        : {}),
       ...(input.avatarUrl !== undefined ? { avatarUrl: parseOptionalText(input.avatarUrl) } : {}),
-      ...(input.internalExtension !== undefined ? { internalExtension: parseOptionalText(input.internalExtension) } : {})
+      ...(previousProfile?.notes !== undefined ? { notes: previousProfile.notes } : {}),
+      ...(previousProfile?.licenseNumber !== undefined ? { licenseNumber: previousProfile.licenseNumber } : {}),
+      ...(previousProfile?.licenseState !== undefined ? { licenseState: previousProfile.licenseState } : {}),
+      ...(previousProfile?.startDate !== undefined ? { startDate: previousProfile.startDate } : {}),
+      ...(previousProfile?.internalExtension !== undefined
+        ? { internalExtension: previousProfile.internalExtension }
+        : {})
     };
 
     const savedProfile = await tx.agentProfile.upsert({
@@ -1242,6 +1315,50 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         ...profileUpsertData
       }
     });
+    const shouldSaveOfficeProfile =
+      Boolean(targetOfficeId) &&
+      (previousOfficeProfile !== null ||
+        input.notes !== undefined ||
+        input.licenseNumber !== undefined ||
+        input.licenseState !== undefined ||
+        input.startDate !== undefined ||
+        input.internalExtension !== undefined);
+    const officeProfileUpsertData = targetOfficeId
+      ? {
+          organizationId: input.organizationId,
+          officeId: targetOfficeId,
+          ...(input.notes !== undefined ? { notes: parseOptionalText(input.notes) } : {}),
+          ...(input.licenseNumber !== undefined
+            ? { licenseNumber: parseOptionalText(input.licenseNumber) }
+            : {}),
+          ...(input.licenseState !== undefined
+            ? { licenseState: parseOptionalText(input.licenseState) }
+            : {}),
+          ...(input.startDate !== undefined
+            ? { expirationDate: parseOptionalDate(input.startDate) }
+            : {}),
+          ...(input.internalExtension !== undefined
+            ? { internalExtension: parseOptionalText(input.internalExtension) }
+            : {}),
+        }
+      : null;
+    const savedOfficeProfile =
+      shouldSaveOfficeProfile && targetOfficeId && officeProfileUpsertData
+        ? await tx.agentOfficeProfile.upsert({
+            where: {
+              membershipId_officeId: {
+                membershipId: input.membershipId,
+                officeId: targetOfficeId
+              }
+            },
+            update: officeProfileUpsertData,
+            create: {
+              membershipId: input.membershipId,
+              ...buildAgentOfficeProfileSeed(previousProfile),
+              ...officeProfileUpsertData
+            }
+          })
+        : previousOfficeProfile;
 
     const shouldSaveBankInformation =
       input.bankPayeeName !== undefined ||
@@ -1335,7 +1452,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
       await saveMembershipCommissionSetting(
         {
           organizationId: input.organizationId,
-          officeId: input.officeId ?? membership.officeId,
+          officeId: targetOfficeId,
           membershipId: input.membershipId,
           splitTemplateId: input.splitTemplateId,
           customAgentPercent: input.customAgentPercent,
@@ -1349,20 +1466,31 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
       );
     }
 
-    await syncAgentProfileOnboardingStatus(tx, input.organizationId, input.membershipId, input.officeId);
+    await syncAgentProfileOnboardingStatus(tx, input.organizationId, input.membershipId, targetOfficeId);
 
     const finalProfile = await tx.agentProfile.findUnique({
       where: {
         membershipId: input.membershipId
       }
     });
+    const finalOfficeProfile = targetOfficeId
+      ? await tx.agentOfficeProfile.findUnique({
+          where: {
+            membershipId_officeId: {
+              membershipId: input.membershipId,
+              officeId: targetOfficeId
+            }
+          }
+        })
+      : null;
     const finalBankInformation = await tx.agentBankInformation.findUnique({
       where: {
         membershipId: input.membershipId
       }
     });
     const nextDisplayName = savedProfile.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
-    const nextLicense = savedProfile.licenseNumber?.trim() || "—";
+    const finalOfficeFields = resolveAgentOfficeProfileFields(finalProfile, finalOfficeProfile);
+    const nextLicense = finalOfficeFields.licenseNumber.trim() || "—";
     const nextPlan = finalProfile?.commissionPlanName?.trim() || "—";
     const previousBankInformationSignature = buildAgentBankInformationSignature(previousBankInformation);
     const nextBankInformationSignature = buildAgentBankInformationSignature(finalBankInformation);
@@ -1393,10 +1521,13 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
       organizationId: input.organizationId,
       membershipId: input.actorMembershipId,
       entityType: "agent_profile",
-      entityId: savedProfile.id,
-      action: previousProfile ? activityLogActions.agentProfileUpdated : activityLogActions.agentProfileCreated,
+      entityId: savedOfficeProfile?.id ?? savedProfile.id,
+      action:
+        previousProfile || previousOfficeProfile
+          ? activityLogActions.agentProfileUpdated
+          : activityLogActions.agentProfileCreated,
       payload: {
-        officeId: membership.officeId,
+        officeId: targetOfficeId ?? membership.officeId,
         objectLabel: nextDisplayName,
         contextHref: `/office/agents/${input.membershipId}`,
         details,

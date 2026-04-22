@@ -35,6 +35,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - recent activity items
 - current model foundation includes:
   - `AgentProfile`
+  - `AgentOfficeProfile`
   - `AgentBankInformation`
   - `Team`
   - `TeamMembership`
@@ -48,6 +49,10 @@ Provide a real Back Office agent management workspace for office operations, cov
   - the member can self-service add / edit / review only their own bank information; broader profile basics remain manager-managed
   - writes stay on the same profile save path instead of introducing a second payout-settings surface
   - `payeeName` is now the canonical year-end 1099 payee display field and feeds the `/office/1099-tracker` summary, preview, and PDF export flows
+- current office-profile behavior:
+  - `AgentProfile` remains the shared membership-level home for display name / bio / avatar / commission-plan shadow data
+  - `AgentOfficeProfile` now stores company-specific licensing, expiration, notes, internal extension, and onboarding status
+  - the profile snapshots under `Settings > Users` and `Office Account` read office-specific fields from the current office context first and fall back to legacy shared values only when no office row exists yet
 - onboarding currently supports:
   - explicit checklist items
   - due dates

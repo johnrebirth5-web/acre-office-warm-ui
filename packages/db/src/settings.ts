@@ -11,6 +11,10 @@ import {
   UserRole
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
+import {
+  findAgentOfficeProfileForOffice,
+  resolveAgentOfficeProfileFields,
+} from "./agent-office-profiles";
 import { resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
@@ -952,9 +956,15 @@ function mapOfficeAdminUserRow(membership: {
   agentProfile?: {
     onboardingStatus: AgentOnboardingStatus;
   } | null;
+  agentOfficeProfiles?: Array<{
+    id?: string;
+    officeId: string;
+    onboardingStatus?: AgentOnboardingStatus | null;
+  }>;
   invitations: Array<{
     expiresAt: Date;
   }>;
+  officeContextId?: string | null;
 }): OfficeAdminUserRow {
   const pendingInvitation = membership.invitations[0] ?? null;
   const isLocked = Boolean(membership.user.credential?.lockedUntil && membership.user.credential.lockedUntil > new Date());
@@ -988,6 +998,23 @@ function mapOfficeAdminUserRow(membership: {
     invitationStatusLabel = "Setup required";
   }
 
+  const officeProfileFields = resolveAgentOfficeProfileFields(
+    membership.agentProfile,
+    findAgentOfficeProfileForOffice(
+      {
+        officeId: membership.officeId,
+        agentProfile: membership.agentProfile,
+        agentOfficeProfiles: membership.agentOfficeProfiles,
+      },
+      membership.officeContextId ?? membership.officeId,
+    ),
+  );
+  const hasProfileContext =
+    Boolean(membership.agentProfile) || officeProfileFields.hasOfficeProfile;
+  const onboardingStatusValue = hasProfileContext
+    ? officeProfileFields.onboardingStatus
+    : null;
+
   return {
     membershipId: membership.id,
     userId: membership.userId,
@@ -1011,8 +1038,10 @@ function mapOfficeAdminUserRow(membership: {
       teamMemberships: membership.teamMemberships ?? []
     }),
     authStatusLabel,
-    onboardingStatusLabel: membership.agentProfile ? formatOnboardingStatusLabel(membership.agentProfile.onboardingStatus) : "—",
-    onboardingStatusValue: membership.agentProfile?.onboardingStatus ?? null,
+    onboardingStatusLabel: onboardingStatusValue
+      ? formatOnboardingStatusLabel(onboardingStatusValue)
+      : "—",
+    onboardingStatusValue,
     lockStatusLabel: isLocked ? "Locked" : "Not locked",
     lockedUntilLabel: formatDateTimeLabel(membership.user.credential?.lockedUntil),
     invitationStatusLabel,
@@ -1615,6 +1644,13 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
             onboardingStatus: true
           }
         },
+        agentOfficeProfiles: {
+          select: {
+            id: true,
+            officeId: true,
+            onboardingStatus: true
+          }
+        },
         office: true,
         officeAccesses: {
           include: {
@@ -1725,6 +1761,13 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
             onboardingStatus: true
           }
         },
+        agentOfficeProfiles: {
+          select: {
+            id: true,
+            officeId: true,
+            onboardingStatus: true
+          }
+        },
         teamMemberships: {
           select: {
             id: true,
@@ -1819,7 +1862,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     mapOfficeAdminUserRow({
       ...withTeamPathLabels(membership),
       title: membership.title ?? null,
-      allOffices: offices
+      allOffices: offices,
+      officeContextId:
+        effectiveOfficeFilterId && effectiveOfficeFilterId !== "__all__"
+          ? effectiveOfficeFilterId
+          : currentOfficeId || null,
     })
   );
   const scopedSummaryRows = summaryRows.filter((entry) => matchesOfficeFilter({
@@ -1926,7 +1973,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       mapOfficeAdminUserRow({
         ...withTeamPathLabels(membership),
         title: membership.title ?? null,
-        allOffices: offices
+        allOffices: offices,
+        officeContextId:
+          effectiveOfficeFilterId && effectiveOfficeFilterId !== "__all__"
+            ? effectiveOfficeFilterId
+            : currentOfficeId || null,
       })
     )
   };
@@ -2112,6 +2163,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
           }
         },
         agentProfile: true,
+        agentOfficeProfiles: true,
         invitations: {
           orderBy: [{ createdAt: "desc" }],
           take: 8
@@ -2227,11 +2279,21 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     ...membership,
     title: membership.title ?? null,
     invitations: activeInvitation ? [{ expiresAt: activeInvitation.expiresAt }] : [],
-    allOffices: offices
+    allOffices: offices,
+    officeContextId: input.officeId ?? membership.officeId ?? null,
   });
+  const officeProfileFields = resolveAgentOfficeProfileFields(
+    membership.agentProfile,
+    findAgentOfficeProfileForOffice(
+      membership,
+      input.officeId ?? membership.officeId ?? null,
+    ),
+  );
 
   const activityEntityIds = [
     membership.id,
+    membership.agentProfile?.id ?? null,
+    ...membership.agentOfficeProfiles.map((profile) => profile.id),
     membership.user.credential?.id ?? null,
     ...membership.invitations.map((invitation) => invitation.id)
   ].filter((value): value is string => Boolean(value));
@@ -2240,7 +2302,8 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     prisma.agentOnboardingItem.findMany({
       where: {
         organizationId: input.organizationId,
-        membershipId: input.membershipId
+        membershipId: input.membershipId,
+        ...(input.officeId ? { officeId: input.officeId } : {})
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       take: 8
@@ -2262,7 +2325,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     }),
     getAgentCommissionSummary({
       organizationId: input.organizationId,
-      officeId: membership.officeId,
+      officeId: input.officeId ?? membership.officeId,
       membershipId: input.membershipId
     }),
     getMembershipEffectivePermissions({
@@ -2290,7 +2353,11 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     : [];
 
   const completedCount = onboardingItems.filter((item) => item.status === "completed").length;
-  const onboardingStatusValue = deriveOnboardingStatus(membership.agentProfile?.onboardingStatus, onboardingItems.length, completedCount);
+  const onboardingStatusValue = deriveOnboardingStatus(
+    officeProfileFields.onboardingStatus,
+    onboardingItems.length,
+    completedCount,
+  );
   const activeTeamAssignments = hasActiveTeamAssignments(membership.teamMemberships);
   const activeLeaderAssignments = hasActiveLeaderAssignments(membership.teamMemberships);
   const teamSummary = membership.teamMemberships.length
@@ -2346,7 +2413,10 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       hasActiveTeamAssignments: activeTeamAssignments,
       hasActiveLeaderAssignments: activeLeaderAssignments,
       teamSummary,
-      agentProfileHref: membership.agentProfile ? `/office/agents/${membership.id}` : null
+      agentProfileHref:
+        membership.agentProfile || officeProfileFields.hasOfficeProfile
+          ? `/office/agents/${membership.id}`
+          : null
     },
     editors: {
       officeOptions: [{ id: "__all__", label: "All companies" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]

@@ -95,8 +95,8 @@ Expected columns:
 Field mapping:
 
 - `User Name` -> imported membership match within the mapped office scope
-- `License state` -> `AgentProfile.licenseState`
-- `Expiration date` -> `AgentProfile.startDate`
+- `License state` -> `AgentOfficeProfile.licenseState`
+- `Expiration date` -> `AgentOfficeProfile.expirationDate`
 - `Custom agent split %` -> `MembershipCommissionSetting` via `saveAgentProfile`
 
 Supplemental merge rules:
@@ -111,7 +111,7 @@ Supplemental merge rules:
 
 Supplemental note behavior:
 
-- `AgentProfile.notes` is preserved
+- existing office-scoped notes are preserved per matched sheet/company
 - one import note block is appended per matched person
 - the note block includes the sheet name, source rows, raw split text, and any
   conflicting license / expiration values detected inside the grouped rows

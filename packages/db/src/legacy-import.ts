@@ -1341,6 +1341,12 @@ export async function resetOrganizationBusinessData(input: ResetOrganizationBusi
         ...(membershipExclusion ? { membershipId: membershipExclusion } : {}),
       },
     });
+    await tx.agentOfficeProfile.deleteMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(membershipExclusion ? { membershipId: membershipExclusion } : {}),
+      },
+    });
     await tx.agent1099PaymentRecord.deleteMany({
       where: {
         organizationId: input.organizationId,

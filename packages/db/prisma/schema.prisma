@@ -721,6 +721,7 @@ model Organization {
   offerComments                         OfferComment[]
   transactionMembershipLinks            TransactionMembershipLink[]
   agentProfiles                         AgentProfile[]
+  agentOfficeProfiles                   AgentOfficeProfile[]
   teams                                 Team[]
   teamMemberships                       TeamMembership[]
   agentOnboardingTemplateItems          AgentOnboardingTemplateItem[]
@@ -821,6 +822,7 @@ model Office {
   offerComments                         OfferComment[]
   transactionMembershipLinks            TransactionMembershipLink[]
   agentProfiles                         AgentProfile[]
+  agentOfficeProfiles                   AgentOfficeProfile[]
   teams                                 Team[]
   teamMemberships                       TeamMembership[]
   agentOnboardingTemplateItems          AgentOnboardingTemplateItem[]
@@ -935,6 +937,7 @@ model Membership {
   createdOffers                                Offer[]                                @relation("OfferCreatedBy")
   offerComments                                OfferComment[]
   agentProfile                                 AgentProfile?
+  agentOfficeProfiles                          AgentOfficeProfile[]
   teamMemberships                              TeamMembership[]
   agentOnboardingItems                         AgentOnboardingItem[]
   completedAgentOnboardingItems                AgentOnboardingItem[]                  @relation("AgentOnboardingCompletedBy")
@@ -2856,6 +2859,29 @@ model AgentProfile {
 
   @@index([organizationId, officeId])
   @@index([organizationId, onboardingStatus])
+}
+
+model AgentOfficeProfile {
+  id                String                @id @default(cuid())
+  organizationId    String
+  officeId          String
+  membershipId      String
+  notes             String?
+  licenseNumber     String?
+  licenseState      String?
+  expirationDate    DateTime?
+  onboardingStatus  AgentOnboardingStatus?
+  internalExtension String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office            Office                @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  membership        Membership            @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, officeId])
+  @@index([organizationId, officeId])
+  @@index([organizationId, membershipId])
+  @@index([organizationId, officeId, membershipId])
 }
 
 model Team {

@@ -283,22 +283,28 @@ test("executeSupplementalImport execute updates notes, license state, expiration
       },
       include: {
         agentProfile: true,
+        agentOfficeProfiles: true,
         membershipCommissionSettings: {
           orderBy: [{ createdAt: "asc" }],
         },
       },
     });
+    const officeProfile = membership?.agentOfficeProfiles.find(
+      (profile) =>
+        profile.officeId === context.officeBySlug.get("acre-ny-realty")?.id,
+    );
 
     assert.equal(result.imported, 1);
     assert.ok(membership?.agentProfile);
-    assert.equal(membership?.agentProfile?.licenseState, "Acre Rental");
+    assert.ok(officeProfile);
+    assert.equal(officeProfile?.licenseState, "Acre Rental");
     assert.equal(
-      membership?.agentProfile?.startDate?.toISOString().slice(0, 10),
+      officeProfile?.expirationDate?.toISOString().slice(0, 10),
       "2027-08-20",
     );
-    assert.match(membership?.agentProfile?.notes ?? "", /Existing note/);
+    assert.match(officeProfile?.notes ?? "", /Existing note/);
     assert.match(
-      membership?.agentProfile?.notes ?? "",
+      officeProfile?.notes ?? "",
       /Supplemental roster import: Acre NY/,
     );
     assert.equal(membership?.membershipCommissionSettings.length, 1);
@@ -312,6 +318,114 @@ test("executeSupplementalImport execute updates notes, license state, expiration
         .slice(0, 10),
       "2026-04-22",
     );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("executeSupplementalImport keeps office-specific profile fields isolated for the same membership", async () => {
+  const context = await createSupplementalImportTestContext();
+
+  try {
+    const nyOffice = context.officeBySlug.get("acre-ny-realty");
+    const njOffice = context.officeBySlug.get("acre-nj-llc");
+
+    if (!nyOffice || !njOffice) {
+      throw new Error("Missing office fixtures.");
+    }
+
+    const email = `multi.office.${randomUUID().slice(0, 8)}@example.com`;
+    const created = await upsertImportedActiveUser({
+      organizationId: context.organization.id,
+      actorMembershipId: context.adminMembership.id,
+      viewerOfficeId: nyOffice.id,
+      email,
+      firstName: "Lulin",
+      lastName: "Wang",
+      role: "agent",
+      defaultOfficeId: njOffice.id,
+      accessibleOfficeIds: [nyOffice.id, njOffice.id],
+      title: null,
+      initialPassword: "Acreny2026",
+    });
+
+    const importedUser = {
+      membershipId: created.membershipId,
+      email,
+      fullName: "Lulin Wang",
+      officeSlugs: ["acre-ny-realty", "acre-nj-llc"],
+    };
+
+    const result = await executeSupplementalImport(
+      context.runtimeContext,
+      [importedUser],
+      true,
+      "https://docs.google.com/spreadsheets/d/test/edit#gid=0",
+      {
+        loadSupplementalWorkbookData: async () =>
+          buildWorkbookData([
+            {
+              sheetName: "Acre NY",
+              officeSlug: "acre-ny-realty",
+              sourceRowNumber: 2,
+              userName: "Lulin Wang",
+              licenseStateRaw: "NY",
+              splitRaw: "60%",
+              expirationRaw: "10/9/2027",
+            },
+            {
+              sheetName: "Acre NJ",
+              officeSlug: "acre-nj-llc",
+              sourceRowNumber: 2,
+              userName: "Lulin Wang",
+              licenseStateRaw: "NJ",
+              splitRaw: "80%",
+              expirationRaw: "11/10/2028",
+            },
+          ]),
+        now: new Date("2026-04-22T12:00:00Z"),
+      },
+    );
+
+    const membership = await prisma.membership.findUnique({
+      where: {
+        id: created.membershipId,
+      },
+      include: {
+        agentOfficeProfiles: {
+          orderBy: [{ officeId: "asc" }],
+        },
+        membershipCommissionSettings: {
+          orderBy: [{ officeId: "asc" }, { createdAt: "asc" }],
+        },
+      },
+    });
+    const nyProfile = membership?.agentOfficeProfiles.find(
+      (profile) => profile.officeId === nyOffice.id,
+    );
+    const njProfile = membership?.agentOfficeProfiles.find(
+      (profile) => profile.officeId === njOffice.id,
+    );
+    const nySplit = membership?.membershipCommissionSettings.find(
+      (setting) => setting.officeId === nyOffice.id,
+    );
+    const njSplit = membership?.membershipCommissionSettings.find(
+      (setting) => setting.officeId === njOffice.id,
+    );
+
+    assert.equal(result.imported, 2);
+    assert.equal(nyProfile?.licenseState, "NY");
+    assert.equal(njProfile?.licenseState, "NJ");
+    assert.equal(
+      nyProfile?.expirationDate?.toISOString().slice(0, 10),
+      "2027-10-09",
+    );
+    assert.equal(
+      njProfile?.expirationDate?.toISOString().slice(0, 10),
+      "2028-11-10",
+    );
+    assert.equal(Number(nySplit?.agentPercent ?? 0), 60);
+    assert.equal(Number(njSplit?.agentPercent ?? 0), 80);
   } finally {
     await context.cleanup();
   }

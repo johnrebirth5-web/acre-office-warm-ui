@@ -54,10 +54,14 @@ The current MVP allows editing:
 - `User.locale`
 - `AgentProfile.displayName`
 - `AgentProfile.bio`
-- `AgentProfile.licenseNumber`
-- `AgentProfile.licenseState`
 - `AgentProfile.avatarUrl`
-- `AgentProfile.internalExtension`
+- `AgentOfficeProfile.licenseNumber`
+- `AgentOfficeProfile.licenseState`
+- `AgentOfficeProfile.internalExtension`
+
+When a member has access to multiple companies, the page reads and writes
+company-specific licensing / extension fields from the current office context's
+`AgentOfficeProfile` row instead of sharing those values across every office.
 
 The page intentionally does not allow editing:
 

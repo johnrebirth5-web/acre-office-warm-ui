@@ -34,6 +34,7 @@ export async function handleUpdateOfficeAccountProfilePatch(
     const locale = assertSupportedLocale(body.locale ?? "");
     const saved = await (dependencies.saveOfficeAccountProfile ?? saveOfficeAccountProfile)({
       organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
       membershipId: context.currentMembership.id,
       firstName: body.firstName ?? "",
       lastName: body.lastName ?? "",
