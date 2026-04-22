@@ -447,12 +447,156 @@ function buildPosterFactsInline(
       }
 
       if (fact.label === "BATHROOMS") {
-        return tone === "long" ? `${fact.value} baths` : `${fact.value} Bath`;
+        return tone === "long"
+          ? `${fact.value} bathrooms`
+          : `${fact.value} Bath`;
       }
 
-      return tone === "long" ? `${fact.value} beds` : `${fact.value} Bed`;
+      return tone === "long" ? `${fact.value} bedrooms` : `${fact.value} Bed`;
     })
     .join(" · ");
+}
+
+function buildPosterShareValue(detail: StudioListingDetailSnapshot) {
+  return detail.pack.shareCode?.trim() || detail.packId;
+}
+
+function computeMatrixCellSeed(value: string, row: number, column: number) {
+  let hash = 2166136261;
+  const input = `${value}:${row}:${column}`;
+
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function resolveFinderModule(localRow: number, localColumn: number) {
+  if (
+    localRow < 0 ||
+    localRow > 6 ||
+    localColumn < 0 ||
+    localColumn > 6
+  ) {
+    return null;
+  }
+
+  const outerRing =
+    localRow === 0 ||
+    localRow === 6 ||
+    localColumn === 0 ||
+    localColumn === 6;
+  const centerBlock =
+    localRow >= 2 &&
+    localRow <= 4 &&
+    localColumn >= 2 &&
+    localColumn <= 4;
+
+  return outerRing || centerBlock;
+}
+
+function renderPosterMatrix(input: {
+  size: number;
+  value: string;
+  x: number;
+  y: number;
+}) {
+  const modules = 25;
+  const cell = input.size / modules;
+  const finderOrigins = [
+    [0, 0],
+    [0, modules - 7],
+    [modules - 7, 0],
+  ] as const;
+  const parts: string[] = [
+    `<rect x="${input.x}" y="${input.y}" width="${input.size}" height="${input.size}" fill="#ffffff" />`,
+  ];
+
+  for (let row = 0; row < modules; row += 1) {
+    for (let column = 0; column < modules; column += 1) {
+      let moduleOn = false;
+      let handled = false;
+
+      for (const [originRow, originColumn] of finderOrigins) {
+        const finderModule = resolveFinderModule(
+          row - originRow,
+          column - originColumn,
+        );
+
+        if (finderModule !== null) {
+          moduleOn = finderModule;
+          handled = true;
+          break;
+        }
+      }
+
+      if (!handled) {
+        if (row === 6 || column === 6) {
+          moduleOn = (row + column) % 2 === 0;
+        } else {
+          moduleOn =
+            computeMatrixCellSeed(input.value, row, column) % 7 < 3;
+        }
+      }
+
+      if (!moduleOn) {
+        continue;
+      }
+
+      parts.push(
+        `<rect x="${input.x + column * cell}" y="${input.y + row * cell}" width="${cell}" height="${cell}" fill="#111827" />`,
+      );
+    }
+  }
+
+  return parts.join("");
+}
+
+function renderStatusBadge(input: {
+  fontSize?: number;
+  height?: number;
+  label: string;
+  letterSpacing?: number;
+  radius?: number;
+  x: number;
+  y: number;
+  width?: number;
+}) {
+  const label = truncateText(input.label, 18);
+  const width = input.width ?? Math.max(384, label.length * 26 + 132);
+  const height = input.height ?? 118;
+  const fontSize = input.fontSize ?? 50;
+  const radius = input.radius ?? 16;
+  const letterSpacing = input.letterSpacing ?? 4;
+
+  return `
+    <rect x="${input.x}" y="${input.y}" width="${width}" height="${height}" rx="${radius}" fill="#2f3138" />
+    <text x="${input.x + width / 2}" y="${input.y + height / 2 + fontSize * 0.34}" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${fontSize}" font-weight="700" letter-spacing="${letterSpacing}" text-anchor="middle">${escapeXml(
+      label,
+    )}</text>
+  `;
+}
+
+function renderPriceBadge(input: {
+  filterId: string;
+  priceLabel: string;
+  width: number;
+  x: number;
+  y: number;
+}) {
+  return `
+    <defs>
+      <filter id="${input.filterId}" x="-30%" y="-30%" width="160%" height="200%">
+        <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#111827" flood-opacity="0.16" />
+      </filter>
+    </defs>
+    <rect x="${input.x}" y="${input.y}" width="${input.width}" height="154" rx="24" fill="#d8d7d8" filter="url(#${input.filterId})" />
+    <text x="${input.x + input.width / 2}" y="${input.y + 102}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="78" font-weight="800" text-anchor="middle">${escapeXml(
+      input.priceLabel,
+    )}</text>
+  `;
 }
 
 function renderImageSlot(input: {
@@ -500,13 +644,13 @@ function renderAmenityChips(input: {
   const chips: string[] = [];
   let cursorX = input.x;
   let cursorY = input.y;
-  const rowHeight = 62;
+  const rowHeight = 72;
 
   for (const item of input.items) {
     const safeLabel = truncateText(item, 24);
     const chipWidth = Math.min(
-      240,
-      Math.max(160, safeLabel.length * 18 + 54),
+      270,
+      Math.max(176, safeLabel.length * 18 + 70),
     );
 
     if (cursorX + chipWidth > input.x + input.maxWidth) {
@@ -515,9 +659,9 @@ function renderAmenityChips(input: {
     }
 
     chips.push(`
-      <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="46" rx="23" fill="${
+      <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="54" rx="27" fill="${
         input.dark ? "rgba(255,255,255,0.10)" : "#ffffff"
-      }" stroke="${input.dark ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.10)"}" stroke-width="2" />
+      }" stroke="${input.dark ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.14)"}" stroke-width="2" />
       <text x="${cursorX + chipWidth / 2}" y="${cursorY + 30}" fill="${
         input.dark ? "#f8fafc" : "#111827"
       }" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" text-anchor="middle">${escapeXml(
@@ -525,7 +669,7 @@ function renderAmenityChips(input: {
       )}</text>
     `);
 
-    cursorX += chipWidth + 20;
+    cursorX += chipWidth + 18;
   }
 
   return chips.join("");
@@ -540,8 +684,12 @@ function renderFactsRow(
   const width = options?.width ?? 2160;
   const columnWidth = width / 3;
   const textColor = options?.light === false ? "#f8fafc" : "#111827";
-  const subtle = options?.light === false ? "rgba(248,250,252,0.72)" : "#9ca3af";
-  const divider = options?.light === false ? "rgba(248,250,252,0.18)" : "rgba(15,23,42,0.10)";
+  const subtle =
+    options?.light === false ? "rgba(248,250,252,0.72)" : "#9ca3af";
+  const divider =
+    options?.light === false
+      ? "rgba(248,250,252,0.18)"
+      : "rgba(15,23,42,0.10)";
 
   return `
     <g>
@@ -558,12 +706,14 @@ function renderFactsRow(
                     y + 112
                   }" stroke="${divider}" stroke-width="2" />`
             }
-            <text x="${centerX}" y="${y + 58}" fill="${textColor}" font-family="Georgia, 'Times New Roman', serif" font-size="60" font-weight="700" text-anchor="middle">${escapeXml(
-              truncateText(fact.value, 12),
-            )}</text>
-            <text x="${centerX}" y="${y + 92}" fill="${subtle}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="6" text-anchor="middle">${escapeXml(
-              fact.label,
-            )}</text>
+            <text x="${centerX}" y="${y + 76}" fill="${textColor}" text-anchor="middle">
+              <tspan font-family="Georgia, 'Times New Roman', serif" font-size="66" font-weight="700">${escapeXml(
+                truncateText(fact.value, 12),
+              )}</tspan>
+              <tspan dx="18" dy="-6" fill="${subtle}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="6">${escapeXml(
+                fact.label,
+              )}</tspan>
+            </text>
           `;
         })
         .join("")}
@@ -630,6 +780,7 @@ function renderMailIcon(x: number, y: number, color: string) {
 
 function renderFooterLight(input: {
   contact: ReturnType<typeof buildContactSnapshot>;
+  shareValue: string;
   y: number;
 }) {
   return `
@@ -651,32 +802,44 @@ function renderFooterLight(input: {
       <text x="220" y="${input.y + 174}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
         truncateText(input.contact.companyName, 40),
       )}</text>
-      ${renderPhoneIcon(1440, input.y + 118, "#6b7280")}
-      <text x="1472" y="${input.y + 140}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="600">${escapeXml(
+      ${renderPhoneIcon(1496, input.y + 114, "#6b7280")}
+      <text x="1528" y="${input.y + 136}" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="600">${escapeXml(
         truncateText(input.contact.phone, 30),
       )}</text>
-      ${renderMailIcon(1440, input.y + 162, "#6b7280")}
-      <text x="1472" y="${input.y + 184}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
+      ${renderMailIcon(1496, input.y + 160, "#6b7280")}
+      <text x="1528" y="${input.y + 182}" fill="#4b5563" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28">${escapeXml(
         truncateText(input.contact.email, 38),
       )}</text>
+      ${renderPosterMatrix({
+        size: 170,
+        value: input.shareValue,
+        x: 1870,
+        y: input.y + 36,
+      })}
+      <text x="1955" y="${input.y + 244}" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="2" text-anchor="middle">OPEN SHARE</text>
     </g>
   `;
 }
 
 function renderFooterDark(input: {
   contact: ReturnType<typeof buildContactSnapshot>;
+  shareValue: string;
 }) {
   return `
     <g>
-      <text x="72" y="2648" fill="#f8fafc" font-family="'Helvetica Neue', Arial, sans-serif" font-size="36" font-weight="700">${escapeXml(
+      <text x="72" y="2694" fill="#f8fafc" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="700">${escapeXml(
         truncateText(input.contact.name, 28),
       )}</text>
-      <text x="72" y="2692" fill="rgba(248,250,252,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26">${escapeXml(
-        truncateText(`${input.contact.companyName} · ${input.contact.title}`, 56),
+      <text x="72" y="2738" fill="rgba(248,250,252,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26">${escapeXml(
+        truncateText(`${input.contact.phone} · ${input.contact.email}`, 62),
       )}</text>
-      <text x="72" y="2734" fill="rgba(248,250,252,0.76)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24">${escapeXml(
-        truncateText(`${input.contact.phone} · ${input.contact.email}`, 60),
-      )}</text>
+      ${renderPosterMatrix({
+        size: 174,
+        value: input.shareValue,
+        x: 1872,
+        y: 2528,
+      })}
+      <text x="1959" y="2738" fill="rgba(248,250,252,0.78)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="2" text-anchor="middle">OPEN SHARE</text>
     </g>
   `;
 }
@@ -779,38 +942,43 @@ function renderHeroTemplate(input: {
   locationLine: string;
 }) {
   return `
-    <rect width="2160" height="2880" fill="#f7f4ee" />
-    <text x="1080" y="104" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="4" text-anchor="middle">${escapeXml(
+    <rect width="2160" height="2880" fill="#ffffff" />
+    <text x="1080" y="88" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="4" text-anchor="middle">${escapeXml(
       input.topline,
     )}</text>
-    <text x="1080" y="238" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="116" font-weight="700" text-anchor="middle">${escapeXml(
+    <line x1="910" y1="102" x2="1250" y2="102" stroke="#cfd4dc" stroke-width="2" />
+    <text x="1080" y="236" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="120" font-weight="700" text-anchor="middle">${escapeXml(
       input.status.title,
     )}</text>
-    <text x="1080" y="316" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="500" letter-spacing="2" text-anchor="middle">${escapeXml(
+    <text x="1080" y="344" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="500" letter-spacing="2" text-anchor="middle">${escapeXml(
       truncateText(input.detail.addressLine, 44),
     )}</text>
 
-    <rect x="760" y="370" width="640" height="154" rx="26" fill="#d7d4cf" stroke="rgba(15,23,42,0.08)" stroke-width="2" />
-    <text x="1080" y="470" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="78" font-weight="800" text-anchor="middle">${escapeXml(
-      input.detail.priceLabel,
-    )}</text>
+    ${renderPriceBadge({
+      filterId: "hero-price-shadow",
+      priceLabel: input.detail.priceLabel,
+      width: 504,
+      x: 828,
+      y: 392,
+    })}
 
     ${renderImageSlot({
       fit: "slice",
-      height: 1458,
+      height: 1510,
       id: "hero-primary",
       radius: 0,
       source: input.images.primary,
       width: 2160,
       x: 0,
-      y: 570,
+      y: 542,
     })}
 
-    <rect x="0" y="2028" width="2160" height="212" fill="#ffffff" />
-    ${renderFactsRow(input.facts, 2070, { width: 2160, x: 0 })}
+    <rect x="0" y="2052" width="2160" height="196" fill="#ffffff" />
+    ${renderFactsRow(input.facts, 2090, { width: 2160, x: 0 })}
     ${renderFooterLight({
       contact: input.contact,
-      y: 2240,
+      shareValue: buildPosterShareValue(input.detail),
+      y: 2248,
     })}
   `;
 }
@@ -824,10 +992,10 @@ function renderCardTemplate(input: {
   amenityLabels: string[];
 }) {
   return `
-    <rect width="2160" height="2880" fill="#f6f3ee" />
+    <rect width="2160" height="2880" fill="#ffffff" />
     ${renderImageSlot({
       fit: "slice",
-      height: 1620,
+      height: 1570,
       id: "card-primary",
       radius: 0,
       source: input.images.primary,
@@ -835,42 +1003,45 @@ function renderCardTemplate(input: {
       x: 0,
       y: 0,
     })}
-    <rect x="56" y="54" width="456" height="124" rx="18" fill="#2d2e33" />
-    <text x="284" y="132" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" letter-spacing="3" text-anchor="middle">${escapeXml(
-      input.status.compactLabel,
-    )}</text>
+    ${renderStatusBadge({
+      label: input.status.compactLabel,
+      width: 468,
+      x: 54,
+      y: 54,
+    })}
 
-    <rect x="0" y="1470" width="2160" height="1410" fill="#fbfbfa" />
-    <rect x="0" y="1416" width="2160" height="260" fill="url(#card-fade)" />
+    <rect x="0" y="1490" width="2160" height="1390" fill="#ffffff" />
+    <rect x="0" y="1388" width="2160" height="312" fill="url(#card-fade)" />
     <defs>
       <linearGradient id="card-fade" x1="0%" x2="0%" y1="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(251,251,250,0)" />
-        <stop offset="100%" stop-color="#fbfbfa" />
+        <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+        <stop offset="100%" stop-color="#ffffff" />
       </linearGradient>
     </defs>
 
-    <text x="70" y="1770" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="108" font-weight="800">${escapeXml(
+    <text x="70" y="1788" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="112" font-weight="800">${escapeXml(
       input.detail.priceLabel,
     )}</text>
-    <text x="70" y="1866" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="40">${escapeXml(
+    <text x="70" y="1882" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="38">${escapeXml(
       truncateText(input.locationLine, 42),
     )}</text>
-    <text x="70" y="2010" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700">${escapeXml(
+    <text x="70" y="2024" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="70" font-weight="700">${escapeXml(
       truncateText(input.detail.addressLine, 42),
     )}</text>
-    <text x="70" y="2100" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="40">${escapeXml(
+    <text x="70" y="2110" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="40">${escapeXml(
       buildPosterFactsInline(buildPosterFacts(input.detail), "compact"),
     )}</text>
 
     ${renderAmenityChips({
       items: input.amenityLabels,
-      maxWidth: 1720,
+      maxWidth: 1680,
       x: 70,
-      y: 2200,
+      y: 2192,
     })}
     ${renderFooterLight({
       contact: input.contact,
-      y: 2448,
+      shareValue: buildPosterShareValue(input.detail),
+      y: 2464,
     })}
   `;
 }
@@ -887,7 +1058,7 @@ function renderCinematicTemplate(input: {
     <defs>
       <linearGradient id="cinematic-overlay" x1="0%" x2="0%" y1="0%" y2="100%">
         <stop offset="0%" stop-color="rgba(15,23,42,0)" />
-        <stop offset="100%" stop-color="rgba(15,23,42,0.92)" />
+        <stop offset="100%" stop-color="rgba(15,23,42,0.88)" />
       </linearGradient>
     </defs>
     ${renderImageSlot({
@@ -901,24 +1072,25 @@ function renderCinematicTemplate(input: {
       y: 0,
     })}
     <rect x="0" y="0" width="2160" height="2880" fill="url(#cinematic-overlay)" />
-    <rect x="56" y="54" width="456" height="124" rx="18" fill="#2d2e33" />
-    <text x="284" y="132" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" letter-spacing="3" text-anchor="middle">${escapeXml(
-      input.status.compactLabel,
-    )}</text>
-    <text x="68" y="2310" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="98" font-weight="800">${escapeXml(
+    ${renderStatusBadge({
+      label: input.status.compactLabel,
+      width: 468,
+      x: 54,
+      y: 54,
+    })}
+    <rect x="0" y="2060" width="2160" height="820" fill="url(#cinematic-overlay)" />
+    <text x="68" y="2290" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="100" font-weight="800">${escapeXml(
       input.detail.priceLabel,
     )}</text>
-    <text x="68" y="2400" fill="rgba(255,255,255,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42">${escapeXml(
+    <text x="68" y="2378" fill="rgba(255,255,255,0.82)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="44">${escapeXml(
       buildPosterFactsInline(input.facts, "compact"),
     )}</text>
-    <text x="68" y="2498" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700">${escapeXml(
+    <text x="68" y="2470" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="58" font-weight="700">${escapeXml(
       truncateText(input.detail.addressLine, 44),
-    )}</text>
-    <text x="68" y="2560" fill="rgba(255,255,255,0.76)" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
-      truncateText(input.locationLine, 44),
     )}</text>
     ${renderFooterDark({
       contact: input.contact,
+      shareValue: buildPosterShareValue(input.detail),
     })}
   `;
 }
@@ -934,61 +1106,69 @@ function renderGridTemplate(input: {
   const topRightPrice = truncateText(input.detail.priceLabel, 18);
 
   return `
-    <rect width="2160" height="2880" fill="#f7f4ee" />
-    <text x="70" y="84" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="4">${escapeXml(
+    <rect width="2160" height="2880" fill="#ffffff" />
+    <text x="72" y="78" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="4">${escapeXml(
       input.topline,
     )}</text>
-    <text x="70" y="220" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="114" font-weight="700">${escapeXml(
+    <line x1="72" y1="94" x2="520" y2="94" stroke="#cfd4dc" stroke-width="2" />
+    <text x="72" y="222" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="118" font-weight="700">${escapeXml(
       input.status.title,
     )}</text>
-    <text x="70" y="302" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
+    <text x="72" y="304" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
       truncateText(input.detail.addressLine, 44),
     )}</text>
-    <rect x="1888" y="62" width="196" height="52" rx="14" fill="#2d2e33" />
-    <text x="1986" y="97" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="2" text-anchor="middle">${escapeXml(
-      input.status.badgeLabel,
-    )}</text>
-    <line x1="1548" y1="88" x2="1548" y2="256" stroke="#111827" stroke-width="7" />
-    <text x="1604" y="204" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="86" font-weight="800">${escapeXml(
+    ${renderStatusBadge({
+      fontSize: 30,
+      height: 52,
+      label: input.status.badgeLabel,
+      letterSpacing: 2,
+      radius: 14,
+      width: 148,
+      x: 1934,
+      y: 52,
+    })}
+    <line x1="1590" y1="84" x2="1590" y2="250" stroke="#111827" stroke-width="6" />
+    <text x="1642" y="196" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="84" font-weight="800">${escapeXml(
       topRightPrice,
     )}</text>
 
     ${renderImageSlot({
       fit: "slice",
-      height: 1450,
+      height: 1580,
       id: "grid-primary",
       radius: 0,
       source: input.images.primary,
-      width: 1098,
-      x: 0,
-      y: 390,
+      width: 1084,
+      x: 8,
+      y: 376,
     })}
     ${renderImageSlot({
       fit: "slice",
-      height: 700,
+      height: 778,
       id: "grid-secondary-1",
       radius: 0,
       source: input.images.secondary[0] ?? input.images.primary,
-      width: 1062,
+      width: 1060,
       x: 1098,
-      y: 390,
+      y: 376,
     })}
     ${renderImageSlot({
       fit: "slice",
-      height: 750,
+      height: 786,
       id: "grid-secondary-2",
       radius: 0,
       source: input.images.secondary[1] ?? input.images.secondary[0] ?? input.images.primary,
-      width: 1062,
+      width: 1060,
       x: 1098,
-      y: 1110,
+      y: 1170,
     })}
 
-    <rect x="0" y="1908" width="2160" height="202" fill="#ffffff" />
-    ${renderFactsRow(input.facts, 1950, { width: 2160, x: 0 })}
+    <rect x="0" y="1986" width="2160" height="186" fill="#ffffff" />
+    ${renderFactsRow(input.facts, 2020, { width: 2160, x: 0 })}
     ${renderFooterLight({
       contact: input.contact,
-      y: 2110,
+      shareValue: buildPosterShareValue(input.detail),
+      y: 2172,
     })}
   `;
 }
@@ -1014,23 +1194,29 @@ function renderEditorialTemplate(input: {
       : secondaryThree;
 
   return `
-    <rect width="2160" height="2880" fill="#f8f6f1" />
-    <text x="70" y="120" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="106" font-weight="700">${escapeXml(
+    <rect width="2160" height="2880" fill="#ffffff" />
+    <text x="72" y="118" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="104" font-weight="700">${escapeXml(
       input.status.title,
     )}</text>
-    <text x="70" y="204" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42" font-weight="700">${escapeXml(
+    <text x="72" y="204" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42" font-weight="700">${escapeXml(
       truncateText(input.propertyName, 32),
     )}</text>
-    <text x="70" y="272" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
+    <text x="72" y="270" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34">${escapeXml(
       truncateText(input.detail.addressLine, 48),
     )}</text>
-    <rect x="1842" y="52" width="196" height="52" rx="14" fill="#2d2e33" />
-    <text x="1940" y="87" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="2" text-anchor="middle">${escapeXml(
-      input.status.badgeLabel,
-    )}</text>
+    ${renderStatusBadge({
+      fontSize: 30,
+      height: 52,
+      label: input.status.badgeLabel,
+      letterSpacing: 2,
+      radius: 14,
+      width: 148,
+      x: 1934,
+      y: 52,
+    })}
     ${
       input.unitLabel
-        ? `<text x="1930" y="184" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="800" text-anchor="middle">${escapeXml(
+        ? `<text x="1922" y="184" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="800" text-anchor="middle">${escapeXml(
             input.unitLabel,
           )}</text>`
         : ""
@@ -1038,66 +1224,66 @@ function renderEditorialTemplate(input: {
 
     ${renderImageSlot({
       fit: "slice",
-      height: 1030,
+      height: 1046,
       id: "editorial-primary",
       radius: 0,
       source: input.images.primary,
       width: 2160,
       x: 0,
-      y: 332,
+      y: 330,
     })}
     ${renderImageSlot({
       fit: "slice",
-      height: 336,
+      height: 334,
       id: "editorial-secondary-1",
-      radius: 12,
+      radius: 0,
       source: secondaryOne,
-      width: 700,
+      width: 708,
       x: 0,
-      y: 1378,
+      y: 1390,
     })}
     ${renderImageSlot({
       fit: "slice",
-      height: 336,
+      height: 334,
       id: "editorial-secondary-2",
-      radius: 12,
+      radius: 0,
       source: secondaryTwo,
-      width: 722,
-      x: 719,
-      y: 1378,
+      width: 720,
+      x: 720,
+      y: 1390,
     })}
     ${renderImageSlot({
       fit: "slice",
-      height: 336,
+      height: 334,
       id: "editorial-secondary-3",
-      radius: 12,
+      radius: 0,
       source: secondaryThree,
-      width: 700,
-      x: 1460,
-      y: 1378,
+      width: 720,
+      x: 1440,
+      y: 1390,
     })}
 
-    <text x="80" y="1820" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="6">FLOOR PLAN</text>
-    <line x1="80" y1="1850" x2="812" y2="1850" stroke="rgba(15,23,42,0.10)" stroke-width="2" />
+    <text x="84" y="1832" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="6">FLOOR PLAN</text>
+    <line x1="84" y1="1864" x2="828" y2="1864" stroke="rgba(15,23,42,0.10)" stroke-width="2" />
     ${renderImageSlot({
       fit: "meet",
-      height: 610,
+      height: 648,
       id: "editorial-floor-plan",
       radius: 0,
       source: floorPlanSource,
       width: 760,
-      x: 70,
-      y: 1890,
+      x: 74,
+      y: 1908,
     })}
 
-    <text x="960" y="1920" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="6">ASKING PRICE</text>
-    <text x="960" y="2050" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="110" font-weight="800">${escapeXml(
+    <text x="930" y="1928" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="6">ASKING PRICE</text>
+    <text x="930" y="2058" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="110" font-weight="800">${escapeXml(
       input.detail.priceLabel,
     )}</text>
-    <text x="960" y="2140" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42">${escapeXml(
+    <text x="930" y="2146" fill="#6b7280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42">${escapeXml(
       buildPosterFactsInline(input.facts, "long"),
     )}</text>
-    <text x="960" y="2228" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700">${escapeXml(
+    <text x="930" y="2234" fill="#111827" font-family="'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700">${escapeXml(
       truncateText(
         input.detail.neighborhood
           ? `${input.detail.neighborhood}${input.detail.locationLine ? `, ${input.detail.locationLine.split(",")[0]}` : ""}`
@@ -1105,19 +1291,20 @@ function renderEditorialTemplate(input: {
         32,
       ),
     )}</text>
-    <text x="960" y="2300" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="36">${escapeXml(
+    <text x="930" y="2302" fill="#9ca3af" font-family="'Helvetica Neue', Arial, sans-serif" font-size="36">${escapeXml(
       truncateText(input.detail.addressLine, 46),
     )}</text>
-    <text x="960" y="2388" fill="#374151" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">AMENITIES &amp; BUILDING</text>
+    <text x="930" y="2390" fill="#374151" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">AMENITIES &amp; BUILDING</text>
     ${renderAmenityChips({
       items: input.amenityLabels,
-      maxWidth: 1120,
-      x: 960,
-      y: 2420,
+      maxWidth: 1140,
+      x: 930,
+      y: 2422,
     })}
 
     ${renderFooterLight({
       contact: input.contact,
+      shareValue: buildPosterShareValue(input.detail),
       y: 2560,
     })}
   `;
