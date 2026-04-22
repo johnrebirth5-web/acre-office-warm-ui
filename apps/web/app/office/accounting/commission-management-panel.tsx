@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import type { OfficeCommissionManagementSnapshot } from "@acre/db";
 import {
   Button,
+  ConfirmActionDialog,
   EmptyState,
   FormField,
   HorizontalScrollArea,
@@ -67,6 +68,13 @@ type SplitTemplateFormState = {
   name: string;
   agentPercent: string;
   isActive: string;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function CommissionTable(props: { children: ReactNode }) {
@@ -286,6 +294,7 @@ export function CommissionManagementPanel({
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const filteredPlanOptions = useMemo(
     () => snapshot?.plans.map((plan) => ({ id: plan.id, label: plan.name })) ?? [],
@@ -488,6 +497,28 @@ export function CommissionManagementPanel({
       router.refresh();
     } catch (assignError) {
       setError(assignError instanceof Error ? assignError.message : "Failed to assign commission plan.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleDeleteAssignment(assignmentId: string) {
+    setPendingAction(`remove-assignment:${assignmentId}`);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/commissions/assignments/${assignmentId}`, {
+        method: "DELETE"
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to remove commission assignment.");
+      }
+
+      router.refresh();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to remove commission assignment.");
     } finally {
       setPendingAction(null);
     }
@@ -1106,6 +1137,7 @@ export function CommissionManagementPanel({
                   <span>Plan</span>
                   <span>Effective from</span>
                   <span>Effective to</span>
+                  <span>Actions</span>
                 </div>
                 {snapshot.assignments.map((assignment) => (
                   <div className="office-table-row office-table-row-commission-assignments" key={assignment.id}>
@@ -1114,6 +1146,31 @@ export function CommissionManagementPanel({
                     <span>{assignment.commissionPlanLabel}</span>
                     <span>{assignment.effectiveFrom}</span>
                     <span>{assignment.effectiveTo || "Open-ended"}</span>
+                    <div className="office-accounting-inline-actions">
+                      {canManageCommissions ? (
+                        <Button
+                          disabled={pendingAction === `remove-assignment:${assignment.id}`}
+                          onClick={() =>
+                            setConfirmDialog({
+                              title: `Remove ${assignment.targetLabel} assignment?`,
+                              description:
+                                "This permanently deletes the selected commission assignment record. Use this when cleaning up a team before deleting it.",
+                              confirmLabel: "Remove assignment",
+                              onConfirm: () => {
+                                void handleDeleteAssignment(assignment.id);
+                              }
+                            })
+                          }
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          {pendingAction === `remove-assignment:${assignment.id}` ? "Removing..." : "Remove"}
+                        </Button>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </CommissionTable>
@@ -1230,6 +1287,19 @@ export function CommissionManagementPanel({
           </div>
         </details>
       </ListPageSection>
+      <ConfirmActionDialog
+        cancelLabel="Cancel"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          const action = confirmDialog;
+          setConfirmDialog(null);
+          action?.onConfirm();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </section>
   );
 }

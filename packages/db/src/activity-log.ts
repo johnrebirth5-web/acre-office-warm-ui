@@ -159,6 +159,7 @@ export const activityLogActions = {
   commissionPlanCreated: "commission.plan_created",
   commissionPlanUpdated: "commission.plan_updated",
   commissionPlanAssigned: "commission.plan_assigned",
+  commissionPlanAssignmentRemoved: "commission.plan_assignment_removed",
   commissionCalculated: "commission.calculated",
   commissionRecalculated: "commission.recalculated",
   commissionStatusUpdated: "commission.status_updated",
@@ -760,6 +761,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.commissionPlanCreated ||
       action === activityLogActions.commissionPlanUpdated ||
       action === activityLogActions.commissionPlanAssigned ||
+      action === activityLogActions.commissionPlanAssignmentRemoved ||
       action === activityLogActions.commissionCalculated ||
       action === activityLogActions.commissionRecalculated ||
       action === activityLogActions.commissionStatusUpdated ||
@@ -1752,6 +1754,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
         : "updated a commission plan";
     case activityLogActions.commissionPlanAssigned:
       return "assigned a commission plan";
+    case activityLogActions.commissionPlanAssignmentRemoved:
+      return "removed a commission plan assignment";
     case activityLogActions.commissionCalculated:
       return "calculated commissions";
     case activityLogActions.commissionRecalculated:

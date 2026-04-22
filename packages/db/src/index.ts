@@ -508,6 +508,7 @@ export {
 export {
   assignCommissionPlanToMembership,
   calculateTransactionCommission,
+  deleteCommissionPlanAssignment,
   ensureTransactionFinanceFees,
   generateCommissionStatementSnapshot,
   getAgentCommissionSummary,
@@ -994,6 +995,7 @@ export type {
 } from "./front-office-dashboard";
 export type {
   CalculateTransactionCommissionInput,
+  DeleteCommissionPlanAssignmentInput,
   OfficeCommissionAssignmentSourceType,
   OfficeCommissionAssignmentTargetType,
   GenerateCommissionStatementSnapshotInput,

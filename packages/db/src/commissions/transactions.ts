@@ -35,7 +35,7 @@ import {
 
 import { buildTeamMembershipHierarchyMap, buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds, formatTeamMembershipRoleLabel } from "../team-hierarchy";
 
-import { CalculateTransactionCommissionInput, CommissionPlanWithRules, GenerateCommissionStatementSnapshotInput, GetOfficeCommissionManagementSnapshotInput, OfficeAgentCommissionSummary, OfficeCommissionAssignmentRecord, OfficeCommissionAssignmentSourceType, OfficeCommissionAssignmentTargetType, OfficeCommissionCalculationRecipientLabel, OfficeCommissionCalculationRow, OfficeCommissionCalculationStatusLabel, OfficeCommissionManagementOverview, OfficeCommissionManagementSnapshot, OfficeCommissionPlanOption, OfficeCommissionPlanRecord, OfficeCommissionPlanRuleRecord, OfficeCommissionStatementLine, OfficeCommissionStatementSnapshot, OfficeCommissionTeamOption, OfficeCreateTransactionCommissionPreview, OfficeTransactionCommissionManualParticipantOption, OfficeTransactionCommissionSnapshot, OfficeTransactionCommissionStakeholderRow, OfficeTransactionFinanceApprovalLabel, OfficeTransactionFinanceCalculationLabel, OfficeTransactionFinanceFeeRecord, OfficeTransactionFinancePrerequisiteSnapshot, OfficeTransactionFinanceVersionRecord, OverrideTransactionCommissionInput, ResolvedCommissionPlanAssignment, SaveCommissionPlanAssignmentInput, SaveCommissionPlanInput, SaveCommissionPlanRuleInput, ScopedPrismaClient, TransactionFinanceFeeDefinition, UpdateCommissionCalculationStatusInput, activeFinanceFeeDefinitions, buildInitialTransactionFinanceFeeSeed, buildTransactionFinancePrerequisiteSnapshot, channelDevelopmentApprovalPrompt, commissionCalculationModeLabelMap, commissionCalculationStatusLabelMap, commissionRecipientLabelMap, commissionRuleFeeTypeLabelMap, commissionRuleTypeLabelMap, decimalToString, deriveRateFromAmount, endOfDay, ensureTransactionFinanceFees, filterActiveTransactionFinanceFees, financeFeeDefinitionByType, financeFeeDefinitions, formatCurrency, formatDateValue, formatFallbackRoleLabel, formatMembershipParticipantRole, formatPercentLabel, formatRecipientRoleLabel, getTransactionFinanceFeeDefinition, getTransactionFinanceFeeSortOrder, isActiveTransactionFinanceFeeType, mapTransactionFinanceFeeRecord, membershipStatusLabelMap, normalizeFinanceFeeApprovalStatus, normalizeTransactionFinanceFeeForPersistence, parseOptionalDate, parseOptionalDecimal, parseOptionalText, parseTransactionFinanceApprovalStatus, parseTransactionFinanceCalculationType, parseTransactionFinanceFeeType, selectableOperationalMembershipStatuses, sortTransactionFinanceFees, startOfDay, transactionFinanceApprovalStatusLabelMap, transactionFinanceCalculationTypeLabelMap, transactionFinanceVersionSourceLabelMap, userRoleLabelMap } from "./types";
+import { CalculateTransactionCommissionInput, CommissionPlanWithRules, DeleteCommissionPlanAssignmentInput, GenerateCommissionStatementSnapshotInput, GetOfficeCommissionManagementSnapshotInput, OfficeAgentCommissionSummary, OfficeCommissionAssignmentRecord, OfficeCommissionAssignmentSourceType, OfficeCommissionAssignmentTargetType, OfficeCommissionCalculationRecipientLabel, OfficeCommissionCalculationRow, OfficeCommissionCalculationStatusLabel, OfficeCommissionManagementOverview, OfficeCommissionManagementSnapshot, OfficeCommissionPlanOption, OfficeCommissionPlanRecord, OfficeCommissionPlanRuleRecord, OfficeCommissionStatementLine, OfficeCommissionStatementSnapshot, OfficeCommissionTeamOption, OfficeCreateTransactionCommissionPreview, OfficeTransactionCommissionManualParticipantOption, OfficeTransactionCommissionSnapshot, OfficeTransactionCommissionStakeholderRow, OfficeTransactionFinanceApprovalLabel, OfficeTransactionFinanceCalculationLabel, OfficeTransactionFinanceFeeRecord, OfficeTransactionFinancePrerequisiteSnapshot, OfficeTransactionFinanceVersionRecord, OverrideTransactionCommissionInput, ResolvedCommissionPlanAssignment, SaveCommissionPlanAssignmentInput, SaveCommissionPlanInput, SaveCommissionPlanRuleInput, ScopedPrismaClient, TransactionFinanceFeeDefinition, UpdateCommissionCalculationStatusInput, activeFinanceFeeDefinitions, buildInitialTransactionFinanceFeeSeed, buildTransactionFinancePrerequisiteSnapshot, channelDevelopmentApprovalPrompt, commissionCalculationModeLabelMap, commissionCalculationStatusLabelMap, commissionRecipientLabelMap, commissionRuleFeeTypeLabelMap, commissionRuleTypeLabelMap, decimalToString, deriveRateFromAmount, endOfDay, ensureTransactionFinanceFees, filterActiveTransactionFinanceFees, financeFeeDefinitionByType, financeFeeDefinitions, formatCurrency, formatDateValue, formatFallbackRoleLabel, formatMembershipParticipantRole, formatPercentLabel, formatRecipientRoleLabel, getTransactionFinanceFeeDefinition, getTransactionFinanceFeeSortOrder, isActiveTransactionFinanceFeeType, mapTransactionFinanceFeeRecord, membershipStatusLabelMap, normalizeFinanceFeeApprovalStatus, normalizeTransactionFinanceFeeForPersistence, parseOptionalDate, parseOptionalDecimal, parseOptionalText, parseTransactionFinanceApprovalStatus, parseTransactionFinanceCalculationType, parseTransactionFinanceFeeType, selectableOperationalMembershipStatuses, sortTransactionFinanceFees, startOfDay, transactionFinanceApprovalStatusLabelMap, transactionFinanceCalculationTypeLabelMap, transactionFinanceVersionSourceLabelMap, userRoleLabelMap } from "./types";
 import { ComputedTransactionFinanceResult, ComputedTransactionFinanceStakeholderRow, DerivedTransactionCommissionChainMember, NormalizedTransactionFinanceFee, PreviewCreateTransactionCommissionCalculatorInput, StoredTransactionCommissionChainMember, StoredTransactionCommissionContext, StoredTransactionFinanceFeeBreakdownRow, StoredTransactionFinanceStakeholderBreakdownRow, applyEffectiveSharePercentsToStoredStakeholderRows, buildCommissionChanges, buildCommissionStakeholderKey, buildDefaultSplitCalculationRows, buildDefaultTransactionCommissionChain, buildLegacyReviewItems, buildManualParticipantOption, buildPreviousCommissionChangeBaseline, buildStoredTransactionCommissionContext, buildStoredTransactionFinanceFeeBreakdownRows, buildStoredTransactionFinanceStakeholderBreakdownRows, buildTransactionCommissionSummary, buildTransactionFinanceBlockingIssues, buildTransactionLabel, calculatePlanDrivenValues, calculateTransactionFinanceResult, compareAssignmentPriority, computeRuleAmount, determineBaseSplitPercent, filterVisibleCommissionRows, findPrimaryAgentStakeholderRow, formatMembershipFullName, getAssignmentTargetLabel, getCommissionRoleLabel, getCommissionRoleValue, hasManualParticipantRows, listCommissionPlanOptions, managedTransactionMembershipLinkRoles, mapCommissionAssignmentRecord, mapCommissionCalculationRow, mapCommissionRule, mapStoredTransactionFinanceStakeholderRow, mapTransactionFinanceVersionRecord, normalizeCurrencyDecimal, normalizeSharePercentDecimal, normalizeTransactionFinanceFees, parseCommissionCalculationMode, parseCommissionCalculationStatus, parseCommissionPlanRuleType, parseCommissionRecipientType, parseCommissionRuleFeeType, parseStoredTransactionCommissionContext, parseStoredTransactionFinanceFeeBreakdown, parseStoredTransactionFinanceStakeholderBreakdown, previewCreateTransactionCommissionCalculator, resolveActiveCommissionPlanAssignment, saveCommissionPlan, sumStakeholderFinalAmounts, syncTransactionParticipantMembershipLinks } from "./planning";
 import { buildCommissionStatementSnapshot, generateCommissionStatementSnapshot, getAgentCommissionSummary, getOfficeCommissionManagementSnapshot, getTransactionCommissionSnapshot, sumAgentStatementAmounts } from "./statements";
 
@@ -159,6 +159,104 @@ export async function assignCommissionPlanToMembership(input: SaveCommissionPlan
           `Plan: ${plan.name}`,
           `${membership ? "Agent" : "Team"}: ${membership ? `${membership.user.firstName} ${membership.user.lastName}` : team?.name ?? "—"}`,
           `Effective from: ${formatDateValue(effectiveFrom)}`
+        ]
+      }
+    });
+
+    return assignment.id;
+  });
+}
+
+async function syncDirectMembershipCommissionPlanName(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    membershipId: string;
+    effectiveAt?: Date;
+  }
+) {
+  const effectiveAt = input.effectiveAt ?? new Date();
+  const activeAssignment = await tx.commissionPlanAssignment.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      effectiveFrom: {
+        lte: effectiveAt
+      },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveAt } }]
+    },
+    include: {
+      commissionPlan: true
+    },
+    orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }]
+  });
+
+  await tx.agentProfile.updateMany({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId
+    },
+    data: {
+      commissionPlanName: activeAssignment?.commissionPlan.name ?? ""
+    }
+  });
+}
+
+export async function deleteCommissionPlanAssignment(input: DeleteCommissionPlanAssignmentInput) {
+  return prisma.$transaction(async (tx) => {
+    const assignment = await tx.commissionPlanAssignment.findFirst({
+      where: {
+        id: input.assignmentId,
+        organizationId: input.organizationId,
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        team: true,
+        commissionPlan: true
+      }
+    });
+
+    if (!assignment) {
+      return null;
+    }
+
+    await tx.commissionPlanAssignment.delete({
+      where: {
+        id: assignment.id
+      }
+    });
+
+    if (assignment.membershipId) {
+      await syncDirectMembershipCommissionPlanName(tx, {
+        organizationId: input.organizationId,
+        membershipId: assignment.membershipId
+      });
+    }
+
+    const targetLabel = assignment.membership
+      ? `${assignment.membership.user.firstName} ${assignment.membership.user.lastName}`
+      : assignment.team?.name ?? "Assignment target";
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "commission_plan",
+      entityId: assignment.id,
+      action: activityLogActions.commissionPlanAssignmentRemoved,
+      payload: {
+        officeId: assignment.officeId,
+        objectLabel: `${assignment.commissionPlan.name} · ${targetLabel}`,
+        contextHref: assignment.membership ? `/office/agents/${assignment.membershipId}` : "/office/settings/commission-plans",
+        details: [
+          `Plan: ${assignment.commissionPlan.name}`,
+          `${assignment.membership ? "Agent" : "Team"}: ${targetLabel}`,
+          `Effective from: ${formatDateValue(assignment.effectiveFrom)}`,
+          `Effective to: ${formatDateValue(assignment.effectiveTo)}`
         ]
       }
     });

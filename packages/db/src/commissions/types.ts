@@ -429,6 +429,13 @@ export type SaveCommissionPlanAssignmentInput = {
   actorMembershipId: string;
 };
 
+export type DeleteCommissionPlanAssignmentInput = {
+  organizationId: string;
+  officeId?: string | null;
+  assignmentId: string;
+  actorMembershipId: string;
+};
+
 
 
 export type CalculateTransactionCommissionInput = {
