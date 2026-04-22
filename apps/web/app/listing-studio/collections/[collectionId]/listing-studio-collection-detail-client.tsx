@@ -99,6 +99,17 @@ export function ListingStudioCollectionDetailClient({
     return Array.from(pendingSelectionSet).some((packId) => !currentPackIds.has(packId));
   }, [currentPackIds, pendingSelectionSet]);
 
+  function applyDetailState(nextDetail: StudioListingCollectionDetail) {
+    startTransition(() => {
+      setDetailState(nextDetail);
+      setSelectedPackIds(
+        nextDetail.listings.map(
+          (item: StudioListingCollectionDetail["listings"][number]) => item.packId,
+        ),
+      );
+    });
+  }
+
   function openManager() {
     setSelectedPackIds(detailState.listings.map((item) => item.packId));
     setSearch("");
@@ -128,12 +139,30 @@ export function ListingStudioCollectionDetailClient({
       );
     }
 
-    startTransition(() => {
-      setDetailState(payload);
-      setSelectedPackIds(
-        payload.listings.map((item: StudioListingCollectionDetail["listings"][number]) => item.packId),
+    applyDetailState(payload);
+  }
+
+  async function removeListingFromCollection(packId: string) {
+    setStatusMessage("");
+
+    const response = await fetch(
+      `/api/listing-studio/collections/${detailState.id}/items/${packId}`,
+      {
+        method: "DELETE",
+      },
+    );
+    const payload = (await response.json().catch(() => null)) as CollectionDetailResponse;
+
+    if (!response.ok || !isCollectionDetail(payload)) {
+      throw new Error(
+        payload && typeof payload === "object" && "error" in payload
+          ? payload.error || "Unable to remove the listing from this collection."
+          : "Unable to remove the listing from this collection.",
       );
-    });
+    }
+
+    applyDetailState(payload);
+    setStatusMessage("Listing removed from this collection.");
   }
 
   async function saveSelectionChanges() {
@@ -328,8 +357,11 @@ export function ListingStudioCollectionDetailClient({
           {detailState.listings.length ? (
             detailState.listings.map((item) => (
               <ListingStudioCard
+                collectionPickerButtonLabel="Manage collections"
                 item={item}
                 key={item.packId}
+                onRemoveFromCollection={removeListingFromCollection}
+                removeFromCollectionLabel="Remove from this collection"
                 showCollectionPicker
               />
             ))

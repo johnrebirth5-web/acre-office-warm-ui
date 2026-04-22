@@ -29,8 +29,11 @@ type ListingStudioCardProps = {
   item: StudioListingListItem | StudioListingCompanyFeedItem;
   mode?: ListingStudioCardMode;
   showCollectionPicker?: boolean;
+  collectionPickerButtonLabel?: string;
   showDeleteAction?: boolean;
   canManageCompanyFeed?: boolean;
+  onRemoveFromCollection?: ((packId: string) => Promise<void> | void) | null;
+  removeFromCollectionLabel?: string;
 };
 
 function getListingTypeLabel(listingType: string | null) {
@@ -113,8 +116,11 @@ export function ListingStudioCard({
   item,
   mode = "personal",
   showCollectionPicker = false,
+  collectionPickerButtonLabel = "Add to collection",
   showDeleteAction = false,
   canManageCompanyFeed = false,
+  onRemoveFromCollection = null,
+  removeFromCollectionLabel = "Remove from collection",
 }: ListingStudioCardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -127,6 +133,7 @@ export function ListingStudioCard({
   const [isSavedToMyListings, setIsSavedToMyListings] = useState(
     readInitialSavedState(item),
   );
+  const [isRemovingFromCollection, setIsRemovingFromCollection] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDialogError, setPublishDialogError] = useState<string | null>(null);
   const [isUpdatingCompanyFeed, setIsUpdatingCompanyFeed] = useState(false);
@@ -222,6 +229,26 @@ export function ListingStudioCard({
       );
     } finally {
       setIsSavingToMyListings(false);
+    }
+  }
+
+  async function handleRemoveFromCollection() {
+    if (!onRemoveFromCollection || isRemovingFromCollection) {
+      return;
+    }
+
+    setIsRemovingFromCollection(true);
+
+    try {
+      await onRemoveFromCollection(item.packId);
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove this listing from the collection.",
+      );
+    } finally {
+      setIsRemovingFromCollection(false);
     }
   }
 
@@ -381,7 +408,10 @@ export function ListingStudioCard({
           </div>
         </Link>
 
-        {mode === "dashboard" || showCollectionPicker || canManageCompanyFeed ? (
+        {mode === "dashboard" ||
+        showCollectionPicker ||
+        canManageCompanyFeed ||
+        onRemoveFromCollection ? (
           <div className="listing-studio-card-footer listing-studio-card-footer-actions">
             {mode === "dashboard" ? (
               <button
@@ -398,9 +428,22 @@ export function ListingStudioCard({
               </button>
             ) : null}
 
+            {onRemoveFromCollection ? (
+              <button
+                className="office-button office-button-secondary listing-studio-card-remove-button"
+                disabled={isRemovingFromCollection}
+                onClick={() => void handleRemoveFromCollection()}
+                type="button"
+              >
+                {isRemovingFromCollection
+                  ? "Removing..."
+                  : removeFromCollectionLabel}
+              </button>
+            ) : null}
+
             {showCollectionPicker ? (
               <StudioCollectionPicker
-                buttonLabel="Add to collection"
+                buttonLabel={collectionPickerButtonLabel}
                 packId={item.packId}
               />
             ) : null}

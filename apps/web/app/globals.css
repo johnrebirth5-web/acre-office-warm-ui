@@ -18683,6 +18683,22 @@ body,
   justify-content: center;
 }
 
+.listing-studio-card-remove-button {
+  color: var(--office-danger);
+  border-color: color-mix(in srgb, var(--office-danger) 16%, rgba(22, 39, 60, 0.12));
+  background: color-mix(in srgb, var(--office-danger-soft) 68%, #ffffff);
+}
+
+.listing-studio-card-remove-button:hover,
+.listing-studio-card-remove-button:focus-visible {
+  border-color: color-mix(in srgb, var(--office-danger) 24%, rgba(22, 39, 60, 0.18));
+  background: color-mix(in srgb, var(--office-danger-soft) 78%, #ffffff);
+}
+
+.listing-studio-card-remove-button:disabled {
+  color: var(--office-danger);
+}
+
 .listing-studio-card-meta {
   display: flex;
   flex-wrap: wrap;
