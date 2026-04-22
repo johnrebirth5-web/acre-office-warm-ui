@@ -7,7 +7,9 @@ import { Badge, Button, EmptyState, FormField, ListPageSection, SelectInput, Sta
 import type { OfficeAgentsRosterSnapshot } from "@acre/db";
 import {
   getAssignableLeaderOptions,
+  getBranchTypeLabel,
   getBranchLeaderLabel,
+  getChildCollectionLabel,
   getChildTeams,
   getDirectMembers,
   getInvalidLeaderMembers,
@@ -79,7 +81,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
             </Link>
           ) : null
         }
-        subtitle="Start from the top-level Teams. Open a Team to review its Junior Teams and direct agents."
+        subtitle="Start from the top-level Teams. Open a Team to review its Junior Team 1 branches and direct agents."
         title="Teams"
       >
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
@@ -135,13 +137,13 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   <div className="office-settings-team-directory-card-meta">
                     <span>{team.memberCount} total members</span>
                     <span>{directMembers.length} direct agents</span>
-                    <span>{team.childTeamCount} Junior Teams</span>
+                    <span>{team.childTeamCount} child teams</span>
                     <span>{team.openTransactionCount} open transactions</span>
                   </div>
 
                   <div className="office-settings-team-directory-card-body">
                     <p>
-                      Junior Teams: {childPreview.length ? childPreview.join(", ") : "No Junior Teams yet"}
+                      {getChildCollectionLabel(team)}: {childPreview.length ? childPreview.join(", ") : `No ${getChildCollectionLabel(team).toLowerCase()} yet`}
                       {childTeams.length > childPreview.length ? ` +${childTeams.length - childPreview.length} more` : ""}
                     </p>
                     <p>Direct agents: {getMemberNamesLabel(directMembers)}</p>
@@ -154,7 +156,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   </div>
 
                   <div className="office-settings-team-directory-card-actions">
-                    <Badge tone="neutral">Team</Badge>
+                    <Badge tone="neutral">{getBranchTypeLabel(team)}</Badge>
                     <Link className="office-button-secondary office-button-sm" href={`/office/settings/teams/${team.id}`}>
                       View team
                     </Link>
@@ -165,7 +167,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
           </div>
         ) : (
           <EmptyState
-            description="Create the first Team to start organizing Junior Teams and direct agents."
+            description="Create the first Team to start organizing Junior Team 1 branches and direct agents."
             title="No Teams yet"
           />
         )}

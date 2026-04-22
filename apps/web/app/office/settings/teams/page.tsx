@@ -42,7 +42,7 @@ export default async function OfficeSettingsTeamsPage({ searchParams }: OfficeSe
           <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Teams" tone="accent" value={rootTeams.length} />
-            <SummaryChip label="Junior Teams" value={totalChildBranches} />
+            <SummaryChip label="Child teams" value={totalChildBranches} />
             <SummaryChip label="Rostered members" value={snapshot.summary.totalMembers} />
             <SummaryChip label="Needs owner" value={unassignedBranches} />
           </>

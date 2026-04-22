@@ -22,7 +22,23 @@ import {
   TextInput
 } from "@acre/ui";
 import type { OfficeAgentsRosterSnapshot } from "@acre/db";
-import { getAssignableLeaderOptions } from "./team-directory-shared";
+import {
+  getAssignableLeaderOptions,
+  getAvailableParentTeams,
+  getBranchLeader,
+  getBranchLeaderMembers,
+  getBranchTypeLabel,
+  getChildBranchTypeLabel,
+  getChildCollectionLabel,
+  getInvalidLeaderMembers,
+  getLeaderScopeLabel,
+  getLeaderTitleLabelByDepth,
+  getLeaderTitleLabel,
+  getTeamMemberRoleLabel,
+  isInvalidBranchLeaderRoleValue,
+  isLeaderRoleValue,
+  isValidBranchLeaderRoleValue
+} from "./team-directory-shared";
 
 type OfficeSettingsTeamsClientProps = {
   snapshot: OfficeAgentsRosterSnapshot;
@@ -54,58 +70,6 @@ type ConfirmDialogState = {
 
 const inheritedManagerOptionValue = "__inherited_manager__";
 
-function isLeaderRoleValue(roleValue: string) {
-  return roleValue === "team_leader" || roleValue === "junior_team_leader" || roleValue === "leader_i" || roleValue === "leader_ii";
-}
-
-function getTeamMemberRoleLabel(roleValue: string) {
-  if (roleValue === "team_leader" || roleValue === "leader_i") {
-    return "Team Leader";
-  }
-
-  if (roleValue === "junior_team_leader" || roleValue === "leader_ii") {
-    return "Junior Team Leader";
-  }
-
-  return "Member";
-}
-
-function getLeaderRoleValue(team: TeamRecord) {
-  return team.parentTeamId ? "junior_team_leader" : "team_leader";
-}
-
-function getLeaderRoleLabel(team: TeamRecord) {
-  return team.parentTeamId ? "Junior Team Leader" : "Team Leader";
-}
-
-function getBranchTypeLabel(team: TeamRecord) {
-  return team.parentTeamId ? "Junior Team" : "Team";
-}
-
-function getLeaderScopeLabel(team: TeamRecord) {
-  return team.parentTeamId ? "junior team" : "team";
-}
-
-function isValidBranchLeaderRoleForTeam(team: TeamRecord, roleValue: string) {
-  return isLeaderRoleValue(roleValue) && roleValue === getLeaderRoleValue(team);
-}
-
-function isInvalidLeaderRoleForTeam(team: TeamRecord, roleValue: string) {
-  return isLeaderRoleValue(roleValue) && roleValue !== getLeaderRoleValue(team);
-}
-
-function getBranchLeaderMembers(team: TeamRecord) {
-  return team.members.filter((member) => isValidBranchLeaderRoleForTeam(team, member.roleValue));
-}
-
-function getPrimaryBranchLeader(team: TeamRecord) {
-  return getBranchLeaderMembers(team)[0] ?? null;
-}
-
-function getInvalidLeaderMembers(team: TeamRecord) {
-  return team.members.filter((member) => isInvalidLeaderRoleForTeam(team, member.roleValue));
-}
-
 function getTeamMemberByTeamMembershipId(team: TeamRecord, teamMembershipId: string | null | undefined) {
   if (!teamMembershipId) {
     return null;
@@ -124,14 +88,14 @@ function getCurrentInvalidManagerOption(
   if (
     !currentManager ||
     currentManager.teamMembershipId === currentTeamMembershipId ||
-    isValidBranchLeaderRoleForTeam(team, currentManager.roleValue)
+    isValidBranchLeaderRoleValue(team, currentManager.roleValue)
   ) {
     return null;
   }
 
   return {
     value: currentManager.teamMembershipId,
-    label: `${currentManager.label} · ${currentManager.role} (invalid for ${getLeaderScopeLabel(team)})`
+    label: `${currentManager.label} · ${getTeamMemberRoleLabel(team, currentManager.roleValue)} (invalid for ${getLeaderScopeLabel(team)})`
   };
 }
 
@@ -141,12 +105,10 @@ function getMemberDirectReportCount(team: TeamRecord, teamMembershipId: string) 
 
 function getRemoveMemberBlockedReason(team: TeamRecord, member: TeamRecord["members"][number]) {
   const directReportCount = getMemberDirectReportCount(team, member.teamMembershipId);
-  const isCurrentBranchLeader = isValidBranchLeaderRoleForTeam(team, member.roleValue);
+  const isCurrentBranchLeader = isValidBranchLeaderRoleValue(team, member.roleValue);
 
   if (isCurrentBranchLeader && getBranchLeaderMembers(team).length === 1) {
-    return team.parentTeamId
-      ? "Assign another Junior Team Leader before removing the current owner."
-      : "Assign another Team Leader before removing the current owner.";
+    return `Assign another ${getLeaderTitleLabel(team)} before removing the current owner.`;
   }
 
   if (directReportCount > 0) {
@@ -154,7 +116,7 @@ function getRemoveMemberBlockedReason(team: TeamRecord, member: TeamRecord["memb
   }
 
   if (isLeaderRoleValue(member.roleValue) && team.childTeamCount > 0) {
-    return "Reassign this team's Junior Teams before removing its leader.";
+    return `Reassign this team's ${getChildCollectionLabel(team).toLowerCase()} before removing its leader.`;
   }
 
   return null;
@@ -162,14 +124,14 @@ function getRemoveMemberBlockedReason(team: TeamRecord, member: TeamRecord["memb
 
 function getDeleteTeamBlockedReason(team: TeamRecord) {
   const canCascadeDeleteFinalOwner =
-    team.members.length === 1 && Boolean(team.members[0] && isValidBranchLeaderRoleForTeam(team, team.members[0].roleValue));
+    team.members.length === 1 && Boolean(team.members[0] && isValidBranchLeaderRoleValue(team, team.members[0].roleValue));
 
   if (team.members.length > 0 && !canCascadeDeleteFinalOwner) {
     return "Remove all team members before deleting this team.";
   }
 
   if (team.childTeamCount > 0) {
-    return "Remove or reassign this team's Junior Teams before deleting it.";
+    return `Remove or reassign this team's ${getChildCollectionLabel(team).toLowerCase()} before deleting it.`;
   }
 
   if (team.commissionPlanAssignmentCount > 0) {
@@ -183,18 +145,18 @@ function getDeleteTeamBlockedReason(team: TeamRecord) {
 
 function getTeamRoleOptions(team: TeamRecord, currentRoleValue?: string) {
   const options = [
-    { value: getLeaderRoleValue(team), label: getLeaderRoleLabel(team) },
+    { value: team.parentTeamId ? "junior_team_leader" : "team_leader", label: getLeaderTitleLabel(team) },
     { value: "member", label: "Member" }
   ];
 
-  if (!currentRoleValue || !isInvalidLeaderRoleForTeam(team, currentRoleValue)) {
+  if (!currentRoleValue || !isInvalidBranchLeaderRoleValue(team, currentRoleValue)) {
     return options;
   }
 
   return [
     {
       value: currentRoleValue,
-      label: `${getTeamMemberRoleLabel(currentRoleValue)} (invalid for ${getLeaderScopeLabel(team)})`
+      label: `${getTeamMemberRoleLabel(team, currentRoleValue)} (invalid for ${getLeaderScopeLabel(team)})`
     },
     ...options
   ];
@@ -210,7 +172,7 @@ function getParentBranchLeader(teams: TeamRecord[], team: TeamRecord) {
     return null;
   }
 
-  return getPrimaryBranchLeader(parentTeam);
+  return getBranchLeader(parentTeam);
 }
 
 function getInheritedManagerOption(teams: TeamRecord[], team: TeamRecord, roleValue: string) {
@@ -223,15 +185,17 @@ function getInheritedManagerOption(teams: TeamRecord[], team: TeamRecord, roleVa
     return null;
   }
 
+  const parentTeam = team.parentTeamId ? teams.find((candidate) => candidate.id === team.parentTeamId) ?? null : null;
+
   return {
     value: inheritedManagerOptionValue,
-    label: `${parentLeader.label} · ${parentLeader.role}`
+    label: `${parentLeader.label} · ${parentTeam ? getLeaderTitleLabel(parentTeam) : "Parent leader"}`
   };
 }
 
 function getDirectManagerPlaceholder(teams: TeamRecord[], team: TeamRecord, roleValue: string) {
   if (!isLeaderRoleValue(roleValue)) {
-    return getPrimaryBranchLeader(team) ? `Use ${getLeaderRoleLabel(team)}` : `No ${getLeaderRoleLabel(team)} assigned`;
+    return getBranchLeader(team) ? `Use ${getLeaderTitleLabel(team)}` : `No ${getLeaderTitleLabel(team)} assigned`;
   }
 
   const parentLeader = getParentBranchLeader(teams, team);
@@ -239,7 +203,12 @@ function getDirectManagerPlaceholder(teams: TeamRecord[], team: TeamRecord, role
     return `Inherited from ${parentLeader.label}`;
   }
 
-  return team.parentTeamId ? "Parent Team Leader not assigned" : "No direct manager";
+  if (team.parentTeamId) {
+    const parentTeam = teams.find((candidate) => candidate.id === team.parentTeamId) ?? null;
+    return parentTeam ? `Parent ${getLeaderTitleLabel(parentTeam)} not assigned` : "Parent branch leader not assigned";
+  }
+
+  return "No direct manager";
 }
 
 export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: OfficeSettingsTeamsClientProps) {
@@ -287,7 +256,13 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
       })),
     [snapshot.allRows]
   );
-  const rootTeamOptions = useMemo(() => snapshot.teams.filter((team) => !team.parentTeamId), [snapshot.teams]);
+  const selectedNewTeamParent = useMemo(
+    () => snapshot.teams.find((team) => team.id === newTeamParentTeamId) ?? null,
+    [snapshot.teams, newTeamParentTeamId]
+  );
+  const newTeamTypeLabel = selectedNewTeamParent ? getChildBranchTypeLabel(selectedNewTeamParent) : "Team";
+  const newTeamLeaderLabel = selectedNewTeamParent ? getLeaderTitleLabelByDepth(selectedNewTeamParent.depth + 1) : "Team Leader";
+  const availableNewTeamParents = useMemo(() => getAvailableParentTeams(snapshot), [snapshot]);
   const newTeamLeaderOptions = useMemo(
     () => getAssignableLeaderOptions(snapshot, newTeamParentTeamId || null),
     [snapshot, newTeamParentTeamId]
@@ -328,7 +303,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
     return team.members.filter(
       (member) =>
         member.teamMembershipId !== currentTeamMembershipId &&
-        isValidBranchLeaderRoleForTeam(team, member.roleValue)
+        isValidBranchLeaderRoleValue(team, member.roleValue)
     );
   }
 
@@ -356,7 +331,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to create team.");
+        throw new Error(body?.error ?? `Failed to create ${newTeamTypeLabel}.`);
       }
 
       setNewTeamName("");
@@ -364,7 +339,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
       setNewTeamLeaderMembershipId("");
       router.refresh();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to create team.");
+      setSubmitError(error instanceof Error ? error.message : `Failed to create ${newTeamTypeLabel}.`);
     } finally {
       setPendingAction(null);
     }
@@ -526,13 +501,13 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
       <ListPageStack>
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
 
-      <ListPageTableSection footer={<ListPageFooter summary={`${snapshot.teams.length} team rows`} />} subtitle="Same list/table rhythm as Transactions, with team-level operational metrics." title="Teams list">
+      <ListPageTableSection footer={<ListPageFooter summary={`${snapshot.teams.length} team rows`} />} subtitle="Same list/table rhythm as Transactions, with recursive team-level operational metrics." title="Teams list">
         <DataTable className="office-table">
           <DataTableHeader className="office-table-header office-table-row office-table-row-settings-teams">
             <span>Team</span>
             <span>Parent</span>
             <span>Members</span>
-            <span>Branches</span>
+            <span>Child teams</span>
             <span>Status</span>
             <span>Actions</span>
           </DataTableHeader>
@@ -543,12 +518,12 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                   <div className="office-table-primary">
                     <strong>{team.teamPathLabel}</strong>
                     <p>
-                      {team.slug} · {team.openTaskCount} open tasks · {team.openTransactionCount} open transactions
+                      {getBranchTypeLabel(team)} · {team.slug} · {team.openTaskCount} open tasks · {team.openTransactionCount} open transactions
                     </p>
                   </div>
                   <span>{team.parentTeamId ? team.teamPathLabel.split(" / ").slice(0, -1).join(" / ") : "Top-level Team"}</span>
                   <span>{team.memberCount}</span>
-                  <span>{team.childTeamCount}</span>
+                  <span>{team.childTeamCount} child teams</span>
                   <span>
                     <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
                   </span>
@@ -560,36 +535,36 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                 </DataTableRow>
               ))
             ) : (
-              <EmptyState description="Create the first Team for this office to start grouping agents." title="No teams configured yet" />
+              <EmptyState description="Create the first Team for this office to start grouping recursive branches." title="No teams configured yet" />
             )}
           </DataTableBody>
         </DataTable>
       </ListPageTableSection>
 
-      <ListPageSection subtitle="Create and manage Teams and Junior Teams without leaving Back Office." title="Team administration">
+      <ListPageSection subtitle="Create and manage recursive Team / Junior Team paths without leaving Back Office." title="Team administration">
 
         {canManageTeams ? (
           <form className="office-settings-inline-form" onSubmit={handleCreateTeam}>
-            <FormField className="is-wide" label={newTeamParentTeamId ? "New Junior Team name" : "New Team name"}>
+            <FormField className="is-wide" label={`New ${newTeamTypeLabel} name`}>
               <TextInput
                 onChange={(event) => setNewTeamName(event.target.value)}
-                placeholder={newTeamParentTeamId ? "Create a new Junior Team..." : "Create a new Team..."}
+                placeholder={`Create a new ${newTeamTypeLabel}...`}
                 value={newTeamName}
               />
             </FormField>
             <FormField label="Parent team">
               <SelectInput onChange={(event) => setNewTeamParentTeamId(event.target.value)} value={newTeamParentTeamId}>
                 <option value="">No parent team</option>
-                {rootTeamOptions.map((team) => (
+                {availableNewTeamParents.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.teamPathLabel}
                   </option>
                 ))}
               </SelectInput>
             </FormField>
-            <FormField label={newTeamParentTeamId ? "Junior Team Leader" : "Team Leader"}>
+            <FormField label={newTeamLeaderLabel}>
               <SelectInput onChange={(event) => setNewTeamLeaderMembershipId(event.target.value)} value={newTeamLeaderMembershipId}>
-                <option value="">Select leader</option>
+                <option value="">{`Select ${newTeamLeaderLabel}`}</option>
                 {newTeamLeaderOptions.map((option) => (
                   <option key={option.membershipId} value={option.membershipId}>
                     {option.label}
@@ -598,12 +573,12 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
               </SelectInput>
             </FormField>
             <Button disabled={!newTeamLeaderOptions.length || pendingAction === "create-team"} type="submit">
-              {pendingAction === "create-team" ? "Creating..." : newTeamParentTeamId ? "Create Junior Team" : "Create Team"}
+              {pendingAction === "create-team" ? "Creating..." : `Create ${newTeamTypeLabel}`}
             </Button>
           </form>
         ) : null}
         {canManageTeams && newTeamLeaderOptions.length === 0 ? (
-          <p className="office-form-helper">No eligible leader is currently available for this new team.</p>
+          <p className="office-form-helper">{`No eligible leader is currently available for this new ${newTeamTypeLabel.toLowerCase()}.`}</p>
         ) : null}
 
         <div className="office-settings-card-grid office-settings-teams-grid">
@@ -621,25 +596,25 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
               const nextManagerOptions = getManagerOptions(team, draft.nextRole);
               const teamRoleOptions = getTeamRoleOptions(team);
               const inheritedNextManagerOption = getInheritedManagerOption(snapshot.teams, team, draft.nextRole);
-              const parentTeamOptions = snapshot.teams.filter((candidate) => !candidate.parentTeamId && candidate.id !== team.id);
+              const parentTeamOptions = getAvailableParentTeams(snapshot, team.id);
               const parentTeamLabel = team.parentTeamId ? team.teamPathLabel.split(" / ").slice(0, -1).join(" / ") : "Top-level Team";
               const branchLeaderMembers = getBranchLeaderMembers(team);
               const invalidLeaderMembers = getInvalidLeaderMembers(team);
               const branchOwnerLabel = branchLeaderMembers.length
                 ? branchLeaderMembers.map((member) => member.label).join(", ")
                 : "Unassigned";
-              const branchOwnerNoun = getLeaderRoleLabel(team);
+              const branchOwnerNoun = getLeaderTitleLabel(team);
               const branchTypeLabel = getBranchTypeLabel(team);
               const deleteBlockedReason = getDeleteTeamBlockedReason(team);
               const multipleBranchLeaderMessage =
                 branchLeaderMembers.length > 1
-                  ? `Multiple leaders are assigned: ${branchOwnerLabel}. Keep only one active ${getLeaderRoleLabel(team)} on this ${branchTypeLabel.toLowerCase()}.`
+                  ? `Multiple leaders are assigned: ${branchOwnerLabel}. Keep only one active ${getLeaderTitleLabel(team)} on this ${branchTypeLabel.toLowerCase()}.`
                   : "";
               const invalidLeaderMessage =
                 invalidLeaderMembers.length > 0
                   ? `Invalid leader assignment: ${invalidLeaderMembers
-                      .map((member) => `${member.label} (${member.role})`)
-                      .join(", ")}. This ${branchTypeLabel.toLowerCase()} only uses ${getLeaderRoleLabel(team)}.`
+                      .map((member) => `${member.label} (${getTeamMemberRoleLabel(team, member.roleValue)})`)
+                      .join(", ")}. This ${branchTypeLabel.toLowerCase()} only uses ${getLeaderTitleLabel(team)}.`
                   : "";
 
               return (
@@ -652,7 +627,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                   }
                   className="office-settings-team-card"
                   key={team.id}
-                  subtitle={`${team.parentTeamId ? `Parent: ${parentTeamLabel}` : "No parent team"} · ${team.memberCount} members · ${team.childTeamCount} Junior Teams · ${team.commissionPlanAssignmentCount} commission plan assignments · ${team.openTaskCount} open tasks · ${team.openTransactionCount} open transactions`}
+                  subtitle={`${team.parentTeamId ? `Parent: ${parentTeamLabel}` : "No parent team"} · ${team.memberCount} members · ${team.childTeamCount} child teams · ${team.commissionPlanAssignmentCount} commission plan assignments · ${team.openTaskCount} open tasks · ${team.openTransactionCount} open transactions`}
                   title={team.teamPathLabel}
                 >
                   <div className="office-settings-team-editor">
@@ -756,12 +731,12 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                             memberDraft.reportsToTeamMembershipId,
                             member.teamMembershipId
                           );
-                          const invalidLeaderRole = isInvalidLeaderRoleForTeam(team, member.roleValue);
+                          const invalidLeaderRole = isInvalidBranchLeaderRoleValue(team, member.roleValue);
                           const currentManager = getTeamMemberByTeamMembershipId(team, member.reportsToTeamMembershipId);
                           const invalidDirectManager =
                             member.roleValue === "member" &&
                             currentManager &&
-                            !isValidBranchLeaderRoleForTeam(team, currentManager.roleValue);
+                            !isValidBranchLeaderRoleValue(team, currentManager.roleValue);
                           const removeBlockedReason = getRemoveMemberBlockedReason(team, member);
 
                           return (
@@ -769,10 +744,10 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                             <div className="office-settings-team-member-copy">
                               <Link href={`/office/settings/users/${member.membershipId}`}>{member.label}</Link>
                               <p>
-                                {member.role}
+                                {getTeamMemberRoleLabel(team, member.roleValue)}
                                 {invalidLeaderRole ? ` · Invalid for ${getLeaderScopeLabel(team)}` : ""}
                                 {member.reportsToLabel !== "No direct manager" ? ` · Reports to ${member.reportsToLabel}` : ""}
-                                {invalidDirectManager ? ` · Direct manager is not the current ${getLeaderRoleLabel(team)}` : ""}
+                                {invalidDirectManager ? ` · Direct manager is not the current ${getLeaderTitleLabel(team)}` : ""}
                               </p>
                               {removeBlockedReason ? <p className="office-settings-team-warning">Remove blocked: {removeBlockedReason}</p> : null}
                             </div>
@@ -810,7 +785,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                                   ) : null}
                                   {managerOptions.map((option) => (
                                     <option key={option.teamMembershipId} value={option.teamMembershipId}>
-                                      {option.label} · {option.role}
+                                      {option.label} · {getTeamMemberRoleLabel(team, option.roleValue)}
                                     </option>
                                   ))}
                                 </SelectInput>
@@ -902,7 +877,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                             ) : null}
                             {nextManagerOptions.map((option) => (
                               <option key={option.teamMembershipId} value={option.teamMembershipId}>
-                                {option.label} · {option.role}
+                                {option.label} · {getTeamMemberRoleLabel(team, option.roleValue)}
                               </option>
                             ))}
                           </SelectInput>
@@ -925,7 +900,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
               );
             })
           ) : (
-            <EmptyState description="Create the first operational team for this office to start grouping agents." title="No teams configured yet" />
+            <EmptyState description="Create the first operational team for this office to start grouping recursive branches." title="No teams configured yet" />
           )}
         </div>
       </ListPageSection>

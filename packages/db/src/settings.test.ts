@@ -1002,6 +1002,109 @@ test("updateAgentTeam and deleteAgentTeam allow shared teams from an office-scop
   }
 });
 
+test("recursive child teams stay assignable, cycle-safe, and visible through descendant team scope", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const rootLeader = await context.createMembership("team_lead", "recursive-root", "Root", "Leader", "No active team");
+    const juniorOneLeader = await context.createMembership("team_lead", "recursive-j1", "Junior", "One", "No active team");
+    const juniorTwoLeader = await context.createMembership("team_lead", "recursive-j2", "Junior", "Two", "No active team");
+    const juniorThreeLeader = await context.createMembership("team_lead", "recursive-j3", "Junior", "Three", "No active team");
+    const deepAgent = await context.createMembership("agent", "recursive-agent", "Deep", "Agent", "Agent");
+
+    const rootTeam = await createAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      name: `Recursive Root ${randomUUID().slice(0, 8)}`,
+      leaderMembershipId: rootLeader.membership.id
+    });
+    const juniorOne = await createAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      name: `Recursive Junior One ${randomUUID().slice(0, 8)}`,
+      parentTeamId: rootTeam.id,
+      leaderMembershipId: juniorOneLeader.membership.id
+    });
+    const juniorTwo = await createAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      name: `Recursive Junior Two ${randomUUID().slice(0, 8)}`,
+      parentTeamId: juniorOne.id,
+      leaderMembershipId: juniorTwoLeader.membership.id
+    });
+    const juniorThree = await createAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      name: `Recursive Junior Three ${randomUUID().slice(0, 8)}`,
+      parentTeamId: juniorTwo.id,
+      leaderMembershipId: juniorThreeLeader.membership.id
+    });
+
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: juniorThree.id,
+      membershipId: deepAgent.membership.id,
+      role: "member"
+    });
+
+    await assert.rejects(
+      () =>
+        updateAgentTeam({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          actorMembershipId: context.adminMembership.id,
+          teamId: juniorOne.id,
+          parentTeamId: juniorThree.id
+        }),
+      /create a cycle/i
+    );
+
+    const adminSnapshot = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      scopeMode: "teams"
+    });
+    const rootLeaderSnapshot = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: rootLeader.membership.id,
+      officeId: context.office.id,
+      scopeMode: "teams"
+    });
+
+    const juniorOneTeam = adminSnapshot.teams.find((item) => item.id === juniorOne.id) ?? null;
+    const juniorTwoTeam = adminSnapshot.teams.find((item) => item.id === juniorTwo.id) ?? null;
+    const juniorThreeTeam = adminSnapshot.teams.find((item) => item.id === juniorThree.id) ?? null;
+
+    assert.ok(juniorOneTeam);
+    assert.ok(juniorTwoTeam);
+    assert.ok(juniorThreeTeam);
+    assert.equal(juniorOneTeam?.depth, 1);
+    assert.equal(juniorTwoTeam?.depth, 2);
+    assert.equal(juniorThreeTeam?.depth, 3);
+    assert.equal(juniorThreeTeam?.teamPathLabel, `${rootTeam.name} / ${juniorOne.name} / ${juniorTwo.name} / ${juniorThree.name}`);
+
+    const juniorTwoLeaderMember = juniorTwoTeam?.members.find((member) => member.membershipId === juniorTwoLeader.membership.id) ?? null;
+    const juniorThreeLeaderMember = juniorThreeTeam?.members.find((member) => member.membershipId === juniorThreeLeader.membership.id) ?? null;
+    const deepAgentMember = juniorThreeTeam?.members.find((member) => member.membershipId === deepAgent.membership.id) ?? null;
+
+    assert.equal(juniorTwoLeaderMember?.reportsToLabel, "Junior One");
+    assert.equal(juniorThreeLeaderMember?.reportsToLabel, "Junior Two");
+    assert.equal(deepAgentMember?.reportsToLabel, "Junior Three");
+
+    assert.equal(rootLeaderSnapshot.teams.some((team) => team.id === juniorThree.id), true);
+    assert.equal(rootLeaderSnapshot.rows.some((row) => row.membershipId === deepAgent.membership.id), true);
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("removeAgentFromTeam allows removing shared-team members from an office-scoped session", async () => {
   const context = await createSettingsTestContext();
 

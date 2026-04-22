@@ -20,12 +20,15 @@ import {
   getAssignableLeaderOptions,
   getBranchLeaderLabel,
   getBranchTypeLabel,
+  getChildBranchTypeLabel,
+  getChildLeaderTitleLabel,
   getChildCollectionLabel,
   getChildTeams,
   getDirectMembers,
   getInvalidLeaderMembers,
   getLeaderTitleLabel,
-  getMemberNamesLabel
+  getMemberNamesLabel,
+  getTeamMemberRoleLabel
 } from "./team-directory-shared";
 
 type OfficeSettingsTeamDetailClientProps = {
@@ -43,10 +46,7 @@ export function OfficeSettingsTeamDetailClient({
   const team = useMemo(() => snapshot.teams.find((item) => item.id === teamId) ?? null, [snapshot, teamId]);
   const childTeams = useMemo(() => (team ? getChildTeams(snapshot, team.id) : []), [snapshot, team]);
   const directMembers = useMemo(() => (team ? getDirectMembers(team) : []), [team]);
-  const childLeaderOptions = useMemo(
-    () => (team && !team.parentTeamId ? getAssignableLeaderOptions(snapshot, team.id) : []),
-    [snapshot, team]
-  );
+  const childLeaderOptions = useMemo(() => (team ? getAssignableLeaderOptions(snapshot, team.id) : []), [snapshot, team]);
   const [newChildTeamName, setNewChildTeamName] = useState("");
   const [newChildLeaderMembershipId, setNewChildLeaderMembershipId] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -84,14 +84,16 @@ export function OfficeSettingsTeamDetailClient({
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Failed to create Junior Team.");
+        throw new Error(payload?.error ?? (team ? `Failed to create ${getChildBranchTypeLabel(team)}.` : "Failed to create child team."));
       }
 
       setNewChildTeamName("");
       setNewChildLeaderMembershipId("");
       router.refresh();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to create Junior Team.");
+      setSubmitError(
+        error instanceof Error ? error.message : team ? `Failed to create ${getChildBranchTypeLabel(team)}.` : "Failed to create child team."
+      );
     } finally {
       setPendingAction(null);
     }
@@ -128,26 +130,24 @@ export function OfficeSettingsTeamDetailClient({
           ) : null
         }
         subtitle={
-          team.parentTeamId
-            ? "Nested teams stay visible here for audit clarity, but creating deeper levels is reserved for future hierarchy expansion."
-            : "Every Junior Team gets its own card with a required Junior Team Leader and member summary."
+          `Create and review ${getChildCollectionLabel(team).toLowerCase()} under this path without leaving the hierarchy view.`
         }
         title={getChildCollectionLabel(team)}
       >
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
 
-        {canManageTeams && !team.parentTeamId ? (
+        {canManageTeams ? (
           <form className="office-settings-inline-form" onSubmit={handleCreateChildTeam}>
-            <FormField className="is-wide" label="New Junior Team name">
+            <FormField className="is-wide" label={`New ${getChildBranchTypeLabel(team)} name`}>
               <TextInput
                 onChange={(event) => setNewChildTeamName(event.target.value)}
-                placeholder={`Create a Junior Team under ${team.name}...`}
+                placeholder={`Create a ${getChildBranchTypeLabel(team)} under ${team.name}...`}
                 value={newChildTeamName}
               />
             </FormField>
-            <FormField label="Junior Team Leader">
+            <FormField label={getChildLeaderTitleLabel(team)}>
               <SelectInput onChange={(event) => setNewChildLeaderMembershipId(event.target.value)} value={newChildLeaderMembershipId}>
-                <option value="">Select Junior Team Leader</option>
+                <option value="">{`Select ${getChildLeaderTitleLabel(team)}`}</option>
                 {childLeaderOptions.map((option) => (
                   <option key={option.membershipId} value={option.membershipId}>
                     {option.label}
@@ -156,12 +156,12 @@ export function OfficeSettingsTeamDetailClient({
               </SelectInput>
             </FormField>
             <Button disabled={!childLeaderOptions.length || pendingAction === "create-child-team"} type="submit">
-              {pendingAction === "create-child-team" ? "Creating..." : "Create Junior Team"}
+              {pendingAction === "create-child-team" ? "Creating..." : `Create ${getChildBranchTypeLabel(team)}`}
             </Button>
           </form>
         ) : null}
-        {canManageTeams && !team.parentTeamId && childLeaderOptions.length === 0 ? (
-          <p className="office-form-helper">Move or free up an eligible agent before creating another Junior Team.</p>
+        {canManageTeams && childLeaderOptions.length === 0 ? (
+          <p className="office-form-helper">{`Move or free up an eligible agent before creating another ${getChildBranchTypeLabel(team)}.`}</p>
         ) : null}
 
         {childTeams.length ? (
@@ -213,9 +213,7 @@ export function OfficeSettingsTeamDetailClient({
         ) : (
           <EmptyState
             description={
-              team.parentTeamId
-                ? "No nested teams sit under this Junior Team right now."
-                : "This Team does not have any Junior Teams yet. Direct agents stay in the section below."
+              `This ${getBranchTypeLabel(team)} does not have any ${getChildCollectionLabel(team).toLowerCase()} yet. Direct agents stay in the section below.`
             }
             title={`No ${getChildCollectionLabel(team)} yet`}
           />
@@ -232,7 +230,7 @@ export function OfficeSettingsTeamDetailClient({
               <article className="office-settings-team-detail-member-card" key={member.teamMembershipId}>
                 <div className="office-settings-team-detail-member-copy">
                   <strong>{member.label}</strong>
-                  <p>{member.role}</p>
+                  <p>{getTeamMemberRoleLabel(team, member.roleValue)}</p>
                   {member.reportsToLabel !== "No direct manager" ? <p>Reports to {member.reportsToLabel}</p> : null}
                 </div>
                 <div className="office-settings-team-detail-member-meta">

@@ -66,20 +66,24 @@ Provide a real Back Office agent management workspace for office operations, cov
   - activity log
 - `Settings > Teams` now separates hierarchy browsing into:
   - a top-level Team directory for root-team summaries
-  - a Team detail page for Junior Team cards first, then direct agents assigned to the selected Team
+  - a Team detail page for child-team cards first, then direct agents assigned to the selected Team
 - team hierarchy now supports:
   - `Team Leader`
   - `Junior Team Leader`
   - `Member`
   - recursive child branches in the underlying data model
-  - current Back Office admin flow intentionally opens only `Team -> Junior Team` to keep the product hierarchy readable today while leaving future depth available
+  - current Back Office admin flow now opens recursive child-team management instead of stopping at `Team -> Junior Team`
+  - hierarchy naming is depth-aware in the UI:
+    - root branch = `Team`
+    - depth `1+` branches = `Junior Team 1 / 2 / 3...`
+    - depth `1+` branch owners = `Junior Team Leader 1 / 2 / 3...`
   - explicit `reportsToTeamMembershipId`
   - direct `Team Leader -> Member`
-  - nested `Team Leader -> Junior Team Leader -> Member`
+  - nested `Team Leader -> Junior Team Leader -> Junior Team Leader -> Member`
   - branch-owner summaries and team-assignment dropdowns now only count leader roles that match the current branch shape
-  - creating a `Team` or `Junior Team` now requires picking the corresponding owner up front
+  - creating a `Team` or any child branch now requires picking the corresponding owner up front
   - promoting another member to the owner role transfers leadership instead of leaving the team without an owner
-  - deleting a Team / Junior Team now removes the final owner assignment as part of the delete flow when that owner is the only remaining member, so the admin flow no longer deadlocks on the last branch owner
+  - deleting a Team / child branch now removes the final owner assignment as part of the delete flow when that owner is the only remaining member, so the admin flow no longer deadlocks on the last branch owner
   - legacy `Junior Team Leader` records that still sit directly in the parent Team are now auto-normalized into a real Junior Team named after that leader, with direct reports moved into the same child team
   - that legacy normalization now runs only from explicit management actions instead of from roster/profile read paths
   - legacy ownerless child branches can still surface as `Leader: Unassigned` until they are cleaned up, but normal admin creation paths no longer create new empty branches

@@ -8,7 +8,7 @@ export type TeamLeaderOption = {
   label: string;
 };
 
-function isLeaderRoleValue(roleValue: string) {
+export function isLeaderRoleValue(roleValue: string) {
   return roleValue === "team_leader" || roleValue === "junior_team_leader" || roleValue === "leader_i" || roleValue === "leader_ii";
 }
 
@@ -16,8 +16,18 @@ function isTeamHierarchyAssignableRoleValue(roleValue: string) {
   return roleValue === "agent" || roleValue === "team_lead";
 }
 
-function getExpectedLeaderRoleValue(team: TeamDirectoryTeam) {
+export function getExpectedLeaderRoleValue(team: TeamDirectoryTeam) {
   return team.parentTeamId ? "junior_team_leader" : "team_leader";
+}
+
+export function getBranchTypeLabelByDepth(depth: number) {
+  const normalizedDepth = Math.max(0, depth);
+  return normalizedDepth === 0 ? "Team" : `Junior Team ${normalizedDepth}`;
+}
+
+export function getLeaderTitleLabelByDepth(depth: number) {
+  const normalizedDepth = Math.max(0, depth);
+  return normalizedDepth === 0 ? "Team Leader" : `Junior Team Leader ${normalizedDepth}`;
 }
 
 export function getRootTeams(snapshot: TeamDirectorySnapshot) {
@@ -28,12 +38,81 @@ export function getChildTeams(snapshot: TeamDirectorySnapshot, teamId: string) {
   return snapshot.teams.filter((team) => team.parentTeamId === teamId);
 }
 
+export function getDescendantTeamIds(snapshot: TeamDirectorySnapshot, teamId: string) {
+  const descendantTeamIds: string[] = [];
+  const stack = getChildTeams(snapshot, teamId).map((team) => team.id);
+  const visited = new Set<string>();
+
+  while (stack.length > 0) {
+    const currentTeamId = stack.pop();
+
+    if (!currentTeamId || visited.has(currentTeamId)) {
+      continue;
+    }
+
+    visited.add(currentTeamId);
+    descendantTeamIds.push(currentTeamId);
+
+    for (const childTeam of getChildTeams(snapshot, currentTeamId)) {
+      stack.push(childTeam.id);
+    }
+  }
+
+  return descendantTeamIds;
+}
+
+export function getAvailableParentTeams(snapshot: TeamDirectorySnapshot, currentTeamId?: string | null) {
+  const blockedTeamIds = new Set<string>(
+    currentTeamId ? [currentTeamId, ...getDescendantTeamIds(snapshot, currentTeamId)] : []
+  );
+
+  return snapshot.teams
+    .filter((team) => !blockedTeamIds.has(team.id))
+    .sort((left, right) => left.teamPathLabel.localeCompare(right.teamPathLabel) || left.id.localeCompare(right.id));
+}
+
+export function getChildBranchTypeLabel(team: TeamDirectoryTeam) {
+  return getBranchTypeLabelByDepth(team.depth + 1);
+}
+
+export function getChildLeaderTitleLabel(team: TeamDirectoryTeam) {
+  return getLeaderTitleLabelByDepth(team.depth + 1);
+}
+
+export function getLeaderScopeLabel(team: TeamDirectoryTeam) {
+  return getBranchTypeLabel(team).toLowerCase();
+}
+
+export function getTeamMemberRoleLabel(team: TeamDirectoryTeam, roleValue: string) {
+  if (roleValue === "team_leader" || roleValue === "leader_i") {
+    return "Team Leader";
+  }
+
+  if (roleValue === "junior_team_leader" || roleValue === "leader_ii") {
+    return team.depth > 0 ? getLeaderTitleLabel(team) : "Junior Team Leader";
+  }
+
+  return "Member";
+}
+
+export function isValidBranchLeaderRoleValue(team: TeamDirectoryTeam, roleValue: string) {
+  return isLeaderRoleValue(roleValue) && roleValue === getExpectedLeaderRoleValue(team);
+}
+
+export function isInvalidBranchLeaderRoleValue(team: TeamDirectoryTeam, roleValue: string) {
+  return isLeaderRoleValue(roleValue) && !isValidBranchLeaderRoleValue(team, roleValue);
+}
+
 export function isValidBranchLeader(team: TeamDirectoryTeam, member: TeamDirectoryMember) {
-  return isLeaderRoleValue(member.roleValue) && member.roleValue === getExpectedLeaderRoleValue(team);
+  return isValidBranchLeaderRoleValue(team, member.roleValue);
+}
+
+export function getBranchLeaderMembers(team: TeamDirectoryTeam) {
+  return team.members.filter((member) => isValidBranchLeader(team, member));
 }
 
 export function getBranchLeader(team: TeamDirectoryTeam) {
-  return team.members.find((member) => isValidBranchLeader(team, member)) ?? null;
+  return getBranchLeaderMembers(team)[0] ?? null;
 }
 
 export function getBranchLeaderLabel(team: TeamDirectoryTeam) {
@@ -46,7 +125,7 @@ export function getDirectMembers(team: TeamDirectoryTeam) {
 }
 
 export function getInvalidLeaderMembers(team: TeamDirectoryTeam) {
-  return team.members.filter((member) => isLeaderRoleValue(member.roleValue) && !isValidBranchLeader(team, member));
+  return team.members.filter((member) => isInvalidBranchLeaderRoleValue(team, member.roleValue));
 }
 
 export function getMemberNamesLabel(members: TeamDirectoryMember[]) {
@@ -54,15 +133,15 @@ export function getMemberNamesLabel(members: TeamDirectoryMember[]) {
 }
 
 export function getBranchTypeLabel(team: TeamDirectoryTeam) {
-  return team.parentTeamId ? "Junior Team" : "Team";
+  return getBranchTypeLabelByDepth(team.depth);
 }
 
 export function getLeaderTitleLabel(team: TeamDirectoryTeam) {
-  return team.parentTeamId ? "Junior Team Leader" : "Team Leader";
+  return getLeaderTitleLabelByDepth(team.depth);
 }
 
 export function getChildCollectionLabel(team: TeamDirectoryTeam) {
-  return team.parentTeamId ? "Nested Teams" : "Junior Teams";
+  return `${getChildBranchTypeLabel(team)} branches`;
 }
 
 export function getTotalChildBranchCount(snapshot: TeamDirectorySnapshot) {

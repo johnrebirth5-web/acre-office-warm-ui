@@ -581,6 +581,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "commission.plan_created": "Commission plan created",
   "commission.plan_updated": "Commission plan updated",
   "commission.plan_assigned": "Commission plan assigned",
+  "commission.plan_assignment_removed": "Commission plan assignment removed",
   "commission.calculated": "Commission calculated",
   "commission.recalculated": "Commission recalculated",
   "commission.status_updated": "Commission status updated",

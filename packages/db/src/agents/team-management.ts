@@ -119,8 +119,7 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
     const parentTeamId = await validateTeamParentAssignment(tx, {
       organizationId: input.organizationId,
       officeId: input.officeId,
-      parentTeamId: input.parentTeamId ?? null,
-      maxDepth: 1
+      parentTeamId: input.parentTeamId ?? null
     });
     const [leaderMembership, parentTeam] = await Promise.all([
       ensureMembershipExists(tx, input.organizationId, leaderMembershipId, input.officeId),
@@ -173,7 +172,7 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
 
     if (reusableParentMembership) {
       if (reusableParentMembership.role === "member" && reusableDirectReports.length > 0) {
-        throw new Error("Reassign this future Junior Team Leader's direct reports before creating the new Junior Team.");
+        throw new Error("Reassign this future child-team leader's direct reports before creating the new child team.");
       }
     }
 
@@ -303,8 +302,7 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
             organizationId: input.organizationId,
             officeId: input.officeId,
             teamId: team.id,
-            parentTeamId: input.parentTeamId,
-            maxDepth: 1
+            parentTeamId: input.parentTeamId
           });
     const [currentParentTeam, nextParentTeam] = await Promise.all([
       team.parentTeamId
@@ -495,7 +493,7 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
     }
 
     if (childTeamCount > 0) {
-      throw new Error("Remove or reassign this team's Junior Teams before deleting it.");
+      throw new Error("Remove or reassign this team's child teams before deleting it.");
     }
 
     if (commissionAssignmentCount > 0) {
@@ -644,7 +642,7 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
   if (nextRole !== "member" && nextRole !== expectedLeaderRole) {
     throw new Error(
       team.parentTeamId
-        ? "Junior Teams can only assign a Junior Team Leader as the owner."
+        ? "Child teams can only assign a Junior Team Leader as the owner."
         : "Teams can only assign a Team Leader as the owner."
     );
   }
@@ -671,7 +669,7 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
   if (nextRole === "member" && currentMembershipIsValidLeader && otherValidLeaders.length === 0) {
     throw new Error(
       team.parentTeamId
-        ? "Transfer this Junior Team to another Junior Team Leader before changing the current owner."
+        ? "Transfer this child team to another Junior Team Leader before changing the current owner."
         : "Transfer this Team to another Team Leader before changing the current owner."
     );
   }
@@ -862,7 +860,7 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
     if (teamMembership.role === expectedLeaderRole && otherValidLeaderCount === 0) {
       throw new Error(
         team.parentTeamId
-          ? "Transfer this Junior Team to another Junior Team Leader before removing the current owner."
+          ? "Transfer this child team to another Junior Team Leader before removing the current owner."
           : "Transfer this Team to another Team Leader before removing the current owner."
       );
     }
@@ -872,7 +870,7 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
     }
 
     if (childTeamCount > 0) {
-      throw new Error("Reassign this team's Junior Teams before removing its leader.");
+      throw new Error("Reassign this team's child teams before removing its leader.");
     }
 
     await tx.teamMembership.delete({
