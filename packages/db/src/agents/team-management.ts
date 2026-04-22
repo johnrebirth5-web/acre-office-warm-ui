@@ -65,6 +65,16 @@ import { ManagedMembershipRecord, applyOnboardingTemplateItems, assertTeamHierar
 import { getOfficeAgentProfileSnapshot, getOfficeAgentsRosterSnapshot, saveAgentProfile } from "./roster-profile";
 import { createAgentGoal, createAgentOnboardingItem, updateAgentGoal, updateAgentOnboardingItem } from "./progress";
 
+function buildConflictingTeamOfficeScopeWhere(teamOfficeId: string | null): Prisma.TeamWhereInput {
+  if (!teamOfficeId) {
+    return {};
+  }
+
+  return {
+    OR: [{ officeId: teamOfficeId }, { officeId: null }]
+  };
+}
+
 export async function applyAgentOnboardingTemplate(input: ApplyAgentOnboardingTemplateInput) {
   return prisma.$transaction(async (tx) => {
     const { membership, appliedCount } = await applyOnboardingTemplateItems(
@@ -574,7 +584,7 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
 
 
 export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, input: AddAgentToTeamInput) {
-  const [team, membership, existingTeamMembership, otherTeamMembership] = await Promise.all([
+  const [team, membership, existingTeamMembership] = await Promise.all([
     tx.team.findFirst({
       where: {
         id: input.teamId,
@@ -590,21 +600,6 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
           membershipId: input.membershipId
         }
       }
-    }),
-    tx.teamMembership.findFirst({
-      where: {
-        organizationId: input.organizationId,
-        membershipId: input.membershipId,
-        NOT: {
-          teamId: input.teamId
-        },
-        team: {
-          isActive: true
-        }
-      },
-      include: {
-        team: true
-      }
     })
   ]);
 
@@ -614,9 +609,26 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
 
   assertTeamHierarchyAssignableMembership(membership);
 
+  const otherTeamMembership = await tx.teamMembership.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      NOT: {
+        teamId: input.teamId
+      },
+      team: {
+        isActive: true,
+        ...buildConflictingTeamOfficeScopeWhere(team.officeId ?? null)
+      }
+    },
+    include: {
+      team: true
+    }
+  });
+
   if (otherTeamMembership) {
     throw new Error(
-      `Each membership can only belong to one active team per organization. Remove the existing team assignment from ${otherTeamMembership.team.name} first.`
+      `Each membership can only belong to one active team in the same company scope. Remove the existing team assignment from ${otherTeamMembership.team.name} first.`
     );
   }
 

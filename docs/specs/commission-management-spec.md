@@ -15,6 +15,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - precedence is explicit:
   - direct agent assignment overrides team assignment
   - team assignment applies when no active direct assignment exists
+  - when one membership belongs to different teams in different companies, the default split chain resolves only from the current transaction company scope
 - plan rules support:
   - base split
   - brokerage fee

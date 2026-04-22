@@ -783,7 +783,7 @@ export async function buildDefaultTransactionCommissionChain(
   const ownerTeamMemberships = teamMemberships.filter((teamMembership) => teamMembership.membershipId === input.ownerMembershipId);
 
   if (ownerTeamMemberships.length > 1) {
-    throw new Error("Each membership can only belong to one active team per organization. Resolve team assignments before calculating commissions.");
+    throw new Error("Each membership can only belong to one active team in the current company scope. Resolve team assignments before calculating commissions.");
   }
 
   const chain: DerivedTransactionCommissionChainMember[] = [];

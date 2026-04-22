@@ -1002,6 +1002,115 @@ test("updateAgentTeam and deleteAgentTeam allow shared teams from an office-scop
   }
 });
 
+test("team memberships allow one active team per company scope", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const member = await context.createMembership(
+      "agent",
+      "cross-company-agent",
+      "Cross",
+      "Company",
+      "Agent",
+      {
+        officeId: context.office.id,
+        accessibleOfficeIds: [context.office.id, context.secondaryOffice.id]
+      }
+    );
+
+    const primaryTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Primary Team ${randomUUID().slice(0, 8)}`,
+        slug: `primary-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const secondaryTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.secondaryOffice.id,
+        name: `Secondary Team ${randomUUID().slice(0, 8)}`,
+        slug: `secondary-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const secondaryTeamConflict = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.secondaryOffice.id,
+        name: `Secondary Team Conflict ${randomUUID().slice(0, 8)}`,
+        slug: `secondary-team-conflict-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: primaryTeam.id,
+      membershipId: member.membership.id,
+      role: "member"
+    });
+
+    await getOfficeAdminUsersSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.secondaryOffice.id,
+      page: 1,
+      pageSize: 10
+    });
+
+    const secondaryScopeSnapshot = await getOfficeAdminUserDetailSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.secondaryOffice.id,
+      membershipId: member.membership.id,
+      viewerMembershipId: context.adminMembership.id
+    });
+
+    assert.equal(secondaryScopeSnapshot?.availableTeams.some((team) => team.id === secondaryTeam.id), true);
+
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.secondaryOffice.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: secondaryTeam.id,
+      membershipId: member.membership.id,
+      role: "member"
+    });
+
+    const teamMemberships = await prisma.teamMembership.findMany({
+      where: {
+        organizationId: context.organization.id,
+        membershipId: member.membership.id
+      },
+      select: {
+        teamId: true
+      },
+      orderBy: [{ teamId: "asc" }]
+    });
+
+    assert.deepEqual(
+      teamMemberships.map((teamMembership) => teamMembership.teamId).sort(),
+      [primaryTeam.id, secondaryTeam.id].sort()
+    );
+
+    await assert.rejects(
+      () =>
+        addAgentToTeam({
+          organizationId: context.organization.id,
+          officeId: context.secondaryOffice.id,
+          actorMembershipId: context.adminMembership.id,
+          teamId: secondaryTeamConflict.id,
+          membershipId: member.membership.id,
+          role: "member"
+        }),
+      /Each membership can only belong to one active team in the same company scope\./
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("recursive child teams stay assignable, cycle-safe, and visible through descendant team scope", async () => {
   const context = await createSettingsTestContext();
 

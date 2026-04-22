@@ -25,6 +25,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - office access within current membership model
   - `accountant / human_resources` can manage lifecycle for standard Back Office accounts, but cannot assign or manage `owner / office_admin`
   - team assignment / removal from the unified user detail page when the admin has `teams:manage`, including users who have not yet joined their first branch
+  - a membership can hold at most one active `Team / Junior Team` assignment per company scope, while still allowing a separate active assignment in another company scope
   - only `agent / team_lead` accounts can participate in `Team / Junior Team` hierarchy; non-sales roles must stay out of team assignment and branch-owner flows
   - users with any active `Team / Junior Team` assignment cannot be switched to a non-hierarchy role from `Settings > Users` until those assignments are removed in `Settings > Teams`
   - users who still own an active `Team / Junior Team` cannot be downgraded to the `agent` permission template from `Settings > Users` until that leadership is transferred or removed in `Settings > Teams`

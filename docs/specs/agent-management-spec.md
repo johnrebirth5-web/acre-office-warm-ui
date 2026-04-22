@@ -95,7 +95,8 @@ Provide a real Back Office agent management workspace for office operations, cov
   - admins can place a new sales user directly into a top-level team or junior branch at invitation time
   - create-user can optionally set the direct manager based on the selected branch's current leaders
   - the same unified user detail page continues to allow later reassignment to a different team / branch or manager
-- one membership can now belong to only one active team / reporting line per organization
+- one membership can now belong to only one active team / reporting line per company scope
+  - the same membership may still hold one active team in another company when that second company has its own office scope
 - roster/profile/reporting visibility is now resolved server-side from:
   - broad membership role
   - active team memberships
