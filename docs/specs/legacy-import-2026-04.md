@@ -22,10 +22,19 @@ Supported commands:
 - `analyze`
 - `reset-business-data`
 - `import-users`
+- `import-user-supplemental`
 - `import-transactions`
 - `run`
 
 By default the CLI is dry-run. Database writes only happen with `--execute`.
+
+Optional supplemental roster inputs:
+
+- `--supplemental-sheet-url=<google-sheet-url>`
+- `ACRE_LEGACY_IMPORT_SUPPLEMENTAL_SHEET_URL=<google-sheet-url>`
+
+`run` keeps the old workflow when the supplemental URL is absent, but records the
+step as skipped in the summary/report output.
 
 ## Source files
 
@@ -63,6 +72,63 @@ User import behavior:
 - `mustChangePassword = true`
 - office access follows every company that the merged email appears in
 - no team graph, reports-to chain, title, commission template, or split template is rebuilt
+
+### Supplemental roster
+
+When a supplemental Google Sheet URL is provided, the CLI downloads the workbook
+export directly from Google Sheets and reads the full underlying workbook rows,
+not the currently filtered visible rows in the browser.
+
+Sheet -> office mapping:
+
+- `Acre NY` -> `acre-ny-realty`
+- `Acre NJ` -> `acre-nj-llc`
+- `Acre Rentals` -> `acre-ny-rental`
+
+Expected columns:
+
+- `User Name`
+- `License state`
+- `Custom agent split %`
+- `Expiration date`
+
+Field mapping:
+
+- `User Name` -> imported membership match within the mapped office scope
+- `License state` -> `AgentProfile.licenseState`
+- `Expiration date` -> `AgentProfile.startDate`
+- `Custom agent split %` -> `MembershipCommissionSetting` via `saveAgentProfile`
+
+Supplemental merge rules:
+
+- rows are grouped per sheet by exact `User Name` before matching
+- `licenseState` keeps the last non-empty value
+- `expiration date` keeps the latest valid non-empty date
+- `agent split` parses all available percentages and keeps the highest value
+- mixed split text ignores dates, currency, caps, transaction-fee amounts, and
+  other non-percent numbers
+- `#N/A`, blank cells, and invalid dates are treated as empty values
+
+Supplemental note behavior:
+
+- `AgentProfile.notes` is preserved
+- one import note block is appended per matched person
+- the note block includes the sheet name, source rows, raw split text, and any
+  conflicting license / expiration values detected inside the grouped rows
+
+Supplemental match behavior:
+
+- first try an office-scoped normalized exact name match
+- then fall back to the existing alias / token-subset logic shared with
+  transaction owner matching
+- zero matches => skip row and report it
+- multiple matches => skip row and report it
+
+Supplemental commission behavior:
+
+- if a valid split percent is extracted, create a new default split setting
+- `commissionEffectiveFrom` is the import day in `America/New_York`
+- if no valid split percent is extracted, the existing commission setting is left unchanged
 
 ## Reset scope
 
@@ -174,6 +240,9 @@ Reports include:
 
 - `summary.json`
 - `user-issues.csv`
+- `supplemental-user-skipped.csv`
+- `supplemental-user-failed.csv`
+- `supplemental-user-success.csv`
 - `transaction-skipped.csv`
 - `transaction-failed.csv`
 - `transaction-success.csv`
@@ -182,11 +251,13 @@ Reports include:
 
 1. Run `analyze` or `run --dry-run`
 2. Review skip / fail / warning reports
-3. Run `run --execute`
-4. Spot-check imported users and transactions in the app
+3. If you are using the supplemental sheet, review `supplemental-user-*.csv`
+4. Run `run --execute`
+5. Spot-check imported users and transactions in the app
 
 ## Known limitations
 
 - owner matching is still deterministic and conservative; true missing agents, outside brokers, and opaque aliases still require manual cleanup
 - dry-run simulates the post-reset contact set instead of reusing current test contacts
+- supplemental notes are append-only and intentionally preserve prior notes for auditability
 - the script is meant for this 2026-04 migration batch only

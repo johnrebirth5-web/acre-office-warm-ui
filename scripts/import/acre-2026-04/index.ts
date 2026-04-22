@@ -13,14 +13,23 @@ import {
   previewResetOrganizationBusinessData,
   prisma,
   resetOrganizationBusinessData,
+  saveAgentProfile,
   splitImportedFullName,
   upsertImportedActiveUser,
 } from "@acre/db";
+import {
+  aggregateSupplementalRows,
+  appendSupplementalNote,
+  buildSupplementalWorkbookExportUrl,
+  parseSupplementalWorkbook,
+  type SupplementalAggregatedUser,
+} from "./supplemental";
 
 type CommandName =
   | "analyze"
   | "reset-business-data"
   | "import-users"
+  | "import-user-supplemental"
   | "import-transactions"
   | "run";
 
@@ -36,6 +45,7 @@ type ParsedArgs = {
   execute: boolean;
   sourceDir: string;
   reportDir: string;
+  supplementalSheetUrl: string;
 };
 
 type OfficeContext = {
@@ -111,6 +121,50 @@ type TransactionSuccessRow = {
   warnings: string;
 };
 
+type SupplementalImportSheetCount = {
+  rows: number;
+  groupedUsers: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+};
+
+type SupplementalImportSkippedRow = {
+  officeSlug: string;
+  sheetName: string;
+  userName: string;
+  sourceRows: string;
+  reason: string;
+};
+
+type SupplementalImportFailedRow = SupplementalImportSkippedRow;
+
+type SupplementalImportSuccessRow = {
+  officeSlug: string;
+  sheetName: string;
+  userName: string;
+  sourceRows: string;
+  membershipId: string;
+  membershipEmail: string;
+  splitPercent: string;
+  licenseState: string;
+  expirationDate: string;
+  profileUpdated: string;
+  commissionUpdated: string;
+  noteUpdated: string;
+};
+
+type SupplementalImportResult = {
+  sourceUrl: string;
+  skippedByConfiguration: boolean;
+  reason: string;
+  imported: number;
+  skipped: SupplementalImportSkippedRow[];
+  failed: SupplementalImportFailedRow[];
+  successes: SupplementalImportSuccessRow[];
+  countsBySheet: Record<string, SupplementalImportSheetCount>;
+};
+
 type ImportSummary = {
   analyze: {
     users: ImportedUserPlan;
@@ -127,6 +181,7 @@ type ImportSummary = {
     imported: number;
     issues: ImportedUserIssue[];
   };
+  supplementalImport?: SupplementalImportResult;
   transactionImport?: {
     imported: number;
     skipped: TransactionReportRow[];
@@ -186,6 +241,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     "analyze",
     "reset-business-data",
     "import-users",
+    "import-user-supplemental",
     "import-transactions",
     "run",
   ]);
@@ -196,6 +252,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   let sourceDir = process.env.ACRE_LEGACY_IMPORT_SOURCE_DIR ?? defaultSourceDirectory;
   let reportDir = process.env.ACRE_LEGACY_IMPORT_REPORT_DIR ?? defaultReportDirectory;
+  let supplementalSheetUrl = process.env.ACRE_LEGACY_IMPORT_SUPPLEMENTAL_SHEET_URL ?? "";
   let execute = false;
 
   for (const arg of argv.slice(1)) {
@@ -218,6 +275,11 @@ function parseArgs(argv: string[]): ParsedArgs {
       reportDir = arg.slice("--report-dir=".length);
       continue;
     }
+
+    if (arg.startsWith("--supplemental-sheet-url=")) {
+      supplementalSheetUrl = arg.slice("--supplemental-sheet-url=".length);
+      continue;
+    }
   }
 
   return {
@@ -225,6 +287,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     execute,
     sourceDir,
     reportDir,
+    supplementalSheetUrl,
   };
 }
 
@@ -335,6 +398,34 @@ function stringifyCsv(records: Array<Record<string, string>>) {
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatDateValue(value: Date | null | undefined) {
+  return value ? value.toISOString().slice(0, 10) : "";
+}
+
+function getCurrentNewYorkDateValue(now = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(now);
+}
+
+function buildSkippedSupplementalImportResult(reason: string): SupplementalImportResult {
+  return {
+    sourceUrl: "",
+    skippedByConfiguration: true,
+    reason,
+    imported: 0,
+    skipped: [],
+    failed: [],
+    successes: [],
+    countsBySheet: {},
+  };
 }
 
 async function buildRuntimeContext(args: ParsedArgs): Promise<RuntimeContext> {
@@ -651,6 +742,268 @@ function findOwnerMatchesByTokenSubset(
       return candidateTokens.every((token) => aliasTokens.includes(token));
     }),
   );
+}
+
+type SupplementalWorkbookData = {
+  sourceUrl: string;
+  aggregatedUsers: SupplementalAggregatedUser[];
+  countsBySheet: Record<string, SupplementalImportSheetCount>;
+};
+
+type SupplementalMembershipState = {
+  notes: string;
+  licenseState: string;
+  startDate: string;
+};
+
+async function loadSupplementalWorkbookData(
+  supplementalSheetUrl: string,
+): Promise<SupplementalWorkbookData> {
+  const sourceUrl = buildSupplementalWorkbookExportUrl(supplementalSheetUrl);
+  const response = await fetch(sourceUrl);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download supplemental workbook (${response.status} ${response.statusText}).`,
+    );
+  }
+
+  const workbook = parseSupplementalWorkbook(
+    Buffer.from(await response.arrayBuffer()),
+  );
+  const aggregated = aggregateSupplementalRows(workbook.rows);
+  const countsBySheet = Object.fromEntries(
+    Object.entries(aggregated.countsBySheet).map(([sheetName, counts]) => [
+      sheetName,
+      {
+        rows: counts.rows,
+        groupedUsers: counts.groupedUsers,
+        imported: 0,
+        skipped: 0,
+        failed: 0,
+      } satisfies SupplementalImportSheetCount,
+    ]),
+  );
+
+  return {
+    sourceUrl,
+    aggregatedUsers: aggregated.aggregatedUsers,
+    countsBySheet,
+  };
+}
+
+async function loadSupplementalMembershipState(
+  organizationId: string,
+  membershipIds: string[],
+) {
+  if (membershipIds.length === 0) {
+    return new Map<string, SupplementalMembershipState>();
+  }
+
+  const rows = await prisma.membership.findMany({
+    where: {
+      organizationId,
+      id: {
+        in: membershipIds,
+      },
+    },
+    select: {
+      id: true,
+      agentProfile: {
+        select: {
+          notes: true,
+          licenseState: true,
+          startDate: true,
+        },
+      },
+    },
+  });
+
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        notes: row.agentProfile?.notes ?? "",
+        licenseState: row.agentProfile?.licenseState ?? "",
+        startDate: formatDateValue(row.agentProfile?.startDate),
+      } satisfies SupplementalMembershipState,
+    ]),
+  );
+}
+
+function resolveSupplementalMembershipMatch(
+  user: SupplementalAggregatedUser,
+  importedIndex: ReturnType<typeof buildImportedMembershipIndex>,
+) {
+  const officeUsers = importedIndex.get(user.officeSlug) ?? {
+    byExact: new Map<string, ImportedMembershipRecord[]>(),
+    records: [],
+  };
+
+  for (const candidate of buildOwnerCandidateVariants([user.userName])) {
+    const normalizedCandidate = normalizeLegacyImportNameForLookup(candidate);
+
+    if (!normalizedCandidate) {
+      continue;
+    }
+
+    const exactMatches = officeUsers.byExact.get(normalizedCandidate) ?? [];
+    const matches =
+      exactMatches.length > 0
+        ? exactMatches
+        : findOwnerMatchesByTokenSubset(normalizedCandidate, officeUsers.records);
+
+    if (matches.length === 1) {
+      return {
+        ok: true as const,
+        membership: matches[0],
+      };
+    }
+
+    if (matches.length > 1) {
+      return {
+        ok: false as const,
+        reason: `Supplemental user "${candidate}" matched multiple imported users in ${user.officeSlug}.`,
+      };
+    }
+  }
+
+  return {
+    ok: false as const,
+    reason: `No imported user matched ${user.userName} in ${user.officeSlug}.`,
+  };
+}
+
+export async function executeSupplementalImport(
+  context: RuntimeContext,
+  importedUsers: ImportedMembershipRecord[],
+  execute: boolean,
+  supplementalSheetUrl: string,
+  dependencies: {
+    loadSupplementalWorkbookData?: (
+      url: string,
+    ) => Promise<SupplementalWorkbookData>;
+    now?: Date;
+  } = {},
+) {
+  const loadData =
+    dependencies.loadSupplementalWorkbookData ?? loadSupplementalWorkbookData;
+  const workbookData = await loadData(supplementalSheetUrl);
+  const importedIndex = buildImportedMembershipIndex(importedUsers);
+  const membershipState = execute
+    ? await loadSupplementalMembershipState(
+        context.organizationId,
+        importedUsers.map((user) => user.membershipId),
+      )
+    : new Map<string, SupplementalMembershipState>();
+  const effectiveFrom = getCurrentNewYorkDateValue(dependencies.now);
+  const skipped: SupplementalImportSkippedRow[] = [];
+  const failed: SupplementalImportFailedRow[] = [];
+  const successes: SupplementalImportSuccessRow[] = [];
+
+  for (const user of workbookData.aggregatedUsers) {
+    const sheetCounts = workbookData.countsBySheet[user.sheetName];
+    const sourceRows = user.sourceRowNumbers.join(", ");
+    const matched = resolveSupplementalMembershipMatch(user, importedIndex);
+
+    if (!matched.ok) {
+      skipped.push({
+        officeSlug: user.officeSlug,
+        sheetName: user.sheetName,
+        userName: user.userName,
+        sourceRows,
+        reason: matched.reason,
+      });
+      if (sheetCounts) {
+        sheetCounts.skipped += 1;
+      }
+      continue;
+    }
+
+    const existingState = membershipState.get(matched.membership.membershipId) ?? {
+      notes: "",
+      licenseState: "",
+      startDate: "",
+    };
+    const nextNotes = appendSupplementalNote(existingState.notes, user.noteBlock);
+    const shouldUpdateNote = nextNotes !== existingState.notes;
+    const shouldUpdateLicenseState =
+      Boolean(user.licenseState) && user.licenseState !== existingState.licenseState;
+    const shouldUpdateStartDate =
+      Boolean(user.expirationDate) && user.expirationDate !== existingState.startDate;
+    const shouldUpdateCommission = Boolean(user.maxSplitPercentLabel);
+
+    try {
+      if (
+        execute &&
+        (shouldUpdateNote ||
+          shouldUpdateLicenseState ||
+          shouldUpdateStartDate ||
+          shouldUpdateCommission)
+      ) {
+        const viewerOffice = context.officeBySlug.get(user.officeSlug);
+
+        await saveAgentProfile({
+          organizationId: context.organizationId,
+          officeId: viewerOffice?.id ?? null,
+          membershipId: matched.membership.membershipId,
+          actorMembershipId: context.bootstrapMembershipId,
+          ...(shouldUpdateNote ? { notes: nextNotes } : {}),
+          ...(shouldUpdateLicenseState
+            ? { licenseState: user.licenseState }
+            : {}),
+          ...(shouldUpdateStartDate ? { startDate: user.expirationDate } : {}),
+          ...(shouldUpdateCommission
+            ? {
+                customAgentPercent: user.maxSplitPercentLabel,
+                commissionEffectiveFrom: effectiveFrom,
+              }
+            : {}),
+        });
+      }
+
+      successes.push({
+        officeSlug: user.officeSlug,
+        sheetName: user.sheetName,
+        userName: user.userName,
+        sourceRows,
+        membershipId: matched.membership.membershipId,
+        membershipEmail: matched.membership.email,
+        splitPercent: user.maxSplitPercentLabel,
+        licenseState: user.licenseState,
+        expirationDate: user.expirationDate,
+        profileUpdated:
+          shouldUpdateLicenseState || shouldUpdateStartDate ? "yes" : "no",
+        commissionUpdated: shouldUpdateCommission ? "yes" : "no",
+        noteUpdated: shouldUpdateNote ? "yes" : "no",
+      });
+      if (sheetCounts) {
+        sheetCounts.imported += 1;
+      }
+    } catch (error) {
+      failed.push({
+        officeSlug: user.officeSlug,
+        sheetName: user.sheetName,
+        userName: user.userName,
+        sourceRows,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      if (sheetCounts) {
+        sheetCounts.failed += 1;
+      }
+    }
+  }
+
+  return {
+    sourceUrl: workbookData.sourceUrl,
+    skippedByConfiguration: false,
+    reason: "",
+    imported: successes.length,
+    skipped,
+    failed,
+    successes,
+    countsBySheet: workbookData.countsBySheet,
+  } satisfies SupplementalImportResult;
 }
 
 function summarizeTransactionStatuses(rows: Record<string, string>[]) {
@@ -1169,6 +1522,55 @@ async function writeSummaryReport(
     );
   }
 
+  if (summary.supplementalImport) {
+    await writeFile(
+      join(targetDir, "supplemental-user-skipped.csv"),
+      stringifyCsv(
+        summary.supplementalImport.skipped.map((entry) => ({
+          officeSlug: entry.officeSlug,
+          sheetName: entry.sheetName,
+          userName: entry.userName,
+          sourceRows: entry.sourceRows,
+          reason: entry.reason,
+        })),
+      ),
+      "utf8",
+    );
+    await writeFile(
+      join(targetDir, "supplemental-user-failed.csv"),
+      stringifyCsv(
+        summary.supplementalImport.failed.map((entry) => ({
+          officeSlug: entry.officeSlug,
+          sheetName: entry.sheetName,
+          userName: entry.userName,
+          sourceRows: entry.sourceRows,
+          reason: entry.reason,
+        })),
+      ),
+      "utf8",
+    );
+    await writeFile(
+      join(targetDir, "supplemental-user-success.csv"),
+      stringifyCsv(
+        summary.supplementalImport.successes.map((entry) => ({
+          officeSlug: entry.officeSlug,
+          sheetName: entry.sheetName,
+          userName: entry.userName,
+          sourceRows: entry.sourceRows,
+          membershipId: entry.membershipId,
+          membershipEmail: entry.membershipEmail,
+          splitPercent: entry.splitPercent,
+          licenseState: entry.licenseState,
+          expirationDate: entry.expirationDate,
+          profileUpdated: entry.profileUpdated,
+          commissionUpdated: entry.commissionUpdated,
+          noteUpdated: entry.noteUpdated,
+        })),
+      ),
+      "utf8",
+    );
+  }
+
   await writeFile(
     join(targetDir, "user-issues.csv"),
     stringifyCsv(
@@ -1188,6 +1590,9 @@ function printSummary(args: ParsedArgs, summary: ImportSummary, reportDir: strin
   console.log(`Command: ${args.command}`);
   console.log(`Mode: ${args.execute ? "execute" : "dry-run"}`);
   console.log(`Source dir: ${args.sourceDir}`);
+  console.log(
+    `Supplemental sheet: ${args.supplementalSheetUrl || "(not provided)"}`,
+  );
   console.log(`Report dir: ${reportDir}`);
   console.log("");
   console.log("User files:");
@@ -1223,6 +1628,18 @@ function printSummary(args: ParsedArgs, summary: ImportSummary, reportDir: strin
     console.log(`Imported users: ${summary.userImport.imported}`);
   }
 
+  if (summary.supplementalImport) {
+    console.log("");
+    console.log(
+      `Supplemental import: imported=${summary.supplementalImport.imported}, skipped=${summary.supplementalImport.skipped.length}, failed=${summary.supplementalImport.failed.length}`,
+    );
+    if (summary.supplementalImport.skippedByConfiguration) {
+      console.log(
+        `Supplemental import skipped: ${summary.supplementalImport.reason}`,
+      );
+    }
+  }
+
   if (summary.transactionImport) {
     console.log("");
     console.log(
@@ -1233,6 +1650,16 @@ function printSummary(args: ParsedArgs, summary: ImportSummary, reportDir: strin
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  if (
+    args.command === "import-user-supplemental" &&
+    !args.supplementalSheetUrl.trim()
+  ) {
+    throw new Error(
+      "Supplemental Google Sheet URL is required for import-user-supplemental.",
+    );
+  }
+
   const context = await buildRuntimeContext(args);
   const userPlan = await buildUserImportPlan(context);
   const transactionAnalyze = await analyzeTransactions(context);
@@ -1253,6 +1680,16 @@ async function main() {
       imported: userPlan.entries.length,
       issues: userPlan.issues,
     };
+    summary.supplementalImport = args.supplementalSheetUrl.trim()
+      ? await executeSupplementalImport(
+          context,
+          simulateUserImport(userPlan),
+          false,
+          args.supplementalSheetUrl,
+        )
+      : buildSkippedSupplementalImportResult(
+          "Supplemental Google Sheet URL was not provided.",
+        );
     summary.transactionImport = await executeTransactionImport(
       context,
       simulateUserImport(userPlan),
@@ -1291,6 +1728,27 @@ async function main() {
     };
   }
 
+  if (
+    (args.command === "import-user-supplemental" || args.command === "run") &&
+    args.execute &&
+    args.command === "import-user-supplemental"
+  ) {
+    importedUsers = await loadImportedUsersFromDatabase(context, userPlan);
+  }
+
+  if (args.command === "import-user-supplemental" || args.command === "run") {
+    summary.supplementalImport = args.supplementalSheetUrl.trim()
+      ? await executeSupplementalImport(
+          context,
+          importedUsers,
+          args.execute,
+          args.supplementalSheetUrl,
+        )
+      : buildSkippedSupplementalImportResult(
+          "Supplemental Google Sheet URL was not provided.",
+        );
+  }
+
   if (args.command === "import-transactions" || args.command === "run") {
     if (args.execute && args.command === "import-transactions") {
       importedUsers = await loadImportedUsersFromDatabase(context, userPlan);
@@ -1308,11 +1766,13 @@ async function main() {
   printSummary(args, summary, reportDir);
 }
 
-main()
-  .catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (import.meta.main) {
+  main()
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

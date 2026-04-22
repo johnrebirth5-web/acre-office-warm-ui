@@ -1047,17 +1047,33 @@ npm run docker:dev:down
 
 ```bash
 npm run import:acre-2026-04 -- analyze
+npm run import:acre-2026-04 -- analyze --supplemental-sheet-url='https://docs.google.com/spreadsheets/d/<sheet-id>/edit#gid=0'
+npm run import:acre-2026-04 -- import-user-supplemental --supplemental-sheet-url='https://docs.google.com/spreadsheets/d/<sheet-id>/edit#gid=0' --dry-run
 npm run import:acre-2026-04 -- run --dry-run
-npm run import:acre-2026-04 -- run --execute
+npm run import:acre-2026-04 -- run --execute --supplemental-sheet-url='https://docs.google.com/spreadsheets/d/<sheet-id>/edit#gid=0'
 ```
 
 - 脚本入口：`scripts/import/acre-2026-04/index.ts`
 - 默认源目录：`/Users/openclaw_john/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/veryjohn_99bc/msg/file/2026-04`
 - 默认报告目录：`.local-storage/legacy-import-reports`
+- supplemental roster 参数：`--supplemental-sheet-url=` 或 `ACRE_LEGACY_IMPORT_SUPPLEMENTAL_SHEET_URL`
 - 真正写库只在显式传入 `--execute` 时发生；默认是 dry-run
-- `run` 会按 `reset-business-data -> import-users -> import-transactions` 串行执行
+- `run` 会按 `reset-business-data -> import-users -> import-user-supplemental -> import-transactions` 串行执行
+- `run` 未提供 supplemental sheet URL 时会跳过 supplemental 步骤，并在 summary / 终端输出里明确标注 skipped
 - `reset` 会保留 organization、3 个 offices、字段配置、角色模板和 bootstrap admin，只清业务 roster / contacts / transactions / commissions / payouts / invitations 等可重建业务数据
 - transaction 只导入 `pending / closed`，其余状态写入跳过报告
+- supplemental roster 会直接读取 Google Sheet workbook 导出，不要求手工先导出文件
+- supplemental roster 只使用四列：`User Name / License state / Custom agent split % / Expiration date`
+- supplemental roster 字段落点：
+  - `License state` -> `AgentProfile.licenseState`
+  - `Expiration date` -> `AgentProfile.startDate`
+  - `Custom agent split %` -> `MembershipCommissionSetting`（经 `saveAgentProfile` 写入）
+- supplemental roster 规则：
+  - 读取完整底表，不按当前页面筛选后的可见行
+  - 同一 sheet 同名行会先合并，再去匹配已导入 membership
+  - `agent split` 会从所有原始 split 文本里提取百分比并取最高值
+  - 原始 split 文本和冲突信息会追加进 `AgentProfile.notes`
+  - `commissionEffectiveFrom` 使用导入当天
 
 详细映射、已知限制和执行说明见：
 
