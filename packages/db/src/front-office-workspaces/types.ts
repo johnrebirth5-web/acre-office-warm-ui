@@ -1,6 +1,8 @@
 import {
   AppointmentStatus,
   AppointmentType,
+  ClientFollowUpReminderMode,
+  ClientFollowUpStatus,
   FrontOfficeSendChannel,
   ListingStatus,
   NotificationSeverity,
@@ -324,14 +326,26 @@ export type FrontOfficeActivityCounts = {
 export type FrontOfficeClientRecord = {
   id: string;
   fullName: string;
+  displayName: string;
+  wechatDisplayName: string;
   stage: string;
   stageTone: FrontOfficeTone;
+  followUpStatus: ClientFollowUpStatus;
+  followUpStatusLabel: string;
+  followUpStatusTone: FrontOfficeTone;
+  followUpReminderMode: ClientFollowUpReminderMode;
+  followUpReminderModeLabel: string;
   intentLabel: string;
   budgetLabel: string;
   areasLabel: string;
   sourceLabel: string;
   lastTouchLabel: string;
   nextTouchLabel: string;
+  lastFollowUpLabel: string;
+  nextReminderLabel: string;
+  nextReminderValue: string;
+  noteSummary: string;
+  legacyOpenTaskCount: number;
   href: string;
 };
 

@@ -19,6 +19,7 @@ import {
   frontOfficeAppointmentExternalWorkflowStatuses,
   getFrontOfficeAppointmentExternalWorkflowState,
 } from "./front-office-appointments";
+import { getClientDisplayName } from "./front-office-follow-up";
 
 type NotificationDbClient = Prisma.TransactionClient | typeof prisma;
 type NotificationPreferenceField =
@@ -138,6 +139,7 @@ export const officeNotificationInboxTypes: NotificationType[] = [
   NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
   NotificationType.appointment_external_touch_due,
+  NotificationType.follow_up,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -204,6 +206,7 @@ const typeFilterOrder: NotificationType[] = [
   NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
   NotificationType.appointment_external_touch_due,
+  NotificationType.follow_up,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -281,6 +284,7 @@ function getNotificationPreferenceField(type: NotificationType): NotificationPre
   if (
     type === NotificationType.appointment_due_soon ||
     type === NotificationType.appointment_external_touch_due ||
+    type === NotificationType.follow_up ||
     type === NotificationType.follow_up_assigned ||
     type === NotificationType.follow_up_overdue ||
     type === NotificationType.onboarding_assigned ||
@@ -963,6 +967,16 @@ export async function reconcileOfficeNotificationReminders(input: {
   membershipId: string;
 }) {
   const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
   const soon = new Date(now);
   soon.setDate(soon.getDate() + 7);
   const appointmentCutoff = new Date(now);
@@ -976,6 +990,7 @@ export async function reconcileOfficeNotificationReminders(input: {
       dueExternalTouchAppointments,
       expiringOffers,
       overdueFollowUpTasks,
+      dueClientReminders,
       dueSoonOnboardingItems
     ] = await Promise.all([
       tx.appointment.findMany({
@@ -1096,6 +1111,44 @@ export async function reconcileOfficeNotificationReminders(input: {
           }
         }
       }),
+      tx.client.findMany({
+        where: {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.membershipId,
+          nextFollowUpAt: {
+            lt: startOfTomorrow,
+          },
+          ...(input.officeId
+            ? {
+                ownerMembership: {
+                  officeId: input.officeId,
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          fullName: true,
+          additionalFields: true,
+          nextFollowUpAt: true,
+          ownerMembership: {
+            select: {
+              officeId: true,
+            },
+          },
+          followUpTasks: {
+            where: {
+              status: {
+                in: [TaskStatus.queued, TaskStatus.in_progress],
+              },
+            },
+            select: {
+              id: true,
+            },
+            take: 1,
+          },
+        },
+      }),
       tx.agentOnboardingItem.findMany({
         where: {
           organizationId: input.organizationId,
@@ -1163,6 +1216,35 @@ export async function reconcileOfficeNotificationReminders(input: {
     const dueExternalTouchAppointmentIds = new Set(
       dueExternalTouchAppointmentRecords.map(({ appointment }) => appointment.id),
     );
+    const actionableClientReminders = dueClientReminders.filter(
+      (client) => client.followUpTasks.length === 0 && client.nextFollowUpAt,
+    );
+    const dueClientIds = new Set(
+      actionableClientReminders
+        .filter(
+          (client) =>
+            (client.nextFollowUpAt as Date).getTime() >= startOfToday.getTime(),
+        )
+        .map((client) => client.id),
+    );
+    const overdueClientIds = new Set(
+      actionableClientReminders
+        .filter(
+          (client) =>
+            (client.nextFollowUpAt as Date).getTime() < startOfToday.getTime(),
+        )
+        .map((client) => client.id),
+    );
+    const clientReminderScopeWhere = {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      entityType: NotificationEntityType.client,
+      ...(input.officeId
+        ? {
+            OR: [{ officeId: input.officeId }, { officeId: null }],
+          }
+        : {}),
+    };
 
     await tx.notification.deleteMany({
       where: {
@@ -1186,6 +1268,34 @@ export async function reconcileOfficeNotificationReminders(input: {
           ? {
               entityId: {
                 notIn: [...dueExternalTouchAppointmentIds],
+              },
+            }
+          : {}),
+      },
+    });
+
+    await tx.notification.deleteMany({
+      where: {
+        ...clientReminderScopeWhere,
+        type: NotificationType.follow_up,
+        ...(dueClientIds.size
+          ? {
+              entityId: {
+                notIn: [...dueClientIds],
+              },
+            }
+          : {}),
+      },
+    });
+
+    await tx.notification.deleteMany({
+      where: {
+        ...clientReminderScopeWhere,
+        type: NotificationType.follow_up_overdue,
+        ...(overdueClientIds.size
+          ? {
+              entityId: {
+                notIn: [...overdueClientIds],
               },
             }
           : {}),
@@ -1298,6 +1408,38 @@ export async function reconcileOfficeNotificationReminders(input: {
         body: `${task.title} was due on ${formatDateLabel(task.dueAt!)} and is still open.`,
         actionUrl: task.clientId ? `/office/contacts/${task.clientId}` : "/office/contacts",
         restrictToOfficeRoles: true
+      });
+    }
+
+    for (const client of actionableClientReminders) {
+      const displayName = getClientDisplayName({
+        fullName: client.fullName,
+        additionalFields: client.additionalFields,
+      });
+      const isOverdue =
+        (client.nextFollowUpAt as Date).getTime() < startOfToday.getTime();
+
+      await upsertNotificationForMemberships(tx, {
+        organizationId: input.organizationId,
+        officeId: client.ownerMembership?.officeId ?? input.officeId ?? null,
+        membershipIds: [input.membershipId],
+        type: isOverdue
+          ? NotificationType.follow_up_overdue
+          : NotificationType.follow_up,
+        category: NotificationCategory.follow_up,
+        severity: isOverdue
+          ? NotificationSeverity.critical
+          : NotificationSeverity.warning,
+        entityType: NotificationEntityType.client,
+        entityId: client.id,
+        title: isOverdue
+          ? `Follow-up overdue: ${displayName}`
+          : `Follow-up due: ${displayName}`,
+        body: isOverdue
+          ? `Next follow-up was planned for ${formatDateLabel(client.nextFollowUpAt as Date)} and still needs an update.`
+          : `Next follow-up is due on ${formatDateLabel(client.nextFollowUpAt as Date)}.`,
+        actionUrl: `/agent/clients/${client.id}`,
+        resetReadState: false,
       });
     }
 

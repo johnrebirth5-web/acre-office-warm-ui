@@ -134,6 +134,20 @@ enum NotificationEntityType {
   agent_onboarding_item
   event
   appointment
+  client
+}
+
+enum ClientFollowUpStatus {
+  new_lead
+  active_follow_up
+  waiting_reply
+  appointment_booked
+  paused
+}
+
+enum ClientFollowUpReminderMode {
+  auto
+  manual
 }
 
 enum EventVisibility {
@@ -1627,6 +1641,8 @@ model Client {
   needsSummary                 Json?
   additionalFields             Json?
   notes                        String?
+  followUpStatus               ClientFollowUpStatus          @default(new_lead)
+  followUpReminderMode         ClientFollowUpReminderMode    @default(auto)
   lastContactAt                DateTime?
   nextFollowUpAt               DateTime?
   leaseEndDate                 DateTime?
@@ -1646,6 +1662,7 @@ model Client {
 
   @@index([organizationId, stage])
   @@index([organizationId, visibility])
+  @@index([organizationId, followUpStatus])
   @@index([organizationId, nextFollowUpAt])
   @@index([organizationId, leaseReminderAt])
 }

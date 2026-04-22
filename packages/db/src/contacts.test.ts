@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { Prisma, type UserRole } from "@prisma/client";
+import {
+  ClientFollowUpReminderMode,
+  ClientFollowUpStatus,
+  Prisma,
+  type UserRole,
+} from "@prisma/client";
 import { prisma } from "./client.ts";
 import {
   createContact,
   getContactById,
   listContacts,
   mergeFrontOfficeClients,
+  updateFrontOfficeClientExecution,
 } from "./contacts.ts";
 import { createTransaction } from "./transactions.ts";
 
@@ -114,6 +120,14 @@ function buildTransactionInput(
   };
 }
 
+function addUtcDays(value: Date, days: number) {
+  const nextValue = new Date(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+  );
+  nextValue.setUTCDate(nextValue.getUTCDate() + days);
+  return nextValue.toISOString().slice(0, 10);
+}
+
 test("createContact stores an empty additionalFields object when none is provided", async () => {
   const context = await createContactsTestContext();
 
@@ -205,6 +219,112 @@ test("mergeFrontOfficeClients normalizes scalar additionalFields to an empty obj
     });
 
     assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("createContact applies automated follow-up defaults and prefers the WeChat display name", async () => {
+  const context = await createContactsTestContext();
+
+  try {
+    await listContacts({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+    });
+
+    const created = await createContact({
+      organizationId: context.organization.id,
+      ownerMembershipId: context.adminMembership.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      fullName: "Annie Chen",
+      wechatDisplayName: "安妮",
+      stage: "Warm Lead",
+      intent: "Buyer",
+      followUpStatus: ClientFollowUpStatus.waiting_reply,
+      useFollowUpAutomation: true,
+    });
+
+    assert.equal(created.displayName, "安妮");
+    assert.equal(created.wechatDisplayName, "安妮");
+    assert.equal(created.followUpStatus, ClientFollowUpStatus.waiting_reply);
+    assert.equal(
+      created.followUpReminderMode,
+      ClientFollowUpReminderMode.auto,
+    );
+    assert.equal(created.nextFollowUpAt, addUtcDays(new Date(), 3));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateFrontOfficeClientExecution keeps a manual reminder pinned until the agent restores auto mode", async () => {
+  const context = await createContactsTestContext();
+
+  try {
+    await listContacts({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+    });
+
+    const created = await createContact({
+      organizationId: context.organization.id,
+      ownerMembershipId: context.adminMembership.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      fullName: "Pinned Reminder Client",
+      stage: "Warm Lead",
+      intent: "Buyer",
+      followUpStatus: ClientFollowUpStatus.active_follow_up,
+      useFollowUpAutomation: true,
+    });
+
+    const manualReminder = "2026-05-12";
+    const manualResult = await updateFrontOfficeClientExecution({
+      organizationId: context.organization.id,
+      clientId: created.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      nextFollowUpAt: manualReminder,
+    });
+
+    assert.equal(
+      manualResult?.followUpReminderMode,
+      ClientFollowUpReminderMode.manual,
+    );
+    assert.equal(manualResult?.nextFollowUpAt, manualReminder);
+
+    const followedUpResult = await updateFrontOfficeClientExecution({
+      organizationId: context.organization.id,
+      clientId: created.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      markFollowedUpNow: true,
+    });
+
+    assert.equal(
+      followedUpResult?.followUpReminderMode,
+      ClientFollowUpReminderMode.manual,
+    );
+    assert.equal(followedUpResult?.nextFollowUpAt, manualReminder);
+    assert.ok(followedUpResult?.lastContactAt);
+
+    const autoResult = await updateFrontOfficeClientExecution({
+      organizationId: context.organization.id,
+      clientId: created.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      followUpReminderMode: ClientFollowUpReminderMode.auto,
+    });
+
+    assert.equal(
+      autoResult?.followUpReminderMode,
+      ClientFollowUpReminderMode.auto,
+    );
+    assert.equal(autoResult?.nextFollowUpAt, addUtcDays(new Date(), 2));
   } finally {
     await context.cleanup();
   }

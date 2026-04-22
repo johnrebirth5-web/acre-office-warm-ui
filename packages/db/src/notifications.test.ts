@@ -1,9 +1,18 @@
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { after, test } from "node:test"
-import { NotificationType, Prisma, NotificationSeverity } from "@prisma/client"
+import {
+  NotificationEntityType,
+  NotificationType,
+  Prisma,
+  NotificationSeverity,
+  TaskStatus,
+} from "@prisma/client"
 import { prisma } from "./client.ts"
-import { openOfficeNotification } from "./notifications.ts"
+import {
+  openOfficeNotification,
+  reconcileOfficeNotificationReminders,
+} from "./notifications.ts"
 
 after(async () => {
   await prisma.$disconnect()
@@ -66,6 +75,23 @@ async function createNotificationsTestContext() {
     office,
     primaryMembership,
     secondaryMembership,
+    async createClient(input?: {
+      nextFollowUpAt?: Date | null
+      fullName?: string
+    }) {
+      return prisma.client.create({
+        data: {
+          organizationId: organization.id,
+          ownerMembershipId: primaryMembership.id,
+          fullName: input?.fullName ?? `Reminder Client ${suffix}`,
+          source: "Manual entry",
+          stage: "Warm Lead",
+          intent: "Buyer",
+          preferredAreas: [],
+          nextFollowUpAt: input?.nextFollowUpAt ?? null,
+        },
+      })
+    },
     async createNotification(input: {
       membershipId?: string | null
       officeId?: string | null
@@ -109,6 +135,12 @@ async function createNotificationsTestContext() {
       })
     },
   }
+}
+
+function addDays(value: Date, days: number) {
+  const nextValue = new Date(value)
+  nextValue.setDate(nextValue.getDate() + days)
+  return nextValue
 }
 
 test("opening a personal office notification marks it read and returns the relative action url", async () => {
@@ -223,6 +255,113 @@ test("opening another member's personal notification returns no action and leave
     })
 
     assert.equal(storedNotification?.readAt, null)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders creates and clears client follow-up reminders", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const client = await context.createClient({
+      nextFollowUpAt: addDays(new Date(), -1),
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const reminder = await prisma.notification.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        membershipId: context.primaryMembership.id,
+        entityType: NotificationEntityType.client,
+        entityId: client.id,
+      },
+      select: {
+        type: true,
+        actionUrl: true,
+      },
+    })
+
+    assert.equal(reminder?.type, NotificationType.follow_up_overdue)
+    assert.equal(reminder?.actionUrl, `/agent/clients/${client.id}`)
+
+    await prisma.client.update({
+      where: {
+        id: client.id,
+      },
+      data: {
+        nextFollowUpAt: addDays(new Date(), 10),
+      },
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const clearedReminder = await prisma.notification.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        membershipId: context.primaryMembership.id,
+        entityType: NotificationEntityType.client,
+        entityId: client.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    assert.equal(clearedReminder, null)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders skips client reminders when a legacy follow-up task is still open", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const client = await context.createClient({
+      nextFollowUpAt: addDays(new Date(), -1),
+      fullName: "Task-backed client",
+    })
+
+    await prisma.followUpTask.create({
+      data: {
+        organizationId: context.organization.id,
+        clientId: client.id,
+        assigneeMemberId: context.primaryMembership.id,
+        title: "Legacy follow-up task",
+        status: TaskStatus.queued,
+        metadata: Prisma.JsonNull,
+      },
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const clientReminder = await prisma.notification.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        membershipId: context.primaryMembership.id,
+        entityType: NotificationEntityType.client,
+        entityId: client.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    assert.equal(clientReminder, null)
   } finally {
     await context.cleanup()
   }

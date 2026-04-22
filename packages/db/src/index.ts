@@ -540,6 +540,7 @@ export {
   officeContactsPageLimits,
   saveFrontOfficeClientLeaseReminder,
   updateContact,
+  updateFrontOfficeClientExecution,
   updateFollowUpTask,
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
@@ -1035,6 +1036,7 @@ export type {
   OfficeContactTask,
   OfficeTransactionLinkOption,
   SaveContactInput,
+  UpdateFrontOfficeClientExecutionInput,
   UpdateFollowUpTaskInput,
 } from "./contacts";
 export type {

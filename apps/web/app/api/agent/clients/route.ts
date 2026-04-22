@@ -1,3 +1,4 @@
+import { ClientFollowUpStatus } from "@prisma/client";
 import { canCreateOfficeContacts, canViewOfficeContacts } from "@acre/auth";
 import { createContact, findFrontOfficeLeadDuplicateMatches } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -35,6 +36,8 @@ type LeadFieldKey =
   | "intent"
   | "budgetMax"
   | "preferredAreas"
+  | "wechatDisplayName"
+  | "followUpStatus"
   | "nextFollowUpAt"
   | "notes";
 
@@ -179,6 +182,14 @@ function isValidIsoDateOnly(value: string) {
     date.getUTCDate() === day
   );
 }
+
+const validFollowUpStatuses = new Set<ClientFollowUpStatus>([
+  ClientFollowUpStatus.new_lead,
+  ClientFollowUpStatus.active_follow_up,
+  ClientFollowUpStatus.waiting_reply,
+  ClientFollowUpStatus.appointment_booked,
+  ClientFollowUpStatus.paused,
+]);
 
 function validationErrorResponse(fieldErrors: LeadFieldErrorMap) {
   return NextResponse.json(
@@ -331,6 +342,16 @@ export async function POST(request: NextRequest) {
     "preferredAreas",
     fieldErrors,
   );
+  const wechatDisplayName = readOptionalStringField(
+    body,
+    "wechatDisplayName",
+    fieldErrors,
+  );
+  const followUpStatusValue = readOptionalStringField(
+    body,
+    "followUpStatus",
+    fieldErrors,
+  );
   const nextFollowUpAt = readOptionalStringField(
     body,
     "nextFollowUpAt",
@@ -342,6 +363,9 @@ export async function POST(request: NextRequest) {
     ? normalizeBudgetMaxInput(budgetMax)
     : "";
   const normalizedPreferredAreas = parsePreferredAreas(preferredAreas);
+  const followUpStatus = followUpStatusValue
+    ? (followUpStatusValue as ClientFollowUpStatus)
+    : null;
 
   if (!fullName) {
     appendFieldError(fieldErrors, "fullName", "Full name is required.");
@@ -424,6 +448,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    followUpStatusValue &&
+    !validFollowUpStatuses.has(followUpStatusValue as ClientFollowUpStatus)
+  ) {
+    appendFieldError(
+      fieldErrors,
+      "followUpStatus",
+      "Choose one of the supported follow-up statuses.",
+    );
+  }
+
+  if (wechatDisplayName.length > 120) {
+    appendFieldError(
+      fieldErrors,
+      "wechatDisplayName",
+      "WeChat name should stay under 120 characters.",
+    );
+  }
+
   if (nextFollowUpAt && !isValidIsoDateOnly(nextFollowUpAt)) {
     appendFieldError(
       fieldErrors,
@@ -499,8 +542,11 @@ export async function POST(request: NextRequest) {
       intent: intent || "Buyer",
       budgetMax: normalizedBudgetMax || "",
       preferredAreas: normalizedPreferredAreas,
+      followUpStatus: followUpStatus ?? undefined,
+      wechatDisplayName,
       nextFollowUpAt,
       notes,
+      useFollowUpAutomation: !nextFollowUpAt,
     });
 
     return NextResponse.json({ contact }, { status: 201 });

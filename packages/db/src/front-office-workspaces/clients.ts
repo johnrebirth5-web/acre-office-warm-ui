@@ -31,6 +31,16 @@ import { buildFrontOfficeListingShareExecutionSummary } from "../front-office-li
 import { resolveLeaseReminderDates } from "../lease-reminders";
 
 import { reconcileOfficeNotificationReminders } from "../notifications";
+import {
+  buildFrontOfficeNoteSummary,
+  formatFrontOfficeFollowUpStatusLabel,
+  formatFrontOfficeLastFollowUpLabel,
+  formatFrontOfficeNextReminderLabel,
+  formatFrontOfficeReminderModeLabel,
+  getClientDisplayName,
+  getWechatDisplayName,
+  mapFrontOfficeFollowUpStatusTone,
+} from "../front-office-follow-up";
 
 import { FrontOfficeActivityCleanupFilterKey, FrontOfficeActivityCleanupItem, FrontOfficeActivityCleanupKindKey, FrontOfficeActivityCleanupMetric, FrontOfficeActivityCleanupMetricCountMode, FrontOfficeActivityCleanupOwnerKey, FrontOfficeActivityCleanupPressureKey, FrontOfficeActivityCleanupScopeKey, FrontOfficeActivityCounts, FrontOfficeActivityEventRecord, FrontOfficeActivityFilterContract, FrontOfficeActivityFilterOption, FrontOfficeActivityNoticeFilterContract, FrontOfficeActivityNoticeFilterKey, FrontOfficeActivityNoticeStreamFilterContract, FrontOfficeActivityNoticeStreamFilterKey, FrontOfficeActivityNotificationGroupKey, FrontOfficeActivityNotificationOwnerKey, FrontOfficeActivityNotificationPressureKey, FrontOfficeActivityNotificationRecord, FrontOfficeActivityNotificationScopeKey, FrontOfficeActivityNotificationStreamKey, FrontOfficeActivityReadState, FrontOfficeActivityReadStateFilterContract, FrontOfficeActivitySnapshot, FrontOfficeAgentMaterialFeaturedCase, FrontOfficeAgentMaterialSnapshot, FrontOfficeClientDuplicatePair, FrontOfficeClientDuplicateRecord, FrontOfficeClientRecord, FrontOfficeClientsSnapshot, FrontOfficeListingRecord, FrontOfficeListingsSnapshot, FrontOfficeListingsTargetAppointment, FrontOfficeListingsTargetClient, FrontOfficeResourceRecord, FrontOfficeResourcesSnapshot, FrontOfficeTone, FrontOfficeVendorRecord, FrontOfficeWorkspaceInput, frontOfficeActivityCleanupFilterKeys, frontOfficeActivityCleanupFilterLabels, frontOfficeActivityCleanupKindKeys, frontOfficeActivityCleanupOwnerKeys, frontOfficeActivityCleanupPressureKeys, frontOfficeActivityCleanupScopeKeys, frontOfficeActivityNoticeFilterKeys, frontOfficeActivityNoticeFilterLabels, frontOfficeActivityNoticeStreamFilterKeys, frontOfficeActivityNoticeStreamFilterLabels, frontOfficeActivityNotificationGroupKeys, frontOfficeActivityNotificationOwnerKeys, frontOfficeActivityNotificationPressureKeys, frontOfficeActivityNotificationScopeKeys, frontOfficeActivityNotificationStreamKeys, frontOfficeActivityReadStateKeys, frontOfficeActivityReadStateLabels } from "./types";
 import { DuplicateCandidate, FrontOfficeClientsWorkspaceView, activeListingStatuses, buildCleanupFilterCountRecord, buildCleanupKindCountRecord, buildClientWorkspaceAnchor, buildClientWorkspaceHref, buildElapsedDayCount, buildFreshnessLabel, buildNotificationGroupCountRecord, buildNotificationStreamCountRecord, cleanStringList, compareClientStageLabels, compareFrontOfficeClientQueueRecords, formatAreaSummaryLabel, formatBudgetRange, formatClientIntentLabel, formatCountLabel, formatCurrency, formatDateLabel, formatElapsedDayLabel, formatLooseTitleLabel, formatNextTouchLabel, formatRelativeDueLabel, formatSourceLabel, getClientStageSortRank, isBoundaryStage, isViewingLaneStage, mapClientStageTone, normalizeClientStageLabel, normalizeDuplicateEmail, normalizeDuplicateName, normalizeDuplicatePhone, openFollowUpStatuses, resolveClientNextTouchAt } from "./shared";
@@ -1830,17 +1840,31 @@ export async function getFrontOfficeClientsSnapshot(
       select: {
         id: true,
         fullName: true,
+        additionalFields: true,
         source: true,
         stage: true,
         intent: true,
+        followUpStatus: true,
+        followUpReminderMode: true,
         budgetMin: true,
         budgetMax: true,
         preferredAreas: true,
+        notes: true,
         lastContactAt: true,
         nextFollowUpAt: true,
         leaseReminderAt: true,
         createdAt: true,
         updatedAt: true,
+        followUpTasks: {
+          where: {
+            status: {
+              in: [...openFollowUpStatuses],
+            },
+          },
+          select: {
+            id: true,
+          },
+        },
       },
     }),
     prisma.client.count({
@@ -1961,8 +1985,24 @@ export async function getFrontOfficeClientsSnapshot(
     clients: sortedClients.map((client) => ({
       id: client.id,
       fullName: client.fullName,
+      displayName: getClientDisplayName({
+        fullName: client.fullName,
+        additionalFields: client.additionalFields,
+      }),
+      wechatDisplayName: getWechatDisplayName(client.additionalFields),
       stage: client.stage,
       stageTone: mapClientStageTone(client.stage),
+      followUpStatus: client.followUpStatus,
+      followUpStatusLabel: formatFrontOfficeFollowUpStatusLabel(
+        client.followUpStatus,
+      ),
+      followUpStatusTone: mapFrontOfficeFollowUpStatusTone(
+        client.followUpStatus,
+      ),
+      followUpReminderMode: client.followUpReminderMode,
+      followUpReminderModeLabel: formatFrontOfficeReminderModeLabel(
+        client.followUpReminderMode,
+      ),
       intentLabel: formatClientIntentLabel(client.intent),
       budgetLabel: formatBudgetRange(client.budgetMin, client.budgetMax),
       areasLabel: formatAreaSummaryLabel(
@@ -1979,6 +2019,19 @@ export async function getFrontOfficeClientsSnapshot(
         now,
         timeZone: input.timeZone,
       }),
+      lastFollowUpLabel: formatFrontOfficeLastFollowUpLabel(
+        client.lastContactAt,
+        input.timeZone,
+      ),
+      nextReminderLabel: formatFrontOfficeNextReminderLabel(
+        client.nextFollowUpAt,
+        input.timeZone,
+      ),
+      nextReminderValue: client.nextFollowUpAt
+        ? client.nextFollowUpAt.toISOString().slice(0, 10)
+        : "",
+      noteSummary: buildFrontOfficeNoteSummary(client.notes),
+      legacyOpenTaskCount: client.followUpTasks.length,
       href: `/agent/clients/${client.id}`,
     })),
     duplicatePairs,

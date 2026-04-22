@@ -1,4 +1,6 @@
 import {
+  ClientFollowUpReminderMode,
+  ClientFollowUpStatus,
   FrontOfficeHandoffStatus,
   NotificationCategory,
   NotificationEntityType,
@@ -20,6 +22,18 @@ import {
 } from "./front-office-contracts";
 import type { FrontOfficeAiAcceptedActionContext } from "./front-office-ai";
 import { recordFrontOfficeAiAcceptedAction } from "./front-office-ai";
+import {
+  formatFrontOfficeFollowUpStatusLabel,
+  formatFrontOfficeReminderModeLabel,
+  getClientDisplayName,
+  getWechatDisplayName,
+  inferClientFollowUpStatus,
+  normalizeClientAdditionalFields,
+  normalizeClientFollowUpReminderMode,
+  normalizeClientFollowUpStatus,
+  resolveAutomaticNextFollowUpAt,
+  setWechatDisplayName,
+} from "./front-office-follow-up";
 import { createNotificationsForMemberships } from "./notifications";
 import {
   type LinkTransactionContactInput,
@@ -77,12 +91,18 @@ export type OfficeTransactionLinkOption = {
 export type OfficeContactDetail = {
   id: string;
   fullName: string;
+  displayName: string;
+  wechatDisplayName: string;
   email: string;
   phone: string;
   contactType: string;
   source: string;
   stage: string;
   intent: string;
+  followUpStatus: ClientFollowUpStatus;
+  followUpStatusLabel: string;
+  followUpReminderMode: ClientFollowUpReminderMode;
+  followUpReminderModeLabel: string;
   budgetMin: string;
   budgetMax: string;
   areas: string[];
@@ -153,6 +173,27 @@ export type SaveContactInput = {
   leaseEndDate?: string;
   leaseReminderAt?: string;
   additionalFields?: Record<string, string>;
+  followUpStatus?: ClientFollowUpStatus;
+  followUpReminderMode?: ClientFollowUpReminderMode;
+  wechatDisplayName?: string;
+  useFollowUpAutomation?: boolean;
+  markFollowedUpNow?: boolean;
+};
+
+export type UpdateFrontOfficeClientExecutionInput = {
+  organizationId: string;
+  clientId: string;
+  actorMembershipId: string;
+  actorOfficeId?: string | null;
+  fullName?: string;
+  budgetMax?: string;
+  preferredAreas?: string[];
+  notes?: string;
+  followUpStatus?: ClientFollowUpStatus;
+  followUpReminderMode?: ClientFollowUpReminderMode;
+  nextFollowUpAt?: string | null;
+  wechatDisplayName?: string;
+  markFollowedUpNow?: boolean;
 };
 
 export type SaveFrontOfficeClientLeaseReminderInput = {
@@ -251,6 +292,73 @@ function parseOptionalDate(value: string | undefined) {
   }
 
   return new Date(value);
+}
+
+function resolveContactFollowUpStatus(input: {
+  requestedStatus?: ClientFollowUpStatus;
+  stage?: string | null;
+  lastContactAt?: Date | null;
+  fallback?: ClientFollowUpStatus;
+}) {
+  if (input.requestedStatus) {
+    return normalizeClientFollowUpStatus(
+      input.requestedStatus,
+      input.fallback ?? ClientFollowUpStatus.new_lead,
+    );
+  }
+
+  if (input.fallback) {
+    return input.fallback;
+  }
+
+  return inferClientFollowUpStatus({
+    stage: input.stage,
+    lastContactAt: input.lastContactAt,
+  });
+}
+
+function resolveContactFollowUpReminderMode(input: {
+  requestedMode?: ClientFollowUpReminderMode;
+  requestedNextFollowUpAt?: string | null | undefined;
+  fallback?: ClientFollowUpReminderMode;
+}) {
+  if (input.requestedMode) {
+    return normalizeClientFollowUpReminderMode(
+      input.requestedMode,
+      input.fallback ?? ClientFollowUpReminderMode.auto,
+    );
+  }
+
+  if (input.requestedNextFollowUpAt !== undefined) {
+    return ClientFollowUpReminderMode.manual;
+  }
+
+  return input.fallback ?? ClientFollowUpReminderMode.auto;
+}
+
+async function getUpcomingScheduledAppointmentStartsAt(
+  tx: Prisma.TransactionClient | typeof prisma,
+  input: {
+    organizationId: string;
+    clientId: string;
+  },
+) {
+  const upcomingAppointment = await tx.appointment.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      clientId: input.clientId,
+      status: "scheduled",
+      startsAt: {
+        gt: new Date(),
+      },
+    },
+    orderBy: [{ startsAt: "asc" }],
+    select: {
+      startsAt: true,
+    },
+  });
+
+  return upcomingAppointment?.startsAt ?? null;
 }
 
 function normalizeEmail(value: string | null | undefined) {
@@ -553,11 +661,16 @@ async function syncClientNextFollowUpAtFromOpenTasks(
     },
     select: {
       id: true,
+      followUpReminderMode: true,
       nextFollowUpAt: true,
     },
   });
 
   if (!client) {
+    return;
+  }
+
+  if (client.followUpReminderMode === ClientFollowUpReminderMode.manual) {
     return;
   }
 
@@ -972,10 +1085,39 @@ export const officeContactsPageLimits = {
 export async function createContact(
   input: SaveContactInput,
 ): Promise<OfficeContactDetail> {
+  const now = new Date();
   const leaseDates = normalizeLeaseReminderInput({
     leaseEndDate: input.leaseEndDate,
     leaseReminderAt: input.leaseReminderAt,
   });
+  const lastContactAt = input.markFollowedUpNow
+    ? now
+    : parseOptionalDate(input.lastContactAt);
+  const followUpStatus = resolveContactFollowUpStatus({
+    requestedStatus: input.followUpStatus,
+    stage: input.stage,
+    lastContactAt,
+  });
+  const followUpReminderMode = resolveContactFollowUpReminderMode({
+    requestedMode: input.followUpReminderMode,
+    requestedNextFollowUpAt: input.nextFollowUpAt,
+  });
+  const shouldUseAutoSchedule =
+    input.useFollowUpAutomation ||
+    input.followUpReminderMode === ClientFollowUpReminderMode.auto;
+  const nextFollowUpAt =
+    followUpReminderMode === ClientFollowUpReminderMode.manual
+      ? parseOptionalDate(input.nextFollowUpAt ?? undefined)
+      : shouldUseAutoSchedule
+        ? resolveAutomaticNextFollowUpAt({
+            followUpStatus,
+            now,
+          })
+        : parseOptionalDate(input.nextFollowUpAt);
+  const additionalFields =
+    input.wechatDisplayName !== undefined
+      ? setWechatDisplayName(input.additionalFields, input.wechatDisplayName)
+      : normalizeClientAdditionalFields(input.additionalFields);
 
   const client = await prisma.$transaction(async (tx) => {
     const created = await tx.client.create({
@@ -992,10 +1134,12 @@ export async function createContact(
         budgetMin: parseOptionalDecimal(input.budgetMin),
         budgetMax: parseOptionalDecimal(input.budgetMax),
         preferredAreas: input.preferredAreas?.filter(Boolean) ?? [],
-        additionalFields: input.additionalFields ?? {},
+        additionalFields,
         notes: input.notes?.trim() || null,
-        lastContactAt: parseOptionalDate(input.lastContactAt),
-        nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt),
+        followUpStatus,
+        followUpReminderMode,
+        lastContactAt,
+        nextFollowUpAt,
         leaseEndDate: leaseDates.leaseEndDate,
         leaseReminderAt: leaseDates.leaseReminderAt,
       },
@@ -1030,7 +1174,12 @@ export async function createContact(
         contactId: created.id,
         contactName: created.fullName,
         objectLabel: buildContactObjectLabel(created),
-        details: [`Stage: ${created.stage}`, `Intent: ${created.intent}`],
+        details: [
+          `Stage: ${created.stage}`,
+          `Intent: ${created.intent}`,
+          `Follow-up: ${formatFrontOfficeFollowUpStatusLabel(created.followUpStatus)}`,
+          `Reminder mode: ${formatFrontOfficeReminderModeLabel(created.followUpReminderMode)}`,
+        ],
       },
     });
 
@@ -1705,6 +1854,7 @@ export async function updateContact(
   contactId: string,
   input: SaveContactInput,
 ): Promise<OfficeContactDetail | null> {
+  const now = new Date();
   const existing = await prisma.client.findFirst({
     where: {
       id: contactId,
@@ -1720,6 +1870,8 @@ export async function updateContact(
       source: true,
       stage: true,
       intent: true,
+      followUpStatus: true,
+      followUpReminderMode: true,
       additionalFields: true,
       notes: true,
       budgetMin: true,
@@ -1736,6 +1888,33 @@ export async function updateContact(
     return null;
   }
 
+  const normalizedAdditionalFields =
+    existing.additionalFields &&
+    typeof existing.additionalFields === "object" &&
+    !Array.isArray(existing.additionalFields)
+      ? Object.fromEntries(
+          Object.entries(
+            existing.additionalFields as Record<string, Prisma.JsonValue>,
+          ).map(([key, value]) => [key, String(value ?? "")]),
+        )
+      : {};
+  const lastContactAt = input.markFollowedUpNow
+    ? now
+    : parseOptionalDate(input.lastContactAt);
+  const followUpStatus = resolveContactFollowUpStatus({
+    requestedStatus: input.followUpStatus,
+    stage: input.stage?.trim() || existing.stage,
+    lastContactAt,
+    fallback: existing.followUpStatus,
+  });
+  const followUpReminderMode = resolveContactFollowUpReminderMode({
+    requestedMode: input.followUpReminderMode,
+    requestedNextFollowUpAt: input.nextFollowUpAt,
+    fallback: existing.followUpReminderMode,
+  });
+  const shouldUseAutoSchedule =
+    input.useFollowUpAutomation ||
+    input.followUpReminderMode === ClientFollowUpReminderMode.auto;
   const nextValues = {
     fullName: input.fullName.trim(),
     email: input.email?.trim() || null,
@@ -1745,22 +1924,32 @@ export async function updateContact(
     stage: input.stage?.trim() || "New",
     intent: input.intent?.trim() || "Unknown",
     additionalFields:
-      input.additionalFields ??
-      (existing.additionalFields &&
-      typeof existing.additionalFields === "object" &&
-      !Array.isArray(existing.additionalFields)
-        ? Object.fromEntries(
-            Object.entries(
-              existing.additionalFields as Record<string, Prisma.JsonValue>,
-            ).map(([key, value]) => [key, String(value ?? "")]),
+      input.wechatDisplayName !== undefined
+        ? setWechatDisplayName(
+            input.additionalFields ?? normalizedAdditionalFields,
+            input.wechatDisplayName,
           )
-        : {}),
+        : normalizeClientAdditionalFields(
+            input.additionalFields ?? normalizedAdditionalFields,
+          ),
     notes: input.notes?.trim() || null,
     budgetMin: parseOptionalDecimal(input.budgetMin),
     budgetMax: parseOptionalDecimal(input.budgetMax),
     preferredAreas: input.preferredAreas?.filter(Boolean) ?? [],
-    lastContactAt: parseOptionalDate(input.lastContactAt),
-    nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt),
+    followUpStatus,
+    followUpReminderMode,
+    lastContactAt,
+    nextFollowUpAt:
+      followUpReminderMode === ClientFollowUpReminderMode.manual
+        ? input.nextFollowUpAt !== undefined
+          ? parseOptionalDate(input.nextFollowUpAt ?? undefined)
+          : existing.nextFollowUpAt
+        : shouldUseAutoSchedule
+          ? resolveAutomaticNextFollowUpAt({
+              followUpStatus,
+              now,
+            })
+          : parseOptionalDate(input.nextFollowUpAt) ?? existing.nextFollowUpAt,
     ...normalizeLeaseReminderInput({
       leaseEndDate: input.leaseEndDate,
       leaseReminderAt: input.leaseReminderAt,
@@ -1783,6 +1972,8 @@ export async function updateContact(
         preferredAreas: nextValues.preferredAreas,
         additionalFields: nextValues.additionalFields,
         notes: nextValues.notes,
+        followUpStatus: nextValues.followUpStatus,
+        followUpReminderMode: nextValues.followUpReminderMode,
         lastContactAt: nextValues.lastContactAt,
         nextFollowUpAt: nextValues.nextFollowUpAt,
         leaseEndDate: nextValues.leaseEndDate,
@@ -1834,6 +2025,16 @@ export async function updateContact(
       buildContactChangedDetail("Stage", existing.stage, nextValues.stage),
       buildContactChangedDetail("Intent", existing.intent, nextValues.intent),
       buildContactChangedDetail("Source", existing.source, nextValues.source),
+      buildContactChangedDetail(
+        "Follow-up",
+        formatFrontOfficeFollowUpStatusLabel(existing.followUpStatus),
+        formatFrontOfficeFollowUpStatusLabel(nextValues.followUpStatus),
+      ),
+      buildContactChangedDetail(
+        "Reminder mode",
+        formatFrontOfficeReminderModeLabel(existing.followUpReminderMode),
+        formatFrontOfficeReminderModeLabel(nextValues.followUpReminderMode),
+      ),
       buildContactChangedDetail(
         "Notes",
         existing.notes ?? "",
@@ -1897,6 +2098,16 @@ export async function updateContact(
       buildContactChange("Stage", existing.stage, nextValues.stage),
       buildContactChange("Intent", existing.intent, nextValues.intent),
       buildContactChange("Source", existing.source, nextValues.source),
+      buildContactChange(
+        "Follow-up",
+        formatFrontOfficeFollowUpStatusLabel(existing.followUpStatus),
+        formatFrontOfficeFollowUpStatusLabel(nextValues.followUpStatus),
+      ),
+      buildContactChange(
+        "Reminder mode",
+        formatFrontOfficeReminderModeLabel(existing.followUpReminderMode),
+        formatFrontOfficeReminderModeLabel(nextValues.followUpReminderMode),
+      ),
       buildContactChange("Notes", existing.notes ?? "", nextValues.notes ?? ""),
       buildContactChange(
         "Budget",
@@ -1972,6 +2183,241 @@ export async function updateContact(
     organizationId: input.organizationId,
     viewerMembershipId: input.actorMembershipId ?? input.ownerMembershipId,
     contactId,
+    officeId: input.actorOfficeId ?? null,
+  });
+}
+
+export async function updateFrontOfficeClientExecution(
+  input: UpdateFrontOfficeClientExecutionInput,
+): Promise<OfficeContactDetail | null> {
+  const now = new Date();
+  const existing = await prisma.client.findFirst({
+    where: {
+      id: input.clientId,
+      organizationId: input.organizationId,
+      ownerMembershipId: input.actorMembershipId,
+      ...(input.actorOfficeId
+        ? {
+            ownerMembership: {
+              officeId: input.actorOfficeId,
+            },
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      stage: true,
+      budgetMax: true,
+      preferredAreas: true,
+      notes: true,
+      lastContactAt: true,
+      nextFollowUpAt: true,
+      followUpStatus: true,
+      followUpReminderMode: true,
+      additionalFields: true,
+      ownerMembershipId: true,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const existingAdditionalFields =
+    existing.additionalFields &&
+    typeof existing.additionalFields === "object" &&
+    !Array.isArray(existing.additionalFields)
+      ? Object.fromEntries(
+          Object.entries(
+            existing.additionalFields as Record<string, Prisma.JsonValue>,
+          ).map(([key, value]) => [key, String(value ?? "")]),
+        )
+      : {};
+  const fullName =
+    input.fullName !== undefined ? input.fullName.trim() : existing.fullName;
+  const notes =
+    input.notes !== undefined ? input.notes.trim() || null : existing.notes;
+  const preferredAreas =
+    input.preferredAreas !== undefined
+      ? input.preferredAreas.map((area) => area.trim()).filter(Boolean)
+      : existing.preferredAreas;
+  const budgetMax =
+    input.budgetMax !== undefined
+      ? parseOptionalDecimal(input.budgetMax)
+      : existing.budgetMax;
+  const lastContactAt = input.markFollowedUpNow ? now : existing.lastContactAt;
+  const followUpStatus = resolveContactFollowUpStatus({
+    requestedStatus: input.followUpStatus,
+    stage: existing.stage,
+    lastContactAt,
+    fallback: existing.followUpStatus,
+  });
+  const followUpReminderMode = resolveContactFollowUpReminderMode({
+    requestedMode: input.followUpReminderMode,
+    requestedNextFollowUpAt: input.nextFollowUpAt,
+    fallback: existing.followUpReminderMode,
+  });
+  const updatedAdditionalFields =
+    input.wechatDisplayName !== undefined
+      ? setWechatDisplayName(existingAdditionalFields, input.wechatDisplayName)
+      : normalizeClientAdditionalFields(existingAdditionalFields);
+  const upcomingAppointmentStartsAt =
+    followUpStatus === ClientFollowUpStatus.appointment_booked
+      ? await getUpcomingScheduledAppointmentStartsAt(prisma, {
+          organizationId: input.organizationId,
+          clientId: input.clientId,
+        })
+      : null;
+  const nextFollowUpAt =
+    followUpReminderMode === ClientFollowUpReminderMode.manual
+      ? input.nextFollowUpAt !== undefined
+        ? parseOptionalDate(input.nextFollowUpAt ?? undefined)
+        : existing.nextFollowUpAt
+      : resolveAutomaticNextFollowUpAt({
+          followUpStatus,
+          now,
+          upcomingAppointmentStartsAt,
+        });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.client.update({
+      where: {
+        id: input.clientId,
+      },
+      data: {
+        fullName,
+        budgetMax,
+        preferredAreas,
+        notes,
+        followUpStatus,
+        followUpReminderMode,
+        nextFollowUpAt,
+        lastContactAt,
+        additionalFields: updatedAdditionalFields,
+      },
+    });
+
+    await syncFrontOfficeHandoffDraft(tx, {
+      organizationId: input.organizationId,
+      officeId: input.actorOfficeId ?? null,
+      clientId: input.clientId,
+      ownerMembershipId: existing.ownerMembershipId,
+      clientName: fullName,
+      stage: existing.stage,
+    });
+
+    const existingWechatDisplayName =
+      getWechatDisplayName(existingAdditionalFields) ?? "";
+    const nextWechatDisplayName = getWechatDisplayName(updatedAdditionalFields);
+    const details = [
+      buildContactChangedDetail("Full name", existing.fullName, fullName),
+      buildContactChangedDetail(
+        "WeChat name",
+        existingWechatDisplayName,
+        nextWechatDisplayName ?? "",
+      ),
+      buildContactChangedDetail(
+        "Budget",
+        formatBudget(null, existing.budgetMax),
+        formatBudget(null, budgetMax),
+      ),
+      buildContactChangedDetail(
+        "Areas",
+        formatAreas(existing.preferredAreas),
+        formatAreas(preferredAreas),
+      ),
+      buildContactChangedDetail("Notes", existing.notes ?? "", notes ?? ""),
+      buildContactChangedDetail(
+        "Follow-up",
+        formatFrontOfficeFollowUpStatusLabel(existing.followUpStatus),
+        formatFrontOfficeFollowUpStatusLabel(followUpStatus),
+      ),
+      buildContactChangedDetail(
+        "Reminder mode",
+        formatFrontOfficeReminderModeLabel(existing.followUpReminderMode),
+        formatFrontOfficeReminderModeLabel(followUpReminderMode),
+      ),
+      buildContactChangedDetail(
+        "Last contact",
+        formatDateValue(existing.lastContactAt),
+        formatDateValue(lastContactAt),
+      ),
+      buildContactChangedDetail(
+        "Next follow-up",
+        formatDateValue(existing.nextFollowUpAt),
+        formatDateValue(nextFollowUpAt),
+      ),
+    ].filter((detail): detail is string => Boolean(detail));
+    const changes = [
+      buildContactChange("Full name", existing.fullName, fullName),
+      buildContactChange(
+        "WeChat name",
+        existingWechatDisplayName,
+        nextWechatDisplayName ?? "",
+      ),
+      buildContactChange(
+        "Budget",
+        formatBudget(null, existing.budgetMax),
+        formatBudget(null, budgetMax),
+      ),
+      buildContactChange(
+        "Areas",
+        formatAreas(existing.preferredAreas),
+        formatAreas(preferredAreas),
+      ),
+      buildContactChange("Notes", existing.notes ?? "", notes ?? ""),
+      buildContactChange(
+        "Follow-up",
+        formatFrontOfficeFollowUpStatusLabel(existing.followUpStatus),
+        formatFrontOfficeFollowUpStatusLabel(followUpStatus),
+      ),
+      buildContactChange(
+        "Reminder mode",
+        formatFrontOfficeReminderModeLabel(existing.followUpReminderMode),
+        formatFrontOfficeReminderModeLabel(followUpReminderMode),
+      ),
+      buildContactChange(
+        "Last contact",
+        formatDateValue(existing.lastContactAt),
+        formatDateValue(lastContactAt),
+      ),
+      buildContactChange(
+        "Next follow-up",
+        formatDateValue(existing.nextFollowUpAt),
+        formatDateValue(nextFollowUpAt),
+      ),
+    ].filter((change): change is NonNullable<typeof change> => Boolean(change));
+
+    if (details.length > 0) {
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "contact",
+        entityId: input.clientId,
+        action: activityLogActions.contactUpdated,
+        payload: {
+          officeId: input.actorOfficeId ?? null,
+          contactId: input.clientId,
+          contactName: fullName,
+          objectLabel: buildContactObjectLabel({
+            fullName,
+            email: existing.email,
+            phone: existing.phone,
+          }),
+          changes,
+          details,
+        },
+      });
+    }
+  });
+
+  return getContactById({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId,
+    contactId: input.clientId,
     officeId: input.actorOfficeId ?? null,
   });
 }
@@ -2080,29 +2526,44 @@ export async function getContactById(
       isPrimary: transactionContact.isPrimary,
     }),
   );
+  const additionalFields =
+    client.additionalFields &&
+    typeof client.additionalFields === "object" &&
+    !Array.isArray(client.additionalFields)
+      ? Object.fromEntries(
+          Object.entries(
+            client.additionalFields as Record<string, Prisma.JsonValue>,
+          ).map(([key, value]) => [key, String(value ?? "")]),
+        )
+      : {};
+  const wechatDisplayName = getWechatDisplayName(additionalFields) ?? "";
 
   return {
     id: client.id,
     fullName: client.fullName,
+    displayName: getClientDisplayName({
+      fullName: client.fullName,
+      additionalFields,
+    }),
+    wechatDisplayName,
     email: client.email ?? "",
     phone: client.phone ?? "",
     contactType: client.contactType ?? "",
     source: client.source,
     stage: client.stage,
     intent: client.intent,
+    followUpStatus: client.followUpStatus,
+    followUpStatusLabel: formatFrontOfficeFollowUpStatusLabel(
+      client.followUpStatus,
+    ),
+    followUpReminderMode: client.followUpReminderMode,
+    followUpReminderModeLabel: formatFrontOfficeReminderModeLabel(
+      client.followUpReminderMode,
+    ),
     budgetMin: client.budgetMin ? String(client.budgetMin) : "",
     budgetMax: client.budgetMax ? String(client.budgetMax) : "",
     areas: client.preferredAreas,
-    additionalFields:
-      client.additionalFields &&
-      typeof client.additionalFields === "object" &&
-      !Array.isArray(client.additionalFields)
-        ? Object.fromEntries(
-            Object.entries(
-              client.additionalFields as Record<string, Prisma.JsonValue>,
-            ).map(([key, value]) => [key, String(value ?? "")]),
-          )
-        : {},
+    additionalFields,
     notes: client.notes ?? "",
     lastContactAt: formatDateValue(client.lastContactAt),
     nextFollowUpAt: formatDateValue(client.nextFollowUpAt),

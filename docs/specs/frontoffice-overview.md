@@ -131,6 +131,12 @@ Current implementation priority note:
 - the current UI should keep that same conservative review logic, but the primary operator surface should stay compact: emphasize extracted key fields and apply actions first, while minimizing long explanatory copy and internal batching language in the visible result state
 - that intake path now also performs a lightweight duplicate warning check against the visible FO / CRM scope before create, so obvious same-email / same-phone / same-name lead collisions can be reviewed before a second dossier is created
 - that duplicate warning now also points agents through a clearer next-step sequence, so the existing dossier should be opened and compared first before duplicate review or separate-dossier create is used
+- the intake form now intentionally writes only four structured execution fields from AI review: `Name`, `Budget`, `Target Area`, and `Follow-up Status`; everything else the assist extracts should be folded into an editable `Note`
+- WeChat identity now takes precedence in the visible FO display name when Acre captured one, so the active queue and lightweight detail page should render `wechatDisplayName || fullName`
+- `/agent/clients` now intentionally behaves as a lightweight follow-up workbench, so the main queue stays focused on `Name`, `Budget`, `Target Area`, `Follow-up Status`, `Last follow-up`, `Next reminder`, and `Note` instead of the older lane-heavy CRM shell
+- `/agent/clients/[clientId]` now intentionally behaves as a lightweight execution page, so appointments, send history, offers, inspection support, AI suggestion history, chat scripts, and lease reminders should no longer dominate the page body; those surfaces stay available only through lightweight jump links or secondary routes
+- FO follow-up reminders now use a lighter execution-state model than pipeline stage, with `new_lead`, `active_follow_up`, `waiting_reply`, `appointment_booked`, and `paused` driving the next reminder instead of exposing the heavier stage list as the default operator control
+- that reminder model now defaults to in-app only `auto` scheduling with a reversible manual override path: `new_lead +1 day`, `active_follow_up +2 days`, `waiting_reply +3 days`, `appointment_booked = next appointment date or +1 day`, and `paused = no reminder`
 - `/agent/clients` now also exposes pairwise duplicate review + merge actions for the visible FO / CRM scope, so appointments, follow-up tasks, send records, handoff drafts, and transaction-contact links can be reconciled into one surviving FO dossier instead of leaving the duplicate guard at warning-only
 - `AI explainability + FO / BO boundary hardening` are now also live, so the dashboard queue and dossier can explicitly answer why a suggestion is surfacing now, what changed the priority, whether the work should stay in Front Office or move into Back Office, and why one-click follow-up is available or paused
 - a first `external calendar / email bridge` is now also live on appointment surfaces, so scheduled meetings can jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief without pretending Acre already owns a two-way sync
@@ -253,6 +259,20 @@ Suggested status baseline:
 - `Won`
 - `Lost`
 - `Pending`
+
+Lightweight reminder-state baseline:
+
+- `new_lead`
+- `active_follow_up`
+- `waiting_reply`
+- `appointment_booked`
+- `paused`
+
+Reminder rules:
+
+- the primary FO reminder clock should now be driven by the lightweight `followUpStatus` execution state instead of exposing full pipeline stage as the default operator control
+- manual reminder edits must stay explicit and reversible: the agent can override the auto date, but Acre should keep showing whether the current reminder is `auto` or `manual`
+- in-app reminders are the required reminder channel for this phase; email, SMS, and WeChat outbound reminders remain outside the current FO reminder contract
 
 Rules:
 

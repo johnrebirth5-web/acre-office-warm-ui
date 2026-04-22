@@ -249,6 +249,17 @@ export async function getFrontOfficeActivitySnapshot(
         lastContactAt: true,
         nextFollowUpAt: true,
         leaseReminderAt: true,
+        followUpTasks: {
+          where: {
+            status: {
+              in: [...openFollowUpStatuses],
+            },
+          },
+          select: {
+            id: true,
+          },
+          take: 1,
+        },
       },
     }),
     prisma.client.findMany({
@@ -422,7 +433,10 @@ export async function getFrontOfficeActivitySnapshot(
       .filter((clientId): clientId is string => Boolean(clientId)),
   );
   const dueFollowUpClientOnly = dueFollowUpClients
-    .filter((client) => !dueTaskClientIds.has(client.id))
+    .filter(
+      (client) =>
+        !dueTaskClientIds.has(client.id) && client.followUpTasks.length === 0,
+    )
     .sort((left, right) => {
       const leftNextTouchAt =
         resolveClientNextTouchAt(left)?.getTime() ?? Number.MAX_SAFE_INTEGER;

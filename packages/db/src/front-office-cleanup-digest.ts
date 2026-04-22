@@ -20,6 +20,7 @@ const frontOfficeCleanupDigestNotificationTypes = [
   "offer_created",
   "offer_received",
   "offer_expiring_soon",
+  "follow_up",
   "follow_up_assigned",
   "follow_up_overdue",
   "onboarding_assigned",
@@ -580,6 +581,8 @@ function mapNotificationLabel(type: string) {
       return "Offer received";
     case "offer_expiring_soon":
       return "Offer expiring soon";
+    case "follow_up":
+      return "Follow-up due";
     case "follow_up_assigned":
       return "Follow-up assigned";
     case "follow_up_overdue":
@@ -604,6 +607,7 @@ function mapNotificationTone(type: string): FrontOfficeCleanupDigestTone {
     case "incoming_update_pending_review":
     case "task_review_requested":
     case "task_second_review_requested":
+    case "follow_up":
     case "follow_up_assigned":
     case "onboarding_due_soon":
       return "warning";
