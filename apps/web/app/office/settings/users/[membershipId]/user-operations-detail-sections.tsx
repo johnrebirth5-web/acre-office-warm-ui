@@ -86,7 +86,7 @@ function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
     startDate: snapshot.profile.startDate,
     splitTemplateId: snapshot.defaultCommission.splitTemplateId,
     customAgentPercent: snapshot.defaultCommission.customAgentPercent,
-    commissionEffectiveFrom: snapshot.defaultCommission.effectiveFrom || new Date().toISOString().slice(0, 10),
+    commissionEffectiveFrom: snapshot.defaultCommission.effectiveFrom,
     commissionEffectiveTo: snapshot.defaultCommission.effectiveTo,
     avatarUrl: snapshot.profile.avatarUrl,
     internalExtension: snapshot.profile.internalExtension,
@@ -331,12 +331,43 @@ export function UserOperationsDetailSections({
     setError("");
 
     try {
+      const commissionFieldsChanged =
+        profileState.splitTemplateId !== snapshot.defaultCommission.splitTemplateId ||
+        profileState.customAgentPercent !== snapshot.defaultCommission.customAgentPercent ||
+        profileState.commissionEffectiveFrom !== snapshot.defaultCommission.effectiveFrom ||
+        profileState.commissionEffectiveTo !== snapshot.defaultCommission.effectiveTo;
+      const shouldSubmitCommissionFields =
+        commissionFieldsChanged &&
+        (Boolean(profileState.splitTemplateId.trim()) ||
+          Boolean(profileState.customAgentPercent.trim()) ||
+          Boolean(snapshot.defaultCommission.settingLabel));
+      const effectiveFromValue = shouldSubmitCommissionFields
+        ? profileState.commissionEffectiveFrom ||
+          snapshot.defaultCommission.effectiveFrom ||
+          new Date().toISOString().slice(0, 10)
+        : undefined;
+      const profilePayload = {
+        ...profileState,
+        ...(shouldSubmitCommissionFields
+          ? {
+              commissionEffectiveFrom: effectiveFromValue,
+              commissionEffectiveTo: profileState.commissionEffectiveTo,
+              splitTemplateId: profileState.splitTemplateId,
+              customAgentPercent: profileState.customAgentPercent
+            }
+          : {
+              commissionEffectiveFrom: undefined,
+              commissionEffectiveTo: undefined,
+              splitTemplateId: undefined,
+              customAgentPercent: undefined
+            })
+      };
       const response = await fetch(`/api/office/agents/${snapshot.profile.membershipId}/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(profileState)
+        body: JSON.stringify(profilePayload)
       });
 
       if (!response.ok) {
@@ -575,14 +606,6 @@ export function UserOperationsDetailSections({
                     placeholder="Example: 50"
                     readOnly={!canManageAgents}
                     value={profileState.customAgentPercent}
-                  />
-                </FormField>
-                <FormField className="office-detail-field" label="Split effective from">
-                  <TextInput
-                    onChange={(event) => setProfileField("commissionEffectiveFrom", event.target.value)}
-                    readOnly={!canManageAgents}
-                    type="date"
-                    value={profileState.commissionEffectiveFrom}
                   />
                 </FormField>
                 <div className="office-detail-field">
