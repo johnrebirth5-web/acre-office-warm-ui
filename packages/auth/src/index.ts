@@ -1288,6 +1288,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "listing_studio:create",
     "listing_studio:edit",
     "listing_studio:share",
+    "resources:view",
     "tasks:view",
     "accounting:billing:view",
     "commissions:view",
@@ -1317,6 +1318,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "listing_studio:create",
     "listing_studio:edit",
     "listing_studio:share",
+    "resources:view",
     "tasks:view",
     "accounting:billing:view",
     "commissions:view",
@@ -1433,8 +1435,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
 };
 
 const requiredRoleBaselinePermissions: Partial<Record<UserRole, PermissionKey[]>> = {
-  agent: ["clients:view", "clients:manage", "commissions:view"],
-  team_lead: ["commissions:view", "commissions:view:team"]
+  agent: ["clients:view", "clients:manage", "commissions:view", "resources:view"],
+  team_lead: ["commissions:view", "commissions:view:team", "resources:view"]
 };
 
 function applyRequiredRoleBaselinePermissions(role: UserRole, permissions: readonly PermissionKey[]) {

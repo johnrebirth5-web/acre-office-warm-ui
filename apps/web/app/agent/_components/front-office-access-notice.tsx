@@ -129,8 +129,8 @@ function buildAlternativeEntries(input: {
       href: "/agent/notifications",
       label: t((messages) => messages.agentNav.items.activity),
       description: isZh
-        ? "继续查看清理压力、提醒和动态，不会被带去 Back Office。"
-        : "Review cleanup pressure, reminders, and activity without being bounced into Back Office.",
+        ? "继续查看清理压力、提醒和动态。"
+        : "Review cleanup pressure, reminders, and activity.",
     });
   }
 
@@ -176,8 +176,8 @@ export async function FrontOfficeAccessNotice(
           className="office-list-card"
           subtitle={
             isZh
-              ? "Acre 会把你留在 Front Office 里，并直接说明这个模块当前没有开通。"
-              : "Acre keeps you inside Front Office and explains that this module is not enabled for this account."
+              ? "当前账号暂时不能访问这个模块。"
+              : "This account cannot access this module right now."
           }
           title={isZh ? "访问受限" : "Access restricted"}
         >

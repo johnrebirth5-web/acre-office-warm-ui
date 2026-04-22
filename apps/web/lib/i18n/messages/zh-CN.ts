@@ -116,7 +116,7 @@ export const zhCNMessages = {
     restrictedNavBadge: "受限",
     restrictedNavTitle: "{feature} 暂不可用",
     restrictedNavDescription:
-      "当前账号没有访问 Front Office 模块“{feature}”的权限。Acre 会直接提示这个限制，不再自动把你跳回 Back Office。",
+      "当前账号没有访问“{feature}”的权限。",
   },
   officeNav: {
     workspaceName: "Back Office",

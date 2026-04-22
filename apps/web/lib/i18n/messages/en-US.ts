@@ -117,7 +117,7 @@ export const enUSMessages = {
     restrictedNavBadge: "Restricted",
     restrictedNavTitle: "{feature} unavailable",
     restrictedNavDescription:
-      'This account does not have permission to open the Front Office module "{feature}". Acre now shows that limit directly instead of automatically bouncing you back into Back Office.',
+      'This account does not have permission to open "{feature}".',
   },
   officeNav: {
     workspaceName: "Back Office",

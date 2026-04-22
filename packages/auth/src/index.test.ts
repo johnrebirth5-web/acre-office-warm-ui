@@ -139,6 +139,17 @@ test("required commission visibility baselines survive narrowed permission snaps
     ),
     true
   );
+  assert.equal(can({ role: "agent", permissions: ["dashboard:view"] }, "resources:view"), true);
+  assert.equal(
+    can(
+      {
+        role: "team_lead",
+        permissions: ["dashboard:view", "transactions:view", "transactions:view:team"]
+      },
+      "resources:view"
+    ),
+    true
+  );
 });
 
 test("office user keeps internal read access without admin-only powers", () => {
