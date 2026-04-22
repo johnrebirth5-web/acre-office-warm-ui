@@ -113,6 +113,19 @@ export async function GET(
       requestHeaders: {
         cookie: request.headers.get("cookie") ?? "",
       },
+      normalizeEmbeddedImage: async (buffer, contentType) => {
+        const lower = contentType.toLowerCase();
+        if (
+          lower === "image/jpeg" ||
+          lower === "image/jpg" ||
+          lower === "image/png" ||
+          lower === "image/gif"
+        ) {
+          return { buffer, contentType };
+        }
+        const normalized = await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
+        return { buffer: normalized, contentType: "image/jpeg" };
+      },
     });
     const pngBuffer = await sharp(Buffer.from(svg))
       .png({
