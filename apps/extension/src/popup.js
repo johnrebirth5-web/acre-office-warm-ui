@@ -40,6 +40,23 @@ async function sendMessage(message) {
   }
 }
 
+function buildApprovalUrl(state) {
+  const baseUrl =
+    typeof state?.baseUrl === "string" && state.baseUrl.trim()
+      ? state.baseUrl.trim().replace(/\/+$/, "")
+      : "";
+  const challengeToken =
+    typeof state?.challengeToken === "string" && state.challengeToken.trim()
+      ? state.challengeToken.trim()
+      : "";
+
+  if (!baseUrl || !challengeToken) {
+    return null;
+  }
+
+  return `${baseUrl}/listing-studio/extension/connect/${encodeURIComponent(challengeToken)}`;
+}
+
 function setBadge(label, tone) {
   elements.connectionBadge.textContent = label;
   elements.connectionBadge.className = `popup-badge${tone ? ` ${tone}` : ""}`;
@@ -57,7 +74,7 @@ async function refreshState() {
   } else if (state.connectionState === "pending") {
     setBadge("Awaiting approval", "warning");
     elements.connectionCopy.textContent =
-      "Finish the Acre approval page in your browser. This popup will complete the connection automatically once approved.";
+      "Finish the Acre approval page in your browser. If you closed it, click the connect button again and Acre will reopen it.";
   } else if (state.connectionError) {
     setBadge("Disconnected", "danger");
     elements.connectionCopy.textContent = state.connectionError;
@@ -92,7 +109,20 @@ elements.connectButton.addEventListener("click", async () => {
     type: "SET_BASE_URL",
     baseUrl: elements.baseUrl.value,
   });
-  await sendMessage({ type: "START_CONNECT" });
+
+  const currentState = await sendMessage({ type: "GET_CONFIG" });
+  if (currentState?.connectionState === "pending") {
+    const checkedState = await sendMessage({ type: "CHECK_CONNECTION_STATUS" });
+    if (checkedState?.connectionState === "pending") {
+      const approvalUrl = buildApprovalUrl(checkedState);
+      if (approvalUrl) {
+        await chrome.tabs.create({ url: approvalUrl });
+      }
+    }
+  } else {
+    await sendMessage({ type: "START_CONNECT" });
+  }
+
   await refreshState();
 });
 

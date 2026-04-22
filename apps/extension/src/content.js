@@ -1386,6 +1386,28 @@
     }
   }
 
+  function openApprovalWindow(config) {
+    const baseUrl =
+      typeof config?.baseUrl === "string" && config.baseUrl.trim()
+        ? config.baseUrl.trim().replace(/\/+$/, "")
+        : "";
+    const challengeToken =
+      typeof config?.challengeToken === "string" && config.challengeToken.trim()
+        ? config.challengeToken.trim()
+        : "";
+
+    if (!baseUrl || !challengeToken) {
+      return false;
+    }
+
+    window.open(
+      `${baseUrl}/listing-studio/extension/connect/${encodeURIComponent(challengeToken)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+    return true;
+  }
+
   function createShadowPanel() {
     let host = document.getElementById(PANEL_ID);
     if (host) {
@@ -1424,6 +1446,8 @@
         ? "Saved to Listing Studio"
         : panelState.mode === "saving"
           ? "Saving to Acre..."
+          : panelState.mode === "notice"
+            ? panelState.message || "Finish the Acre approval to continue."
           : panelState.mode === "error"
             ? panelState.message || "Acre save error"
             : isConnected
@@ -1529,6 +1553,8 @@
               ? "#fde8e8"
               : panelState.mode === "saved"
                 ? "#e6f7ef"
+                : panelState.mode === "notice"
+                  ? "#fff4e5"
                 : isConnected
                   ? "#edf3fb"
                   : "#fff4e5"
@@ -1538,6 +1564,8 @@
               ? "#b42318"
               : panelState.mode === "saved"
                 ? "#1f7a57"
+                : panelState.mode === "notice"
+                  ? "#915b08"
                 : isConnected
                   ? "#144a77"
                   : "#915b08"
@@ -1621,7 +1649,7 @@
             ${
               !isConnected
                 ? `<button class="acre-button secondary" data-action="connect" type="button">${
-                    isPending ? "Check approval" : "Connect Acre"
+                    isPending ? "Finish approval" : "Connect Acre"
                   }</button>`
                 : ""
             }
@@ -1642,8 +1670,19 @@
     shadowRoot.querySelector('[data-action="connect"]')?.addEventListener("click", async () => {
       if (currentConfig?.connectionState === "pending") {
         currentConfig = await sendMessage({ type: "CHECK_CONNECTION_STATUS" });
+        if (currentConfig?.connectionState === "pending") {
+          panelState.mode = "notice";
+          panelState.message = openApprovalWindow(currentConfig)
+            ? "Approval tab reopened. Finish approval there, then come back here."
+            : "Approval is still pending. Finish the Acre approval tab, then come back here.";
+        } else {
+          panelState.mode = "idle";
+          panelState.message = "";
+        }
       } else {
         currentConfig = await sendMessage({ type: "START_CONNECT" });
+        panelState.mode = "idle";
+        panelState.message = "";
       }
       renderPanel();
     });
@@ -1665,10 +1704,13 @@
       }
 
       if (currentConfig?.connectionState !== "connected") {
-        panelState.mode = "error";
+        panelState.mode =
+          currentConfig?.connectionState === "pending" ? "notice" : "error";
         panelState.message =
           currentConfig?.connectionState === "pending"
-            ? "Finish the Acre approval tab, then try again."
+            ? openApprovalWindow(currentConfig)
+              ? "Approval tab reopened. Finish approval there, then try saving again."
+              : "Finish the Acre approval tab, then try again."
             : currentConfig?.connectionError ||
               "Connect the Acre extension before saving listings.";
         renderPanel();
@@ -1694,7 +1736,8 @@
         panelState.detailUrl = result.detailUrl || null;
         panelState.message = "Saved to Listing Studio";
       } else {
-        panelState.mode = "error";
+        panelState.mode =
+          result?.errorCode === "APPROVAL_PENDING" ? "notice" : "error";
         panelState.message = result?.error || "Unable to save the listing into Acre.";
         if (
           result?.errorCode === "TOKEN_INVALID" ||
@@ -1702,6 +1745,14 @@
           result?.errorCode === "APPROVAL_PENDING"
         ) {
           currentConfig = await sendMessage({ type: "CHECK_CONNECTION_STATUS" });
+          if (
+            result?.errorCode === "APPROVAL_PENDING" &&
+            currentConfig?.connectionState === "pending"
+          ) {
+            panelState.message = openApprovalWindow(currentConfig)
+              ? "Approval tab reopened. Finish approval there, then try saving again."
+              : panelState.message;
+          }
         }
       }
 

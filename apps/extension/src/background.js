@@ -39,7 +39,29 @@ function normalizeBaseUrl(value) {
   return value.trim().replace(/\/+$/, "") || DEFAULT_BASE_URL;
 }
 
-async function getState() {
+function hasExpired(value) {
+  if (!value || typeof value !== "string") {
+    return false;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && timestamp <= Date.now();
+}
+
+function buildDisconnectedState(connectionError = null) {
+  return {
+    [STORAGE_KEYS.connectionState]: "disconnected",
+    [STORAGE_KEYS.extensionToken]: null,
+    [STORAGE_KEYS.challengeToken]: null,
+    [STORAGE_KEYS.challengeExpiresAt]: null,
+    [STORAGE_KEYS.connectedOrganizationName]: null,
+    [STORAGE_KEYS.connectedMembershipLabel]: null,
+    [STORAGE_KEYS.tokenExpiresAt]: null,
+    [STORAGE_KEYS.connectionError]: connectionError,
+  };
+}
+
+async function readStoredState() {
   const state = await storageGet(Object.values(STORAGE_KEYS));
   return {
     baseUrl: normalizeBaseUrl(state[STORAGE_KEYS.baseUrl]),
@@ -55,6 +77,36 @@ async function getState() {
     connectionError: state[STORAGE_KEYS.connectionError] || null,
     lastSaveResult: state[STORAGE_KEYS.lastSaveResult] || null,
   };
+}
+
+function getApprovalUrl(state) {
+  if (!state?.challengeToken) {
+    return null;
+  }
+
+  return `${state.baseUrl}/listing-studio/extension/connect/${encodeURIComponent(state.challengeToken)}`;
+}
+
+async function getState() {
+  const state = await readStoredState();
+
+  if (state.connectionState === "pending" && hasExpired(state.challengeExpiresAt)) {
+    await storageSet(
+      buildDisconnectedState(
+        "The Acre approval request expired. Start the connection again.",
+      ),
+    );
+    return readStoredState();
+  }
+
+  if (state.connectionState === "connected" && hasExpired(state.tokenExpiresAt)) {
+    await storageSet(
+      buildDisconnectedState("The Acre connection expired. Connect the extension again."),
+    );
+    return readStoredState();
+  }
+
+  return state;
 }
 
 async function setBaseUrl(baseUrl) {
@@ -97,6 +149,8 @@ async function startConnectFlow() {
     connectionState: "pending",
     challengeToken,
     challengeExpiresAt: expiresAt,
+    approvalUrl,
+    baseUrl: state.baseUrl,
   };
 }
 
@@ -112,15 +166,9 @@ async function checkConnectionStatus() {
   );
 
   if (!response.ok) {
-    const nextState = {
-      [STORAGE_KEYS.connectionState]: "disconnected",
-      [STORAGE_KEYS.extensionToken]: null,
-      [STORAGE_KEYS.connectedOrganizationName]: null,
-      [STORAGE_KEYS.connectedMembershipLabel]: null,
-      [STORAGE_KEYS.tokenExpiresAt]: null,
-      [STORAGE_KEYS.connectionError]: "Unable to verify the Acre extension approval.",
-    };
-    await storageSet(nextState);
+    await storageSet(
+      buildDisconnectedState("Unable to verify the Acre extension approval."),
+    );
     return getState();
   }
 
@@ -143,23 +191,21 @@ async function checkConnectionStatus() {
   }
 
   if (body.status === "expired" || body.status === "consumed" || body.status === "not_found") {
-    await storageSet({
-      [STORAGE_KEYS.connectionState]: "disconnected",
-      [STORAGE_KEYS.extensionToken]: null,
-      [STORAGE_KEYS.challengeToken]: null,
-      [STORAGE_KEYS.challengeExpiresAt]: null,
-      [STORAGE_KEYS.connectedOrganizationName]: null,
-      [STORAGE_KEYS.connectedMembershipLabel]: null,
-      [STORAGE_KEYS.tokenExpiresAt]: null,
-      [STORAGE_KEYS.connectionError]:
+    await storageSet(
+      buildDisconnectedState(
         body.status === "expired"
           ? "The Acre approval request expired. Start the connection again."
           : "The Acre approval request is no longer active. Start the connection again.",
-    });
+      ),
+    );
     return getState();
   }
 
-  return getState();
+  const nextState = await getState();
+  return {
+    ...nextState,
+    approvalUrl: getApprovalUrl(nextState),
+  };
 }
 
 async function disconnect() {
@@ -172,9 +218,7 @@ async function disconnect() {
     STORAGE_KEYS.challengeExpiresAt,
     STORAGE_KEYS.connectionError,
   ]);
-  await storageSet({
-    [STORAGE_KEYS.connectionState]: "disconnected",
-  });
+  await storageSet(buildDisconnectedState(null));
   return getState();
 }
 
