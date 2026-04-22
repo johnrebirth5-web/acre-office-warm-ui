@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
-import { addAgentToTeam, createAgentTeam, deleteAgentTeam, getOfficeAgentsRosterSnapshot } from "./agents.ts";
+import { addAgentToTeam, createAgentTeam, deleteAgentTeam, getOfficeAgentsRosterSnapshot, removeAgentFromTeam, updateAgentTeam } from "./agents.ts";
 import { prisma } from "./client.ts";
 import {
   getOfficeAdminUserDetailSnapshot,
@@ -939,6 +939,133 @@ test("deleteAgentTeam removes the final owner assignment when it is the only rem
     assert.equal(deletedTeamMembershipCount, 0);
     assert.equal(refreshedLeader?.role, "team_lead");
     assert.equal(refreshedLeader?.title, "No active team");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateAgentTeam and deleteAgentTeam allow shared teams from an office-scoped session", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const leader = await context.createMembership(
+      "team_lead",
+      "shared-team-owner",
+      "Shared",
+      "Owner",
+      "No active team"
+    );
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: null,
+        name: `Shared Team ${randomUUID().slice(0, 8)}`,
+        slug: `shared-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id,
+      membershipId: leader.membership.id,
+      role: "team_leader"
+    });
+
+    const updatedTeam = await updateAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id,
+      name: "Shared Team Updated"
+    });
+
+    assert.equal(updatedTeam.name, "Shared Team Updated");
+
+    await deleteAgentTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id
+    });
+
+    const deletedTeam = await prisma.team.findUnique({
+      where: {
+        id: team.id
+      }
+    });
+
+    assert.equal(deletedTeam, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("removeAgentFromTeam allows removing shared-team members from an office-scoped session", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const leader = await context.createMembership(
+      "team_lead",
+      "shared-team-leader",
+      "Shared",
+      "Leader",
+      "No active team"
+    );
+    const member = await context.createMembership(
+      "agent",
+      "shared-team-member",
+      "Shared",
+      "Member",
+      "Agent"
+    );
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: null,
+        name: `Shared Remove ${randomUUID().slice(0, 8)}`,
+        slug: `shared-remove-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id,
+      membershipId: leader.membership.id,
+      role: "team_leader"
+    });
+    await addAgentToTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id,
+      membershipId: member.membership.id,
+      role: "member"
+    });
+
+    await removeAgentFromTeam({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      teamId: team.id,
+      membershipId: member.membership.id
+    });
+
+    const remainingMemberships = await prisma.teamMembership.findMany({
+      where: {
+        organizationId: context.organization.id,
+        teamId: team.id
+      },
+      select: {
+        membershipId: true
+      },
+      orderBy: [{ membershipId: "asc" }]
+    });
+
+    assert.deepEqual(remainingMemberships, [{ membershipId: leader.membership.id }]);
   } finally {
     await context.cleanup();
   }

@@ -214,6 +214,7 @@ export type OfficeAgentTeamSummary = {
   teamPathLabel: string;
   childTeamCount: number;
   memberCount: number;
+  commissionPlanAssignmentCount: number;
   openTaskCount: number;
   openTransactionCount: number;
   onboardingInProgressCount: number;

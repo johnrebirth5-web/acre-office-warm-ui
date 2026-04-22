@@ -219,6 +219,11 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         }
       },
       include: {
+        _count: {
+          select: {
+            commissionPlanAssignments: true
+          }
+        },
         memberships: {
           where: {
             ...(scope.visibleMembershipIds ? { membershipId: { in: scope.visibleMembershipIds } } : {})
@@ -584,6 +589,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       teamPathLabel: teamPathLabelMap.get(team.id) ?? team.name,
       childTeamCount: teamHierarchy.index.childTeamIdsByParentId.get(team.id)?.length ?? 0,
       memberCount: team.memberships.length,
+      commissionPlanAssignmentCount: team._count.commissionPlanAssignments,
       openTaskCount: team.memberships.reduce(
         (sum, teamMembership) => sum + (openTaskCountMap.get(teamMembership.membershipId) ?? 0),
         0

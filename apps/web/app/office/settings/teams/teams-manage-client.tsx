@@ -135,6 +135,52 @@ function getCurrentInvalidManagerOption(
   };
 }
 
+function getMemberDirectReportCount(team: TeamRecord, teamMembershipId: string) {
+  return team.members.filter((member) => member.reportsToTeamMembershipId === teamMembershipId).length;
+}
+
+function getRemoveMemberBlockedReason(team: TeamRecord, member: TeamRecord["members"][number]) {
+  const directReportCount = getMemberDirectReportCount(team, member.teamMembershipId);
+  const isCurrentBranchLeader = isValidBranchLeaderRoleForTeam(team, member.roleValue);
+
+  if (isCurrentBranchLeader && getBranchLeaderMembers(team).length === 1) {
+    return team.parentTeamId
+      ? "Assign another Junior Team Leader before removing the current owner."
+      : "Assign another Team Leader before removing the current owner.";
+  }
+
+  if (directReportCount > 0) {
+    return `Reassign or remove ${directReportCount} direct report${directReportCount === 1 ? "" : "s"} before removing this member.`;
+  }
+
+  if (isLeaderRoleValue(member.roleValue) && team.childTeamCount > 0) {
+    return "Reassign this team's Junior Teams before removing its leader.";
+  }
+
+  return null;
+}
+
+function getDeleteTeamBlockedReason(team: TeamRecord) {
+  const canCascadeDeleteFinalOwner =
+    team.members.length === 1 && Boolean(team.members[0] && isValidBranchLeaderRoleForTeam(team, team.members[0].roleValue));
+
+  if (team.members.length > 0 && !canCascadeDeleteFinalOwner) {
+    return "Remove all team members before deleting this team.";
+  }
+
+  if (team.childTeamCount > 0) {
+    return "Remove or reassign this team's Junior Teams before deleting it.";
+  }
+
+  if (team.commissionPlanAssignmentCount > 0) {
+    return `Remove ${team.commissionPlanAssignmentCount} commission plan assignment${
+      team.commissionPlanAssignmentCount === 1 ? "" : "s"
+    } before deleting this team.`;
+  }
+
+  return null;
+}
+
 function getTeamRoleOptions(team: TeamRecord, currentRoleValue?: string) {
   const options = [
     { value: getLeaderRoleValue(team), label: getLeaderRoleLabel(team) },
@@ -584,6 +630,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                 : "Unassigned";
               const branchOwnerNoun = getLeaderRoleLabel(team);
               const branchTypeLabel = getBranchTypeLabel(team);
+              const deleteBlockedReason = getDeleteTeamBlockedReason(team);
               const multipleBranchLeaderMessage =
                 branchLeaderMembers.length > 1
                   ? `Multiple leaders are assigned: ${branchOwnerLabel}. Keep only one active ${getLeaderRoleLabel(team)} on this ${branchTypeLabel.toLowerCase()}.`
@@ -605,7 +652,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                   }
                   className="office-settings-team-card"
                   key={team.id}
-                  subtitle={`${team.parentTeamId ? `Parent: ${parentTeamLabel}` : "No parent team"} · ${team.memberCount} members · ${team.childTeamCount} Junior Teams · ${team.openTaskCount} open tasks · ${team.openTransactionCount} open transactions`}
+                  subtitle={`${team.parentTeamId ? `Parent: ${parentTeamLabel}` : "No parent team"} · ${team.memberCount} members · ${team.childTeamCount} Junior Teams · ${team.commissionPlanAssignmentCount} commission plan assignments · ${team.openTaskCount} open tasks · ${team.openTransactionCount} open transactions`}
                   title={team.teamPathLabel}
                 >
                   <div className="office-settings-team-editor">
@@ -656,7 +703,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                           {pendingAction === `save-team:${team.id}` ? "Saving..." : "Save team"}
                         </Button>
                         <Button
-                          disabled={pendingAction === `delete-team:${team.id}`}
+                          disabled={Boolean(deleteBlockedReason) || pendingAction === `delete-team:${team.id}`}
                           onClick={() =>
                             setConfirmDialog({
                               title: `Delete ${team.name}?`,
@@ -683,6 +730,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                     </p>
                     {multipleBranchLeaderMessage ? <p className="office-settings-team-warning">{multipleBranchLeaderMessage}</p> : null}
                     {invalidLeaderMessage ? <p className="office-settings-team-warning">{invalidLeaderMessage}</p> : null}
+                    {deleteBlockedReason ? <p className="office-settings-team-warning">Delete blocked: {deleteBlockedReason}</p> : null}
                   </div>
 
                   <div className="office-settings-team-members">
@@ -714,6 +762,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                             member.roleValue === "member" &&
                             currentManager &&
                             !isValidBranchLeaderRoleForTeam(team, currentManager.roleValue);
+                          const removeBlockedReason = getRemoveMemberBlockedReason(team, member);
 
                           return (
                           <article className={`office-settings-team-member-row${canManageTeams ? "" : " is-readonly"}`} key={member.membershipId}>
@@ -725,6 +774,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                                 {member.reportsToLabel !== "No direct manager" ? ` · Reports to ${member.reportsToLabel}` : ""}
                                 {invalidDirectManager ? ` · Direct manager is not the current ${getLeaderRoleLabel(team)}` : ""}
                               </p>
+                              {removeBlockedReason ? <p className="office-settings-team-warning">Remove blocked: {removeBlockedReason}</p> : null}
                             </div>
                             {canManageTeams ? (
                               <div className="office-settings-team-member-controls">
@@ -778,7 +828,7 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
                                   Save
                                 </Button>
                                 <Button
-                                  disabled={pendingAction === `remove-member:${team.id}:${member.membershipId}`}
+                                  disabled={Boolean(removeBlockedReason) || pendingAction === `remove-member:${team.id}:${member.membershipId}`}
                                   onClick={() =>
                                     setConfirmDialog({
                                       title: `Remove ${member.label} from ${team.name}?`,

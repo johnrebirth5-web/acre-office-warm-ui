@@ -286,7 +286,7 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
       where: {
         id: input.teamId,
         organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
       }
     });
 
@@ -421,7 +421,7 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
       where: {
         id: input.teamId,
         organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
       }
     });
 
@@ -813,7 +813,7 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
         where: {
           id: input.teamId,
           organizationId: input.organizationId,
-          ...(input.officeId ? { officeId: input.officeId } : {})
+          ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
         }
       }),
       ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId),
