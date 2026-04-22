@@ -49,8 +49,8 @@ Use this baseline unless the current task explicitly says otherwise:
   - the local Docker `db` container keeps PostgreSQL on container port `5432`, but publishes to host port `5433`; host-mode `.env.local` / Prisma commands should use `127.0.0.1:5433`, while container-to-container access stays on `db:5432`
   - `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean` is a stale partial directory and must not be treated as the active repo or Docker source of truth
   - PostgreSQL data, `node_modules`, Next cache, and local documents live in Docker volumes
-  - macOS local container runtime may use `colima`
-  - when local Docker dev uses the DO database tunnel, `scripts/docker-dev-keepalive.sh` should bind the SSH forward on `0.0.0.0:15432` so containers can reach it via `host.lima.internal:15432`; host-mode tools should still use `127.0.0.1:15432`
+  - macOS local container runtime uses OrbStack (historically `colima`/Lima); do not assume `host.lima.internal` resolves
+  - when local Docker dev uses the DO database tunnel, `scripts/docker-dev-keepalive.sh` should bind the SSH forward on `0.0.0.0:15432` so containers can reach it via `host.docker.internal:15432` (OrbStack / Docker Desktop); host-mode tools should still use `127.0.0.1:15432`
   - when local Docker runs `next dev`, the bottom-left `N` Next.js dev tools badge is expected and does not mean the app is running outside Docker
 - default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - default public entry: `https://acresystem.us/`
