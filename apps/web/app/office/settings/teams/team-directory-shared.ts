@@ -82,7 +82,7 @@ export function getAssignableLeaderOptions(snapshot: TeamDirectorySnapshot, pare
     parentTeam ? getDirectMembers(parentTeam).filter((member) => member.roleValue === "member").map((member) => member.membershipId) : []
   );
 
-  return snapshot.rows
+  return snapshot.allRows
     .filter(
       (row) =>
         isTeamHierarchyAssignableRoleValue(row.roleValue) &&

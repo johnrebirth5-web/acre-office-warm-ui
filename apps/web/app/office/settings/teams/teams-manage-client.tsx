@@ -235,11 +235,11 @@ export function OfficeSettingsTeamsManageClient({ snapshot, canManageTeams }: Of
 
   const memberOptions = useMemo(
     () =>
-      snapshot.rows.map((row) => ({
+      snapshot.allRows.map((row) => ({
         membershipId: row.membershipId,
         label: `${row.name} · ${row.title}`
       })),
-    [snapshot.rows]
+    [snapshot.allRows]
   );
   const rootTeamOptions = useMemo(() => snapshot.teams.filter((team) => !team.parentTeamId), [snapshot.teams]);
   const newTeamLeaderOptions = useMemo(

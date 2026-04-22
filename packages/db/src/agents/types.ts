@@ -243,6 +243,7 @@ export type OfficeAgentsRosterSnapshot = {
   pageSize: number;
   totalPages: number;
   filters: OfficeAgentRosterFilters;
+  allRows: OfficeAgentRosterRow[];
   rows: OfficeAgentRosterRow[];
   teams: OfficeAgentTeamSummary[];
 };

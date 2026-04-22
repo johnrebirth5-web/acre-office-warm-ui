@@ -521,8 +521,10 @@ test("getOfficeAgentsRosterSnapshot paginates filtered roster results at 50 rows
     assert.equal(firstPage.pageSize, 50);
     assert.equal(firstPage.totalPages, 2);
     assert.equal(firstPage.summary.totalMembers, 55);
+    assert.equal(firstPage.allRows.length, 55);
     assert.equal(firstPage.rows.length, 50);
     assert.equal(secondPage.totalCount, 55);
+    assert.equal(secondPage.allRows.length, 55);
     assert.equal(secondPage.page, 2);
     assert.equal(secondPage.rows.length, 5);
 
@@ -530,6 +532,10 @@ test("getOfficeAgentsRosterSnapshot paginates filtered roster results at 50 rows
     assert.equal(
       secondPage.rows.some((row) => firstPageIds.has(row.membershipId)),
       false,
+    );
+    assert.equal(
+      firstPage.allRows.some((row) => secondPage.rows.some((secondPageRow) => secondPageRow.membershipId === row.membershipId)),
+      true,
     );
   } finally {
     await context.cleanup();

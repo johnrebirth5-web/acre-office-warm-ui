@@ -470,9 +470,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     Math.max(Math.trunc(requestedPage) || defaultOfficeAgentsRosterPage, 1),
     totalPages
   );
-  const pagedMemberships = filteredMemberships.slice((page - 1) * pageSize, page * pageSize);
-
-  const rows = pagedMemberships.map((membership) => {
+  const buildRosterRow = (membership: (typeof filteredMemberships)[number]) => {
     const balance = billingSummary.get(membership.id);
     const canViewFinancials = canViewFinancialsForMembership(scope, membership.id);
     const onboardingProgress = onboardingProgressMap.get(membership.id) ?? {
@@ -521,7 +519,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         : "Restricted",
       href: `/office/agents/${membership.id}`
     };
-  });
+  };
+  const allRows = filteredMemberships.map(buildRosterRow);
+  const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
   const activeTeamCount = teams.filter((team) => team.isActive && team.memberships.length > 0).length;
   const roleOptions = [
@@ -572,6 +572,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         label: teamPathLabelMap.get(team.id) ?? team.name
       }))
     },
+    allRows,
     rows,
     teams: teams.map((team) => ({
       id: team.id,
