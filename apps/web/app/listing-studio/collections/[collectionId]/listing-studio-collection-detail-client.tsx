@@ -11,6 +11,7 @@ import type {
   StudioListingListItem,
 } from "@acre/db";
 import { ListingStudioCard } from "../../listing-studio-card";
+import { DeleteCollectionButton } from "../delete-collection-button";
 import { ListingStudioCollectionMap } from "./listing-studio-collection-map";
 
 type ListingStudioCollectionDetailClientProps = {
@@ -255,6 +256,11 @@ export function ListingStudioCollectionDetailClient({
           >
             Add listings
           </button>
+          <DeleteCollectionButton
+            collectionId={detailState.id}
+            collectionName={detailState.name}
+            onError={(message) => setStatusMessage(message)}
+          />
         </div>
       </section>
 

@@ -139,6 +139,8 @@
   - 从 company dashboard 收录的 pack
 - imported-at / saved-at 时间排序
 - 每张 card 支持直接加入 / 移出 collections
+- 从 `company dashboard` 收录的 pack 支持从个人 `My listings` workspace 移出，且不会删除共享 company pack 本体
+- 自己导入的 pack 仍支持完整删除，并级联清理相关 collection memberships
 - 具备 `listing_studio:company_manage` 的管理员可在这里把个人 pack 发布到 company dashboard
 
 ### Collections
@@ -150,6 +152,7 @@
   - listing count
   - updated-at
   - preview listings
+- collection list / detail 都支持删除入口，并在删除前给出确认
 - collection detail 展示：
   - saved listings card grid
   - `Add listings` 多选管理器

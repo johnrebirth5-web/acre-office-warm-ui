@@ -11,6 +11,9 @@ import type {
 import { StudioCollectionPicker } from "./studio-collection-picker";
 
 type ListingStudioCardMode = "personal" | "dashboard";
+type ListingStudioDeleteActionMode =
+  | "delete_listing"
+  | "remove_from_my_listings";
 
 const DEFAULT_COMPANY_FEED_LABEL = "Acre Featured";
 const OTHER_COMPANY_FEED_LABEL = "Other";
@@ -31,6 +34,7 @@ type ListingStudioCardProps = {
   showCollectionPicker?: boolean;
   collectionPickerButtonLabel?: string;
   showDeleteAction?: boolean;
+  deleteActionMode?: ListingStudioDeleteActionMode;
   canManageCompanyFeed?: boolean;
   onRemoveFromCollection?: ((packId: string) => Promise<void> | void) | null;
   removeFromCollectionLabel?: string;
@@ -118,6 +122,7 @@ export function ListingStudioCard({
   showCollectionPicker = false,
   collectionPickerButtonLabel = "Add to collection",
   showDeleteAction = false,
+  deleteActionMode = "delete_listing",
   canManageCompanyFeed = false,
   onRemoveFromCollection = null,
   removeFromCollectionLabel = "Remove from collection",
@@ -151,6 +156,7 @@ export function ListingStudioCard({
   const [customCompanyFeedLabel, setCustomCompanyFeedLabel] = useState(
     initialCompanyFeedChoice.customLabel,
   );
+  const resolvedDeleteActionMode = showDeleteAction ? deleteActionMode : null;
   const companyFeedMediaBadgeLabel = companyFeedVisible
     ? companyFeedLabel || DEFAULT_COMPANY_FEED_LABEL
     : null;
@@ -160,29 +166,47 @@ export function ListingStudioCard({
   }
 
   async function handleDelete() {
-    if (isDeleting) {
+    if (isDeleting || !resolvedDeleteActionMode) {
       return;
     }
 
     setIsDeleting(true);
 
     try {
-      const response = await fetch(`/api/listing-studio/listings/${item.packId}`, {
-        method: "DELETE",
-      });
+      const isRemovingFromMyListings =
+        resolvedDeleteActionMode === "remove_from_my_listings";
+      const response = await fetch(
+        isRemovingFromMyListings
+          ? `/api/listing-studio/listings/${item.packId}/save`
+          : `/api/listing-studio/listings/${item.packId}`,
+        {
+          method: "DELETE",
+        },
+      );
       const payload = (await response.json().catch(() => null)) as
         | { error?: string }
         | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to delete this listing.");
+        throw new Error(
+          payload?.error ||
+            (isRemovingFromMyListings
+              ? "Unable to remove this listing from My listings."
+              : "Unable to delete this listing."),
+        );
       }
 
       setIsDeleteDialogOpen(false);
       setIsHidden(true);
 
       const nextSearchParams = new URLSearchParams(searchParams.toString());
-      nextSearchParams.set("deleted", "1");
+      if (isRemovingFromMyListings) {
+        nextSearchParams.delete("deleted");
+        nextSearchParams.set("removed", "1");
+      } else {
+        nextSearchParams.delete("removed");
+        nextSearchParams.set("deleted", "1");
+      }
       const nextQuery = nextSearchParams.toString();
 
       startTransition(() => {
@@ -193,7 +217,9 @@ export function ListingStudioCard({
       window.alert(
         error instanceof Error
           ? error.message
-          : "Unable to delete this listing.",
+          : resolvedDeleteActionMode === "remove_from_my_listings"
+            ? "Unable to remove this listing from My listings."
+            : "Unable to delete this listing.",
       );
     } finally {
       setIsDeleting(false);
@@ -338,7 +364,7 @@ export function ListingStudioCard({
         {showDeleteAction ? (
           <div className="listing-studio-card-top-actions">
             <button
-              aria-label={`Delete ${item.displayTitle || item.addressLine}`}
+              aria-label={`${resolvedDeleteActionMode === "remove_from_my_listings" ? "Remove" : "Delete"} ${item.displayTitle || item.addressLine}`}
               className="listing-studio-card-delete-button"
               disabled={isDeleting}
               onClick={(event) => {
@@ -346,7 +372,11 @@ export function ListingStudioCard({
                 event.stopPropagation();
                 setIsDeleteDialogOpen(true);
               }}
-              title="Delete listing"
+              title={
+                resolvedDeleteActionMode === "remove_from_my_listings"
+                  ? "Remove from My listings"
+                  : "Delete listing"
+              }
               type="button"
             >
               <IconTrash />
@@ -474,9 +504,21 @@ export function ListingStudioCard({
 
       <ConfirmActionDialog
         cancelLabel="Keep listing"
-        confirmLabel={isDeleting ? "Deleting..." : "Delete listing"}
+        confirmLabel={
+          isDeleting
+            ? resolvedDeleteActionMode === "remove_from_my_listings"
+              ? "Removing..."
+              : "Deleting..."
+            : resolvedDeleteActionMode === "remove_from_my_listings"
+              ? "Remove from my listings"
+              : "Delete listing"
+        }
         confirmVariant="danger"
-        description="This will permanently remove the saved packet, its imported assets, and its collection memberships."
+        description={
+          resolvedDeleteActionMode === "remove_from_my_listings"
+            ? "This will remove the listing from your personal workspace and from any of your collections that currently include it. The shared company packet will stay available."
+            : "This will permanently remove the saved packet, its imported assets, and its collection memberships."
+        }
         isOpen={isDeleteDialogOpen}
         onCancel={() => {
           if (!isDeleting) {
@@ -486,9 +528,17 @@ export function ListingStudioCard({
         onConfirm={() => {
           void handleDelete();
         }}
-        title={`Delete ${item.displayTitle || item.addressLine}?`}
+        title={
+          resolvedDeleteActionMode === "remove_from_my_listings"
+            ? `Remove ${item.displayTitle || item.addressLine} from My listings?`
+            : `Delete ${item.displayTitle || item.addressLine}?`
+        }
       >
-        <p>This action cannot be undone.</p>
+        <p>
+          {resolvedDeleteActionMode === "remove_from_my_listings"
+            ? "You can always add it back again from the company dashboard later."
+            : "This action cannot be undone."}
+        </p>
       </ConfirmActionDialog>
 
       <ConfirmActionDialog

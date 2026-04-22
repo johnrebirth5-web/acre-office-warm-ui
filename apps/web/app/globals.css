@@ -19075,6 +19075,17 @@ body,
   grid-column: 1 / -1;
 }
 
+.listing-studio-collection-card-shell {
+  position: relative;
+}
+
+.listing-studio-collection-card-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+}
+
 .listing-studio-collection-card {
   display: grid;
   gap: 16px;

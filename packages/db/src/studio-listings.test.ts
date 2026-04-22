@@ -23,6 +23,7 @@ import {
   listStudioListingCollections,
   publishStudioListingPack,
   removeStudioListingPackFromCollection,
+  removeStudioListingPackFromMyListings,
   saveStudioListingPackToMyListings,
   updateStudioListingPack,
 } from "./studio-listings.ts";
@@ -432,6 +433,77 @@ test("company dashboard saves are idempotent and scoped to the viewer", async ()
       "saved_from_dashboard",
     );
     assert.ok(!ownerListings.some((item) => item.packId === pack.packId));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard-saved listings can be removed from personal workspace and collections without deleting the shared pack", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.adminMembership.id,
+      title: "Shared Court Square",
+      streetAddress: "27-01 Jackson Avenue",
+      companyFeedVisible: true,
+    });
+
+    await saveStudioListingPackToMyListings({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+      packId: pack.packId,
+    });
+
+    const collection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.teammateMembership.id,
+      name: "Shared shortlist",
+      initialPackId: pack.packId,
+    });
+    assert.ok(collection);
+    assert.equal(collection?.listingCount, 1);
+
+    const removed = await removeStudioListingPackFromMyListings({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+      packId: pack.packId,
+    });
+
+    assert.deepEqual(removed, {
+      removed: true,
+      removedCollectionCount: 1,
+    });
+
+    const teammateListings = await listStudioListingPacks({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+    });
+    assert.ok(!teammateListings.some((item) => item.packId === pack.packId));
+
+    const collectionAfterRemoval = await getStudioListingCollectionDetail({
+      organizationId: context.organization.id,
+      membershipId: context.teammateMembership.id,
+      collectionId: collection?.id ?? "",
+    });
+    assert.equal(collectionAfterRemoval?.listingCount, 0);
+
+    const dashboard = await getListingStudioCompanyDashboard({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+    assert.ok(dashboard.items.some((item) => item.packId === pack.packId));
+
+    await assert.rejects(
+      () =>
+        removeStudioListingPackFromMyListings({
+          organizationId: context.organization.id,
+          membershipId: context.adminMembership.id,
+          packId: pack.packId,
+        }),
+      /Only company dashboard listings can be removed from My listings\./,
+    );
   } finally {
     await context.cleanup();
   }

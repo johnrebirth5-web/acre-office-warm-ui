@@ -48,6 +48,7 @@ export default async function ListingStudioListingsPage(
   const sourceSite = readSearchParam(searchParams, "source") as StudioListingSourceSite | "";
   const listingType = readSearchParam(searchParams, "type");
   const deleted = readSearchParam(searchParams, "deleted");
+  const removed = readSearchParam(searchParams, "removed");
   const [overview, items] = await Promise.all([
     getListingStudioWorkspaceOverview({
       organizationId: context.currentOrganization.id,
@@ -80,6 +81,10 @@ export default async function ListingStudioListingsPage(
         {deleted ? (
           <div className="listing-studio-status-message">
             Listing deleted from Listing Studio.
+          </div>
+        ) : removed ? (
+          <div className="listing-studio-status-message">
+            Listing removed from My listings.
           </div>
         ) : null}
 
@@ -187,10 +192,15 @@ export default async function ListingStudioListingsPage(
                 items.map((item) => (
                   <ListingStudioCard
                     canManageCompanyFeed={canManageCompanyFeed}
+                    deleteActionMode={
+                      item.savedSource === "saved_from_dashboard"
+                        ? "remove_from_my_listings"
+                        : "delete_listing"
+                    }
                     item={item}
                     key={item.packId}
                     showCollectionPicker
-                    showDeleteAction={item.savedSource === "imported_by_me"}
+                    showDeleteAction={Boolean(item.savedSource)}
                   />
                 ))
               ) : (

@@ -2860,6 +2860,87 @@ export async function saveStudioListingPackToMyListings(input: {
   };
 }
 
+export async function removeStudioListingPackFromMyListings(input: {
+  organizationId: string;
+  membershipId: string;
+  packId: string;
+}) {
+  const savedPack = await prisma.studioListingSavedPack.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      packId: input.packId,
+    },
+    select: {
+      id: true,
+      source: true,
+    },
+  });
+
+  if (!savedPack) {
+    return null;
+  }
+
+  if (savedPack.source !== StudioListingSavedPackSource.saved_from_dashboard) {
+    throw new Error("Only company dashboard listings can be removed from My listings.");
+  }
+
+  const removedCollectionIds = await prisma.$transaction(async (tx) => {
+    const collectionIds = (
+      await tx.studioListingCollection.findMany({
+        where: {
+          organizationId: input.organizationId,
+          createdByMembershipId: input.membershipId,
+          items: {
+            some: {
+              packId: input.packId,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      })
+    ).map((collection) => collection.id);
+
+    if (collectionIds.length) {
+      await tx.studioListingCollectionItem.deleteMany({
+        where: {
+          collectionId: {
+            in: collectionIds,
+          },
+          packId: input.packId,
+        },
+      });
+
+      await tx.studioListingCollection.updateMany({
+        where: {
+          id: {
+            in: collectionIds,
+          },
+        },
+        data: {
+          updatedByMembershipId: input.membershipId,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    await tx.studioListingSavedPack.delete({
+      where: {
+        id: savedPack.id,
+      },
+    });
+
+    return collectionIds;
+  });
+
+  return {
+    removed: true,
+    removedCollectionCount: removedCollectionIds.length,
+  };
+}
+
 export async function appendStudioListingPackAssets(input: {
   organizationId: string;
   packId: string;

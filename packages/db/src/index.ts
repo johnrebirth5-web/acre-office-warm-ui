@@ -145,6 +145,7 @@ export {
   publishStudioListingPack,
   addStudioListingPackToCollection,
   removeStudioListingPackFromCollection,
+  removeStudioListingPackFromMyListings,
   saveStudioListingPackToMyListings,
   updateStudioListingCollection,
   updateStudioListingPack,

@@ -2,6 +2,19 @@ import Link from "next/link";
 import { listStudioListingCollections } from "@acre/db";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { CreateCollectionForm } from "./create-collection-form";
+import { DeleteCollectionButton } from "./delete-collection-button";
+
+type ListingStudioCollectionsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function readSearchParam(
+  searchParams: Record<string, string | string[] | undefined>,
+  key: string,
+) {
+  const value = searchParams[key];
+  return typeof value === "string" ? value : Array.isArray(value) ? value[0] : "";
+}
 
 function formatUpdatedLabel(value: string) {
   const date = new Date(value);
@@ -16,8 +29,12 @@ function formatUpdatedLabel(value: string) {
   });
 }
 
-export default async function ListingStudioCollectionsPage() {
+export default async function ListingStudioCollectionsPage(
+  props: ListingStudioCollectionsPageProps,
+) {
   const context = await requireSessionContext();
+  const searchParams = (await props.searchParams) ?? {};
+  const deleted = readSearchParam(searchParams, "deleted");
   const collections = await listStudioListingCollections({
     organizationId: context.currentOrganization.id,
     membershipId: context.currentMembership.id,
@@ -37,6 +54,12 @@ export default async function ListingStudioCollectionsPage() {
       </section>
 
       <div className="listing-studio-shell">
+        {deleted ? (
+          <div className="listing-studio-status-message">
+            Collection deleted from Listing Studio.
+          </div>
+        ) : null}
+
         <section className="listing-studio-toolbar-card">
           <CreateCollectionForm />
         </section>
@@ -57,50 +80,66 @@ export default async function ListingStudioCollectionsPage() {
           <div className="listing-studio-collections-grid">
             {collections.length ? (
               collections.map((collection) => (
-                <Link
-                  className="listing-studio-collection-card"
-                  href={`/listing-studio/collections/${collection.id}`}
+                <div
+                  className="listing-studio-collection-card-shell"
                   key={collection.id}
                 >
-                  <div className="listing-studio-collection-card-media">
-                    {collection.previewListings.length ? (
-                      collection.previewListings.map((listing, index) => (
-                        <div
-                          className="listing-studio-collection-card-tile"
-                          key={listing.packId}
-                          style={{ zIndex: collection.previewListings.length - index }}
-                        >
-                          {listing.heroAssetId ? (
-                            <img
-                              alt={listing.displayTitle || listing.addressLine}
-                              src={`/api/listing-studio/assets/${listing.heroAssetId}`}
-                            />
-                          ) : (
-                            <span>
-                              {listing.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow"}
-                            </span>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="listing-studio-collection-card-empty">
-                        Empty collection
-                      </div>
-                    )}
+                  <div className="listing-studio-collection-card-actions">
+                    <DeleteCollectionButton
+                      buttonClassName="listing-studio-card-delete-button"
+                      collectionId={collection.id}
+                      collectionName={collection.name}
+                      iconOnly
+                    />
                   </div>
 
-                  <div className="listing-studio-collection-card-body">
-                    <div className="listing-studio-collection-card-meta">
-                      <span>{collection.listingCount} listing{collection.listingCount === 1 ? "" : "s"}</span>
-                      <span>Updated {formatUpdatedLabel(collection.updatedAt)}</span>
+                  <Link
+                    className="listing-studio-collection-card"
+                    href={`/listing-studio/collections/${collection.id}`}
+                  >
+                    <div className="listing-studio-collection-card-media">
+                      {collection.previewListings.length ? (
+                        collection.previewListings.map((listing, index) => (
+                          <div
+                            className="listing-studio-collection-card-tile"
+                            key={listing.packId}
+                            style={{ zIndex: collection.previewListings.length - index }}
+                          >
+                            {listing.heroAssetId ? (
+                              <img
+                                alt={listing.displayTitle || listing.addressLine}
+                                src={`/api/listing-studio/assets/${listing.heroAssetId}`}
+                              />
+                            ) : (
+                              <span>
+                                {listing.sourceSite === "streeteasy" ? "StreetEasy" : "Zillow"}
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="listing-studio-collection-card-empty">
+                          Empty collection
+                        </div>
+                      )}
                     </div>
-                    <strong>{collection.name}</strong>
-                    <p>
-                      Open this folder to review every saved listing and the live map
-                      view for the area.
-                    </p>
-                  </div>
-                </Link>
+
+                    <div className="listing-studio-collection-card-body">
+                      <div className="listing-studio-collection-card-meta">
+                        <span>
+                          {collection.listingCount} listing
+                          {collection.listingCount === 1 ? "" : "s"}
+                        </span>
+                        <span>Updated {formatUpdatedLabel(collection.updatedAt)}</span>
+                      </div>
+                      <strong>{collection.name}</strong>
+                      <p>
+                        Open this folder to review every saved listing and the live
+                        map view for the area.
+                      </p>
+                    </div>
+                  </Link>
+                </div>
               ))
             ) : (
               <div className="listing-studio-empty-state">
