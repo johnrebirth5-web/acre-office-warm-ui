@@ -5,12 +5,17 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 import { useRouter } from "next/navigation";
 import {
+  appendListingStudioPosterDraftSearchParams,
   buildListingStudioPosterDraft,
   buildListingStudioPosterHref,
   buildListingStudioPosterFileName,
+  getListingStudioPosterInteractiveSlots,
+  getListingStudioPosterPrimarySlotId,
+  getListingStudioPosterResolvedSlotAssetIds,
   getListingStudioPosterStatusVariants,
   getListingStudioPosterTemplates,
   type ListingStudioPosterDraft,
+  type ListingStudioPosterImageSlotId,
   type ListingStudioPosterStatusVariantId,
   type ListingStudioPosterTemplateId,
 } from "../listing-studio-poster";
@@ -91,15 +96,10 @@ function IconDownload() {
 }
 
 function buildPosterStudioQueryString(draft: ListingStudioPosterDraft) {
-  const params = new URLSearchParams();
-  params.set("template", draft.templateId);
-  params.set("statusVariant", draft.statusVariant);
-
-  if (draft.coverAssetId) {
-    params.set("coverAssetId", draft.coverAssetId);
-  }
-
-  return params.toString();
+  return appendListingStudioPosterDraftSearchParams(
+    new URLSearchParams(),
+    draft,
+  ).toString();
 }
 
 function parseContentDispositionFileName(value: string | null) {
@@ -142,6 +142,8 @@ export function ListingStudioShareStudioClient({
   const router = useRouter();
   const [detailState, setDetailState] = useState(detail);
   const [draft, setDraft] = useState(initialDraft);
+  const [selectedSlotId, setSelectedSlotId] =
+    useState<ListingStudioPosterImageSlotId | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [isPreparingShare, setIsPreparingShare] = useState(false);
   const [isDownloadingPng, setIsDownloadingPng] = useState(false);
@@ -174,6 +176,14 @@ export function ListingStudioShareStudioClient({
     () => getListingStudioPosterStatusVariants(),
     [],
   );
+  const interactiveSlots = useMemo(
+    () => getListingStudioPosterInteractiveSlots(draft.templateId),
+    [draft.templateId],
+  );
+  const primarySlotId = useMemo(
+    () => getListingStudioPosterPrimarySlotId(draft.templateId),
+    [draft.templateId],
+  );
   const photoAssets = useMemo(
     () =>
       detailState.assets.filter((asset) => {
@@ -186,6 +196,13 @@ export function ListingStudioShareStudioClient({
       }),
     [detailState.assets],
   );
+  const resolvedSlotAssetIds = useMemo(
+    () => getListingStudioPosterResolvedSlotAssetIds(detailState, draft),
+    [detailState, draft],
+  );
+  const activePhotoAssetId = selectedSlotId
+    ? resolvedSlotAssetIds[selectedSlotId] ?? null
+    : resolvedSlotAssetIds[primarySlotId] ?? draft.coverAssetId;
   const templatePreviewMap = useMemo(() => {
     return templates.reduce<Record<string, string>>((accumulator, template) => {
       const previewDraft = buildListingStudioPosterDraft(
@@ -193,6 +210,7 @@ export function ListingStudioShareStudioClient({
         template.id,
         draft.coverAssetId,
         draft.statusVariant,
+        draft.slotAssetIds,
       );
       accumulator[template.id] = `${buildListingStudioPosterHref({
         draft: previewDraft,
@@ -201,7 +219,23 @@ export function ListingStudioShareStudioClient({
       })}&previewKey=${previewStamp}&thumb=${template.id}`;
       return accumulator;
     }, {});
-  }, [detailState, draft.coverAssetId, draft.statusVariant, previewStamp, templates]);
+  }, [
+    detailState,
+    draft.coverAssetId,
+    draft.slotAssetIds,
+    draft.statusVariant,
+    previewStamp,
+    templates,
+  ]);
+
+  useEffect(() => {
+    if (
+      selectedSlotId &&
+      !interactiveSlots.some((slot) => slot.id === selectedSlotId)
+    ) {
+      setSelectedSlotId(null);
+    }
+  }, [interactiveSlots, selectedSlotId]);
 
   useEffect(() => {
     const nextHref = `/listing-studio/listings/${detailState.packId}/share?${queryString}`;
@@ -234,11 +268,22 @@ export function ListingStudioShareStudioClient({
     }));
   }
 
-  function updateCoverAsset(coverAssetId: string) {
+  function toggleSelectedSlot(slotId: ListingStudioPosterImageSlotId) {
+    setSelectedSlotId((current) => (current === slotId ? null : slotId));
+  }
+
+  function replaceSelectedSlotAsset(slotId: ListingStudioPosterImageSlotId, assetId: string) {
     setDraft((current) => ({
       ...current,
-      coverAssetId,
+      slotAssetIds: {
+        ...current.slotAssetIds,
+        [slotId]: assetId,
+      },
     }));
+  }
+
+  function applyPhotoAsset(assetId: string) {
+    replaceSelectedSlotAsset(selectedSlotId ?? primarySlotId, assetId);
   }
 
   async function ensureSharePublished() {
@@ -358,14 +403,6 @@ export function ListingStudioShareStudioClient({
         <div className="listing-studio-share-studio-layout">
           <aside className="listing-studio-share-studio-templates">
             <div className="listing-studio-share-studio-panel">
-              <div className="listing-studio-share-studio-panel-head">
-                <strong>Template</strong>
-                <p>
-                  Choose a layout. The poster preview and export update from
-                  these selections.
-                </p>
-              </div>
-
               <div className="listing-studio-share-studio-template-list">
                 {templates.map((template) => {
                   const isActive = draft.templateId === template.id;
@@ -389,10 +426,6 @@ export function ListingStudioShareStudioClient({
                           </span>
                         ) : null}
                       </div>
-                      <div className="listing-studio-share-studio-template-copy">
-                        <strong>{template.label}</strong>
-                        <span>{template.description}</span>
-                      </div>
                     </button>
                   );
                 })}
@@ -403,11 +436,37 @@ export function ListingStudioShareStudioClient({
           <section className="listing-studio-share-studio-preview">
             <div className="listing-studio-share-studio-preview-panel">
               <div className="listing-studio-share-studio-preview-canvas">
-                <img
-                  alt={`${detailState.addressLine} ${draft.templateId} poster preview`}
-                  className="listing-studio-share-studio-preview-image"
-                  src={previewHref}
-                />
+                <div className="listing-studio-share-studio-preview-stage">
+                  <img
+                    alt={`${detailState.addressLine} ${draft.templateId} poster preview`}
+                    className="listing-studio-share-studio-preview-image"
+                    src={previewHref}
+                  />
+                  {interactiveSlots.map((slot) => {
+                    const isSelected = selectedSlotId === slot.id;
+
+                    return (
+                      <button
+                        aria-label={`Select ${slot.label}`}
+                        className={`listing-studio-share-studio-preview-slot${isSelected ? " is-selected" : ""}`}
+                        key={slot.id}
+                        onClick={() => toggleSelectedSlot(slot.id)}
+                        style={{
+                          height: `${(slot.height / 2880) * 100}%`,
+                          left: `${(slot.x / 2160) * 100}%`,
+                          top: `${(slot.y / 2880) * 100}%`,
+                          width: `${(slot.width / 2160) * 100}%`,
+                        }}
+                        title={slot.label}
+                        type="button"
+                      >
+                        <span className="listing-studio-share-studio-preview-slot-label">
+                          {slot.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="listing-studio-share-studio-preview-actions">
@@ -466,17 +525,17 @@ export function ListingStudioShareStudioClient({
 
               <div className="listing-studio-share-studio-section">
                 <div className="listing-studio-share-studio-section-head">
-                  <strong>Main photo</strong>
+                  <strong>Photos</strong>
                 </div>
                 <div className="listing-studio-share-studio-photo-grid">
                   {photoAssets.map((asset) => {
-                    const isActive = draft.coverAssetId === asset.id;
+                    const isActive = activePhotoAssetId === asset.id;
 
                     return (
                       <button
                         className={`listing-studio-share-studio-photo-card${isActive ? " is-active" : ""}`}
                         key={asset.id}
-                        onClick={() => updateCoverAsset(asset.id)}
+                        onClick={() => applyPhotoAsset(asset.id)}
                         type="button"
                       >
                         <img

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../../../../lib/auth-session";
 import {
   buildListingStudioPosterDraft,
+  readListingStudioPosterSlotAssetIds,
   readListingStudioPosterStatusVariantId,
   readListingStudioPosterTemplateId,
 } from "../../../../../listing-studio/listings/[packId]/listing-studio-poster";
@@ -44,11 +45,16 @@ export default async function ListingStudioShareStudioPage(
     typeof searchParams.coverAssetId === "string"
       ? searchParams.coverAssetId
       : null;
+  const slotAssetIds = readListingStudioPosterSlotAssetIds((key) => {
+    const value = searchParams[key];
+    return typeof value === "string" ? value : null;
+  });
   const initialDraft = buildListingStudioPosterDraft(
     detail,
     readListingStudioPosterTemplateId(templateParam),
     coverAssetId,
     readListingStudioPosterStatusVariantId(statusVariantParam),
+    slotAssetIds,
   );
 
   return (

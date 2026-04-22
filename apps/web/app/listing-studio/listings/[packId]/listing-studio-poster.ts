@@ -22,6 +22,31 @@ export type ListingStudioPosterTemplate = {
   description: string;
 };
 
+export type ListingStudioPosterImageSlotId =
+  | "hero-primary"
+  | "card-primary"
+  | "cinematic-primary"
+  | "grid-primary"
+  | "grid-secondary-1"
+  | "grid-secondary-2"
+  | "editorial-primary"
+  | "editorial-secondary-1"
+  | "editorial-secondary-2"
+  | "editorial-secondary-3";
+
+export type ListingStudioPosterSlotAssetMap = Partial<
+  Record<ListingStudioPosterImageSlotId, string>
+>;
+
+export type ListingStudioPosterInteractiveSlot = {
+  height: number;
+  id: ListingStudioPosterImageSlotId;
+  label: string;
+  width: number;
+  x: number;
+  y: number;
+};
+
 export type ListingStudioPosterStatusVariant = {
   id: ListingStudioPosterStatusVariantId;
   label: string;
@@ -30,6 +55,7 @@ export type ListingStudioPosterStatusVariant = {
 export type ListingStudioPosterDraft = {
   templateId: ListingStudioPosterTemplateId;
   coverAssetId: string | null;
+  slotAssetIds: ListingStudioPosterSlotAssetMap;
   statusVariant: ListingStudioPosterStatusVariantId;
 };
 
@@ -107,6 +133,118 @@ const posterStatusVariants: ListingStudioPosterStatusVariant[] = [
   { id: "open-house", label: "OPEN HOUSE" },
   { id: "sold", label: "SOLD" },
 ];
+
+const posterInteractiveSlotsByTemplate: Record<
+  ListingStudioPosterTemplateId,
+  ListingStudioPosterInteractiveSlot[]
+> = {
+  card: [
+    {
+      height: 1570,
+      id: "card-primary",
+      label: "Main image",
+      width: 2160,
+      x: 0,
+      y: 0,
+    },
+  ],
+  cinematic: [
+    {
+      height: 2880,
+      id: "cinematic-primary",
+      label: "Main image",
+      width: 2160,
+      x: 0,
+      y: 0,
+    },
+  ],
+  editorial: [
+    {
+      height: 1046,
+      id: "editorial-primary",
+      label: "Hero image",
+      width: 2160,
+      x: 0,
+      y: 330,
+    },
+    {
+      height: 334,
+      id: "editorial-secondary-1",
+      label: "Gallery image 1",
+      width: 708,
+      x: 0,
+      y: 1390,
+    },
+    {
+      height: 334,
+      id: "editorial-secondary-2",
+      label: "Gallery image 2",
+      width: 720,
+      x: 720,
+      y: 1390,
+    },
+    {
+      height: 334,
+      id: "editorial-secondary-3",
+      label: "Gallery image 3",
+      width: 720,
+      x: 1440,
+      y: 1390,
+    },
+  ],
+  grid: [
+    {
+      height: 1580,
+      id: "grid-primary",
+      label: "Main image",
+      width: 1084,
+      x: 8,
+      y: 376,
+    },
+    {
+      height: 778,
+      id: "grid-secondary-1",
+      label: "Gallery image 1",
+      width: 1060,
+      x: 1098,
+      y: 376,
+    },
+    {
+      height: 786,
+      id: "grid-secondary-2",
+      label: "Gallery image 2",
+      width: 1060,
+      x: 1098,
+      y: 1170,
+    },
+  ],
+  hero: [
+    {
+      height: 1510,
+      id: "hero-primary",
+      label: "Main image",
+      width: 2160,
+      x: 0,
+      y: 542,
+    },
+  ],
+};
+
+const posterSlotIds = Object.values(posterInteractiveSlotsByTemplate)
+  .flatMap((slots) => slots.map((slot) => slot.id)) as ListingStudioPosterImageSlotId[];
+
+const posterPrimarySlotByTemplate: Record<
+  ListingStudioPosterTemplateId,
+  ListingStudioPosterImageSlotId
+> = {
+  card: "card-primary",
+  cinematic: "cinematic-primary",
+  editorial: "editorial-primary",
+  grid: "grid-primary",
+  hero: "hero-primary",
+};
+
+const LIGHT_POSTER_FOOTER_Y = 2584;
 
 function escapeXml(value: string) {
   return value
@@ -186,6 +324,16 @@ function normalizeStatusVariantId(
   }
 }
 
+function isPosterSlotId(
+  value: string | null | undefined,
+): value is ListingStudioPosterImageSlotId {
+  return typeof value === "string" && posterSlotIds.includes(value as ListingStudioPosterImageSlotId);
+}
+
+function getPosterSlotSearchParamName(slotId: ListingStudioPosterImageSlotId) {
+  return `slot.${slotId}`;
+}
+
 function isPhotoAsset(asset: PosterImageAsset) {
   const isPhotoKind = asset.kind === "hero" || asset.kind === "gallery";
   const isVideoMime =
@@ -241,6 +389,159 @@ function buildPhotoAssetCandidates(detail: StudioListingDetailSnapshot) {
   return ordered;
 }
 
+function normalizeSlotAssetIds(
+  detail: StudioListingDetailSnapshot,
+  slotAssetIds: ListingStudioPosterSlotAssetMap | null | undefined,
+) {
+  const availablePhotoIds = new Set(
+    buildPhotoAssetCandidates(detail).map((asset) => asset.id),
+  );
+  const nextSlotAssetIds: ListingStudioPosterSlotAssetMap = {};
+
+  for (const [slotId, assetId] of Object.entries(slotAssetIds ?? {})) {
+    if (!isPosterSlotId(slotId)) {
+      continue;
+    }
+
+    if (typeof assetId !== "string" || !availablePhotoIds.has(assetId)) {
+      continue;
+    }
+
+    nextSlotAssetIds[slotId] = assetId;
+  }
+
+  return nextSlotAssetIds;
+}
+
+function resolvePosterPrimaryAsset(
+  detail: StudioListingDetailSnapshot,
+  draft: ListingStudioPosterDraft,
+  photoAssets: PosterImageAsset[],
+  byId: Map<string, PosterImageAsset>,
+  normalizedSlotAssetIds: ListingStudioPosterSlotAssetMap,
+) {
+  const primarySlotId = posterPrimarySlotByTemplate[draft.templateId];
+  const slottedPrimaryAssetId = normalizedSlotAssetIds[primarySlotId];
+
+  if (slottedPrimaryAssetId) {
+    return byId.get(slottedPrimaryAssetId) ?? null;
+  }
+
+  return (
+    (draft.coverAssetId ? byId.get(draft.coverAssetId) : undefined) ??
+    (detail.pack.coverAssetId ? byId.get(detail.pack.coverAssetId) : undefined) ??
+    photoAssets[0] ??
+    null
+  );
+}
+
+export function getListingStudioPosterInteractiveSlots(
+  templateId: ListingStudioPosterTemplateId,
+) {
+  return posterInteractiveSlotsByTemplate[templateId];
+}
+
+export function getListingStudioPosterPrimarySlotId(
+  templateId: ListingStudioPosterTemplateId,
+) {
+  return posterPrimarySlotByTemplate[templateId];
+}
+
+export function getListingStudioPosterResolvedSlotAssetIds(
+  detail: StudioListingDetailSnapshot,
+  draft: ListingStudioPosterDraft,
+) {
+  const photoAssets = buildPhotoAssetCandidates(detail);
+  const byId = new Map(photoAssets.map((asset) => [asset.id, asset] as const));
+  const normalizedSlotAssetIds = normalizeSlotAssetIds(detail, draft.slotAssetIds);
+  const resolvedSlotAssetIds: Partial<
+    Record<ListingStudioPosterImageSlotId, string | null>
+  > = {};
+  const usedAssetIds = new Set<string>();
+  const slots = posterInteractiveSlotsByTemplate[draft.templateId];
+
+  const primarySlotId = posterPrimarySlotByTemplate[draft.templateId];
+  const primaryAsset = resolvePosterPrimaryAsset(
+    detail,
+    draft,
+    photoAssets,
+    byId,
+    normalizedSlotAssetIds,
+  );
+
+  resolvedSlotAssetIds[primarySlotId] = primaryAsset?.id ?? null;
+
+  if (primaryAsset?.id) {
+    usedAssetIds.add(primaryAsset.id);
+  }
+
+  for (const slot of slots.slice(1)) {
+    const explicitAssetId = normalizedSlotAssetIds[slot.id];
+
+    if (explicitAssetId) {
+      resolvedSlotAssetIds[slot.id] = explicitAssetId;
+      usedAssetIds.add(explicitAssetId);
+      continue;
+    }
+
+    const fallbackAsset =
+      photoAssets.find((asset) => !usedAssetIds.has(asset.id)) ??
+      primaryAsset ??
+      photoAssets[0] ??
+      null;
+
+    resolvedSlotAssetIds[slot.id] = fallbackAsset?.id ?? null;
+
+    if (fallbackAsset?.id) {
+      usedAssetIds.add(fallbackAsset.id);
+    }
+  }
+
+  return resolvedSlotAssetIds;
+}
+
+export function appendListingStudioPosterDraftSearchParams(
+  params: URLSearchParams,
+  draft: ListingStudioPosterDraft,
+) {
+  params.set("template", draft.templateId);
+  params.set("statusVariant", draft.statusVariant);
+
+  if (draft.coverAssetId) {
+    params.set("coverAssetId", draft.coverAssetId);
+  }
+
+  for (const slotId of posterSlotIds) {
+    const assetId = draft.slotAssetIds[slotId];
+
+    if (!assetId) {
+      continue;
+    }
+
+    params.set(getPosterSlotSearchParamName(slotId), assetId);
+  }
+
+  return params;
+}
+
+export function readListingStudioPosterSlotAssetIds(
+  readValue: (key: string) => string | null | undefined,
+) {
+  const slotAssetIds: ListingStudioPosterSlotAssetMap = {};
+
+  for (const slotId of posterSlotIds) {
+    const assetId = readValue(getPosterSlotSearchParamName(slotId));
+
+    if (!assetId) {
+      continue;
+    }
+
+    slotAssetIds[slotId] = assetId;
+  }
+
+  return slotAssetIds;
+}
+
 function buildPosterImageSources(
   detail: StudioListingDetailSnapshot,
   draft: ListingStudioPosterDraft,
@@ -248,14 +549,21 @@ function buildPosterImageSources(
 ) {
   const photoAssets = buildPhotoAssetCandidates(detail);
   const byId = new Map(photoAssets.map((asset) => [asset.id, asset] as const));
-  const primaryAsset =
-    (draft.coverAssetId ? byId.get(draft.coverAssetId) : undefined) ??
-    (detail.pack.coverAssetId ? byId.get(detail.pack.coverAssetId) : undefined) ??
-    photoAssets[0] ??
-    null;
-  const secondaryAssets = photoAssets
-    .filter((asset) => asset.id !== primaryAsset?.id)
-    .slice(0, 4);
+  const resolvedSlotAssetIds = getListingStudioPosterResolvedSlotAssetIds(
+    detail,
+    draft,
+  );
+  const slots = posterInteractiveSlotsByTemplate[draft.templateId];
+  const primarySlotId = posterPrimarySlotByTemplate[draft.templateId];
+  const primaryAssetId = resolvedSlotAssetIds[primarySlotId];
+  const primaryAsset = primaryAssetId ? byId.get(primaryAssetId) ?? null : null;
+  const secondaryAssets = slots
+    .slice(1)
+    .map((slot) => {
+      const assetId = resolvedSlotAssetIds[slot.id];
+      return assetId ? byId.get(assetId) ?? null : null;
+    })
+    .filter((asset): asset is PosterImageAsset => asset !== null);
 
   const floorPlanAsset = detail.assets.find(
     (asset) => asset.kind === "floor_plan" && !isPdfLike(null, asset.mimeType),
@@ -978,7 +1286,7 @@ function renderHeroTemplate(input: {
     ${renderFooterLight({
       contact: input.contact,
       shareValue: buildPosterShareValue(input.detail),
-      y: 2248,
+      y: LIGHT_POSTER_FOOTER_Y,
     })}
   `;
 }
@@ -1041,7 +1349,7 @@ function renderCardTemplate(input: {
     ${renderFooterLight({
       contact: input.contact,
       shareValue: buildPosterShareValue(input.detail),
-      y: 2464,
+      y: LIGHT_POSTER_FOOTER_Y,
     })}
   `;
 }
@@ -1168,7 +1476,7 @@ function renderGridTemplate(input: {
     ${renderFooterLight({
       contact: input.contact,
       shareValue: buildPosterShareValue(input.detail),
-      y: 2172,
+      y: LIGHT_POSTER_FOOTER_Y,
     })}
   `;
 }
@@ -1305,7 +1613,7 @@ function renderEditorialTemplate(input: {
     ${renderFooterLight({
       contact: input.contact,
       shareValue: buildPosterShareValue(input.detail),
-      y: 2560,
+      y: LIGHT_POSTER_FOOTER_Y,
     })}
   `;
 }
@@ -1406,14 +1714,14 @@ export function buildListingStudioPosterDraft(
   templateId: ListingStudioPosterTemplateId = "hero",
   coverAssetId: string | null = null,
   statusVariant: ListingStudioPosterStatusVariantId = "just-listed",
+  slotAssetIds: ListingStudioPosterSlotAssetMap = {},
 ): ListingStudioPosterDraft {
-  const availablePhotoIds = new Set(
-    buildPhotoAssetCandidates(detail).map((asset) => asset.id),
-  );
+  const photoAssets = buildPhotoAssetCandidates(detail);
+  const availablePhotoIds = new Set(photoAssets.map((asset) => asset.id));
   const fallbackCoverAssetId =
     detail.pack.coverAssetId ??
     detail.pack.selectedAssetIds.find((assetId) => availablePhotoIds.has(assetId)) ??
-    buildPhotoAssetCandidates(detail)[0]?.id ??
+    photoAssets[0]?.id ??
     null;
   const resolvedCoverAssetId =
     coverAssetId && availablePhotoIds.has(coverAssetId)
@@ -1422,6 +1730,7 @@ export function buildListingStudioPosterDraft(
 
   return {
     coverAssetId: resolvedCoverAssetId,
+    slotAssetIds: normalizeSlotAssetIds(detail, slotAssetIds),
     statusVariant: normalizeStatusVariantId(statusVariant),
     templateId: normalizeTemplateId(templateId),
   };
@@ -1436,6 +1745,7 @@ export function resolveListingStudioPosterCoverAssetId(
     draft.templateId,
     draft.coverAssetId,
     draft.statusVariant,
+    draft.slotAssetIds,
   ).coverAssetId;
 }
 
@@ -1446,13 +1756,10 @@ export function buildListingStudioPosterHref(input: {
   format?: ListingStudioPosterFormat;
   print?: boolean;
 }) {
-  const params = new URLSearchParams();
-  params.set("template", input.draft.templateId);
-  params.set("statusVariant", input.draft.statusVariant);
-
-  if (input.draft.coverAssetId) {
-    params.set("coverAssetId", input.draft.coverAssetId);
-  }
+  const params = appendListingStudioPosterDraftSearchParams(
+    new URLSearchParams(),
+    input.draft,
+  );
 
   if (input.format && input.format !== "html") {
     params.set("format", input.format);

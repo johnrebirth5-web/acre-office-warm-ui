@@ -5,6 +5,7 @@ import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 import {
   buildListingStudioPosterDraft,
   buildListingStudioPosterFileName,
+  readListingStudioPosterSlotAssetIds,
   readListingStudioPosterStatusVariantId,
   readListingStudioPosterTemplateId,
   renderListingStudioPosterHtml,
@@ -67,6 +68,9 @@ export async function GET(
     templateId,
     request.nextUrl.searchParams.get("coverAssetId"),
     statusVariant,
+    readListingStudioPosterSlotAssetIds((key) =>
+      request.nextUrl.searchParams.get(key),
+    ),
   );
   const format = readPosterFormat(request.nextUrl.searchParams.get("format"));
   const download = request.nextUrl.searchParams.get("download") === "1";
