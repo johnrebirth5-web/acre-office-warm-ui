@@ -2,6 +2,7 @@ import { canAccessListingStudio } from "@acre/auth";
 import { getOfficeAccountSnapshot, getStudioListingPackDetail } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { getAppBaseUrl } from "../../../../../../lib/request-origin";
 import {
   buildListingStudioPosterDraft,
   buildListingStudioPosterFileName,
@@ -10,11 +11,38 @@ import {
   readListingStudioPosterTemplateId,
   renderListingStudioPosterHtml,
   renderListingStudioPosterSvg,
-  type ListingStudioPosterFormat,
   type ListingStudioPosterAgentSnapshot,
+  type ListingStudioPosterFormat,
 } from "../../../../../listing-studio/listings/[packId]/listing-studio-poster";
 
 export const runtime = "nodejs";
+
+type PosterEmbeddedImage = {
+  buffer: Buffer;
+  contentType: string;
+};
+
+type SharpFactory = (...args: any[]) => any;
+
+type PosterRouteDependencies = {
+  getAppBaseUrl: typeof getAppBaseUrl;
+  getOfficeAccountSnapshot: typeof getOfficeAccountSnapshot;
+  getRequestSessionContext: typeof getRequestSessionContext;
+  getStudioListingPackDetail: typeof getStudioListingPackDetail;
+  importSharp: () => Promise<SharpFactory>;
+  renderListingStudioPosterHtml: typeof renderListingStudioPosterHtml;
+  renderListingStudioPosterSvg: typeof renderListingStudioPosterSvg;
+};
+
+const defaultDependencies: PosterRouteDependencies = {
+  getAppBaseUrl,
+  getOfficeAccountSnapshot,
+  getRequestSessionContext,
+  getStudioListingPackDetail,
+  importSharp: async () => (await import("sharp")).default as SharpFactory,
+  renderListingStudioPosterHtml,
+  renderListingStudioPosterSvg,
+};
 
 function readPosterFormat(value: string | null): ListingStudioPosterFormat {
   switch (value) {
@@ -27,11 +55,61 @@ function readPosterFormat(value: string | null): ListingStudioPosterFormat {
   }
 }
 
-export async function GET(
+function normalizeEmbeddedContentType(contentType: string | null | undefined) {
+  return contentType?.split(";")[0]?.trim().toLowerCase() || "image/jpeg";
+}
+
+function canInlinePosterSvgImageContentType(contentType: string) {
+  return (
+    contentType === "image/jpeg" ||
+    contentType === "image/jpg" ||
+    contentType === "image/png" ||
+    contentType === "image/svg+xml"
+  );
+}
+
+export async function normalizeListingStudioPosterEmbeddedImage(
+  buffer: Buffer,
+  contentType: string,
+  dependencies: Pick<PosterRouteDependencies, "importSharp"> = defaultDependencies,
+): Promise<PosterEmbeddedImage> {
+  const normalizedContentType = normalizeEmbeddedContentType(contentType);
+
+  if (canInlinePosterSvgImageContentType(normalizedContentType)) {
+    return {
+      buffer,
+      contentType:
+        normalizedContentType === "image/jpg"
+          ? "image/jpeg"
+          : normalizedContentType,
+    };
+  }
+
+  try {
+    const sharp = await dependencies.importSharp();
+    const normalizedBuffer = await sharp(buffer, { animated: true })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    return {
+      buffer: normalizedBuffer,
+      contentType: "image/jpeg",
+    };
+  } catch {
+    return {
+      buffer,
+      contentType: normalizedContentType,
+    };
+  }
+}
+
+export async function handleListingStudioPosterGet(
   request: NextRequest,
-  props: { params: Promise<{ packId: string }> },
+  packId: string,
+  dependencies: PosterRouteDependencies = defaultDependencies,
 ) {
-  const context = await getRequestSessionContext(request);
+  const context = await dependencies.getRequestSessionContext(request);
 
   if (!context) {
     return NextResponse.json(
@@ -47,8 +125,7 @@ export async function GET(
     );
   }
 
-  const { packId } = await props.params;
-  const detail = await getStudioListingPackDetail({
+  const detail = await dependencies.getStudioListingPackDetail({
     organizationId: context.currentOrganization.id,
     packId,
   });
@@ -75,11 +152,18 @@ export async function GET(
   const format = readPosterFormat(request.nextUrl.searchParams.get("format"));
   const download = request.nextUrl.searchParams.get("download") === "1";
   const fileName = buildListingStudioPosterFileName(detail, draft, format);
-  const accountSnapshot = await getOfficeAccountSnapshot({
+  const accountSnapshot = await dependencies.getOfficeAccountSnapshot({
     membershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     organizationId: context.currentOrganization.id,
   });
+  const baseUrl = dependencies.getAppBaseUrl(request);
+  const normalizeEmbeddedImage = (buffer: Buffer, nextContentType: string) =>
+    normalizeListingStudioPosterEmbeddedImage(
+      buffer,
+      nextContentType,
+      dependencies,
+    );
   const posterAgent: ListingStudioPosterAgentSnapshot | null = accountSnapshot
     ? {
         avatarUrl: accountSnapshot.profile.avatarUrl.trim() || null,
@@ -105,27 +189,15 @@ export async function GET(
     : null;
 
   if (format === "png") {
-    const sharp = (await import("sharp")).default;
-    const svg = await renderListingStudioPosterSvg(detail, draft, {
+    const sharp = await dependencies.importSharp();
+    const svg = await dependencies.renderListingStudioPosterSvg(detail, draft, {
       agent: posterAgent,
-      baseUrl: request.nextUrl.origin,
+      baseUrl,
       embedAssets: true,
       requestHeaders: {
         cookie: request.headers.get("cookie") ?? "",
       },
-      normalizeEmbeddedImage: async (buffer, contentType) => {
-        const lower = contentType.toLowerCase();
-        if (
-          lower === "image/jpeg" ||
-          lower === "image/jpg" ||
-          lower === "image/png" ||
-          lower === "image/gif"
-        ) {
-          return { buffer, contentType };
-        }
-        const normalized = await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
-        return { buffer: normalized, contentType: "image/jpeg" };
-      },
+      normalizeEmbeddedImage,
     });
     const pngBuffer = await sharp(Buffer.from(svg))
       .png({
@@ -149,13 +221,14 @@ export async function GET(
   }
 
   if (format === "svg") {
-    const svg = await renderListingStudioPosterSvg(detail, draft, {
+    const svg = await dependencies.renderListingStudioPosterSvg(detail, draft, {
       agent: posterAgent,
-      baseUrl: request.nextUrl.origin,
+      baseUrl,
       embedAssets: true,
       requestHeaders: {
         cookie: request.headers.get("cookie") ?? "",
       },
+      normalizeEmbeddedImage,
     });
 
     return new NextResponse(svg, {
@@ -172,9 +245,9 @@ export async function GET(
     });
   }
 
-  const html = renderListingStudioPosterHtml(detail, draft, {
+  const html = dependencies.renderListingStudioPosterHtml(detail, draft, {
     autoPrint: request.nextUrl.searchParams.get("print") === "1",
-    baseUrl: request.nextUrl.origin,
+    baseUrl,
   });
 
   return new NextResponse(html, {
@@ -189,4 +262,12 @@ export async function GET(
         : {}),
     },
   });
+}
+
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ packId: string }> },
+) {
+  const { packId } = await props.params;
+  return handleListingStudioPosterGet(request, packId);
 }
