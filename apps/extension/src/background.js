@@ -82,8 +82,12 @@ async function startConnectFlow() {
 
   await storageSet({
     [STORAGE_KEYS.connectionState]: "pending",
+    [STORAGE_KEYS.extensionToken]: null,
     [STORAGE_KEYS.challengeToken]: challengeToken,
     [STORAGE_KEYS.challengeExpiresAt]: expiresAt,
+    [STORAGE_KEYS.connectedOrganizationName]: null,
+    [STORAGE_KEYS.connectedMembershipLabel]: null,
+    [STORAGE_KEYS.tokenExpiresAt]: null,
     [STORAGE_KEYS.connectionError]: null,
   });
 
@@ -110,6 +114,10 @@ async function checkConnectionStatus() {
   if (!response.ok) {
     const nextState = {
       [STORAGE_KEYS.connectionState]: "disconnected",
+      [STORAGE_KEYS.extensionToken]: null,
+      [STORAGE_KEYS.connectedOrganizationName]: null,
+      [STORAGE_KEYS.connectedMembershipLabel]: null,
+      [STORAGE_KEYS.tokenExpiresAt]: null,
       [STORAGE_KEYS.connectionError]: "Unable to verify the Acre extension approval.",
     };
     await storageSet(nextState);
@@ -137,8 +145,12 @@ async function checkConnectionStatus() {
   if (body.status === "expired" || body.status === "consumed" || body.status === "not_found") {
     await storageSet({
       [STORAGE_KEYS.connectionState]: "disconnected",
+      [STORAGE_KEYS.extensionToken]: null,
       [STORAGE_KEYS.challengeToken]: null,
       [STORAGE_KEYS.challengeExpiresAt]: null,
+      [STORAGE_KEYS.connectedOrganizationName]: null,
+      [STORAGE_KEYS.connectedMembershipLabel]: null,
+      [STORAGE_KEYS.tokenExpiresAt]: null,
       [STORAGE_KEYS.connectionError]:
         body.status === "expired"
           ? "The Acre approval request expired. Start the connection again."
@@ -169,7 +181,7 @@ async function disconnect() {
 async function saveListing(payload) {
   const state = await getState();
 
-  if (!state.extensionToken) {
+  if (state.connectionState !== "connected" || !state.extensionToken) {
     return {
       ok: false,
       errorCode: "NOT_CONNECTED",

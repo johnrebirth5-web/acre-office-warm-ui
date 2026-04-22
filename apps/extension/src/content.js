@@ -1416,6 +1416,9 @@
     const { preview } = currentPayload;
     const isConnected = currentConfig?.connectionState === "connected";
     const isPending = currentConfig?.connectionState === "pending";
+    const connectedMembershipLabel = currentConfig?.connectedMembershipLabel
+      ? String(currentConfig.connectedMembershipLabel).trim()
+      : "";
     const statusText =
       panelState.mode === "saved"
         ? "Saved to Listing Studio"
@@ -1424,7 +1427,9 @@
           : panelState.mode === "error"
             ? panelState.message || "Acre save error"
             : isConnected
-              ? "Connected to Acre"
+              ? connectedMembershipLabel
+                ? `Connected to Acre as ${connectedMembershipLabel}`
+                : "Connected to Acre"
               : isPending
                 ? "Awaiting Acre approval"
                 : "Connect Acre to save";

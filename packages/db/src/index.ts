@@ -131,6 +131,7 @@ export {
   deleteStudioListingCollection,
   getListingStudioCompanyDashboard,
   getListingStudioDashboard,
+  getStudioListingExtensionTokenOwner,
   getListingStudioWorkspaceOverview,
   getStudioListingAssetRecord,
   getStudioListingCollectionDetail,

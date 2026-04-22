@@ -1,6 +1,7 @@
 import { getRoleSummary } from "@acre/auth";
 import type { SessionMembershipContext } from "@acre/db";
 import { getServerI18n } from "../../lib/i18n/server";
+import { ListingStudioExtensionSessionSync } from "./listing-studio-extension-session-sync";
 
 type WorkspaceSessionStatusProps = {
   context: SessionMembershipContext;
@@ -16,6 +17,9 @@ export async function WorkspaceSessionStatus({
 
   return (
     <div className="workspace-session-shell">
+      <ListingStudioExtensionSessionSync
+        currentMembershipId={context.currentMembership.id}
+      />
       <section aria-label="Current signed-in session" className="workspace-session-inline">
         <div className="workspace-session-meta">
           <span

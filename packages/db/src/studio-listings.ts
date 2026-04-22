@@ -348,6 +348,15 @@ function createStudioListingPackShareCode() {
   return `pack_${randomBytes(24).toString("base64url")}`;
 }
 
+function formatStudioListingMembershipLabel(user: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+} | null | undefined) {
+  const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+  return fullName || user?.email?.trim() || "Acre user";
+}
+
 function trimString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -1322,11 +1331,9 @@ export async function pollStudioListingExtensionChallenge(challengeToken: string
     });
   });
 
-  const user = existing.approvedByMembership?.user;
-  const membershipLabel =
-    user && `${user.firstName} ${user.lastName}`.trim()
-      ? `${user.firstName} ${user.lastName}`.trim()
-      : user?.email ?? "Acre user";
+  const membershipLabel = formatStudioListingMembershipLabel(
+    existing.approvedByMembership?.user,
+  );
 
   return {
     status: "approved" as const,
@@ -1362,6 +1369,43 @@ export async function authenticateStudioListingExtensionToken(rawToken: string) 
     organizationId: token.organizationId,
     officeId: token.officeId,
     membershipId: token.membershipId,
+  };
+}
+
+export async function getStudioListingExtensionTokenOwner(rawToken: string) {
+  const tokenHash = hashToken(rawToken);
+  const token = await prisma.studioListingExtensionToken.findFirst({
+    where: {
+      tokenHash,
+      revokedAt: null,
+      expiresAt: {
+        gt: new Date(),
+      },
+    },
+    include: {
+      membership: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!token) {
+    return null;
+  }
+
+  return {
+    organizationId: token.organizationId,
+    officeId: token.officeId,
+    membershipId: token.membershipId,
+    membershipLabel: formatStudioListingMembershipLabel(token.membership?.user),
   };
 }
 
