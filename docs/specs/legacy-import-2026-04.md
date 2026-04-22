@@ -165,10 +165,16 @@ Status handling:
 - skip `opportunity`
 - skip `cancelled`
 
+Duplicate protection:
+
+- rows whose legacy `custom_id` or fallback `id` already exists in imported transaction provenance are skipped
+- this makes `import-transactions` re-runnable for partial catch-up without creating duplicate legacy rows
+
 Owner matching:
 
 - try `Agent Name`
 - fallback to `Licensed Agent Name`
+- if those fail, inspect legacy `users` and accept it only when exactly one imported internal user matches
 - matching is case-insensitive
 - whitespace is normalized
 - parenthetical aliases are removed before compare

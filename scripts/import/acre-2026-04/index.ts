@@ -190,6 +190,64 @@ type ImportSummary = {
   };
 };
 
+function buildLegacyTransactionSourceKeys(row: Record<string, string>) {
+  return [
+    (row.custom_id ?? "").trim(),
+    (row.id ?? "").trim(),
+  ].filter(Boolean);
+}
+
+function readAdditionalFieldString(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "";
+  }
+
+  const candidate = (value as Record<string, unknown>)[key];
+
+  if (typeof candidate === "string") {
+    return candidate.trim();
+  }
+
+  if (typeof candidate === "number") {
+    return String(candidate);
+  }
+
+  return "";
+}
+
+async function loadExistingLegacyTransactionSourceKeys(organizationId: string) {
+  const rows = await prisma.transaction.findMany({
+    where: {
+      organizationId,
+    },
+    select: {
+      additionalFields: true,
+    },
+  });
+  const keys = new Set<string>();
+
+  for (const row of rows) {
+    const legacyCustomId = readAdditionalFieldString(
+      row.additionalFields,
+      "legacyCustomId",
+    );
+    const legacyRecordId = readAdditionalFieldString(
+      row.additionalFields,
+      "legacyRecordId",
+    );
+
+    if (legacyCustomId) {
+      keys.add(legacyCustomId);
+    }
+
+    if (legacyRecordId) {
+      keys.add(legacyRecordId);
+    }
+  }
+
+  return keys;
+}
+
 const repoRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const defaultSourceDirectory =
   "/Users/openclaw_john/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/veryjohn_99bc/msg/file/2026-04";
@@ -234,6 +292,20 @@ const transactionFileConfigs: OfficeFileConfig[] = [
     kind: "transactions",
   },
 ];
+
+function isExecutedDirectly() {
+  if (import.meta.main) {
+    return true;
+  }
+
+  const entryPath = process.argv[1];
+
+  if (!entryPath) {
+    return false;
+  }
+
+  return resolve(entryPath) === fileURLToPath(import.meta.url);
+}
 
 function parseArgs(argv: string[]): ParsedArgs {
   const command = (argv[0] ?? "run") as CommandName;
@@ -1219,6 +1291,7 @@ function resolveOwnerMatch(
     byExact: new Map<string, ImportedMembershipRecord[]>(),
     records: [],
   };
+  const legacyUsers = normalizedRow.additionalFields.legacyUsers ?? "";
 
   for (const candidate of buildOwnerCandidateVariants(normalizedRow.ownerCandidateNames)) {
     const normalizedCandidate = normalizeLegacyImportNameForLookup(candidate);
@@ -1241,6 +1314,54 @@ function resolveOwnerMatch(
         reason: `Owner candidate "${candidate}" matched multiple imported users in ${officeSlug}.`,
       };
     }
+  }
+
+  const fallbackMatches = new Map<string, ImportedMembershipRecord>();
+
+  for (const rawUser of legacyUsers.split(",")) {
+    const candidate = rawUser.trim();
+
+    if (!candidate) {
+      continue;
+    }
+
+    const normalizedCandidate = normalizeLegacyImportNameForLookup(candidate);
+
+    if (!normalizedCandidate) {
+      continue;
+    }
+
+    const exactMatches = officeOwners.byExact.get(normalizedCandidate) ?? [];
+    const matches =
+      exactMatches.length > 0
+        ? exactMatches
+        : findOwnerMatchesByTokenSubset(normalizedCandidate, officeOwners.records);
+
+    if (matches.length > 1) {
+      return {
+        ok: false as const,
+        reason: `Legacy users fallback candidate "${candidate}" matched multiple imported users in ${officeSlug}.`,
+      };
+    }
+
+    if (matches.length === 1) {
+      fallbackMatches.set(matches[0].membershipId, matches[0]);
+    }
+  }
+
+  if (fallbackMatches.size === 1) {
+    return {
+      ok: true as const,
+      owner: [...fallbackMatches.values()][0],
+      usedLegacyUsersFallback: true,
+    };
+  }
+
+  if (fallbackMatches.size > 1) {
+    return {
+      ok: false as const,
+      reason: `Legacy users fallback matched multiple imported users in ${officeSlug}.`,
+    };
   }
 
   return {
@@ -1370,6 +1491,8 @@ async function executeTransactionImport(
   execute: boolean,
 ) {
   const ownerIndex = buildImportedMembershipIndex(ownerRecords);
+  const existingLegacyTransactionSourceKeys =
+    await loadExistingLegacyTransactionSourceKeys(context.organizationId);
   const contactCache = execute
     ? await loadContactCache(context.organizationId)
     : {
@@ -1392,6 +1515,10 @@ async function executeTransactionImport(
     for (const row of rows) {
       const normalized = normalizeLegacyTransactionRow(row);
       const warnings = normalized.warnings.map((warning) => warning.message);
+      const sourceKeys = buildLegacyTransactionSourceKeys(row);
+      const duplicateSourceKey = sourceKeys.find((key) =>
+        existingLegacyTransactionSourceKeys.has(key),
+      );
 
       if (!normalized.shouldImport) {
         skipped.push({
@@ -1400,6 +1527,17 @@ async function executeTransactionImport(
           sourceRowId: normalized.sourceRowId,
           transactionName: normalized.createInput.transactionName,
           reason: normalized.skipReason ?? "Skipped by import filter.",
+        });
+        continue;
+      }
+
+      if (duplicateSourceKey) {
+        skipped.push({
+          officeSlug: config.officeSlug,
+          sourceFile: config.fileName,
+          sourceRowId: normalized.sourceRowId,
+          transactionName: normalized.createInput.transactionName,
+          reason: `Legacy transaction "${duplicateSourceKey}" already exists in the database or current import batch.`,
         });
         continue;
       }
@@ -1415,6 +1553,10 @@ async function executeTransactionImport(
           reason: ownerMatch.reason,
         });
         continue;
+      }
+
+      if (ownerMatch.usedLegacyUsersFallback) {
+        warnings.push("Owner matched through unique legacy users fallback.");
       }
 
       try {
@@ -1445,6 +1587,10 @@ async function executeTransactionImport(
               isPrimary: true,
             });
           }
+        }
+
+        for (const sourceKey of sourceKeys) {
+          existingLegacyTransactionSourceKeys.add(sourceKey);
         }
 
         successes.push({
@@ -1766,7 +1912,7 @@ async function main() {
   printSummary(args, summary, reportDir);
 }
 
-if (import.meta.main) {
+if (isExecutedDirectly()) {
   main()
     .catch((error) => {
       console.error(error instanceof Error ? error.message : String(error));

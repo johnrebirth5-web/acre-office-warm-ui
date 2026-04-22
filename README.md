@@ -1062,6 +1062,8 @@ npm run import:acre-2026-04 -- run --execute --supplemental-sheet-url='https://d
 - `run` 未提供 supplemental sheet URL 时会跳过 supplemental 步骤，并在 summary / 终端输出里明确标注 skipped
 - `reset` 会保留 organization、3 个 offices、字段配置、角色模板和 bootstrap admin，只清业务 roster / contacts / transactions / commissions / payouts / invitations 等可重建业务数据
 - transaction 只导入 `pending / closed`，其余状态写入跳过报告
+- transaction 导入会按 legacy `custom_id / id` 自动跳过数据库里已存在的旧记录，避免重复创建
+- 当 `Agent Name / Licensed Agent Name` 对不上时，脚本只会在 `users` 列里存在唯一内部成员匹配时才回退使用该成员作为 owner；多候选仍然会失败并进入报告
 - supplemental roster 会直接读取 Google Sheet workbook 导出，不要求手工先导出文件
 - supplemental roster 只使用四列：`User Name / License state / Custom agent split % / Expiration date`
 - supplemental roster 字段落点：
