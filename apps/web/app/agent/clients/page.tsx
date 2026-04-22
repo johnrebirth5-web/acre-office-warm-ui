@@ -83,15 +83,12 @@ export default async function AgentClientsPage() {
               <FrontOfficeClientsWorkbenchClient clients={snapshot.clients} />
             ) : (
               <EmptyState
-                description="The queue stays intentionally light. Add one new lead on the right and Acre will place it into this follow-up list."
+                description="The queue stays intentionally light. Add one new lead in the intake section below and Acre will place it into this follow-up list."
                 title="No clients in your follow-up queue"
               />
             )}
           </SectionCard>
-        </>
-      }
-      rail={
-        <>
+
           <FrontOfficeLeadIntakeCard
             initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="clients"
