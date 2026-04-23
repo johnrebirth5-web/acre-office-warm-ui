@@ -26,6 +26,9 @@ type PoiCategory = {
   requests: Array<{ keyword?: string; type?: string }>;
 };
 
+const EMPTY_POI_SUMMARY =
+  "No nearby places selected. Choose a category to show nearby places on the map.";
+
 type MapListing = StudioListingCollectionListingItem & {
   latitude: number;
   longitude: number;
@@ -224,8 +227,17 @@ function buildPoiRequests(category: PoiCategoryId) {
     return POI_CATEGORIES.flatMap((entry) => entry.requests);
   }
 
+  return POI_CATEGORIES.find((entry) => entry.id === category)?.requests ?? [];
+}
+
+function getPoiSummaryLabel(category: PoiCategoryId) {
+  if (category === "all") {
+    return "places across all categories";
+  }
+
   return (
-    POI_CATEGORIES.find((entry) => entry.id === category)?.requests ?? []
+    CATEGORY_TABS.find((item) => item.id === category)?.label.toLowerCase() ??
+    "places"
   );
 }
 
@@ -292,8 +304,10 @@ export function ListingStudioCollectionMap({
   const mapRef = useRef<any>(null);
   const listingMarkersRef = useRef<any[]>([]);
   const poiMarkersRef = useRef<any[]>([]);
-  const [activeCategory, setActiveCategory] = useState<PoiCategoryId>("all");
-  const [poiSummary, setPoiSummary] = useState("Loading nearby places...");
+  const [activeCategory, setActiveCategory] = useState<PoiCategoryId | null>(
+    null,
+  );
+  const [poiSummary, setPoiSummary] = useState(EMPTY_POI_SUMMARY);
   const [isPoiLoading, setIsPoiLoading] = useState(false);
   const [mapError, setMapError] = useState("");
   const apiKey = getGoogleMapsKey();
@@ -311,7 +325,10 @@ export function ListingStudioCollectionMap({
   const mapSignature = useMemo(
     () =>
       mappedListings
-        .map((listing) => `${listing.packId}:${listing.latitude}:${listing.longitude}`)
+        .map(
+          (listing) =>
+            `${listing.packId}:${listing.latitude}:${listing.longitude}`,
+        )
         .join("|"),
     [mappedListings],
   );
@@ -341,7 +358,7 @@ export function ListingStudioCollectionMap({
     let isCancelled = false;
 
     async function renderMap() {
-      setIsPoiLoading(true);
+      setIsPoiLoading(activeCategory !== null);
       setMapError("");
 
       try {
@@ -392,6 +409,13 @@ export function ListingStudioCollectionMap({
           map.fitBounds(bounds, 72);
         }
 
+        if (!activeCategory) {
+          startTransition(() => {
+            setPoiSummary(EMPTY_POI_SUMMARY);
+          });
+          return;
+        }
+
         const service = new googleMaps.maps.places.PlacesService(map);
         const requests = buildPoiRequests(activeCategory);
         const searchResults = await Promise.all(
@@ -424,10 +448,11 @@ export function ListingStudioCollectionMap({
           .filter(Boolean);
 
         startTransition(() => {
+          const categoryLabel = getPoiSummaryLabel(activeCategory);
           setPoiSummary(
             dedupedPlaces.length
-              ? `${dedupedPlaces.length} nearby ${CATEGORY_TABS.find((item) => item.id === activeCategory)?.label.toLowerCase() ?? "places"} shown on the map.`
-              : `No nearby ${CATEGORY_TABS.find((item) => item.id === activeCategory)?.label.toLowerCase() ?? "places"} were found in this view.`,
+              ? `${dedupedPlaces.length} nearby ${categoryLabel} shown on the map.`
+              : `No nearby ${categoryLabel} were found in this view.`,
           );
         });
       } catch (error) {
@@ -493,10 +518,14 @@ export function ListingStudioCollectionMap({
         </p>
       </div>
 
-      <div className="listing-studio-collection-map-filters" role="tablist">
+      <div
+        aria-label="Nearby place filters"
+        className="listing-studio-collection-map-filters"
+        role="toolbar"
+      >
         {CATEGORY_TABS.map((category) => (
           <button
-            aria-selected={activeCategory === category.id}
+            aria-pressed={activeCategory === category.id}
             className={cx(
               "listing-studio-collection-map-filter",
               activeCategory === category.id && "is-active",
@@ -508,6 +537,13 @@ export function ListingStudioCollectionMap({
             {category.label}
           </button>
         ))}
+        <button
+          className="listing-studio-collection-map-filter is-clear"
+          onClick={() => setActiveCategory(null)}
+          type="button"
+        >
+          Clear
+        </button>
       </div>
 
       <div className="listing-studio-collection-map-canvas" ref={mapRootRef} />

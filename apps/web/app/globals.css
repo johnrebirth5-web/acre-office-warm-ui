@@ -19366,6 +19366,11 @@ body,
   box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
 }
 
+.listing-studio-collection-map-filter.is-clear {
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--office-text-muted);
+}
+
 .listing-studio-collection-map-canvas {
   width: 100%;
   min-height: 420px;

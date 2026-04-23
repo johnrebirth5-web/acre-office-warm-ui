@@ -164,6 +164,7 @@
     - `Coffee`
     - `Nightlife`
     - `All`
+    - 默认不预选任何 POI 类目；用户点击后才显示附近点位，并可用 `Clear` 回到无筛选状态
 - 当前 collection 地图和 POI 使用运行时 Google Maps / Places 查询，不做 Acre 内部 POI 持久化
 
 ### Shares
