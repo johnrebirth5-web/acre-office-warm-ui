@@ -19088,16 +19088,18 @@ body,
 
 .listing-studio-collection-card-shell {
   position: relative;
+  isolation: isolate;
 }
 
 .listing-studio-collection-card-actions {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 3;
+  top: 16px;
+  right: 16px;
+  z-index: 12;
 }
 
 .listing-studio-collection-card {
+  position: relative;
   display: grid;
   gap: 16px;
   padding: 18px;
@@ -19127,6 +19129,20 @@ body,
     linear-gradient(180deg, rgba(20, 74, 119, 0.1), rgba(20, 74, 119, 0.03)),
     rgba(241, 245, 249, 0.92);
   overflow: hidden;
+}
+
+.listing-studio-collection-card-media::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: clamp(74px, 24%, 92px);
+  height: clamp(74px, 24%, 92px);
+  border-bottom-left-radius: 28px;
+  background: rgba(250, 251, 253, 0.98);
+  box-shadow: -10px 12px 28px rgba(250, 251, 253, 0.92);
+  pointer-events: none;
+  z-index: 4;
 }
 
 .listing-studio-collection-card-tile {
