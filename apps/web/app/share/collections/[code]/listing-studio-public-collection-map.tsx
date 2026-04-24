@@ -29,9 +29,11 @@ type MapTile = {
   top: number;
 };
 
-type CoordinateOverlap = {
-  overlapIndex: number;
-  overlapCount: number;
+type CoordinateGroup = {
+  key: string;
+  latitude: number;
+  longitude: number;
+  listings: MapListing[];
 };
 
 declare global {
@@ -46,7 +48,6 @@ const DEFAULT_KEYLESS_MAP_VIEWPORT: MapViewport = {
   width: 360,
   height: 312,
 };
-const METERS_PER_LATITUDE_DEGREE = 111_320;
 
 function getGoogleMapsKey() {
   return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || "";
@@ -110,71 +111,33 @@ function getCoordinateKey(listing: MapListing) {
   return `${listing.latitude.toFixed(6)}:${listing.longitude.toFixed(6)}`;
 }
 
-function buildCoordinateOverlapMap(listings: MapListing[]) {
-  const coordinateCounts = new Map<string, number>();
-  const coordinateIndexes = new Map<string, number>();
-  const overlapMap = new Map<string, CoordinateOverlap>();
+function buildCoordinateGroups(listings: MapListing[]) {
+  const groupMap = new Map<string, CoordinateGroup>();
 
   listings.forEach((listing) => {
-    const coordinateKey = getCoordinateKey(listing);
-    coordinateCounts.set(
-      coordinateKey,
-      (coordinateCounts.get(coordinateKey) ?? 0) + 1,
-    );
-  });
+    const key = getCoordinateKey(listing);
+    const existingGroup = groupMap.get(key);
 
-  listings.forEach((listing) => {
-    const coordinateKey = getCoordinateKey(listing);
-    const overlapIndex = coordinateIndexes.get(coordinateKey) ?? 0;
-    coordinateIndexes.set(coordinateKey, overlapIndex + 1);
-    overlapMap.set(listing.packId, {
-      overlapIndex,
-      overlapCount: coordinateCounts.get(coordinateKey) ?? 1,
+    if (existingGroup) {
+      existingGroup.listings.push(listing);
+      return;
+    }
+
+    groupMap.set(key, {
+      key,
+      latitude: listing.latitude,
+      longitude: listing.longitude,
+      listings: [listing],
     });
   });
 
-  return overlapMap;
+  return Array.from(groupMap.values());
 }
 
-function getMarkerPixelOffset(overlap: CoordinateOverlap) {
-  if (overlap.overlapCount <= 1) {
-    return { x: 0, y: 0 };
-  }
-
-  const radius = Math.min(42, Math.max(28, 20 + overlap.overlapCount * 4));
-  const angle =
-    (2 * Math.PI * overlap.overlapIndex) / overlap.overlapCount -
-    Math.PI / 2;
-
-  return {
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius,
-  };
-}
-
-function getMarkerGeographicPosition(
-  listing: MapListing,
-  overlap: CoordinateOverlap,
-) {
-  if (overlap.overlapCount <= 1) {
-    return {
-      lat: listing.latitude,
-      lng: listing.longitude,
-    };
-  }
-
-  const pixelOffset = getMarkerPixelOffset(overlap);
-  const metersPerLongitudeDegree =
-    METERS_PER_LATITUDE_DEGREE *
-    Math.cos((clampLatitude(listing.latitude) * Math.PI) / 180);
-  const scale = 0.9;
-
-  return {
-    lat: listing.latitude - (pixelOffset.y * scale) / METERS_PER_LATITUDE_DEGREE,
-    lng:
-      listing.longitude +
-      (pixelOffset.x * scale) / Math.max(metersPerLongitudeDegree, 1),
-  };
+function getCoordinateGroupLabel(group: CoordinateGroup) {
+  return group.listings
+    .map((listing) => String(listing.collectionIndex + 1))
+    .join("/");
 }
 
 function clampLatitude(latitude: number) {
@@ -259,25 +222,10 @@ function buildKeylessMapView(listings: MapListing[], viewport: MapViewport) {
     }
   }
 
-  const overlapMap = buildCoordinateOverlapMap(listings);
-  const markers = listings.map((listing) => ({
-    listing,
-    ...getMarkerPixelOffset(
-      overlapMap.get(listing.packId) ?? {
-        overlapIndex: 0,
-        overlapCount: 1,
-      },
-    ),
-  })).map((marker) => ({
-    listing: marker.listing,
-    left:
-      longitudeToTileX(marker.listing.longitude, zoom) * TILE_SIZE -
-      viewportLeft +
-      marker.x,
-    top:
-      latitudeToTileY(marker.listing.latitude, zoom) * TILE_SIZE -
-      viewportTop +
-      marker.y,
+  const markers = buildCoordinateGroups(listings).map((group) => ({
+    group,
+    left: longitudeToTileX(group.longitude, zoom) * TILE_SIZE - viewportLeft,
+    top: latitudeToTileY(group.latitude, zoom) * TILE_SIZE - viewportTop,
   }));
 
   return {
@@ -289,22 +237,27 @@ function buildKeylessMapView(listings: MapListing[], viewport: MapViewport) {
 function createListingMarker(
   googleMaps: any,
   map: any,
-  listing: MapListing,
-  overlap: CoordinateOverlap,
+  group: CoordinateGroup,
 ) {
   return new googleMaps.maps.Marker({
     map,
-    position: getMarkerGeographicPosition(listing, overlap),
+    position: {
+      lat: group.latitude,
+      lng: group.longitude,
+    },
     label: {
-      text: String(listing.collectionIndex + 1),
+      text: getCoordinateGroupLabel(group),
       color: "#ffffff",
       fontWeight: "800",
-      fontSize: "12px",
+      fontSize: group.listings.length > 1 ? "10px" : "12px",
     },
-    title: listing.displayTitle || listing.addressLine,
+    title:
+      group.listings.length > 1
+        ? `${group.listings.length} properties at this location`
+        : group.listings[0]?.displayTitle || group.listings[0]?.addressLine,
     icon: {
       path: googleMaps.maps.SymbolPath.CIRCLE,
-      scale: 15,
+      scale: group.listings.length > 1 ? 19 : 15,
       fillColor: "#2f5598",
       fillOpacity: 1,
       strokeColor: "#ffffff",
@@ -314,33 +267,38 @@ function createListingMarker(
 }
 
 function createInfoWindowContent(
-  listing: MapListing,
+  group: CoordinateGroup,
   onOpenListing: (packId: string) => void,
 ) {
   const root = document.createElement("div");
   root.className = "listing-studio-collection-share-map-popover";
 
   const eyebrow = document.createElement("span");
-  eyebrow.textContent = `Property ${listing.collectionIndex + 1}`;
+  eyebrow.textContent =
+    group.listings.length > 1
+      ? `${group.listings.length} properties here`
+      : `Property ${(group.listings[0]?.collectionIndex ?? 0) + 1}`;
   root.appendChild(eyebrow);
 
   const title = document.createElement("strong");
-  title.textContent = listing.displayTitle || listing.addressLine;
+  title.textContent =
+    group.listings.length > 1
+      ? getCoordinateGroupLabel(group)
+      : group.listings[0]?.displayTitle || group.listings[0]?.addressLine || "";
   root.appendChild(title);
 
   const address = document.createElement("p");
-  address.textContent = listing.locationLine || listing.addressLine;
+  address.textContent =
+    group.listings[0]?.locationLine || group.listings[0]?.addressLine || "";
   root.appendChild(address);
 
-  const price = document.createElement("small");
-  price.textContent = listing.priceLabel;
-  root.appendChild(price);
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "View Details";
-  button.addEventListener("click", () => onOpenListing(listing.packId));
-  root.appendChild(button);
+  group.listings.forEach((listing) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${String(listing.collectionIndex + 1).padStart(2, "0")} ${listing.displayTitle || listing.addressLine} · ${listing.priceLabel}`;
+    button.addEventListener("click", () => onOpenListing(listing.packId));
+    root.appendChild(button);
+  });
 
   return root;
 }
@@ -354,9 +312,13 @@ function ListingStudioKeylessCollectionMap(props: {
   const [viewport, setViewport] = useState<MapViewport>(
     DEFAULT_KEYLESS_MAP_VIEWPORT,
   );
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
   const mapView = useMemo(
     () => buildKeylessMapView(listings, viewport),
     [listings, viewport],
+  );
+  const activeMarker = mapView.markers.find(
+    (marker) => marker.group.key === activeGroupKey,
   );
 
   useEffect(() => {
@@ -406,21 +368,63 @@ function ListingStudioKeylessCollectionMap(props: {
         />
       ))}
 
-      {mapView.markers.map(({ listing, left, top }) => (
+      {mapView.markers.map(({ group, left, top }) => (
         <button
-          aria-label={`View ${listing.displayTitle || listing.addressLine}`}
-          className="listing-studio-collection-share-map-marker"
-          key={listing.packId}
-          onClick={() => onOpenListing(listing.packId)}
+          aria-label={
+            group.listings.length > 1
+              ? `View ${group.listings.length} properties at this location`
+              : `View ${group.listings[0]?.displayTitle || group.listings[0]?.addressLine}`
+          }
+          className={
+            group.listings.length > 1
+              ? "listing-studio-collection-share-map-marker is-cluster"
+              : "listing-studio-collection-share-map-marker"
+          }
+          key={group.key}
+          onClick={() => {
+            if (group.listings.length === 1) {
+              const packId = group.listings[0]?.packId;
+              if (packId) {
+                onOpenListing(packId);
+              }
+              return;
+            }
+
+            setActiveGroupKey((currentKey) =>
+              currentKey === group.key ? null : group.key,
+            );
+          }}
           style={{
             left,
             top,
           }}
           type="button"
         >
-          {listing.collectionIndex + 1}
+          {getCoordinateGroupLabel(group)}
         </button>
       ))}
+
+      {activeMarker ? (
+        <div
+          className="listing-studio-collection-share-map-cluster-popover"
+          style={{
+            left: activeMarker.left,
+            top: activeMarker.top,
+          }}
+        >
+          <strong>{activeMarker.group.listings.length} properties here</strong>
+          {activeMarker.group.listings.map((listing) => (
+            <button
+              key={listing.packId}
+              onClick={() => onOpenListing(listing.packId)}
+              type="button"
+            >
+              <span>{String(listing.collectionIndex + 1).padStart(2, "0")}</span>
+              {listing.displayTitle || listing.addressLine}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <a
         className="listing-studio-collection-share-map-attribution"
@@ -514,7 +518,7 @@ export function ListingStudioPublicCollectionMap({
         const map = mapRef.current;
         listingMarkersRef.current.forEach((marker) => marker.setMap(null));
         listingMarkersRef.current = [];
-        const overlapMap = buildCoordinateOverlapMap(mappedListings);
+        const coordinateGroups = buildCoordinateGroups(mappedListings);
 
         if (!infoWindowRef.current) {
           infoWindowRef.current = new googleMaps.maps.InfoWindow({
@@ -523,23 +527,19 @@ export function ListingStudioPublicCollectionMap({
         }
 
         const bounds = new googleMaps.maps.LatLngBounds();
-        listingMarkersRef.current = mappedListings.map((listing) => {
+        listingMarkersRef.current = coordinateGroups.map((group) => {
           bounds.extend({
-            lat: listing.latitude,
-            lng: listing.longitude,
+            lat: group.latitude,
+            lng: group.longitude,
           });
 
           const marker = createListingMarker(
             googleMaps,
             map,
-            listing,
-            overlapMap.get(listing.packId) ?? {
-              overlapIndex: 0,
-              overlapCount: 1,
-            },
+            group,
           );
           marker.addListener("click", () => {
-            const content = createInfoWindowContent(listing, (packId) =>
+            const content = createInfoWindowContent(group, (packId) =>
               onOpenListingRef.current(packId),
             );
             infoWindowRef.current.setContent(content);
