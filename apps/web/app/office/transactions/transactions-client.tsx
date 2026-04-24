@@ -184,6 +184,7 @@ function buildTransactionsHref(
     filters: SearchFilterState;
     page: number;
     pageSize: number;
+    status?: OfficeTransactionRecord["status"] | "All";
   }
 ) {
   const searchParams = new URLSearchParams();
@@ -253,6 +254,14 @@ function buildTransactionsHref(
 
     if (filterValue.value.trim()) {
       searchParams.set(baseKey, filterValue.value.trim());
+    }
+  }
+
+  if (input.status) {
+    if (input.status === "All") {
+      searchParams.delete("status");
+    } else {
+      searchParams.set("status", input.status);
     }
   }
 
@@ -529,6 +538,8 @@ export function TransactionsClient({
       searchLayout.availableFields.filter((field) => layoutSelection[buildSearchFieldId(field)]),
     [layoutSelection, searchLayout.availableFields]
   );
+  const isPendingQuickFilterActive = searchLayout.listFilters.status === "Pending";
+  const isClosedQuickFilterActive = searchLayout.listFilters.status === "Closed";
 
   function updateSystemFilters(
     updater: (current: SearchFilterState["system"]) => SearchFilterState["system"]
@@ -573,6 +584,18 @@ export function TransactionsClient({
         filters: searchFilters,
         page: nextPage,
         pageSize: nextPageSize
+      })
+    );
+  }
+
+  function navigateWithStatusShortcut(status: "Pending" | "Closed") {
+    router.push(
+      buildTransactionsHref(pathname, {
+        selectedFields: searchLayout.selectedFields,
+        filters: searchFilters,
+        page: 1,
+        pageSize,
+        status
       })
     );
   }
@@ -843,11 +866,44 @@ export function TransactionsClient({
         </div>
       )}
 
-      <div className="office-filter-actions">
-        <Button type="submit">{t((messages) => messages.common.applyFilters)}</Button>
-        <Button onClick={resetFilters} type="button" variant="secondary">
-          {t((messages) => messages.common.reset)}
-        </Button>
+      <div className="office-filter-actions office-transaction-filter-actions">
+        <div
+          aria-label={t((messages) => messages.officeTransactions.statusQuickFilters)}
+          className="office-transaction-status-shortcuts"
+        >
+          <Button
+            aria-pressed={isPendingQuickFilterActive}
+            className={
+              isPendingQuickFilterActive
+                ? "office-transaction-status-shortcut is-active"
+                : "office-transaction-status-shortcut"
+            }
+            onClick={() => navigateWithStatusShortcut("Pending")}
+            type="button"
+            variant="secondary"
+          >
+            {t((messages) => messages.officeTransactions.pendingOnly)}
+          </Button>
+          <Button
+            aria-pressed={isClosedQuickFilterActive}
+            className={
+              isClosedQuickFilterActive
+                ? "office-transaction-status-shortcut is-active"
+                : "office-transaction-status-shortcut"
+            }
+            onClick={() => navigateWithStatusShortcut("Closed")}
+            type="button"
+            variant="secondary"
+          >
+            {t((messages) => messages.officeTransactions.closedOnly)}
+          </Button>
+        </div>
+        <div className="office-transaction-filter-submit-actions">
+          <Button type="submit">{t((messages) => messages.common.applyFilters)}</Button>
+          <Button onClick={resetFilters} type="button" variant="secondary">
+            {t((messages) => messages.common.reset)}
+          </Button>
+        </div>
       </div>
     </ListPageFilters>
   );

@@ -5470,6 +5470,33 @@ a {
   margin-left: 0;
 }
 
+.office-transaction-filter-actions {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.office-transaction-status-shortcuts,
+.office-transaction-filter-submit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.office-transaction-status-shortcuts {
+  justify-content: flex-start;
+}
+
+.office-transaction-filter-submit-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.office-transaction-status-shortcut {
+  min-width: max-content;
+}
+
 .office-transaction-search-date-field {
   min-width: min(260px, 100%);
 }
@@ -5550,6 +5577,20 @@ a {
   .office-transaction-search-layout-filters
     .office-transaction-search-date-field {
     grid-column: auto;
+  }
+
+  .office-transaction-filter-actions,
+  .office-transaction-status-shortcuts,
+  .office-transaction-filter-submit-actions {
+    width: 100%;
+  }
+
+  .office-transaction-filter-actions {
+    align-items: stretch;
+  }
+
+  .office-transaction-filter-submit-actions {
+    margin-left: 0;
   }
 
   .office-transaction-search-date-range {
