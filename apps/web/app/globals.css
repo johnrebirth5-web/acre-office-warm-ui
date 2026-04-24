@@ -22212,6 +22212,18 @@ body,
   transform: translateY(-1px);
 }
 
+.listing-studio-share-dialog-status {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(20, 74, 119, 0.14);
+  border-radius: 12px;
+  background: rgba(20, 74, 119, 0.07);
+  color: var(--office-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .listing-studio-share-dialog-copy {
   margin: 0;
   color: var(--ink);

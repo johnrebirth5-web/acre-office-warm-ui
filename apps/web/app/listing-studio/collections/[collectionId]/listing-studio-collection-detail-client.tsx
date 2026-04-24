@@ -78,6 +78,7 @@ export function ListingStudioCollectionDetailClient({
   const [search, setSearch] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [shareDialogMessage, setShareDialogMessage] = useState("");
   const [shareMethod, setShareMethod] = useState<ShareMethod>("copy-with-message");
   const [copyingShareMethod, setCopyingShareMethod] = useState<ShareMethod | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -147,6 +148,7 @@ export function ListingStudioCollectionDetailClient({
 
   function openShareDialog() {
     setShareMethod("copy-with-message");
+    setShareDialogMessage("");
     setIsShareDialogOpen(true);
   }
 
@@ -158,6 +160,7 @@ export function ListingStudioCollectionDetailClient({
     setShareMethod(nextShareMethod);
     setCopyingShareMethod(nextShareMethod);
     setStatusMessage("");
+    setShareDialogMessage("");
 
     try {
       const response = await fetch(
@@ -186,21 +189,20 @@ export function ListingStudioCollectionDetailClient({
       }));
       await copyTextToClipboard(payload.shareUrl);
       if (nextShareMethod === "wechat-card") {
-        setStatusMessage(
+        setShareDialogMessage(
           isZh
-            ? "微信分享链接已复制。请按弹窗说明在微信内打开并分享卡片。"
-            : "WeChat share link copied. Follow the steps in the dialog to share the card.",
+            ? "链接已复制。请按说明在微信内打开并分享卡片。"
+            : "Link copied. Follow the steps below to share the WeChat card.",
         );
       } else {
-        setIsShareDialogOpen(false);
-        setStatusMessage(
+        setShareDialogMessage(
           isZh
-            ? "复制已成功。把链接发给客户，让对方在浏览器中打开即可。"
-            : "Share link copied. Send it to your client so they can open it in a browser.",
+            ? "链接已复制。可以直接发给客户。"
+            : "Link copied. Send it to your client so they can open it in a browser.",
         );
       }
     } catch {
-      setStatusMessage(isZh ? "复制失败。" : "Unable to copy the share link.");
+      setShareDialogMessage(isZh ? "复制失败。" : "Unable to copy the share link.");
     } finally {
       setCopyingShareMethod(null);
     }
@@ -421,6 +423,16 @@ export function ListingStudioCollectionDetailClient({
                   : "WeChat card"}
               </button>
             </div>
+
+            {shareDialogMessage ? (
+              <p
+                aria-live="polite"
+                className="listing-studio-share-dialog-status"
+                role="status"
+              >
+                {shareDialogMessage}
+              </p>
+            ) : null}
 
             {shareMethod === "wechat-card" ? (
               <div className="listing-studio-share-dialog-wechat">
