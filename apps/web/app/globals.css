@@ -1822,6 +1822,8 @@ select {
   display: flex;
   align-items: center;
   gap: 14px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .office-transaction-intake-shell {
@@ -7769,6 +7771,19 @@ a {
   color: #b83e3e;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.office-form-error-summary {
+  max-width: min(42rem, 100%);
+  line-height: 1.35;
+  text-align: right;
+}
+
+.office-field-error {
+  color: var(--office-danger);
+  font-size: var(--office-text-helper-size);
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .office-inline-meta {
@@ -14646,6 +14661,17 @@ body,
 .office-modal-field textarea {
   min-height: 114px;
   padding-top: 12px;
+}
+
+.office-modal-field.is-invalid input:not([type="checkbox"]):not([type="radio"]),
+.office-modal-field.is-invalid select,
+.office-modal-field.is-invalid textarea,
+.office-modal-inline-select.is-invalid select {
+  border-color: color-mix(in srgb, var(--office-danger) 64%, #ffffff);
+  background: color-mix(in srgb, var(--office-danger-soft) 64%, #ffffff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    0 0 0 1px color-mix(in srgb, var(--office-danger) 18%, transparent);
 }
 
 .office-form-field > span,

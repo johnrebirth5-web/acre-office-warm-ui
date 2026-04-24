@@ -336,21 +336,29 @@ export async function handleCreateOfficeTransactionsPost(
       handoffClaimToken = claimResult.claimToken ?? "";
     }
 
-    const submission = (() => {
-      try {
-        return (
-          dependencies.prepareTransactionIntakeSubmission ??
-          prepareTransactionIntakeSubmission
-        )({
-          schema,
-          payload: canManageTransactionStatus
-            ? body
-            : { ...body, transactionStatus: "pending" },
-        });
-      } catch {
-        return null;
-      }
-    })();
+    let submission: ReturnType<typeof prepareTransactionIntakeSubmission>;
+
+    try {
+      submission = (
+        dependencies.prepareTransactionIntakeSubmission ??
+        prepareTransactionIntakeSubmission
+      )({
+        schema,
+        payload: canManageTransactionStatus
+          ? body
+          : { ...body, transactionStatus: "pending" },
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : invalidTransactionRequestError,
+        },
+        { status: 400 },
+      );
+    }
 
     if (!submission) {
       return NextResponse.json(
