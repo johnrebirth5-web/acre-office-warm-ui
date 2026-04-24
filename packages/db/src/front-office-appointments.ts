@@ -2344,7 +2344,7 @@ function mapAppointmentRecord(
     notesLabel,
     meetingUrlLabel: appointment.meetingUrl?.trim() || "No meeting link saved",
     listingOutputHref: appointment.client?.id
-      ? `/agent/listings?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+      ? `/agent/calendar?calendarView=bridge&clientId=${appointment.client.id}&appointmentId=${appointment.id}`
       : null,
     googleCalendarHref: externalLinks.googleCalendarHref,
     outlookCalendarHref: externalLinks.outlookCalendarHref,
@@ -3528,9 +3528,7 @@ export async function getFrontOfficeAppointmentBridgeResult(
         objectLabel: `${appointment.title}${appointment.client?.fullName ? ` · ${appointment.client.fullName}` : ""}`,
         contextHref: appointment.client?.id
           ? `/agent/clients/${appointment.client.id}`
-          : appointment.listing?.id
-            ? `/agent/listings?listingId=${appointment.listing.id}&appointmentId=${appointment.id}`
-            : "/agent/calendar",
+          : "/agent/calendar",
         actionSource: "front_office_appointment_bridge",
         workflowReason: input.action,
         ...(input.action

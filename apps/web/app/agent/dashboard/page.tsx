@@ -285,7 +285,7 @@ function buildDashboardLaunchpadItems(input: {
       id: "engagement",
       badgeLabel: leadingEngagement.engagementLabel,
       badgeTone: leadingEngagement.engagementTone,
-      title: isZh ? "打开房源跟进" : "Open listing follow-up",
+      title: isZh ? "打开 Listing Studio" : "Open Listing Studio",
       description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the next-step view to turn that open or quiet send into a concrete next step instead of sending blindly.`,
       metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
       href: leadingEngagement.href,
@@ -304,8 +304,8 @@ function buildDashboardLaunchpadItems(input: {
           : isZh
             ? "第一条跟踪发送从房源输出开始"
             : "First tracked send starts from listing output",
-      href: "/agent/listings?lane=draft-lane",
-      actionLabel: isZh ? "打开房源跟进" : "Open listing follow-up",
+      href: "/listing-studio/listings",
+      actionLabel: isZh ? "打开 Studio" : "Open Studio",
     });
   }
 

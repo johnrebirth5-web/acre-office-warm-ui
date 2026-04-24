@@ -13,7 +13,6 @@ type FrontOfficeFeatureKey =
   | "dashboard"
   | "clients"
   | "calendar"
-  | "listings"
   | "studio"
   | "activity"
   | "resources";
@@ -42,8 +41,6 @@ function getFeatureLabel(
       return t((messages) => messages.agentNav.items.clients);
     case "calendar":
       return t((messages) => messages.agentNav.items.calendar);
-    case "listings":
-      return t((messages) => messages.agentNav.items.listings);
     case "studio":
       return t((messages) => messages.agentNav.items.studio);
     case "activity":
@@ -91,17 +88,6 @@ function buildAlternativeEntries(input: {
       description: isZh
         ? "继续查看预约、写回状态和下一次外部联系压力。"
         : "Keep working through appointments, writeback status, and the next external follow-up.",
-    });
-  }
-
-  if (can(currentMembership, "listings:view")) {
-    entries.push({
-      key: "listings",
-      href: "/agent/listings",
-      label: t((messages) => messages.agentNav.items.listings),
-      description: isZh
-        ? "继续房源跟进、草稿辅助和已追踪发送。"
-        : "Keep working through listing follow-up, draft assist, and tracked sends.",
     });
   }
 

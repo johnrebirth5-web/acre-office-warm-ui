@@ -23,7 +23,6 @@ export function AgentNav({
   const { t } = useI18n();
   const canViewDashboard = permissions.includes("dashboard:view");
   const canViewClients = permissions.includes("clients:view");
-  const canViewListings = permissions.includes("listings:view");
   const canViewStudio = permissions.includes("listing_studio:view");
   const canViewResources = permissions.includes("resources:view");
   const canViewActivity =
@@ -83,16 +82,6 @@ export function AgentNav({
                 t((messages) => messages.agentNav.items.calendar),
               ),
           badgeText: canViewDashboard ? undefined : restrictedBadge,
-        },
-        {
-          href: "/agent/listings",
-          label: t((messages) => messages.agentNav.items.listings),
-          accessWarning: canViewListings
-            ? undefined
-            : buildAccessWarning(
-                t((messages) => messages.agentNav.items.listings),
-              ),
-          badgeText: canViewListings ? undefined : restrictedBadge,
         },
         {
           href: "/listing-studio/listings",

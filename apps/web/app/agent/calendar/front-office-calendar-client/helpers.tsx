@@ -796,10 +796,6 @@ export function readReturnToLabel(returnTo: string) {
     return "Back to client page";
   }
 
-  if (pathname.startsWith("/agent/listings")) {
-    return "Return to listing output";
-  }
-
   if (pathname.startsWith("/agent/notifications")) {
     return "Return to activity center";
   }
