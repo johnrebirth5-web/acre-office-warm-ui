@@ -5,6 +5,7 @@ import {
   startTransition,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -65,6 +66,30 @@ type BodyFieldRecord =
     };
 
 const maxVisibleOwnerSuggestions = 20;
+const ownerSelectionError =
+  "Select an agent owner before creating the transaction.";
+const transactionIdentityError =
+  "Enter a Transaction Name or Address before saving.";
+
+type TransactionIntakeFieldErrors = Record<string, string>;
+
+function normalizeFieldValue(value: string | undefined) {
+  return (value ?? "").trim();
+}
+
+function buildFieldErrorId(fieldName: string) {
+  return `transaction-intake-field-error-${fieldName.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function joinDescribedByIds(...ids: Array<string | false | undefined>) {
+  const describedBy = ids.filter(Boolean).join(" ");
+
+  return describedBy || undefined;
+}
+
+function buildRequiredFieldsSummary(labels: string[]) {
+  return `Complete required fields: ${labels.join(", ")}.`;
+}
 
 function buildInitialFieldValues(
   schema: OfficeTransactionIntakeSchema,
@@ -193,6 +218,7 @@ export function TransactionIntakeWorkspace({
   onSubmitted,
 }: TransactionIntakeWorkspaceProps) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const initialOwnerOption = resolveInitialOwnerOption(
     ownerAssignment,
     mode,
@@ -223,6 +249,9 @@ export function TransactionIntakeWorkspace({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<TransactionIntakeFieldErrors>(
+    {},
+  );
   const ownerFieldInputName = useMemo(
     () =>
       localSchema.customFields.find((field) => field.fieldKey === "agentName")
@@ -329,6 +358,8 @@ export function TransactionIntakeWorkspace({
     if (mode === "create" && !preserveDraftStateOnSchemaChange) {
       setFinanceDraft(createTransactionFinanceCreateDraft());
     }
+    setFieldErrors({});
+    setSubmitError("");
   }, [
     initialOwnerOption?.id,
     initialOwnerOption?.label,
@@ -405,11 +436,135 @@ export function TransactionIntakeWorkspace({
       modalFooterDescription,
     );
 
+  function clearFieldError(fieldName: string) {
+    setFieldErrors((current) => {
+      if (!current[fieldName]) {
+        return current;
+      }
+
+      const nextErrors = { ...current };
+      delete nextErrors[fieldName];
+
+      return nextErrors;
+    });
+  }
+
+  function focusFirstInvalidField(fieldName: string) {
+    if (!fieldName || typeof window === "undefined") {
+      return;
+    }
+
+    window.setTimeout(() => {
+      const escapedFieldName = fieldName
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"');
+      const fieldElement =
+        formRef.current?.querySelector<HTMLElement>(
+          `[name="${escapedFieldName}"]`,
+        ) ?? null;
+
+      fieldElement?.scrollIntoView({ block: "center", behavior: "smooth" });
+      fieldElement?.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  function validateFieldValues() {
+    const nextErrors: TransactionIntakeFieldErrors = {};
+    const summaryLabels: string[] = [];
+    const invalidFieldNames: string[] = [];
+    const visibleFields = [
+      ...visibleTopFields,
+      ...visibleBodyFields.map((entry) => entry.field),
+    ];
+
+    function addFieldError(
+      fieldName: string,
+      label: string,
+      message: string,
+    ) {
+      if (!nextErrors[fieldName]) {
+        nextErrors[fieldName] = message;
+        invalidFieldNames.push(fieldName);
+      }
+
+      if (!summaryLabels.includes(label)) {
+        summaryLabels.push(label);
+      }
+    }
+
+    for (const field of visibleFields) {
+      if (!field.isRequired) {
+        continue;
+      }
+
+      if (canSearchOwners && field.inputName === ownerFieldInputName) {
+        continue;
+      }
+
+      if (!normalizeFieldValue(fieldValues[field.inputName])) {
+        addFieldError(
+          field.inputName,
+          field.label,
+          `${field.label} is required.`,
+        );
+      }
+    }
+
+    if (canSearchOwners && !selectedOwnerMembershipId && ownerFieldInputName) {
+      addFieldError(
+        ownerFieldInputName,
+        "Agent Owner",
+        ownerSelectionError,
+      );
+    } else if (canSearchOwners && !selectedOwnerMembershipId) {
+      summaryLabels.push("Agent Owner");
+    }
+
+    const transactionNameField =
+      visibleFields.find((field) => field.fieldKey === "transaction_name") ??
+      null;
+    const addressField =
+      visibleFields.find((field) => field.fieldKey === "address") ?? null;
+    const transactionNameValue = transactionNameField
+      ? normalizeFieldValue(fieldValues[transactionNameField.inputName])
+      : "";
+    const addressValue = addressField
+      ? normalizeFieldValue(fieldValues[addressField.inputName])
+      : "";
+
+    if (!transactionNameValue && !addressValue) {
+      const identityField = transactionNameField ?? addressField;
+
+      if (identityField && !nextErrors[identityField.inputName]) {
+        addFieldError(
+          identityField.inputName,
+          "Transaction Name or Address",
+          transactionIdentityError,
+        );
+      }
+    }
+
+    const isOnlyOwnerError =
+      summaryLabels.length === 1 && summaryLabels[0] === "Agent Owner";
+
+    return {
+      errors: nextErrors,
+      firstInvalidFieldName: invalidFieldNames[0] ?? "",
+      summary: summaryLabels.length
+        ? isOnlyOwnerError
+          ? ownerSelectionError
+          : buildRequiredFieldsSummary(summaryLabels)
+        : "",
+    };
+  }
+
   function setFieldValue(fieldName: string, value: string) {
     setFieldValues((current) => ({
       ...current,
       [fieldName]: value,
     }));
+    clearFieldError(fieldName);
+    setSubmitError("");
   }
 
   function handleOwnerSearchChange(value: string) {
@@ -457,7 +612,12 @@ export function TransactionIntakeWorkspace({
 
     if (entry.kind === "built-in") {
       const field = entry.field;
-      const className = `office-modal-field ${entry.className}`.trim();
+      const fieldError = fieldErrors[field.inputName] ?? "";
+      const fieldErrorId = fieldError
+        ? buildFieldErrorId(field.inputName)
+        : undefined;
+      const className =
+        `office-modal-field ${entry.className} ${fieldError ? "is-invalid" : ""}`.trim();
 
       return (
         <label className={className} key={key}>
@@ -466,6 +626,8 @@ export function TransactionIntakeWorkspace({
           </div>
           {field.control === "textarea" ? (
             <textarea
+              aria-describedby={fieldErrorId}
+              aria-invalid={Boolean(fieldError)}
               disabled={!canEditValues}
               name={field.inputName}
               onChange={(event) =>
@@ -476,6 +638,8 @@ export function TransactionIntakeWorkspace({
             />
           ) : (
             <input
+              aria-describedby={fieldErrorId}
+              aria-invalid={Boolean(fieldError)}
               disabled={!canEditValues}
               name={field.inputName}
               onChange={(event) =>
@@ -485,15 +649,24 @@ export function TransactionIntakeWorkspace({
               value={fieldValues[field.inputName] ?? ""}
             />
           )}
+          {fieldError ? (
+            <small className="office-field-error" id={fieldErrorId}>
+              {fieldError}
+            </small>
+          ) : null}
         </label>
       );
     }
 
     const field = entry.field;
+    const fieldError = fieldErrors[field.inputName] ?? "";
+    const fieldErrorId = fieldError
+      ? buildFieldErrorId(field.inputName)
+      : undefined;
     const isAgentOwnerField =
       field.fieldKey === "agentName" && Boolean(ownerAssignment);
     const className =
-      `office-modal-field ${entry.className} ${isAgentOwnerField ? "office-modal-field-owner" : ""}`.trim();
+      `office-modal-field ${entry.className} ${isAgentOwnerField ? "office-modal-field-owner" : ""} ${fieldError ? "is-invalid" : ""}`.trim();
 
     return (
       <label className={className} key={key}>
@@ -504,8 +677,10 @@ export function TransactionIntakeWorkspace({
           <div className="office-transaction-owner-field">
             <input
               autoComplete="off"
+              aria-describedby={fieldErrorId}
               aria-expanded={canSearchOwners ? ownerSuggestionsOpen : undefined}
               aria-haspopup={canSearchOwners ? "listbox" : undefined}
+              aria-invalid={Boolean(fieldError)}
               disabled={!canEditValues || !canSearchOwners}
               name={field.inputName}
               onBlur={() => {
@@ -565,6 +740,8 @@ export function TransactionIntakeWorkspace({
           </div>
         ) : field.type === "select" ? (
           <select
+            aria-describedby={fieldErrorId}
+            aria-invalid={Boolean(fieldError)}
             disabled={!canEditValues}
             name={field.inputName}
             onChange={(event) =>
@@ -581,6 +758,8 @@ export function TransactionIntakeWorkspace({
           </select>
         ) : (
           <input
+            aria-describedby={fieldErrorId}
+            aria-invalid={Boolean(fieldError)}
             disabled={!canEditValues}
             maxLength={field.type === "text" ? 50 : undefined}
             name={field.inputName}
@@ -591,6 +770,11 @@ export function TransactionIntakeWorkspace({
             value={fieldValues[field.inputName] ?? ""}
           />
         )}
+        {fieldError ? (
+          <small className="office-field-error" id={fieldErrorId}>
+            {fieldError}
+          </small>
+        ) : null}
       </label>
     );
   }
@@ -598,10 +782,17 @@ export function TransactionIntakeWorkspace({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError("");
-    if (canSearchOwners && !selectedOwnerMembershipId) {
-      setSubmitError("Select an agent owner before creating the transaction.");
+
+    const validation = validateFieldValues();
+
+    if (validation.summary) {
+      setFieldErrors(validation.errors);
+      setSubmitError(validation.summary);
+      focusFirstInvalidField(validation.firstInvalidFieldName);
       return;
     }
+
+    setFieldErrors({});
     setIsSubmitting(true);
 
     try {
@@ -754,6 +945,7 @@ export function TransactionIntakeWorkspace({
       <form
         className={`office-modal-body office-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
         onSubmit={handleSubmit}
+        ref={formRef}
       >
         {useOfficeCreateModalChrome ? (
           <section className="office-create-modal-section office-transaction-create-section">
@@ -767,67 +959,92 @@ export function TransactionIntakeWorkspace({
 
             {visibleTopFields.length ? (
               <div className="office-modal-top-selects">
-                {visibleTopFields.map((field) => (
-                  <label
-                    className="office-modal-inline-select"
-                    key={field.fieldKey}
-                  >
-                    <div className="office-modal-field-head">
-                      <span>{getFieldValueLabel(field)}</span>
-                    </div>
-                    <select
-                      className={fieldValues[field.inputName] ? "" : "is-empty"}
-                      disabled={
-                        !canEditValues ||
-                        (field.fieldKey === "transaction_status" &&
-                        statusFieldPolicy
-                          ? !statusFieldPolicy.canEdit
-                          : false)
-                      }
-                      name={field.inputName}
-                      onChange={(event) =>
-                        setFieldValue(field.inputName, event.target.value)
-                      }
-                      value={fieldValues[field.inputName] ?? ""}
-                    >
-                      <option value="">Select...</option>
-                      {field.selectOptions
-                        .filter((option) => {
-                          if (
-                            field.fieldKey === "transaction_status" &&
-                            statusFieldPolicy
-                          ) {
-                            const isAllowedValue =
-                              statusFieldPolicy.allowedValues.includes(
-                                option.value as TransactionStatusValue,
-                              );
+                {visibleTopFields.map((field) => {
+                  const fieldError = fieldErrors[field.inputName] ?? "";
+                  const fieldErrorId = fieldError
+                    ? buildFieldErrorId(field.inputName)
+                    : undefined;
+                  const helperId =
+                    field.fieldKey === "transaction_status" &&
+                    statusFieldPolicy?.helperText
+                      ? `transaction-intake-${field.inputName}-helper`
+                      : undefined;
 
-                            if (!isAllowedValue) {
-                              return false;
+                  return (
+                    <label
+                      className={`office-modal-inline-select ${fieldError ? "is-invalid" : ""}`.trim()}
+                      key={field.fieldKey}
+                    >
+                      <div className="office-modal-field-head">
+                        <span>{getFieldValueLabel(field)}</span>
+                      </div>
+                      <select
+                        aria-describedby={joinDescribedByIds(
+                          fieldErrorId,
+                          helperId,
+                        )}
+                        aria-invalid={Boolean(fieldError)}
+                        className={
+                          fieldValues[field.inputName] ? "" : "is-empty"
+                        }
+                        disabled={
+                          !canEditValues ||
+                          (field.fieldKey === "transaction_status" &&
+                          statusFieldPolicy
+                            ? !statusFieldPolicy.canEdit
+                            : false)
+                        }
+                        name={field.inputName}
+                        onChange={(event) =>
+                          setFieldValue(field.inputName, event.target.value)
+                        }
+                        value={fieldValues[field.inputName] ?? ""}
+                      >
+                        <option value="">Select...</option>
+                        {field.selectOptions
+                          .filter((option) => {
+                            if (
+                              field.fieldKey === "transaction_status" &&
+                              statusFieldPolicy
+                            ) {
+                              const isAllowedValue =
+                                statusFieldPolicy.allowedValues.includes(
+                                  option.value as TransactionStatusValue,
+                                );
+
+                              if (!isAllowedValue) {
+                                return false;
+                              }
+
+                              return mode === "create"
+                                ? true
+                                : option.isEnabled ||
+                                    fieldValues[field.inputName] ===
+                                      option.value;
                             }
 
-                            return mode === "create"
-                              ? true
-                              : option.isEnabled ||
-                                  fieldValues[field.inputName] === option.value;
-                          }
-
-                          return option.isEnabled;
-                        })
-                        .map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                    </select>
-                    {field.fieldKey === "transaction_status" &&
-                    statusFieldPolicy?.helperText ? (
-                      <small className="office-form-helper">
-                        {statusFieldPolicy.helperText}
-                      </small>
-                    ) : null}
-                  </label>
-                ))}
+                            return option.isEnabled;
+                          })
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </select>
+                      {fieldError ? (
+                        <small className="office-field-error" id={fieldErrorId}>
+                          {fieldError}
+                        </small>
+                      ) : null}
+                      {field.fieldKey === "transaction_status" &&
+                      statusFieldPolicy?.helperText ? (
+                        <small className="office-form-helper" id={helperId}>
+                          {statusFieldPolicy.helperText}
+                        </small>
+                      ) : null}
+                    </label>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -847,67 +1064,92 @@ export function TransactionIntakeWorkspace({
           <>
             {visibleTopFields.length ? (
               <div className="office-modal-top-selects">
-                {visibleTopFields.map((field) => (
-                  <label
-                    className="office-modal-inline-select"
-                    key={field.fieldKey}
-                  >
-                    <div className="office-modal-field-head">
-                      <span>{getFieldValueLabel(field)}:</span>
-                    </div>
-                    <select
-                      className={fieldValues[field.inputName] ? "" : "is-empty"}
-                      disabled={
-                        !canEditValues ||
-                        (field.fieldKey === "transaction_status" &&
-                        statusFieldPolicy
-                          ? !statusFieldPolicy.canEdit
-                          : false)
-                      }
-                      name={field.inputName}
-                      onChange={(event) =>
-                        setFieldValue(field.inputName, event.target.value)
-                      }
-                      value={fieldValues[field.inputName] ?? ""}
-                    >
-                      <option value="">select</option>
-                      {field.selectOptions
-                        .filter((option) => {
-                          if (
-                            field.fieldKey === "transaction_status" &&
-                            statusFieldPolicy
-                          ) {
-                            const isAllowedValue =
-                              statusFieldPolicy.allowedValues.includes(
-                                option.value as TransactionStatusValue,
-                              );
+                {visibleTopFields.map((field) => {
+                  const fieldError = fieldErrors[field.inputName] ?? "";
+                  const fieldErrorId = fieldError
+                    ? buildFieldErrorId(field.inputName)
+                    : undefined;
+                  const helperId =
+                    field.fieldKey === "transaction_status" &&
+                    statusFieldPolicy?.helperText
+                      ? `transaction-intake-${field.inputName}-helper`
+                      : undefined;
 
-                            if (!isAllowedValue) {
-                              return false;
+                  return (
+                    <label
+                      className={`office-modal-inline-select ${fieldError ? "is-invalid" : ""}`.trim()}
+                      key={field.fieldKey}
+                    >
+                      <div className="office-modal-field-head">
+                        <span>{getFieldValueLabel(field)}:</span>
+                      </div>
+                      <select
+                        aria-describedby={joinDescribedByIds(
+                          fieldErrorId,
+                          helperId,
+                        )}
+                        aria-invalid={Boolean(fieldError)}
+                        className={
+                          fieldValues[field.inputName] ? "" : "is-empty"
+                        }
+                        disabled={
+                          !canEditValues ||
+                          (field.fieldKey === "transaction_status" &&
+                          statusFieldPolicy
+                            ? !statusFieldPolicy.canEdit
+                            : false)
+                        }
+                        name={field.inputName}
+                        onChange={(event) =>
+                          setFieldValue(field.inputName, event.target.value)
+                        }
+                        value={fieldValues[field.inputName] ?? ""}
+                      >
+                        <option value="">select</option>
+                        {field.selectOptions
+                          .filter((option) => {
+                            if (
+                              field.fieldKey === "transaction_status" &&
+                              statusFieldPolicy
+                            ) {
+                              const isAllowedValue =
+                                statusFieldPolicy.allowedValues.includes(
+                                  option.value as TransactionStatusValue,
+                                );
+
+                              if (!isAllowedValue) {
+                                return false;
+                              }
+
+                              return mode === "create"
+                                ? true
+                                : option.isEnabled ||
+                                    fieldValues[field.inputName] ===
+                                      option.value;
                             }
 
-                            return mode === "create"
-                              ? true
-                              : option.isEnabled ||
-                                  fieldValues[field.inputName] === option.value;
-                          }
-
-                          return option.isEnabled;
-                        })
-                        .map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                    </select>
-                    {field.fieldKey === "transaction_status" &&
-                    statusFieldPolicy?.helperText ? (
-                      <small className="office-form-helper">
-                        {statusFieldPolicy.helperText}
-                      </small>
-                    ) : null}
-                  </label>
-                ))}
+                            return option.isEnabled;
+                          })
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </select>
+                      {fieldError ? (
+                        <small className="office-field-error" id={fieldErrorId}>
+                          {fieldError}
+                        </small>
+                      ) : null}
+                      {field.fieldKey === "transaction_status" &&
+                      statusFieldPolicy?.helperText ? (
+                        <small className="office-form-helper" id={helperId}>
+                          {statusFieldPolicy.helperText}
+                        </small>
+                      ) : null}
+                    </label>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -981,7 +1223,9 @@ export function TransactionIntakeWorkspace({
           )}
           <div className="office-modal-actions">
             {submitError ? (
-              <p className="office-form-error">{submitError}</p>
+              <p className="office-form-error office-form-error-summary">
+                {submitError}
+              </p>
             ) : null}
             {useOfficeCreateModalChrome ? (
               <Button disabled={isSubmitting || !canEditValues} type="submit">

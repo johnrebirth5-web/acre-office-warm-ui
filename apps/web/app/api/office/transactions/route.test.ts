@@ -110,6 +110,43 @@ test("handleCreateOfficeTransactionsPost returns 400 validation_error for non-ar
   });
 });
 
+test("handleCreateOfficeTransactionsPost returns specific intake validation errors", async () => {
+  const response = await handleCreateOfficeTransactionsPost(
+    createOfficeTransactionsPostRequest(
+      JSON.stringify({
+        transactionType: "Sale",
+      }),
+    ),
+    createSessionContext(),
+    {
+      getOfficeTransactionIntakeSchema: async () =>
+        ({
+          builtInFields: [],
+          customFields: [],
+        }) as never,
+      getOfficeTransactionOwnerAssignment: async () =>
+        ({
+          canSelectDifferentOwner: false,
+          currentOwnerMembershipId: "membership_1",
+          options: [],
+        }) as never,
+      prepareTransactionIntakeSubmission: () => {
+        throw new Error("Transaction Name is required.");
+      },
+      createTransaction: async () => {
+        assert.fail(
+          "createTransaction should not run after intake validation fails.",
+        );
+      },
+    },
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await readResponseJson(response), {
+    error: "Transaction Name is required.",
+  });
+});
+
 test("handleCreateOfficeTransactionsPost forwards normalized create payloads", async () => {
   let capturedSchemaInput: Record<string, unknown> | null = null;
   let capturedOwnerAssignmentInput: Record<string, unknown> | null = null;
