@@ -363,7 +363,7 @@
 - PDF 每次按当前 pack 实时生成
 - `Collections` 目前只支持当前用户私有视图，不做组织共享或办公室共享
 - `Shares` 目前只聚合 collection share / view counts；还不是 recipient-level delivery or resend center
-- `Collections` 地图、POI、以及 public collection share 地图依赖 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`；缺失时地图区域会降级为提示文案，房源卡片仍正常显示
+- `Collections` 地图与 POI 依赖 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`；public collection share 地图会优先使用 Google Maps，但缺失时会用公开瓦片地图按 saved coordinates 显示房源点位
 - 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并由服务端 `svg -> png` 输出 `2160 x 2880` PNG；它还不是 Canva 工作流
 - 联系人信息现在可在 packet editor 里直接修改，并会流入 share / PDF / poster，但它仍然是手动维护的 packet 字段，不是独立 CRM 同步或外部模板同步
 - live-share page 仍需 pack publish / `shareCode`，但它现在是 studio 里的独立动作，不再作为 poster artwork 的二维码依赖

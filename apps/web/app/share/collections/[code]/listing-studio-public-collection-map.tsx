@@ -17,12 +17,36 @@ type MapListing = PublicCollectionListing & {
   longitude: number;
 };
 
+type MapViewport = {
+  width: number;
+  height: number;
+};
+
+type MapTile = {
+  key: string;
+  src: string;
+  left: number;
+  top: number;
+};
+
+type CoordinateOverlap = {
+  overlapIndex: number;
+  overlapCount: number;
+};
+
 declare global {
   interface Window {
     __acreGoogleMapsPromise?: Promise<any>;
     google?: any;
   }
 }
+
+const TILE_SIZE = 256;
+const DEFAULT_KEYLESS_MAP_VIEWPORT: MapViewport = {
+  width: 360,
+  height: 312,
+};
+const METERS_PER_LATITUDE_DEGREE = 111_320;
 
 function getGoogleMapsKey() {
   return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || "";
@@ -82,17 +106,195 @@ function getCollectionCenter(listings: MapListing[]) {
   };
 }
 
+function getCoordinateKey(listing: MapListing) {
+  return `${listing.latitude.toFixed(6)}:${listing.longitude.toFixed(6)}`;
+}
+
+function buildCoordinateOverlapMap(listings: MapListing[]) {
+  const coordinateCounts = new Map<string, number>();
+  const coordinateIndexes = new Map<string, number>();
+  const overlapMap = new Map<string, CoordinateOverlap>();
+
+  listings.forEach((listing) => {
+    const coordinateKey = getCoordinateKey(listing);
+    coordinateCounts.set(
+      coordinateKey,
+      (coordinateCounts.get(coordinateKey) ?? 0) + 1,
+    );
+  });
+
+  listings.forEach((listing) => {
+    const coordinateKey = getCoordinateKey(listing);
+    const overlapIndex = coordinateIndexes.get(coordinateKey) ?? 0;
+    coordinateIndexes.set(coordinateKey, overlapIndex + 1);
+    overlapMap.set(listing.packId, {
+      overlapIndex,
+      overlapCount: coordinateCounts.get(coordinateKey) ?? 1,
+    });
+  });
+
+  return overlapMap;
+}
+
+function getMarkerPixelOffset(overlap: CoordinateOverlap) {
+  if (overlap.overlapCount <= 1) {
+    return { x: 0, y: 0 };
+  }
+
+  const radius = Math.min(42, Math.max(28, 20 + overlap.overlapCount * 4));
+  const angle =
+    (2 * Math.PI * overlap.overlapIndex) / overlap.overlapCount -
+    Math.PI / 2;
+
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+  };
+}
+
+function getMarkerGeographicPosition(
+  listing: MapListing,
+  overlap: CoordinateOverlap,
+) {
+  if (overlap.overlapCount <= 1) {
+    return {
+      lat: listing.latitude,
+      lng: listing.longitude,
+    };
+  }
+
+  const pixelOffset = getMarkerPixelOffset(overlap);
+  const metersPerLongitudeDegree =
+    METERS_PER_LATITUDE_DEGREE *
+    Math.cos((clampLatitude(listing.latitude) * Math.PI) / 180);
+  const scale = 0.9;
+
+  return {
+    lat: listing.latitude - (pixelOffset.y * scale) / METERS_PER_LATITUDE_DEGREE,
+    lng:
+      listing.longitude +
+      (pixelOffset.x * scale) / Math.max(metersPerLongitudeDegree, 1),
+  };
+}
+
+function clampLatitude(latitude: number) {
+  return Math.min(Math.max(latitude, -85.05112878), 85.05112878);
+}
+
+function longitudeToTileX(longitude: number, zoom: number) {
+  return ((longitude + 180) / 360) * 2 ** zoom;
+}
+
+function latitudeToTileY(latitude: number, zoom: number) {
+  const latitudeRadians = (clampLatitude(latitude) * Math.PI) / 180;
+
+  return (
+    ((1 -
+      Math.log(
+        Math.tan(latitudeRadians) + 1 / Math.cos(latitudeRadians),
+      ) /
+        Math.PI) /
+      2) *
+    2 ** zoom
+  );
+}
+
+function getKeylessMapZoom(listings: MapListing[], viewport: MapViewport) {
+  if (listings.length <= 1) {
+    return 15;
+  }
+
+  for (let zoom = 16; zoom >= 10; zoom -= 1) {
+    const tileXs = listings.map((listing) =>
+      longitudeToTileX(listing.longitude, zoom),
+    );
+    const tileYs = listings.map((listing) =>
+      latitudeToTileY(listing.latitude, zoom),
+    );
+    const pixelWidth =
+      (Math.max(...tileXs) - Math.min(...tileXs)) * TILE_SIZE;
+    const pixelHeight =
+      (Math.max(...tileYs) - Math.min(...tileYs)) * TILE_SIZE;
+
+    if (
+      pixelWidth <= viewport.width * 0.72 &&
+      pixelHeight <= viewport.height * 0.72
+    ) {
+      return zoom;
+    }
+  }
+
+  return 10;
+}
+
+function buildKeylessMapView(listings: MapListing[], viewport: MapViewport) {
+  const center = getCollectionCenter(listings);
+  const zoom = getKeylessMapZoom(listings, viewport);
+  const tilesPerAxis = 2 ** zoom;
+  const centerPixelX = longitudeToTileX(center.longitude, zoom) * TILE_SIZE;
+  const centerPixelY = latitudeToTileY(center.latitude, zoom) * TILE_SIZE;
+  const viewportLeft = centerPixelX - viewport.width / 2;
+  const viewportTop = centerPixelY - viewport.height / 2;
+  const firstTileX = Math.floor(viewportLeft / TILE_SIZE) - 1;
+  const lastTileX =
+    Math.floor((viewportLeft + viewport.width) / TILE_SIZE) + 1;
+  const firstTileY = Math.floor(viewportTop / TILE_SIZE) - 1;
+  const lastTileY =
+    Math.floor((viewportTop + viewport.height) / TILE_SIZE) + 1;
+  const tiles: MapTile[] = [];
+
+  for (let x = firstTileX; x <= lastTileX; x += 1) {
+    for (let y = firstTileY; y <= lastTileY; y += 1) {
+      if (y < 0 || y >= tilesPerAxis) {
+        continue;
+      }
+
+      const wrappedX = ((x % tilesPerAxis) + tilesPerAxis) % tilesPerAxis;
+      tiles.push({
+        key: `${zoom}-${x}-${y}`,
+        src: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`,
+        left: x * TILE_SIZE - viewportLeft,
+        top: y * TILE_SIZE - viewportTop,
+      });
+    }
+  }
+
+  const overlapMap = buildCoordinateOverlapMap(listings);
+  const markers = listings.map((listing) => ({
+    listing,
+    ...getMarkerPixelOffset(
+      overlapMap.get(listing.packId) ?? {
+        overlapIndex: 0,
+        overlapCount: 1,
+      },
+    ),
+  })).map((marker) => ({
+    listing: marker.listing,
+    left:
+      longitudeToTileX(marker.listing.longitude, zoom) * TILE_SIZE -
+      viewportLeft +
+      marker.x,
+    top:
+      latitudeToTileY(marker.listing.latitude, zoom) * TILE_SIZE -
+      viewportTop +
+      marker.y,
+  }));
+
+  return {
+    markers,
+    tiles,
+  };
+}
+
 function createListingMarker(
   googleMaps: any,
   map: any,
   listing: MapListing,
+  overlap: CoordinateOverlap,
 ) {
   return new googleMaps.maps.Marker({
     map,
-    position: {
-      lat: listing.latitude,
-      lng: listing.longitude,
-    },
+    position: getMarkerGeographicPosition(listing, overlap),
     label: {
       text: String(listing.collectionIndex + 1),
       color: "#ffffff",
@@ -143,6 +345,95 @@ function createInfoWindowContent(
   return root;
 }
 
+function ListingStudioKeylessCollectionMap(props: {
+  listings: MapListing[];
+  onOpenListing: (packId: string) => void;
+}) {
+  const { listings, onOpenListing } = props;
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const [viewport, setViewport] = useState<MapViewport>(
+    DEFAULT_KEYLESS_MAP_VIEWPORT,
+  );
+  const mapView = useMemo(
+    () => buildKeylessMapView(listings, viewport),
+    [listings, viewport],
+  );
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    const updateViewport = () => {
+      if (!mapRef.current) {
+        return;
+      }
+
+      const rect = mapRef.current.getBoundingClientRect();
+      setViewport({
+        width: Math.max(Math.round(rect.width), 280),
+        height: Math.max(Math.round(rect.height), 280),
+      });
+    };
+
+    updateViewport();
+
+    const resizeObserver = new ResizeObserver(updateViewport);
+    resizeObserver.observe(mapRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      aria-label="Map preview showing the selected properties"
+      className="listing-studio-collection-share-map-canvas listing-studio-collection-share-map-tiles"
+      ref={mapRef}
+    >
+      {mapView.tiles.map((tile) => (
+        <img
+          alt=""
+          aria-hidden="true"
+          className="listing-studio-collection-share-map-tile"
+          key={tile.key}
+          src={tile.src}
+          style={{
+            left: tile.left,
+            top: tile.top,
+          }}
+        />
+      ))}
+
+      {mapView.markers.map(({ listing, left, top }) => (
+        <button
+          aria-label={`View ${listing.displayTitle || listing.addressLine}`}
+          className="listing-studio-collection-share-map-marker"
+          key={listing.packId}
+          onClick={() => onOpenListing(listing.packId)}
+          style={{
+            left,
+            top,
+          }}
+          type="button"
+        >
+          {listing.collectionIndex + 1}
+        </button>
+      ))}
+
+      <a
+        className="listing-studio-collection-share-map-attribution"
+        href="https://www.openstreetmap.org/copyright"
+        rel="noreferrer"
+        target="_blank"
+      >
+        © OpenStreetMap
+      </a>
+    </div>
+  );
+}
+
 export function ListingStudioPublicCollectionMap({
   listings,
   onOpenListing,
@@ -174,9 +465,8 @@ export function ListingStudioPublicCollectionMap({
   );
 
   const listingsWithoutCoordinates = listings.length - mappedListings.length;
-  const fallbackMessage = !apiKey
-    ? "Map unavailable because Google Maps is not configured yet."
-    : "No saved coordinates were found for these listings yet.";
+  const canRenderKeylessMap = mappedListings.length > 0;
+  const fallbackMessage = "No saved coordinates were found for these listings yet.";
 
   const mapSignature = useMemo(
     () =>
@@ -224,6 +514,7 @@ export function ListingStudioPublicCollectionMap({
         const map = mapRef.current;
         listingMarkersRef.current.forEach((marker) => marker.setMap(null));
         listingMarkersRef.current = [];
+        const overlapMap = buildCoordinateOverlapMap(mappedListings);
 
         if (!infoWindowRef.current) {
           infoWindowRef.current = new googleMaps.maps.InfoWindow({
@@ -238,7 +529,15 @@ export function ListingStudioPublicCollectionMap({
             lng: listing.longitude,
           });
 
-          const marker = createListingMarker(googleMaps, map, listing);
+          const marker = createListingMarker(
+            googleMaps,
+            map,
+            listing,
+            overlapMap.get(listing.packId) ?? {
+              overlapIndex: 0,
+              overlapCount: 1,
+            },
+          );
           marker.addListener("click", () => {
             const content = createInfoWindowContent(listing, (packId) =>
               onOpenListingRef.current(packId),
@@ -302,6 +601,11 @@ export function ListingStudioPublicCollectionMap({
             aria-label="Map showing the selected properties"
             className="listing-studio-collection-share-map-canvas"
             ref={mapRootRef}
+          />
+        ) : canRenderKeylessMap ? (
+          <ListingStudioKeylessCollectionMap
+            listings={mappedListings}
+            onOpenListing={onOpenListing}
           />
         ) : (
           <div className="listing-studio-collection-share-map-fallback">
