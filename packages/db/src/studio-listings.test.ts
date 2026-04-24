@@ -109,16 +109,20 @@ async function createStudioListingsTestContext() {
     neighborhood?: string;
     latitude?: number | null;
     longitude?: number | null;
+    sourceUrl?: string;
+    listingType?: string;
     companyFeedVisible?: boolean;
     companyFeedLabel?: string | null;
   }) {
+    const sourceUrl = input.sourceUrl ?? `https://example.com/${randomUUID()}`;
+    const listingType = input.listingType ?? "sale";
     const importRecord = await prisma.studioListingImport.create({
       data: {
         organizationId: organization.id,
         officeId: office.id,
         createdByMembershipId: input.membershipId,
         sourceSite: StudioListingSourceSite.streeteasy,
-        sourceUrl: `https://example.com/${randomUUID()}`,
+        sourceUrl,
         status: StudioListingImportStatus.ready,
       },
     });
@@ -131,7 +135,7 @@ async function createStudioListingsTestContext() {
         sourceSite: StudioListingSourceSite.streeteasy,
         sourceUrl: importRecord.sourceUrl,
         title: input.title,
-        listingType: "sale",
+        listingType,
         price: "995000",
         priceLabel: "$995,000",
         currency: "USD",
@@ -143,7 +147,7 @@ async function createStudioListingsTestContext() {
         heroFactsJson: [{ label: "Bedrooms", value: "2" }, { label: "Bathrooms", value: "2" }],
         rawParsedJson: {
           canonicalFields: {
-            listingType: "sale",
+            listingType,
             priceLabel: "$995,000",
           },
         },
@@ -652,6 +656,9 @@ test("public collection lookup returns current shared listings", async () => {
       streetAddress: "43-10 Crescent Street",
       latitude: 40.7497,
       longitude: -73.9421,
+      listingType: "rent",
+      sourceUrl:
+        "https://streeteasy.com/building/court-square-one/3a?utm_campaign=sale_listing&utm_medium=share",
     });
     const secondPack = await context.createPack({
       membershipId: context.ownerMembership.id,
@@ -691,6 +698,11 @@ test("public collection lookup returns current shared listings", async () => {
     assert.equal(snapshot?.listings.length, 2);
     assert.ok(
       snapshot?.listings.some((item) => item.packId === firstPack.packId),
+    );
+    assert.equal(
+      snapshot?.listings.find((item) => item.packId === firstPack.packId)
+        ?.listingType,
+      "sale",
     );
     assert.ok(
       snapshot?.listings.some((item) => item.packId === secondPack.packId),

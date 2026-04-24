@@ -561,12 +561,35 @@ function inferListingTypeFromPriceLabel(value: string | null | undefined) {
   return null;
 }
 
+function inferListingTypeFromSourceUrl(value: string | null | undefined) {
+  const normalized = trimString(value)?.toLowerCase() ?? "";
+  if (!normalized) {
+    return null;
+  }
+
+  if (/(^|[?&])utm_campaign=sale_listing(&|$)|sale_listing/.test(normalized)) {
+    return "sale";
+  }
+
+  if (/(^|[?&])utm_campaign=rental_listing(&|$)|rental_listing/.test(normalized)) {
+    return "rent";
+  }
+
+  return null;
+}
+
 function resolveNormalizedListingType(input: {
   listingType: string | null | undefined;
   priceLabel: string | null | undefined;
+  sourceUrl?: string | null | undefined;
 }) {
   const normalizedListingType = normalizeListingTypeValue(input.listingType);
+  const inferredFromSourceUrl = inferListingTypeFromSourceUrl(input.sourceUrl);
   const inferredFromPriceLabel = inferListingTypeFromPriceLabel(input.priceLabel);
+
+  if (inferredFromSourceUrl) {
+    return inferredFromSourceUrl;
+  }
 
   if (normalizedListingType === "sale" && inferredFromPriceLabel === "rent") {
     return "rent";
@@ -979,6 +1002,7 @@ function normalizeStudioListingData(input: CreateStudioListingImportInput): Norm
         trimString(fields.transactionType) ??
         trimString(fields.marketType),
       priceLabel: trimString(fields.priceLabel),
+      sourceUrl: input.sourceUrl,
     }),
     statusLabel: trimString(fields.statusLabel) ?? trimString(fields.status),
     price: priceNumber,
@@ -1708,6 +1732,7 @@ function mapListItem(
       record.snapshot.listingType ?? trimString(readSnapshotCanonicalField(record.snapshot, "listingType")),
     priceLabel:
       record.snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(record.snapshot, "priceLabel")),
+    sourceUrl: record.snapshot.sourceUrl,
   });
 
   return {
@@ -2378,6 +2403,7 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
   const resolvedListingType = resolveNormalizedListingType({
     listingType: snapshot.listingType ?? trimString(readSnapshotCanonicalField(snapshot, "listingType")),
     priceLabel: snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(snapshot, "priceLabel")),
+    sourceUrl: snapshot.sourceUrl,
   });
   const bulletPoints = normalizeBulletPoints(record.bulletPointsJson);
   const selectedAssetIds = normalizeBulletPoints(record.selectedAssetIdsJson);
