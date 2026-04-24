@@ -249,6 +249,17 @@ export type StudioListingPublicCollectionSnapshot = {
     factsLine: string;
     statusLabel: string | null;
     heroAssetId: string | null;
+    agentNote: string;
+    descriptionText: string | null;
+    facts: Array<{ label: string; value: string }>;
+    amenities: Array<{ title: string; items: string[] }>;
+    buildingName: string | null;
+    selectedAssets: Array<{
+      id: string;
+      kind: StudioListingAssetKind;
+      label: string | null;
+      sortOrder: number;
+    }>;
   }>;
 };
 
@@ -3430,6 +3441,22 @@ export async function getStudioListingPublicCollection(input: {
   const listings = listingRecords.map(
     (pack) => {
       const item = mapListItem(pack);
+      const detail = mapDetailSnapshot(pack);
+      const selectedAssetIds = new Set(detail.pack.selectedAssetIds);
+      const selectedAssets = detail.assets
+        .filter((asset) => selectedAssetIds.has(asset.id))
+        .map((asset) => ({
+          id: asset.id,
+          kind: asset.kind,
+          label: asset.label,
+          sortOrder: asset.sortOrder,
+        }));
+      const fallbackAssets = detail.assets.slice(0, 8).map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        label: asset.label,
+        sortOrder: asset.sortOrder,
+      }));
 
       return {
         packId: item.packId,
@@ -3444,6 +3471,12 @@ export async function getStudioListingPublicCollection(input: {
         factsLine: item.factsLine,
         statusLabel: item.statusLabel,
         heroAssetId: item.heroAssetId,
+        agentNote: detail.pack.agentNote,
+        descriptionText: detail.descriptionText,
+        facts: detail.facts,
+        amenities: detail.amenities,
+        buildingName: detail.buildingName,
+        selectedAssets: selectedAssets.length ? selectedAssets : fallbackAssets,
       };
     },
   );

@@ -57,6 +57,7 @@
 - 客户分享页：
   - `/share/packs/[code]`
   - `/share/collections/[code]`
+  - collection share page uses the mobile client-facing microsite pattern; tapping a property opens the internal detail view with gallery, facts, amenities, and agent contact instead of leaving for the source listing site
 - PDF 导出：
   - `/api/listing-studio/listings/[packId]/pdf`
 - 海报 / 模板导出：
