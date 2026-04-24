@@ -1544,6 +1544,8 @@ model StudioListingCollection {
   updatedByMembershipId String
   name                  String
   nameNormalized        String
+  shareEnabled          Boolean                       @default(false)
+  shareCode             String?                       @unique
   createdAt             DateTime                      @default(now())
   updatedAt             DateTime                      @updatedAt
   organization          Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1554,6 +1556,7 @@ model StudioListingCollection {
 
   @@unique([organizationId, createdByMembershipId, nameNormalized])
   @@index([organizationId, createdByMembershipId, updatedAt])
+  @@index([organizationId, shareEnabled, updatedAt])
 }
 
 model StudioListingCollectionItem {

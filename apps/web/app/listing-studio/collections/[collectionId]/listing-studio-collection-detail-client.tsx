@@ -1,5 +1,6 @@
 "use client";
 
+import { copyTextToClipboard } from "../../../office/settings/users/users-shared";
 import {
   startTransition,
   useDeferredValue,
@@ -21,6 +22,16 @@ type ListingStudioCollectionDetailClientProps = {
 
 type CollectionDetailResponse =
   | StudioListingCollectionDetail
+  | {
+      error?: string;
+    }
+  | null;
+
+type CollectionShareResponse =
+  | {
+      shareCode: string;
+      shareUrl: string;
+    }
   | {
       error?: string;
     }
@@ -63,6 +74,8 @@ export function ListingStudioCollectionDetailClient({
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isCopyingShareLink, setIsCopyingShareLink] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>(
     detail.listings.map((item) => item.packId),
@@ -123,6 +136,49 @@ export function ListingStudioCollectionDetailClient({
         ? current.filter((value) => value !== packId)
         : [...current, packId],
     );
+  }
+
+  async function copyShareLink() {
+    if (isCopyingShareLink) {
+      return;
+    }
+
+    setIsCopyingShareLink(true);
+    setStatusMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/listing-studio/collections/${detailState.id}/share`,
+        {
+          method: "POST",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as CollectionShareResponse;
+
+      if (
+        !response.ok ||
+        !payload ||
+        typeof payload !== "object" ||
+        !("shareUrl" in payload) ||
+        typeof payload.shareUrl !== "string" ||
+        typeof payload.shareCode !== "string"
+      ) {
+        throw new Error("Unable to copy the share link.");
+      }
+
+      setDetailState((current) => ({
+        ...current,
+        shareEnabled: true,
+        shareCode: payload.shareCode,
+      }));
+      await copyTextToClipboard(payload.shareUrl);
+      setIsShareDialogOpen(false);
+      setStatusMessage("复制已成功。");
+    } catch {
+      setStatusMessage("复制失败。");
+    } finally {
+      setIsCopyingShareLink(false);
+    }
   }
 
   async function refreshCollection() {
@@ -251,6 +307,13 @@ export function ListingStudioCollectionDetailClient({
         <div className="office-page-actions listing-studio-header-actions">
           <button
             className="office-button office-button-secondary"
+            onClick={() => setIsShareDialogOpen(true)}
+            type="button"
+          >
+            Share
+          </button>
+          <button
+            className="office-button office-button-secondary"
             onClick={openManager}
             type="button"
           >
@@ -266,6 +329,48 @@ export function ListingStudioCollectionDetailClient({
 
       {statusMessage ? (
         <p className="listing-studio-status-message">{statusMessage}</p>
+      ) : null}
+
+      {isShareDialogOpen ? (
+        <div
+          className="office-modal-overlay"
+          onClick={() => {
+            if (!isCopyingShareLink) {
+              setIsShareDialogOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-label="Share collection"
+            aria-modal="true"
+            className="office-modal listing-studio-share-dialog"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <p className="listing-studio-share-dialog-copy">
+              请点击下方按钮，复制链接，粘贴到浏览器中观看房源信息。
+            </p>
+
+            <footer className="listing-studio-share-dialog-actions">
+              <button
+                className="office-button office-button-secondary"
+                disabled={isCopyingShareLink}
+                onClick={() => setIsShareDialogOpen(false)}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                className="office-button office-button-primary"
+                disabled={isCopyingShareLink}
+                onClick={() => void copyShareLink()}
+                type="button"
+              >
+                复制
+              </button>
+            </footer>
+          </section>
+        </div>
       ) : null}
 
       {isManagerOpen ? (

@@ -117,6 +117,8 @@ export type StudioListingCollectionDetail = {
   id: string;
   name: string;
   listingCount: number;
+  shareEnabled: boolean;
+  shareCode: string | null;
   createdAt: string;
   updatedAt: string;
   listingsWithoutCoordinates: number;
@@ -221,6 +223,27 @@ export type StudioListingPublicPackSnapshot = {
     email: string;
   };
   capturedAtLabel: string;
+};
+
+export type StudioListingPublicCollectionSnapshot = {
+  code: string;
+  name: string;
+  listingCount: number;
+  updatedAt: string;
+  listings: Array<{
+    packId: string;
+    title: string;
+    displayTitle: string | null;
+    sourceSite: StudioListingSourceSite;
+    sourceUrl: string;
+    listingType: string | null;
+    priceLabel: string;
+    addressLine: string;
+    locationLine: string | null;
+    factsLine: string;
+    statusLabel: string | null;
+    heroAssetId: string | null;
+  }>;
 };
 
 type NormalizedStudioListingData = {
@@ -346,6 +369,10 @@ function createOpaqueToken(prefix: string) {
 
 function createStudioListingPackShareCode() {
   return `pack_${randomBytes(24).toString("base64url")}`;
+}
+
+function createStudioListingCollectionShareCode() {
+  return `collection_${randomBytes(24).toString("base64url")}`;
 }
 
 function formatStudioListingMembershipLabel(user: {
@@ -1769,6 +1796,8 @@ function mapCollectionDetail(
     id: record.id,
     name: record.name,
     listingCount: listings.length,
+    shareEnabled: record.shareEnabled,
+    shareCode: record.shareCode,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     listingsWithoutCoordinates: listings.filter(
@@ -2018,6 +2047,42 @@ export async function getStudioListingCollectionDetail(input: {
   });
 
   return record ? mapCollectionDetail(record) : null;
+}
+
+export async function publishStudioListingCollection(input: {
+  organizationId: string;
+  collectionId: string;
+  membershipId: string;
+}) {
+  const existing = await prisma.studioListingCollection.findFirst({
+    where: {
+      id: input.collectionId,
+      organizationId: input.organizationId,
+      createdByMembershipId: input.membershipId,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const shareCode =
+    existing.shareCode && existing.shareCode.trim()
+      ? existing.shareCode
+      : createStudioListingCollectionShareCode();
+
+  await prisma.studioListingCollection.update({
+    where: { id: existing.id },
+    data: {
+      updatedByMembershipId: input.membershipId,
+      shareEnabled: true,
+      shareCode,
+    },
+  });
+
+  return {
+    shareCode,
+  };
 }
 
 export async function createStudioListingCollection(input: {
@@ -3218,6 +3283,15 @@ function buildStudioListingLegacyShareWhere(
   };
 }
 
+function buildStudioListingCollectionShareWhere(
+  shareCode: string,
+): Prisma.StudioListingCollectionWhereInput {
+  return {
+    shareCode,
+    shareEnabled: true,
+  };
+}
+
 export async function getStudioListingPublicPack(input: {
   shareCode: string;
   viewerFingerprint?: string | null;
@@ -3301,6 +3375,48 @@ export async function getStudioListingPublicPack(input: {
   } satisfies StudioListingPublicPackSnapshot;
 }
 
+export async function getStudioListingPublicCollection(input: {
+  shareCode: string;
+}) {
+  const record = await prisma.studioListingCollection.findFirst({
+    where: buildStudioListingCollectionShareWhere(input.shareCode),
+    include: studioListingCollectionInclude,
+  });
+
+  if (!record) {
+    return null;
+  }
+
+  const listings = sortStudioListingPackRecords(record.items.map((item) => item.pack)).map(
+    (pack) => {
+      const item = mapListItem(pack);
+
+      return {
+        packId: item.packId,
+        title: item.title,
+        displayTitle: item.displayTitle,
+        sourceSite: item.sourceSite,
+        sourceUrl: item.sourceUrl,
+        listingType: item.listingType,
+        priceLabel: item.priceLabel,
+        addressLine: item.addressLine,
+        locationLine: item.locationLine,
+        factsLine: item.factsLine,
+        statusLabel: item.statusLabel,
+        heroAssetId: item.heroAssetId,
+      };
+    },
+  );
+
+  return {
+    code: input.shareCode,
+    name: record.name,
+    listingCount: listings.length,
+    updatedAt: record.updatedAt.toISOString(),
+    listings,
+  } satisfies StudioListingPublicCollectionSnapshot;
+}
+
 export async function getStudioListingAssetRecord(input: {
   assetId: string;
   organizationId?: string | null;
@@ -3321,6 +3437,22 @@ export async function getStudioListingAssetRecord(input: {
           id: input.assetId,
           snapshot: {
             pack: buildStudioListingLegacyShareWhere(input.shareCode),
+          },
+        },
+      })) ??
+      (await prisma.studioListingAsset.findFirst({
+        where: {
+          id: input.assetId,
+          snapshot: {
+            pack: {
+              collectionItems: {
+                some: {
+                  collection: buildStudioListingCollectionShareWhere(
+                    input.shareCode,
+                  ),
+                },
+              },
+            },
           },
         },
       }));
