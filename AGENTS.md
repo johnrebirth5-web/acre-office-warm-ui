@@ -155,15 +155,24 @@ If Prisma schema changed, also run:
 - For Codex-authored repository changes, finish the task with relevant validation, a local `git commit`, a push to `origin`, and a GitHub PR by default.
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
 - Unless the user explicitly asks not to open a PR in the current task, create a GitHub PR for the completed task branch.
+- If the GitHub app connector cannot create a PR for this repo and returns `Resource not accessible by integration` / HTTP 403, do not keep retrying that connector path. Use the authenticated GitHub CLI fallback instead, for example `gh pr create --draft --base main --head <branch> ...`.
 - If local commits already exist on `main`, preserve them by branching from the current `HEAD` first; do not rewrite or discard those commits just to satisfy the branch workflow.
 - If branch protection behavior becomes relevant, inspect the live protection response before reasoning about merge requirements.
 - Current `main` branch protection baseline for `johnrebirth5-web/acre-office-warm-ui` is:
   - pull requests are not required before merge
   - required status checks are not enabled
   - `enforce_admins = true`
+- Current GitHub repository merge-method baseline for `johnrebirth5-web/acre-office-warm-ui` is:
+  - merge commits are disabled (`allow_merge_commit = false`)
+  - squash merges are disabled (`allow_squash_merge = false`)
+  - rebase merges are enabled (`allow_rebase_merge = true`)
+- For GitHub PR merges in this repo, use rebase merge by default, for example `gh pr merge <pr-number> --rebase`. Do not try `gh pr merge --merge` or `gh pr merge --squash` unless live repository settings have first confirmed those methods are enabled.
+- When a PR is rebase-merged, the commit SHA on `main` may differ from the branch commit SHA even when the file content is identical. If production was deployed from the branch commit before merge, compare the branch commit and the new `origin/main` commit before deciding whether production is out of sync.
 - Treat that branch-protection block as the expected steady state, not as a timeless fact. Before merge work, protection changes, or any reasoning that depends on current GitHub policy, re-run:
   - `bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main`
   - if needed, confirm the live GitHub response with `gh api repos/johnrebirth5-web/acre-office-warm-ui/branches/main/protection`
+- Before PR merge work, also confirm the live merge-method settings when relevant:
+  - `gh api repos/johnrebirth5-web/acre-office-warm-ui --jq '{allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge}'`
 - Keep `origin` pointed at `https://github.com/johnrebirth5-web/acre-office-warm-ui.git` unless the task explicitly requires a different remote.
 - Treat GitHub push and DigitalOcean deployment as separate steps.
 - Even when GitHub push is required, do not deploy or run production commands unless the user explicitly asks for deployment.
