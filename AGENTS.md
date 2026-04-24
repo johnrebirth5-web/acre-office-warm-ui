@@ -149,12 +149,14 @@ If Prisma schema changed, also run:
 
 ## Git workflow rules
 
-- For Codex-authored repository changes, finish the task with a local `git commit`.
+- For Codex-authored repository changes, do not modify `main` directly. Treat `main` as the protected integration baseline and final merge target, not as a working branch.
+- Before any task that will modify repo-tracked files, confirm the current branch and working tree state. If the current branch is not `main`, call that out before continuing instead of silently stacking new work onto an existing feature branch.
+- For each new task, create a fresh `codex/<short-task-slug>` branch from the latest `origin/main` by default. Only continue on the current branch when the user explicitly asks to continue that branch, or when the task is clearly a temporary local experiment that does not need the standard workflow.
+- For Codex-authored repository changes, finish the task with relevant validation, a local `git commit`, a push to `origin`, and a GitHub PR by default.
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
-- Unless the user explicitly asks for a separate feature branch or PR, stay on the currently checked out branch and commit/push there directly; do not auto-create a `codex/*` branch for this workspace.
-- Exception for protected `main`: if the current branch is `main` and live GitHub branch protection rejects direct push, do not keep retrying `git push origin main`. First inspect the live protection response, then either adjust protection intentionally or switch to a short-lived `codex/*` branch / PR flow as required by the active policy.
-- If local commits already exist on `main` when that protection rejection is discovered, preserve them by branching from the current `HEAD` first; do not rewrite or discard those commits just to satisfy the PR workflow.
-- If the repo is already on a feature branch from earlier work, call that out before continuing instead of silently stacking new tasks onto it.
+- Unless the user explicitly asks not to open a PR in the current task, create a GitHub PR for the completed task branch.
+- If local commits already exist on `main`, preserve them by branching from the current `HEAD` first; do not rewrite or discard those commits just to satisfy the branch workflow.
+- If branch protection behavior becomes relevant, inspect the live protection response before reasoning about merge requirements.
 - Current `main` branch protection baseline for `johnrebirth5-web/acre-office-warm-ui` is:
   - pull requests are not required before merge
   - required status checks are not enabled
