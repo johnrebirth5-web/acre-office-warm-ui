@@ -95,6 +95,7 @@ Current user-facing inbox coverage is limited to real implemented workflow signa
 - follow-up overdue
 - onboarding assigned
 - onboarding due soon
+- transaction overdue after move-in / closing
 - payout statement ready for agent review
 - payout statement revision requested
 - payout statement confirmed
@@ -122,6 +123,7 @@ Time-based reminders without a scheduler are currently reconciled when the inbox
 - offer expiring soon
 - follow-up overdue
 - onboarding due soon
+- transaction overdue after move-in / closing
 
 This keeps the system honest without inventing a fake delivery daemon.
 
@@ -145,6 +147,8 @@ Notifications currently link to the nearest real actionable page:
   - contact detail
 - onboarding:
   - agent onboarding anchor
+- transaction overdue:
+  - transaction detail
 - appointments:
   - `/agent/calendar?appointmentId=...`
 - payout statements:
@@ -167,6 +171,8 @@ The leadership queue shown on `/agent/dashboard` remains preview-sized, while `/
 - no email / SMS / WeChat delivery
 - no dismiss / archive action yet
 - no background scheduler; time-based reminders are created during inbox reconciliation
+- transaction overdue reminders use `moveInDate ?? closingDate`; if that date is more than three calendar months old and the transaction is still not `Closed` or `Cancelled`, the system writes a critical in-app reminder for the transaction owner plus active `owner / office_admin / accountant` recipients in scope
+- `/office/dashboard` also reconciles these transaction overdue reminders and shows a pinned critical queue before the ordinary dashboard cards, while `/office/notifications` keeps a pinned critical overdue transaction section above the filterable inbox list
 - appointment reminder reconciliation now also deletes stale appointment timing/writeback notifications when the appointment no longer matches the active reminder window
 - reviewer targeting still follows current permission-based queues, not explicit reviewer assignment models
 - onboarding notifications are most useful for office-role recipients because the current inbox route is office-only

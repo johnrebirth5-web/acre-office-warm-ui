@@ -287,6 +287,7 @@ export const enUSMessages = {
       "Goal tracking, current back-office pressure, and recent transactions inside one operational dashboard.",
     livePipeline: "Live pipeline",
     myMonthCommission: "My month commission",
+    overdueTransactions: "Overdue transactions",
     goalTracking: "Goal tracking",
     goalTrackingSubtitle:
       "Goal tracking, access visibility, and live pipeline pressure for the current office scope.",
@@ -298,6 +299,18 @@ export const enUSMessages = {
     status: "Status",
     owner: "Owner",
     transactionsHint: "transactions",
+    overdueTransactionsSubtitle:
+      "Move-in or closing date is more than 3 months old, but the transaction is still not Closed.",
+    actionRequired: "Action required",
+    overdueTransactionSingle:
+      "1 transaction has passed the 3-month closeout window.",
+    overdueTransactionMultiple:
+      "{count} transactions have passed the 3-month closeout window.",
+    overdueCount: "{count} overdue",
+    openNotifications: "Open notifications",
+    referenceDate: "Move-in / closing",
+    overdueSince: "Overdue since",
+    openTransaction: "Open transaction",
     myCommissions: "My commissions",
     myCommissionsSubtitle:
       "Your own persisted commission rows and saved payout statements only. Team or company allocations are never rolled into this dashboard card.",
@@ -950,9 +963,12 @@ export const enUSMessages = {
     archived: "Archived",
     reviewQueue: "Review queue",
     payoutReview: "Payout review",
+    overdueTransactions: "Overdue transactions",
     summaryUnreadHint: "Unread first across the full inbox.",
     summaryReviewHint:
       "Task review and incoming update items still waiting on you.",
+    summaryTransactionOverdueHint:
+      "Transactions past the 3-month post move-in or closing window and still not Closed.",
     summaryPayoutHint:
       "Live payout review tasks stay visible until you confirm the statement or request a revision.",
     summaryTimeSensitiveHint:
@@ -967,6 +983,17 @@ export const enUSMessages = {
       "{count} payout statements are currently waiting on you.",
     awaitingReview: "{count} awaiting review",
     actionRequired: "Action required",
+    criticalOverdueTransactions: "Critical overdue transactions",
+    overduePinnedSubtitle:
+      "These stay pinned until the transaction is Closed, Cancelled, or no longer past the 3-month window.",
+    singleTransactionOverdue:
+      "1 transaction needs collection or closeout review now.",
+    multipleTransactionsOverdue:
+      "{count} transactions need collection or closeout review now.",
+    overdueCount: "{count} overdue",
+    referenceDate: "Move-in / closing",
+    overdueSince: "Overdue since",
+    openTransaction: "Open transaction",
     generatedPrefix: "Generated {value}",
     finalPayoutAmount: "Final payout {value}",
     reviewStatement: "Review statement",
@@ -1005,6 +1032,7 @@ export const enUSMessages = {
     incomingUpdates: "Incoming updates",
     followUp: "Follow-up",
     onboarding: "Onboarding",
+    transactions: "Transactions",
     tasks: "Tasks",
     events: "Events",
     system: "System",

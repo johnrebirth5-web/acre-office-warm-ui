@@ -7,9 +7,14 @@ import {
   Prisma,
   NotificationSeverity,
   TaskStatus,
+  TransactionStatus,
+  type UserRole,
 } from "@prisma/client"
 import { prisma } from "./client.ts"
+import { getOfficeDashboardBusinessSnapshot } from "./dashboard.ts"
 import {
+  getTransactionOverdueSinceDate,
+  isTransactionOverdue,
   openOfficeNotification,
   reconcileOfficeNotificationReminders,
 } from "./notifications.ts"
@@ -39,7 +44,7 @@ async function createNotificationsTestContext() {
 
   const trackedUserIds: string[] = []
 
-  async function createMembership(prefix: string) {
+  async function createMembership(prefix: string, role: UserRole = "office_admin") {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${suffix}@example.com`,
@@ -57,9 +62,9 @@ async function createNotificationsTestContext() {
         organizationId: organization.id,
         officeId: office.id,
         userId: user.id,
-        role: "office_admin",
+        role,
         status: "active",
-        title: "Office Admin",
+        title: role,
         permissions: Prisma.JsonNull,
       },
     })
@@ -75,6 +80,7 @@ async function createNotificationsTestContext() {
     office,
     primaryMembership,
     secondaryMembership,
+    createMembership,
     async createClient(input?: {
       nextFollowUpAt?: Date | null
       fullName?: string
@@ -89,6 +95,34 @@ async function createNotificationsTestContext() {
           intent: "Buyer",
           preferredAreas: [],
           nextFollowUpAt: input?.nextFollowUpAt ?? null,
+        },
+      })
+    },
+    async createTransaction(input: {
+      ownerMembershipId?: string | null
+      status?: "opportunity" | "active" | "pending" | "closed" | "cancelled"
+      moveInDate?: Date | null
+      closingDate?: Date | null
+      title?: string
+    }) {
+      return prisma.transaction.create({
+        data: {
+          organizationId: organization.id,
+          officeId: office.id,
+          ownerMembershipId:
+            input.ownerMembershipId === undefined
+              ? primaryMembership.id
+              : input.ownerMembershipId,
+          type: "rental_leasing",
+          status: input.status ?? "pending",
+          representing: "tenant",
+          title: input.title ?? `Overdue Transaction ${suffix}`,
+          address: "123 Overdue Ave",
+          city: "New York",
+          state: "NY",
+          zipCode: "10001",
+          moveInDate: input.moveInDate ?? null,
+          closingDate: input.closingDate ?? null,
         },
       })
     },
@@ -142,6 +176,57 @@ function addDays(value: Date, days: number) {
   nextValue.setDate(nextValue.getDate() + days)
   return nextValue
 }
+
+function addMonths(value: Date, months: number) {
+  const nextValue = new Date(value)
+  nextValue.setMonth(nextValue.getMonth() + months)
+  return nextValue
+}
+
+test("transaction overdue date helpers clamp natural month boundaries", () => {
+  const januaryEnd = new Date(2026, 0, 31, 10, 30)
+  const overdueSince = getTransactionOverdueSinceDate(januaryEnd)
+
+  assert.equal(overdueSince.getFullYear(), 2026)
+  assert.equal(overdueSince.getMonth(), 3)
+  assert.equal(overdueSince.getDate(), 30)
+  assert.equal(overdueSince.getHours(), 10)
+  assert.equal(overdueSince.getMinutes(), 30)
+
+  assert.equal(
+    isTransactionOverdue(
+      {
+        status: TransactionStatus.pending,
+        moveInDate: januaryEnd,
+        closingDate: null,
+      },
+      new Date(2026, 3, 30, 10, 30),
+    ),
+    true,
+  )
+  assert.equal(
+    isTransactionOverdue(
+      {
+        status: TransactionStatus.pending,
+        moveInDate: januaryEnd,
+        closingDate: null,
+      },
+      new Date(2026, 3, 30, 10, 29),
+    ),
+    false,
+  )
+  assert.equal(
+    isTransactionOverdue(
+      {
+        status: TransactionStatus.closed,
+        moveInDate: januaryEnd,
+        closingDate: null,
+      },
+      new Date(2026, 3, 30, 10, 30),
+    ),
+    false,
+  )
+})
 
 test("opening a personal office notification marks it read and returns the relative action url", async () => {
   const context = await createNotificationsTestContext()
@@ -362,6 +447,207 @@ test("reconcileOfficeNotificationReminders skips client reminders when a legacy 
     })
 
     assert.equal(clientReminder, null)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders creates transaction overdue reminders for owner and admin recipients", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const transactionOwner = await context.createMembership("transaction-owner", "agent")
+    const accountant = await context.createMembership("transaction-accountant", "accountant")
+    const transaction = await context.createTransaction({
+      ownerMembershipId: transactionOwner.id,
+      moveInDate: addMonths(new Date(), -4),
+      title: "Three month old move-in",
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const reminders = await prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id,
+        type: NotificationType.transaction_overdue,
+        entityType: NotificationEntityType.transaction,
+        entityId: transaction.id,
+      },
+      select: {
+        membershipId: true,
+        category: true,
+        severity: true,
+        actionUrl: true,
+      },
+      orderBy: [{ membershipId: "asc" }],
+    })
+
+    assert.deepEqual(
+      reminders.map((reminder) => reminder.membershipId).sort(),
+      [
+        accountant.id,
+        context.primaryMembership.id,
+        context.secondaryMembership.id,
+        transactionOwner.id,
+      ].sort(),
+    )
+    assert.equal(reminders[0]?.category, "transaction")
+    assert.equal(reminders[0]?.severity, "critical")
+    assert.equal(reminders[0]?.actionUrl, `/office/transactions/${transaction.id}`)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders prefers move-in date over an older closing date", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const transaction = await context.createTransaction({
+      closingDate: addMonths(new Date(), -5),
+      moveInDate: addMonths(new Date(), -1),
+      title: "Recent move-in wins",
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const reminder = await prisma.notification.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        type: NotificationType.transaction_overdue,
+        entityType: NotificationEntityType.transaction,
+        entityId: transaction.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    assert.equal(reminder, null)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders uses closing date when move-in date is missing", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const transaction = await context.createTransaction({
+      closingDate: addMonths(new Date(), -4),
+      title: "Closing only overdue",
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const reminder = await prisma.notification.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        type: NotificationType.transaction_overdue,
+        entityType: NotificationEntityType.transaction,
+        entityId: transaction.id,
+        membershipId: context.primaryMembership.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    assert.ok(reminder)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("reconcileOfficeNotificationReminders clears transaction overdue reminders once the transaction is closed or cancelled", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const closedLater = await context.createTransaction({
+      moveInDate: addMonths(new Date(), -4),
+      title: "Close after reminder",
+    })
+    const alreadyCancelled = await context.createTransaction({
+      moveInDate: addMonths(new Date(), -4),
+      status: "cancelled",
+      title: "Cancelled transaction",
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    await prisma.transaction.update({
+      where: {
+        id: closedLater.id,
+      },
+      data: {
+        status: "closed",
+      },
+    })
+
+    await reconcileOfficeNotificationReminders({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.primaryMembership.id,
+    })
+
+    const staleReminders = await prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id,
+        type: NotificationType.transaction_overdue,
+        entityType: NotificationEntityType.transaction,
+        entityId: {
+          in: [closedLater.id, alreadyCancelled.id],
+        },
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    assert.deepEqual(staleReminders, [])
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test("dashboard snapshot returns the transaction overdue queue", async () => {
+  const context = await createNotificationsTestContext()
+
+  try {
+    const overdueTransaction = await context.createTransaction({
+      closingDate: addMonths(new Date(), -4),
+      title: "Dashboard overdue",
+    })
+    await context.createTransaction({
+      closingDate: addMonths(new Date(), -1),
+      title: "Dashboard current",
+    })
+
+    const snapshot = await getOfficeDashboardBusinessSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.primaryMembership.id,
+    })
+
+    assert.equal(snapshot.transactionOverdueQueue.count, 1)
+    assert.equal(snapshot.transactionOverdueQueue.transactions[0]?.id, overdueTransaction.id)
+    assert.equal(snapshot.transactionOverdueQueue.transactions[0]?.openHref, `/office/transactions/${overdueTransaction.id}`)
   } finally {
     await context.cleanup()
   }

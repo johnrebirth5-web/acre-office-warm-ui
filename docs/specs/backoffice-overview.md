@@ -22,6 +22,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - agent self-service commission area now surfaces a high-priority payout review reminder whenever a saved payout statement is still in `awaiting_agent`, so the latest statement stays visible from dashboard until the agent confirms it or requests a revision.
+  - the dashboard now also pins a critical overdue transaction queue when `moveInDate ?? closingDate` is more than three calendar months old and the transaction is still not `Closed` or `Cancelled`, so post move-in / closing collection pressure is visible before the ordinary dashboard cards.
 - Follow-up work:
   - stronger manager KPIs
   - better cross-module drilldowns
@@ -148,6 +149,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - the page also shows a live high-priority payout review queue derived from current `AgentPayoutStatement.reviewStatus === awaiting_agent`, so payout review remains visible even if the original inbox item has already been marked read.
   - current coverage is intentionally limited to real signals:
     - task review / second review / rejection
+    - transaction overdue after move-in / closing
     - offer created / received / expiring soon
     - signature pending / completed
     - incoming update pending review
@@ -158,6 +160,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - add scheduler-driven reminder delivery when a real job runner exists
   - add archive/dismiss behavior if the inbox grows beyond read state
   - keep extending coverage only where a real workflow already exists
+  - transaction overdue reminders currently use transaction `Closed` as the closeout truth rather than accounting `received_payment`, because invoice receipt is not yet a separate complete source of truth
 
 ### Mail
 

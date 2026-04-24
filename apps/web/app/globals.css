@@ -7209,6 +7209,116 @@ a {
   line-height: var(--office-line-body);
 }
 
+.office-summary-chip-danger,
+.office-stat-card-danger {
+  border-color: rgba(192, 95, 95, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 246, 246, 0.98), rgba(255, 238, 238, 0.96)),
+    var(--office-danger-soft);
+  box-shadow: 0 14px 32px rgba(137, 41, 41, 0.08);
+}
+
+.office-summary-chip-danger strong,
+.office-stat-card-danger strong {
+  color: var(--office-danger);
+}
+
+.office-dashboard-overdue-card {
+  border-color: rgba(192, 95, 95, 0.38);
+  background:
+    linear-gradient(180deg, rgba(255, 249, 249, 0.98), rgba(255, 243, 243, 0.94)),
+    var(--office-surface);
+  box-shadow: 0 24px 54px rgba(137, 41, 41, 0.12);
+}
+
+.office-dashboard-overdue-card > .office-section-body {
+  gap: 16px;
+}
+
+.office-dashboard-overdue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 0 12px;
+  border-bottom: 1px solid rgba(192, 95, 95, 0.2);
+}
+
+.office-dashboard-overdue-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.office-dashboard-overdue-eyebrow {
+  color: var(--office-danger);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.office-dashboard-overdue-copy strong {
+  color: var(--office-text);
+  font-size: 1rem;
+}
+
+.office-dashboard-overdue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.office-dashboard-overdue-item {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.4fr) minmax(84px, 0.44fr) minmax(126px, 0.56fr)
+    minmax(126px, 0.56fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(192, 95, 95, 0.24);
+  border-radius: var(--office-radius-md);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.office-dashboard-overdue-item-main,
+.office-dashboard-overdue-date {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.office-dashboard-overdue-item-main a {
+  overflow: hidden;
+  color: var(--office-danger);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-dashboard-overdue-item-main span,
+.office-dashboard-overdue-date span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+}
+
+.office-dashboard-overdue-date strong {
+  color: var(--office-text);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1180px) {
+  .office-dashboard-overdue-item {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.45fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .office-dashboard-overdue-item {
+    grid-template-columns: 1fr;
+  }
+}
+
 .office-dashboard-commission-month-panel {
   display: grid;
   gap: 12px;
@@ -13121,6 +13231,80 @@ a {
   line-height: var(--office-line-body);
 }
 
+.office-notification-overdue-card {
+  border-color: rgba(192, 95, 95, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 249, 249, 0.98), rgba(255, 243, 243, 0.95)),
+    var(--office-surface);
+  box-shadow: 0 22px 48px rgba(137, 41, 41, 0.1);
+}
+
+.office-notification-overdue-card > .office-section-body {
+  display: grid;
+  gap: 14px;
+}
+
+.office-notification-overdue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.office-notification-overdue-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.office-notification-overdue-copy strong {
+  color: var(--office-text);
+  font-size: 1rem;
+}
+
+.office-notification-overdue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.office-notification-overdue-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 1.2fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(192, 95, 95, 0.24);
+  border-radius: var(--office-radius-md);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.office-notification-overdue-item-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.office-notification-overdue-item-main strong {
+  overflow: hidden;
+  color: var(--office-danger);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-notification-overdue-item-main span,
+.office-notification-overdue-meta {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+}
+
+.office-notification-overdue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .office-notification-filter-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -13262,6 +13446,10 @@ a {
 @media (max-width: 1360px) {
   .office-notification-priority-item {
     grid-template-columns: 1fr;
+  }
+
+  .office-notification-overdue-item {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .office-notification-filter-grid {

@@ -277,6 +277,7 @@ export const zhCNMessages = {
     description: "在一个运营仪表盘里查看目标进度、当前后台压力和最近交易。",
     livePipeline: "实时管道",
     myMonthCommission: "本月佣金",
+    overdueTransactions: "逾期交易",
     goalTracking: "目标跟踪",
     goalTrackingSubtitle:
       "查看当前办公室范围下的目标进度、访问上下文和实时管道压力。",
@@ -287,6 +288,16 @@ export const zhCNMessages = {
     status: "状态",
     owner: "负责人",
     transactionsHint: "交易",
+    overdueTransactionsSubtitle:
+      "交房/入住或 closing 日期已经超过 3 个月，但交易仍未标记为 Closed。",
+    actionRequired: "需要处理",
+    overdueTransactionSingle: "有 1 笔交易已经超过 3 个月收尾窗口。",
+    overdueTransactionMultiple: "有 {count} 笔交易已经超过 3 个月收尾窗口。",
+    overdueCount: "{count} 笔逾期",
+    openNotifications: "打开通知中心",
+    referenceDate: "交房/入住或 closing",
+    overdueSince: "逾期起算",
+    openTransaction: "打开交易",
     myCommissions: "我的佣金",
     myCommissionsSubtitle:
       "这里只显示与你本人相关、已经持久化的佣金记录和 payout statement，不会混入团队或公司分摊。",
@@ -892,8 +903,11 @@ export const zhCNMessages = {
     archived: "已归档",
     reviewQueue: "审核队列",
     payoutReview: "Payout 审核",
+    overdueTransactions: "逾期交易",
     summaryUnreadHint: "整个收件箱范围内，未读项优先显示。",
     summaryReviewHint: "仍在等待你处理的任务审核和 incoming update 项。",
+    summaryTransactionOverdueHint:
+      "交房/入住或 closing 后超过 3 个月，且仍未 Closed 的交易。",
     summaryPayoutHint:
       "在你确认 statement 或要求修订之前，payout review 任务会一直保持可见。",
     summaryTimeSensitiveHint:
@@ -906,6 +920,15 @@ export const zhCNMessages = {
     multiplePayoutWaiting: "当前有 {count} 份 payout statement 正在等你处理。",
     awaitingReview: "{count} 项待审核",
     actionRequired: "需要处理",
+    criticalOverdueTransactions: "严重逾期交易",
+    overduePinnedSubtitle:
+      "这些提醒会固定显示，直到交易被标记为 Closed、Cancelled，或不再超过 3 个月窗口。",
+    singleTransactionOverdue: "当前有 1 笔交易需要收款或结案复核。",
+    multipleTransactionsOverdue: "当前有 {count} 笔交易需要收款或结案复核。",
+    overdueCount: "{count} 笔逾期",
+    referenceDate: "交房/入住或 closing",
+    overdueSince: "逾期起算",
+    openTransaction: "打开交易",
     generatedPrefix: "生成于 {value}",
     finalPayoutAmount: "最终 payout {value}",
     reviewStatement: "审核 statement",
@@ -943,6 +966,7 @@ export const zhCNMessages = {
     incomingUpdates: "待审更新",
     followUp: "跟进",
     onboarding: "入职流程",
+    transactions: "交易",
     tasks: "任务",
     events: "事件",
     system: "系统",

@@ -33,6 +33,12 @@ function getNotificationActionLabel(
   }
 
   if (
+    notification.type === "transaction_overdue"
+  ) {
+    return t((messages) => messages.officeNotifications.openTransaction);
+  }
+
+  if (
     notification.type === "payout_statement_revision_requested" ||
     notification.type === "payout_statement_confirmed"
   ) {
@@ -98,6 +104,8 @@ function getNotificationTypeLabel(
       return t((messages) => messages.officeNotifications.payoutReview);
     case "payout_statement_confirmed":
       return t((messages) => messages.officeNotifications.payoutReview);
+    case "transaction_overdue":
+      return t((messages) => messages.officeNotifications.transactions);
     default:
       return notification.typeLabel;
   }
@@ -142,6 +150,8 @@ function getNotificationTypeOptionLabel(
     case "payout_statement_revision_requested":
     case "payout_statement_confirmed":
       return t((messages) => messages.officeNotifications.payoutReview);
+    case "transaction_overdue":
+      return t((messages) => messages.officeNotifications.transactions);
     default:
       return fallbackLabel;
   }
@@ -168,6 +178,8 @@ function getNotificationCategoryLabel(
       return t((messages) => messages.officeNotifications.onboarding);
     case "event":
       return t((messages) => messages.officeNotifications.events);
+    case "transaction":
+      return t((messages) => messages.officeNotifications.transactions);
     case "system":
       return t((messages) => messages.officeNotifications.system);
     default:
@@ -197,6 +209,8 @@ function getNotificationCategoryOptionLabel(
       return t((messages) => messages.officeNotifications.onboarding);
     case "event":
       return t((messages) => messages.officeNotifications.events);
+    case "transaction":
+      return t((messages) => messages.officeNotifications.transactions);
     case "system":
       return t((messages) => messages.officeNotifications.system);
     default:
@@ -312,6 +326,12 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
         <StatCard hint={t((messages) => messages.officeNotifications.summaryUnreadHint)} label={t((messages) => messages.officeNotifications.unread)} value={snapshot.summary.unreadCount} />
         <StatCard hint={t((messages) => messages.officeNotifications.summaryReviewHint)} label={t((messages) => messages.officeNotifications.reviewQueue)} value={snapshot.summary.reviewCount} />
         <StatCard
+          className={snapshot.summary.transactionOverdueCount > 0 ? "office-stat-card-danger" : undefined}
+          hint={t((messages) => messages.officeNotifications.summaryTransactionOverdueHint)}
+          label={t((messages) => messages.officeNotifications.overdueTransactions)}
+          value={snapshot.summary.transactionOverdueCount}
+        />
+        <StatCard
           hint={t((messages) => messages.officeNotifications.summaryPayoutHint)}
           label={t((messages) => messages.officeNotifications.payoutReview)}
           value={snapshot.summary.payoutReviewCount}
@@ -319,6 +339,58 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
         <StatCard hint={t((messages) => messages.officeNotifications.summaryTimeSensitiveHint)} label={t((messages) => messages.officeOffers.expiringSoon)} value={snapshot.summary.timeSensitiveCount} />
         <StatCard hint={t((messages) => messages.officeNotifications.summaryArchivedHint)} label={t((messages) => messages.officeNotifications.archived)} value={snapshot.summary.archivedCount} />
       </section>
+
+      {snapshot.transactionOverdueQueue.length ? (
+        <SectionCard
+          className="office-list-card office-notification-overdue-card"
+          subtitle={t((messages) => messages.officeNotifications.overduePinnedSubtitle)}
+          title={t((messages) => messages.officeNotifications.criticalOverdueTransactions)}
+        >
+          <div className="office-notification-overdue-head">
+            <div className="office-notification-overdue-copy">
+              <span className="office-notification-priority-eyebrow">{t((messages) => messages.officeNotifications.actionRequired)}</span>
+              <strong>
+                {snapshot.summary.transactionOverdueCount === 1
+                  ? t((messages) => messages.officeNotifications.singleTransactionOverdue)
+                  : t((messages) => messages.officeNotifications.multipleTransactionsOverdue, {
+                      count: snapshot.summary.transactionOverdueCount,
+                    })}
+              </strong>
+            </div>
+            <StatusBadge tone="danger">
+              {t((messages) => messages.officeNotifications.overdueCount, {
+                count: snapshot.summary.transactionOverdueCount,
+              })}
+            </StatusBadge>
+          </div>
+
+          <div className="office-notification-overdue-list">
+            {snapshot.transactionOverdueQueue.map((transaction) => (
+              <article className="office-notification-overdue-item" key={transaction.notificationId}>
+                <div className="office-notification-overdue-item-main">
+                  <strong>{transaction.title}</strong>
+                  <span>{transaction.propertyLabel || transaction.ownerLabel}</span>
+                </div>
+                <div className="office-notification-overdue-meta">
+                  <span>{transaction.ownerLabel}</span>
+                  <StatusBadge tone="danger">{transaction.statusLabel}</StatusBadge>
+                  <span>
+                    {t((messages) => messages.officeNotifications.referenceDate)}{" "}
+                    <LocalDateTime fallbackLabel={transaction.referenceDateLabel} value={transaction.referenceDate} />
+                  </span>
+                  <span>
+                    {t((messages) => messages.officeNotifications.overdueSince)}{" "}
+                    <LocalDateTime fallbackLabel={transaction.overdueSinceLabel} value={transaction.overdueSince} />
+                  </span>
+                </div>
+                <Link className="office-button office-button-sm" href={transaction.openHref}>
+                  {t((messages) => messages.officeNotifications.openTransaction)}
+                </Link>
+              </article>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
       {snapshot.payoutReviewQueue.length ? (
         <SectionCard

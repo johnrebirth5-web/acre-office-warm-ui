@@ -854,6 +854,7 @@ export type {
   OfficeNotificationItem,
   OfficeNotificationPermissionGroup,
   OfficePayoutReviewReminder,
+  OfficeTransactionOverdueReminder,
   OfficeNotificationsSnapshot,
   OfficeNotificationSummary,
 } from "./notifications";
