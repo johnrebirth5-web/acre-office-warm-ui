@@ -25,6 +25,39 @@ GitHub 仓库页面：
 - `Allow force pushes` 关闭
 - `Allow deletions` 关闭
 
+## 当前仓库 merge method 约束
+
+适用时间：`2026-04-24` 实时确认，除非仓库 owner 明确调整。
+
+- merge commits 不允许：`allow_merge_commit = false`
+- squash merges 不允许：`allow_squash_merge = false`
+- rebase merges 允许：`allow_rebase_merge = true`
+- merged 后自动删除 head branch 已开启：`delete_branch_on_merge = true`
+
+处理 PR merge 时，默认使用：
+
+```bash
+gh pr merge <pr-number> --rebase
+```
+
+不要先尝试：
+
+```bash
+gh pr merge <pr-number> --merge
+gh pr merge <pr-number> --squash
+```
+
+除非实时仓库设置已经确认对应 merge method 被重新开启。
+
+这项设置不属于 branch protection API 的同一组输出。需要确认时运行：
+
+```bash
+gh api repos/johnrebirth5-web/acre-office-warm-ui \
+  --jq '{allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge}'
+```
+
+注意：rebase merge 后，`main` 上的 commit SHA 可能不同于原 PR 分支 commit SHA，即使文件内容完全一致。如果生产已经提前部署了 PR 分支 commit，不要只因为 SHA 变化就判断生产落后；先用 `git diff <deployed_commit> origin/main` 或等价方式比较内容。
+
 这份文档描述的是期望基线，不是永远正确的云端事实。任何 merge、规则调整、验收或运维判断之前，都要再次运行：
 
 ```bash
