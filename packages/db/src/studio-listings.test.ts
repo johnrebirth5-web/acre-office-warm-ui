@@ -712,11 +712,12 @@ test("public collection lookup returns current shared listings", async () => {
     assert.ok(
       snapshot?.listings.some((item) => item.packId === firstPack.packId),
     );
-    assert.equal(
-      snapshot?.listings.find((item) => item.packId === firstPack.packId)
-        ?.listingType,
-      "sale",
+    const firstPublicListing = snapshot?.listings.find(
+      (item) => item.packId === firstPack.packId,
     );
+    assert.equal(firstPublicListing?.listingType, "sale");
+    assert.equal(firstPublicListing?.latitude, 40.7497);
+    assert.equal(firstPublicListing?.longitude, -73.9421);
     assert.ok(
       snapshot?.listings.some((item) => item.packId === secondPack.packId),
     );
