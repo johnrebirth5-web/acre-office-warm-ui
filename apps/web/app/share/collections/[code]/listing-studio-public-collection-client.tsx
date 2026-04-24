@@ -2,6 +2,7 @@
 
 import type { StudioListingPublicCollectionSnapshot } from "@acre/db";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ListingStudioPublicCollectionMap } from "./listing-studio-public-collection-map";
 
 type PublicCollectionSnapshot = StudioListingPublicCollectionSnapshot;
 type PublicCollectionListing = PublicCollectionSnapshot["listings"][number];
@@ -462,6 +463,13 @@ export function ListingStudioPublicCollectionClient(props: {
             )}
           </div>
         </section>
+
+        {snapshot.listings.length ? (
+          <ListingStudioPublicCollectionMap
+            listings={snapshot.listings}
+            onOpenListing={openListing}
+          />
+        ) : null}
 
         <footer className="listing-studio-collection-share-footer">
           <div className="listing-studio-collection-share-footer-avatar">

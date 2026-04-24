@@ -571,13 +571,13 @@ NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.co
 用途：
 
 - 为 `Listing Studio > Collections` 详情页启用真实 Google 地图与附近设施筛选
-- 当前由 `/listing-studio/collections/[collectionId]` 的客户端地图组件读取
+- 当前由 `/listing-studio/collections/[collectionId]` 和 `/share/collections/[code]` 的客户端地图组件读取
 - 用于运行时加载 `Google Maps JavaScript API` 和 `Places` library
 
 是否必填：
 
 - 不是全站必填
-- 但如果你希望在 collection detail 页面看到真实地图、listing 点位和 `Supermarket / Subway / Restaurant / Coffee / Nightlife / All` 附近设施筛选，就需要显式配置
+- 但如果你希望在 collection detail 页面看到真实地图、listing 点位和 `Supermarket / Subway / Restaurant / Coffee / Nightlife / All` 附近设施筛选，或在 public collection share 页面底部显示房源地图，就需要显式配置
 - 如果不配置，collections 列表和 collection 内的 listing cards 仍然正常工作，只是地图区域会降级为提示文案
 
 示例格式：

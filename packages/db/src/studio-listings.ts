@@ -269,6 +269,8 @@ export type StudioListingPublicCollectionSnapshot = {
     priceLabel: string;
     addressLine: string;
     locationLine: string | null;
+    latitude: number | null;
+    longitude: number | null;
     factsLine: string;
     statusLabel: string | null;
     heroAssetId: string | null;
@@ -3653,6 +3655,8 @@ export async function getStudioListingPublicCollection(input: {
         priceLabel: item.priceLabel,
         addressLine: item.addressLine,
         locationLine: item.locationLine,
+        latitude: detail.latitude,
+        longitude: detail.longitude,
         factsLine: item.factsLine,
         statusLabel: item.statusLabel,
         heroAssetId: item.heroAssetId,
