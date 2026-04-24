@@ -295,12 +295,6 @@ export const agentSections: WorkspaceSection[] = [
         description: "Pipeline, reminders, and the next action set for active client work."
       },
       {
-        href: "/agent/listings",
-        label: "Listings",
-        shortLabel: "Listings",
-        description: "Recommend inventory, prepare content, and track listing outreach."
-      },
-      {
         href: "/agent/notifications",
         label: "Activity",
         shortLabel: "Alerts",

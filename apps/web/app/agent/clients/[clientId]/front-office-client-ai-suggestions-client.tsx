@@ -263,7 +263,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       params.set("draftSubject", draft.subjectLine.trim());
     }
 
-    return `/agent/listings?${params.toString()}#front-office-draft-assist`;
+    return `/listing-studio/listings?${params.toString()}`;
   }
 
   return (

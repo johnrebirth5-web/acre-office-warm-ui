@@ -482,7 +482,6 @@ export {
 export {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeClientsSnapshot,
-  getFrontOfficeListingsSnapshot,
   getFrontOfficeResourcesSnapshot,
   type FrontOfficeActivityCleanupItem,
   type FrontOfficeActivityCleanupMetric,
@@ -496,9 +495,6 @@ export {
   type FrontOfficeClientRecord,
   type FrontOfficeClientsSnapshot,
   type FrontOfficeListingRecord,
-  type FrontOfficeListingsSnapshot,
-  type FrontOfficeListingsTargetAppointment,
-  type FrontOfficeListingsTargetClient,
   type FrontOfficeResourceRecord,
   type FrontOfficeResourcesSnapshot,
   type FrontOfficeTone,

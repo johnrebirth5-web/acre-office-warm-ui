@@ -3400,10 +3400,10 @@ export async function getFrontOfficeDashboardSnapshot(
         : "Open the send-risk workbench and start a tracked send.",
       href: leadingSendRecord
         ? `/agent/clients/${leadingSendRecord.client.id}#front-office-client-next-step-rail`
-        : "/agent/listings?lane=draft-lane",
+        : "/listing-studio/listings",
       actionLabel: leadingSendRecord
         ? "Open next-step rail"
-        : "Open send-risk workbench",
+        : "Open Listing Studio",
     },
     {
       id: "handoff",
@@ -3540,7 +3540,7 @@ export async function getFrontOfficeDashboardSnapshot(
           statusTone: mapListingStatusTone(listing.status),
           trackedLinkCount: shareMetrics?.count ?? 0,
           trackedClickCount: shareMetrics?.clicks ?? 0,
-          href: "/agent/listings?lane=draft-lane",
+          href: "/listing-studio/listings",
         };
       }),
       recentEngagement: recentSendRecords.map((record) => ({

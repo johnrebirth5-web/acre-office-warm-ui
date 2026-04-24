@@ -266,11 +266,13 @@ export function buildFrontOfficeListingsHref(input: {
   appointmentId?: string | null;
   lane?: FrontOfficeListingsLane | null;
 }) {
-  return buildClientRouteHref("/agent/listings", [
-    ["lane", input.lane ?? null],
-    ["clientId", input.clientId],
-    ["appointmentId", input.appointmentId ?? null],
-  ]);
+  return input.appointmentId
+    ? buildFrontOfficeCalendarHref({
+        clientId: input.clientId,
+        appointmentId: input.appointmentId,
+        calendarView: frontOfficeCalendarViews.bridgeLogged,
+      })
+    : `/agent/clients/${input.clientId}#front-office-client-next-step-rail`;
 }
 
 

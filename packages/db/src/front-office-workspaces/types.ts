@@ -36,7 +36,6 @@ import { reconcileOfficeNotificationReminders } from "../notifications";
 
 import { DuplicateCandidate, FrontOfficeClientsWorkspaceView, activeListingStatuses, buildCleanupFilterCountRecord, buildCleanupKindCountRecord, buildClientWorkspaceAnchor, buildClientWorkspaceHref, buildElapsedDayCount, buildFreshnessLabel, buildNotificationGroupCountRecord, buildNotificationStreamCountRecord, cleanStringList, compareClientStageLabels, compareFrontOfficeClientQueueRecords, formatAreaSummaryLabel, formatBudgetRange, formatClientIntentLabel, formatCountLabel, formatCurrency, formatDateLabel, formatElapsedDayLabel, formatLooseTitleLabel, formatNextTouchLabel, formatRelativeDueLabel, formatSourceLabel, getClientStageSortRank, isBoundaryStage, isViewingLaneStage, mapClientStageTone, normalizeClientStageLabel, normalizeDuplicateEmail, normalizeDuplicateName, normalizeDuplicatePhone, openFollowUpStatuses, resolveClientNextTouchAt } from "./shared";
 import { buildCalendarAppointmentHref, buildClientDetailHref, buildDuplicateCandidateDetailLabel, buildDuplicateCandidateStrengthScore, buildDuplicateRecommendationLabel, buildDuplicateRecord, buildFrontOfficeActivityCleanupFilterContract, buildFrontOfficeActivityNoticeFilterContract, buildFrontOfficeActivityNoticeStreamFilterContract, buildFrontOfficeActivityReadStateFilterContract, buildFrontOfficeDuplicatePairs, buildFrontOfficeResourceHref, buildFrontOfficeResourcesExecutionPulse, buildInitials, buildListingAreaLabel, buildListingSummaryLabel, buildOfficeScopeFilter, buildResourceDetailLabel, buildSendRecordAppointmentLabel, buildVendorCategoryDescription, buildVendorContactLabel, buildVendorCoverageLabel, buildVendorHeadline, buildVendorPrimaryActionLabel, buildVendorPrimaryHref, buildVendorQuickActionLabel, buildVisibleContactScopeWhere, buildVisibleEventWhere, countVendorQuickActions, formatAppointmentStatusLabel, formatAppointmentTypeLabel, formatEventVisibilityLabel, formatFrontOfficeSendChannelLabel, formatListingStatus, formatNotificationType, formatResourceType, formatSendRecordStageLabel, formatUserRoleLabel, formatVendorCategoryLabel, frontOfficeClientSectionAnchors, getFrontOfficeCleanupSectionLabel, getFrontOfficeClientsSnapshot, getFrontOfficeNotificationActionLabel, getFrontOfficeNotificationGroup, getFrontOfficeNotificationNextStepLabel, getFrontOfficeNotificationOwnerLabel, getFrontOfficeNotificationPressureState, getFrontOfficeNotificationScopeLabel, getFrontOfficeNotificationSectionLabel, getFrontOfficeNotificationSortRank, getFrontOfficeNotificationStream, getFrontOfficeNotificationStreamSortRank, getFrontOfficeToneSortRank, getListingStatusSortRank, getResourceActionLabel, getResourceTypeDescription, getResourceTypeDetailLabel, getResourceTypeLaneLabel, getResourceTypePriority, getResourceTypeStartLabel, getResourceTypeTone, getVendorCategoryPriority, getVisibleFrontOfficeDuplicatePairs, isClosedClientStage, mapAppointmentStatusTone, mapListingStatusTone, mapNotificationSeverityTone, mapVendorCategoryTone, normalizeFrontOfficeResourceType, readNotificationMetadataString } from "./clients";
-import { getFrontOfficeListingsSnapshot } from "./listings";
 import { getFrontOfficeResourcesSnapshot } from "./resources";
 import { getFrontOfficeActivitySnapshot } from "./activity";
 
@@ -478,45 +477,6 @@ export type FrontOfficeAgentMaterialSnapshot = {
   introEmailText: string;
   introTextMessage: string;
   featuredCases: FrontOfficeAgentMaterialFeaturedCase[];
-};
-
-
-
-export type FrontOfficeListingsTargetClient = {
-  id: string;
-  fullName: string;
-  stage: string;
-  stageTone: FrontOfficeTone;
-  nextTouchLabel: string;
-  href: string;
-};
-
-
-
-export type FrontOfficeListingsTargetAppointment = {
-  id: string;
-  title: string;
-  typeLabel: string;
-  statusLabel: string;
-  statusTone: FrontOfficeTone;
-  startsAtLabel: string;
-  locationLabel: string;
-  href: string;
-};
-
-
-
-export type FrontOfficeListingsSnapshot = {
-  summary: {
-    listingCount: number;
-    publicReadyCount: number;
-    trackedClicks: number;
-    trackedLinks: number;
-  };
-  targetClient: FrontOfficeListingsTargetClient | null;
-  targetAppointment: FrontOfficeListingsTargetAppointment | null;
-  agentMaterial: FrontOfficeAgentMaterialSnapshot;
-  listings: FrontOfficeListingRecord[];
 };
 
 
