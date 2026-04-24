@@ -102,6 +102,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - transaction report filters, report columns, and CSV export headers now resolve their labels from the same shared transaction field schema, so built-in label overrides such as renaming `State` stay consistent across create, settings, search, and reporting surfaces.
   - `New transaction` owner search for `Agent Name` is sourced from office/global sales memberships for company-scope creators, not just the currently visible transaction roster.
   - `New transaction` status creation is now limited to `Pending / Closed / Cancelled`, and non-admin users are forced to `Pending` and cannot change transaction status from create or detail-edit flows.
+  - `owner / office_admin` can now permanently delete a transaction from the detail header. The delete flow removes transaction-owned workspace rows and stored transaction/signature files, while existing accounting rows keep their history and simply lose the transaction link.
 - Follow-up work:
   - deeper listing-side workflow parity
   - richer transaction automation

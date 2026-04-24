@@ -78,6 +78,7 @@ export const activityLogActions = {
   transactionStatusChanged: "transaction.status_changed",
   transactionClosed: "transaction.closed",
   transactionCancelled: "transaction.cancelled",
+  transactionDeleted: "transaction.deleted",
   transactionContactLinked: "transaction.contact_linked",
   transactionContactUnlinked: "transaction.contact_unlinked",
   transactionPrimaryContactChanged: "transaction.primary_contact_changed",
@@ -499,6 +500,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "transaction.status_changed": "Transaction status changed",
   "transaction.closed": "Transaction closed",
   "transaction.cancelled": "Transaction cancelled",
+  "transaction.deleted": "Transaction deleted",
   "transaction.contact_linked": "Transaction contact linked",
   "transaction.contact_unlinked": "Transaction contact unlinked",
   "transaction.primary_contact_changed": "Transaction primary contact changed",
@@ -659,6 +661,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.transactionStatusChanged ||
       action === activityLogActions.transactionClosed ||
       action === activityLogActions.transactionCancelled ||
+      action === activityLogActions.transactionDeleted ||
       action === activityLogActions.transactionContactLinked ||
       action === activityLogActions.transactionContactUnlinked ||
       action === activityLogActions.transactionPrimaryContactChanged ||
@@ -1538,6 +1541,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "closed a transaction";
     case activityLogActions.transactionCancelled:
       return "cancelled a transaction";
+    case activityLogActions.transactionDeleted:
+      return "deleted a transaction";
     case activityLogActions.transactionContactLinked:
       return payload.contactName
         ? `linked ${payload.contactName} to a transaction`

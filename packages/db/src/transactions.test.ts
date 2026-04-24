@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { NotificationType, Prisma, type UserRole } from "@prisma/client";
+import { activityLogActions } from "./activity-log.ts";
 import { prisma } from "./client.ts";
 import {
   createOfficeTransactionCustomFieldDefinition,
@@ -13,6 +14,7 @@ import {
 import { createOffer } from "./offers.ts";
 import {
   createTransaction,
+  deleteTransaction,
   getOfficeTransactionOwnerAssignment,
   getTransactionById,
   getOfficeTransactionSearchLayoutSnapshot,
@@ -175,6 +177,144 @@ test("createOffer stores an empty additionalFields object when none is provided"
 
     assert.ok(offer);
     assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("deleteTransaction removes the transaction workspace, keeps accounting history, and returns stored files for cleanup", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const owner = await context.createMembership("agent", "delete-owner");
+    const transaction = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: owner.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "410 Delete Ln",
+      city: "New York",
+      state: "NY",
+      zipCode: "10002",
+      transactionName: "Delete Candidate",
+      price: "880000"
+    });
+
+    const document = await prisma.transactionDocument.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        transactionId: transaction.id,
+        uploadedByMembershipId: context.adminMembership.id,
+        title: "Delete me",
+        fileName: "delete-me.pdf",
+        mimeType: "application/pdf",
+        fileSizeBytes: 1024,
+        storageKey: "transactions/delete-me.pdf",
+        storageUrl: "https://example.com/transactions/delete-me.pdf",
+        documentType: "General",
+        status: "uploaded",
+        source: "manual_upload"
+      }
+    });
+
+    const signatureRequest = await prisma.signatureRequest.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        transactionId: transaction.id,
+        requestedByMembershipId: context.adminMembership.id,
+        recipientName: "Casey Buyer",
+        recipientEmail: "casey.buyer@example.com",
+        recipientRole: "Buyer"
+      }
+    });
+
+    await prisma.signatureArtifact.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        transactionId: transaction.id,
+        signatureRequestId: signatureRequest.id,
+        kind: "signed_copy",
+        title: "Signed packet",
+        fileName: "signed-packet.pdf",
+        mimeType: "application/pdf",
+        fileSizeBytes: 2048,
+        storageKey: "transactions/signed-packet.pdf",
+        storageUrl: "https://example.com/transactions/signed-packet.pdf"
+      }
+    });
+
+    const accountingTransaction = await prisma.accountingTransaction.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        relatedTransactionId: transaction.id,
+        type: "invoice",
+        status: "draft",
+        accountingDate: new Date("2026-01-15T00:00:00.000Z"),
+        totalAmount: new Prisma.Decimal("1500.00"),
+        createdByMembershipId: context.adminMembership.id
+      }
+    });
+
+    const removed = await deleteTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      transactionId: transaction.id,
+      actorMembershipId: context.adminMembership.id
+    });
+
+    assert.deepEqual(
+      removed
+        ? {
+            id: removed.id,
+            storageKeys: [...removed.storageKeys].sort()
+          }
+        : null,
+      {
+        id: transaction.id,
+        storageKeys: ["transactions/delete-me.pdf", "transactions/signed-packet.pdf"]
+      }
+    );
+
+    const [deletedTransaction, deletedDocument, refreshedAccountingTransaction, auditLogs] = await Promise.all([
+      prisma.transaction.findUnique({
+        where: {
+          id: transaction.id
+        }
+      }),
+      prisma.transactionDocument.findUnique({
+        where: {
+          id: document.id
+        }
+      }),
+      prisma.accountingTransaction.findUnique({
+        where: {
+          id: accountingTransaction.id
+        },
+        select: {
+          relatedTransactionId: true
+        }
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          organizationId: context.organization.id,
+          entityType: "transaction",
+          entityId: transaction.id,
+          action: activityLogActions.transactionDeleted
+        }
+      })
+    ]);
+
+    assert.equal(deletedTransaction, null);
+    assert.equal(deletedDocument, null);
+    assert.equal(refreshedAccountingTransaction?.relatedTransactionId, null);
+    assert.equal(auditLogs.length, 1);
   } finally {
     await context.cleanup();
   }

@@ -318,6 +318,19 @@ export type UpdateTransactionStatusInput = {
   actorMembershipId?: string;
 };
 
+export type DeleteTransactionInput = {
+  organizationId: string;
+  transactionId: string;
+  actorMembershipId?: string;
+  officeId?: string | null;
+};
+
+export type DeleteTransactionResult = {
+  id: string;
+  title: string;
+  storageKeys: string[];
+};
+
 export type UpdateTransactionFinanceInput = {
   organizationId: string;
   transactionId: string;
@@ -2913,6 +2926,87 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     },
     true
   );
+}
+
+export async function deleteTransaction(input: DeleteTransactionInput): Promise<DeleteTransactionResult | null> {
+  if (!input.actorMembershipId) {
+    throw new Error("Actor membership is required.");
+  }
+
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId,
+    officeId: input.officeId ?? null
+  });
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.transaction.findFirst({
+      where: {
+        id: input.transactionId,
+        organizationId: input.organizationId,
+        ...(input.officeId ? { officeId: input.officeId } : {}),
+        ...buildTransactionVisibilityWhere(scope)
+      },
+      select: {
+        id: true,
+        officeId: true,
+        title: true,
+        address: true,
+        city: true,
+        state: true,
+        documents: {
+          select: {
+            storageKey: true
+          }
+        },
+        signatureArtifacts: {
+          select: {
+            storageKey: true
+          }
+        }
+      }
+    });
+
+    if (!existing) {
+      return null;
+    }
+
+    const storageKeys = Array.from(
+      new Set(
+        [...existing.documents, ...existing.signatureArtifacts]
+          .map((record) => record.storageKey)
+          .filter((value) => value.trim().length > 0)
+      )
+    );
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "transaction",
+      entityId: existing.id,
+      action: activityLogActions.transactionDeleted,
+      payload: {
+        officeId: existing.officeId,
+        transactionId: existing.id,
+        transactionLabel: buildTransactionObjectLabel(existing),
+        objectLabel: buildTransactionObjectLabel(existing),
+        details: ["Transaction permanently deleted by an administrator."],
+        contextHref: "/office/transactions"
+      }
+    });
+
+    await tx.transaction.delete({
+      where: {
+        id: existing.id
+      }
+    });
+
+    return {
+      id: existing.id,
+      title: existing.title,
+      storageKeys
+    };
+  });
 }
 
 export async function updateTransactionStatus(input: UpdateTransactionStatusInput): Promise<OfficeTransactionDetail | null> {

@@ -680,6 +680,7 @@ export {
 export {
   getOfficeTransactionsPageSnapshot,
   createTransaction,
+  deleteTransaction,
   getOfficeTransactionSearchLayoutSnapshot,
   getOfficeTransactionOwnerAssignment,
   getTransactionById,
@@ -1162,6 +1163,8 @@ export type {
 } from "./transaction-tasks";
 export type {
   CreateTransactionInput,
+  DeleteTransactionInput,
+  DeleteTransactionResult,
   GetOfficeTransactionSearchLayoutSnapshotInput,
   OfficeTransactionsPageSnapshot,
   OfficeTransactionFieldFilterInput,

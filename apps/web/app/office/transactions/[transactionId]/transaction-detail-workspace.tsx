@@ -12,6 +12,7 @@ import {
 import {
   canApproveOfficeDocuments,
   canApproveOfficeCommissions,
+  canDeleteOfficeTransactions,
   canEditOfficeTransactions,
   canManageOfficeTransactionStatus,
   canManageOfficeTransactionFinance,
@@ -44,6 +45,7 @@ import { TransactionTasksCard } from "./tasks-card";
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
 import { getEditTransactionStatusFieldPolicy } from "../transaction-status-rules";
 import { TransactionDetailCollapsibleSection } from "./transaction-detail-collapsible-section";
+import { TransactionDeleteAction } from "./transaction-delete-action";
 
 type TransactionDetailWorkspaceProps = {
   context: SessionMembershipContext;
@@ -119,6 +121,7 @@ export async function TransactionDetailWorkspace({
   const canReviewOffersForRole = canReviewOfficeOffers(context.currentMembership);
   const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership);
   const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership);
+  const canDeleteTransactionsForRole = canDeleteOfficeTransactions(context.currentMembership);
   const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership);
   const canManageTransactionStatusForRole = canManageOfficeTransactionStatus(context.currentMembership);
   const canManageTransactionFinanceForRole = canManageOfficeTransactionFinance(context.currentMembership);
@@ -146,6 +149,11 @@ export async function TransactionDetailWorkspace({
               <Link className="office-button-secondary" href="/office/transactions">
                 Back to transactions
               </Link>
+              <TransactionDeleteAction
+                canDelete={canDeleteTransactionsForRole}
+                transactionId={transaction.id}
+                transactionTitle={transaction.title}
+              />
               <SummaryChip label="Owner" value={transaction.ownerName} />
               <SummaryChip label="Office" value={transaction.officeName || "Unassigned"} />
               <SummaryChip label="Status" tone="accent" value={transaction.status} />

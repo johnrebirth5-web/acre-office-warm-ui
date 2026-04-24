@@ -788,6 +788,9 @@
 - transaction signature authoring is now a true two-step workflow instead of one mixed editor:
   - Step 1 saves `Recipients and delivery` first, including signers / approvers / CC recipients, routing steps, and invitation copy
   - Step 2 unlocks only after that save and focuses on PDF field placement, with each field explicitly bound to one signer or approver before send
+- transaction detail now exposes an admin-only `Delete transaction` action:
+  - `owner / office_admin` can remove a transaction directly from `/office/transactions/[transactionId]` with a confirmation dialog
+  - the delete API now removes the transaction plus transaction-owned workspace rows, records a `transaction.deleted` audit event, cleans up stored transaction-document and signature-artifact files, and leaves any accounting rows in place with their `relatedTransactionId` cleared by the database
 - typography baseline cleanup now routes legacy Office surfaces back through the shared `--office-font-sans` token:
   - body and older sidebar/panel/meta surfaces no longer hardcode `Inter / Helvetica Neue / Arial` locally
   - the shared font stack now includes explicit Chinese fallbacks to reduce cross-browser drift for mixed English/CJK pages

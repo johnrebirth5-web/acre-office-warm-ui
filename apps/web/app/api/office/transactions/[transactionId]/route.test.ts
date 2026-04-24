@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
-import { handleUpdateOfficeTransactionPatch } from "./route";
+import { handleDeleteOfficeTransactionDelete, handleUpdateOfficeTransactionPatch } from "./route";
 
 function createOfficeTransactionRequest(
   body: string,
@@ -26,6 +26,9 @@ function createSessionContext() {
     },
     currentOrganization: {
       id: "org_1",
+    },
+    currentOffice: {
+      id: "office_1",
     },
   } as never;
 }
@@ -83,5 +86,50 @@ test("handleUpdateOfficeTransactionPatch forwards normalized status updates and 
   });
   assert.deepEqual(await readJson(notFoundResponse), {
     error: "Transaction not found.",
+  });
+});
+
+test("handleDeleteOfficeTransactionDelete returns 404 when the transaction cannot be removed", async () => {
+  const response = await handleDeleteOfficeTransactionDelete(createSessionContext(), "transaction_missing", {
+    deleteTransaction: async () => null,
+  });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await readJson(response), {
+    error: "Transaction not found.",
+  });
+});
+
+test("handleDeleteOfficeTransactionDelete forwards delete scope and cleans up stored files", async () => {
+  let capturedInput: Record<string, unknown> | null = null;
+  const deletedStorageKeys: string[] = [];
+
+  const response = await handleDeleteOfficeTransactionDelete(createSessionContext(), "transaction_1", {
+    deleteTransaction: async (input) => {
+      capturedInput = input as Record<string, unknown>;
+      return {
+        id: "transaction_1",
+        title: "Primary residence",
+        storageKeys: ["transactions/documents/doc_1.pdf", "transactions/signatures/artifact_1.pdf"],
+      };
+    },
+    deleteStoredFile: async (storageKey) => {
+      deletedStorageKeys.push(storageKey);
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(capturedInput, {
+    organizationId: "org_1",
+    officeId: "office_1",
+    transactionId: "transaction_1",
+    actorMembershipId: "membership_1",
+  });
+  assert.deepEqual(deletedStorageKeys, [
+    "transactions/documents/doc_1.pdf",
+    "transactions/signatures/artifact_1.pdf",
+  ]);
+  assert.deepEqual(await readJson(response), {
+    transactionId: "transaction_1",
   });
 });

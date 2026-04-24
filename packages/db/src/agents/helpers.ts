@@ -777,6 +777,8 @@ export function getActivityActionLabel(action: string) {
       return "Transaction updated";
     case activityLogActions.transactionStatusChanged:
       return "Transaction status changed";
+    case activityLogActions.transactionDeleted:
+      return "Transaction deleted";
     case activityLogActions.transactionTaskCreated:
       return "Task created";
     case activityLogActions.transactionTaskUpdated:

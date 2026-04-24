@@ -1,14 +1,15 @@
-import { canManageOfficeTransactionStatus, canViewOfficeTransactions } from "@acre/auth";
+import { canDeleteOfficeTransactions, canManageOfficeTransactionStatus, canViewOfficeTransactions } from "@acre/auth";
 import {
+  deleteTransaction,
   getTransactionById,
   type OfficeTransactionStatus,
   type SessionMembershipContext,
   updateTransactionStatus,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { deleteStoredFile } from "../../../../../lib/document-storage";
 import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
-import { isOfficeTransactionStatus } from "../../../../office/transactions/transaction-status-rules";
 import { updateOfficeTransactionBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -46,6 +47,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 type OfficeTransactionRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
   updateTransactionStatus?: typeof updateTransactionStatus;
+  deleteTransaction?: typeof deleteTransaction;
+  deleteStoredFile?: typeof deleteStoredFile;
 };
 
 export async function handleUpdateOfficeTransactionPatch(
@@ -94,4 +97,48 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   const { transactionId } = await params;
   return handleUpdateOfficeTransactionPatch(request, transactionId, context);
+}
+
+export async function handleDeleteOfficeTransactionDelete(
+  context: SessionMembershipContext,
+  transactionId: string,
+  dependencies: OfficeTransactionRouteDependencies = {},
+) {
+  try {
+    const removed = await (dependencies.deleteTransaction ?? deleteTransaction)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      transactionId,
+      actorMembershipId: context.currentMembership.id
+    });
+
+    if (!removed) {
+      return NextResponse.json({ error: "Transaction not found." }, { status: 404 });
+    }
+
+    const deleteFile = dependencies.deleteStoredFile ?? deleteStoredFile;
+    await Promise.allSettled(removed.storageKeys.map((storageKey) => deleteFile(storageKey)));
+
+    return NextResponse.json({ transactionId: removed.id });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Transaction delete failed." },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canDeleteOfficeTransactions(context.currentMembership)) {
+    return NextResponse.json({ error: "Only admins can delete transactions." }, { status: 403 });
+  }
+
+  const { transactionId } = await params;
+  return handleDeleteOfficeTransactionDelete(context, transactionId);
 }
