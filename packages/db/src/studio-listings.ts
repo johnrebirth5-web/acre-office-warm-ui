@@ -117,6 +117,8 @@ export type StudioListingCollectionDetail = {
   id: string;
   name: string;
   listingCount: number;
+  shareEnabled: boolean;
+  shareCode: string | null;
   createdAt: string;
   updatedAt: string;
   listingsWithoutCoordinates: number;
@@ -221,6 +223,42 @@ export type StudioListingPublicPackSnapshot = {
     email: string;
   };
   capturedAtLabel: string;
+};
+
+export type StudioListingPublicCollectionSnapshot = {
+  code: string;
+  name: string;
+  listingCount: number;
+  updatedAt: string;
+  contact: {
+    name: string;
+    title: string;
+    phone: string;
+    email: string;
+  };
+  listings: Array<{
+    packId: string;
+    title: string;
+    displayTitle: string | null;
+    listingType: string | null;
+    priceLabel: string;
+    addressLine: string;
+    locationLine: string | null;
+    factsLine: string;
+    statusLabel: string | null;
+    heroAssetId: string | null;
+    agentNote: string;
+    descriptionText: string | null;
+    facts: Array<{ label: string; value: string }>;
+    amenities: Array<{ title: string; items: string[] }>;
+    buildingName: string | null;
+    selectedAssets: Array<{
+      id: string;
+      kind: StudioListingAssetKind;
+      label: string | null;
+      sortOrder: number;
+    }>;
+  }>;
 };
 
 type NormalizedStudioListingData = {
@@ -346,6 +384,10 @@ function createOpaqueToken(prefix: string) {
 
 function createStudioListingPackShareCode() {
   return `pack_${randomBytes(24).toString("base64url")}`;
+}
+
+function createStudioListingCollectionShareCode() {
+  return `collection_${randomBytes(24).toString("base64url")}`;
 }
 
 function formatStudioListingMembershipLabel(user: {
@@ -528,12 +570,35 @@ function inferListingTypeFromPriceLabel(value: string | null | undefined) {
   return null;
 }
 
+function inferListingTypeFromSourceUrl(value: string | null | undefined) {
+  const normalized = trimString(value)?.toLowerCase() ?? "";
+  if (!normalized) {
+    return null;
+  }
+
+  if (/(^|[?&])utm_campaign=sale_listing(&|$)|sale_listing/.test(normalized)) {
+    return "sale";
+  }
+
+  if (/(^|[?&])utm_campaign=rental_listing(&|$)|rental_listing/.test(normalized)) {
+    return "rent";
+  }
+
+  return null;
+}
+
 function resolveNormalizedListingType(input: {
   listingType: string | null | undefined;
   priceLabel: string | null | undefined;
+  sourceUrl?: string | null | undefined;
 }) {
   const normalizedListingType = normalizeListingTypeValue(input.listingType);
+  const inferredFromSourceUrl = inferListingTypeFromSourceUrl(input.sourceUrl);
   const inferredFromPriceLabel = inferListingTypeFromPriceLabel(input.priceLabel);
+
+  if (inferredFromSourceUrl) {
+    return inferredFromSourceUrl;
+  }
 
   if (normalizedListingType === "sale" && inferredFromPriceLabel === "rent") {
     return "rent";
@@ -946,6 +1011,7 @@ function normalizeStudioListingData(input: CreateStudioListingImportInput): Norm
         trimString(fields.transactionType) ??
         trimString(fields.marketType),
       priceLabel: trimString(fields.priceLabel),
+      sourceUrl: input.sourceUrl,
     }),
     statusLabel: trimString(fields.statusLabel) ?? trimString(fields.status),
     price: priceNumber,
@@ -1675,6 +1741,7 @@ function mapListItem(
       record.snapshot.listingType ?? trimString(readSnapshotCanonicalField(record.snapshot, "listingType")),
     priceLabel:
       record.snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(record.snapshot, "priceLabel")),
+    sourceUrl: record.snapshot.sourceUrl,
   });
 
   return {
@@ -1769,6 +1836,8 @@ function mapCollectionDetail(
     id: record.id,
     name: record.name,
     listingCount: listings.length,
+    shareEnabled: record.shareEnabled,
+    shareCode: record.shareCode,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     listingsWithoutCoordinates: listings.filter(
@@ -2018,6 +2087,42 @@ export async function getStudioListingCollectionDetail(input: {
   });
 
   return record ? mapCollectionDetail(record) : null;
+}
+
+export async function publishStudioListingCollection(input: {
+  organizationId: string;
+  collectionId: string;
+  membershipId: string;
+}) {
+  const existing = await prisma.studioListingCollection.findFirst({
+    where: {
+      id: input.collectionId,
+      organizationId: input.organizationId,
+      createdByMembershipId: input.membershipId,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const shareCode =
+    existing.shareCode && existing.shareCode.trim()
+      ? existing.shareCode
+      : createStudioListingCollectionShareCode();
+
+  await prisma.studioListingCollection.update({
+    where: { id: existing.id },
+    data: {
+      updatedByMembershipId: input.membershipId,
+      shareEnabled: true,
+      shareCode,
+    },
+  });
+
+  return {
+    shareCode,
+  };
 }
 
 export async function createStudioListingCollection(input: {
@@ -2307,6 +2412,7 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
   const resolvedListingType = resolveNormalizedListingType({
     listingType: snapshot.listingType ?? trimString(readSnapshotCanonicalField(snapshot, "listingType")),
     priceLabel: snapshot.priceLabel ?? trimString(readSnapshotCanonicalField(snapshot, "priceLabel")),
+    sourceUrl: snapshot.sourceUrl,
   });
   const bulletPoints = normalizeBulletPoints(record.bulletPointsJson);
   const selectedAssetIds = normalizeBulletPoints(record.selectedAssetIdsJson);
@@ -3218,6 +3324,15 @@ function buildStudioListingLegacyShareWhere(
   };
 }
 
+function buildStudioListingCollectionShareWhere(
+  shareCode: string,
+): Prisma.StudioListingCollectionWhereInput {
+  return {
+    shareCode,
+    shareEnabled: true,
+  };
+}
+
 export async function getStudioListingPublicPack(input: {
   shareCode: string;
   viewerFingerprint?: string | null;
@@ -3301,6 +3416,82 @@ export async function getStudioListingPublicPack(input: {
   } satisfies StudioListingPublicPackSnapshot;
 }
 
+export async function getStudioListingPublicCollection(input: {
+  shareCode: string;
+}) {
+  const record = await prisma.studioListingCollection.findFirst({
+    where: buildStudioListingCollectionShareWhere(input.shareCode),
+    include: studioListingCollectionInclude,
+  });
+
+  if (!record) {
+    return null;
+  }
+
+  const listingRecords = sortStudioListingPackRecords(record.items.map((item) => item.pack));
+  const primaryContactRecord = listingRecords.find(
+    (pack) =>
+      trimString(pack.contactName) ||
+      trimString(pack.contactTitle) ||
+      trimString(pack.contactPhone) ||
+      trimString(pack.contactEmail),
+  );
+  const listings = listingRecords.map(
+    (pack) => {
+      const item = mapListItem(pack);
+      const detail = mapDetailSnapshot(pack);
+      const selectedAssetIds = new Set(detail.pack.selectedAssetIds);
+      const selectedAssets = detail.assets
+        .filter((asset) => selectedAssetIds.has(asset.id))
+        .map((asset) => ({
+          id: asset.id,
+          kind: asset.kind,
+          label: asset.label,
+          sortOrder: asset.sortOrder,
+        }));
+      const fallbackAssets = detail.assets.slice(0, 8).map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        label: asset.label,
+        sortOrder: asset.sortOrder,
+      }));
+
+      return {
+        packId: item.packId,
+        title: item.title,
+        displayTitle: item.displayTitle,
+        listingType: item.listingType,
+        priceLabel: item.priceLabel,
+        addressLine: item.addressLine,
+        locationLine: item.locationLine,
+        factsLine: item.factsLine,
+        statusLabel: item.statusLabel,
+        heroAssetId: item.heroAssetId,
+        agentNote: detail.pack.agentNote,
+        descriptionText: detail.descriptionText,
+        facts: detail.facts,
+        amenities: detail.amenities,
+        buildingName: detail.buildingName,
+        selectedAssets: selectedAssets.length ? selectedAssets : fallbackAssets,
+      };
+    },
+  );
+
+  return {
+    code: input.shareCode,
+    name: record.name,
+    listingCount: listings.length,
+    updatedAt: record.updatedAt.toISOString(),
+    contact: {
+      name: primaryContactRecord?.contactName?.trim() || "Acre Agent",
+      title: primaryContactRecord?.contactTitle?.trim() || "Acre NY Realty",
+      phone: primaryContactRecord?.contactPhone?.trim() || "",
+      email: primaryContactRecord?.contactEmail?.trim() || "",
+    },
+    listings,
+  } satisfies StudioListingPublicCollectionSnapshot;
+}
+
 export async function getStudioListingAssetRecord(input: {
   assetId: string;
   organizationId?: string | null;
@@ -3321,6 +3512,22 @@ export async function getStudioListingAssetRecord(input: {
           id: input.assetId,
           snapshot: {
             pack: buildStudioListingLegacyShareWhere(input.shareCode),
+          },
+        },
+      })) ??
+      (await prisma.studioListingAsset.findFirst({
+        where: {
+          id: input.assetId,
+          snapshot: {
+            pack: {
+              collectionItems: {
+                some: {
+                  collection: buildStudioListingCollectionShareWhere(
+                    input.shareCode,
+                  ),
+                },
+              },
+            },
           },
         },
       }));

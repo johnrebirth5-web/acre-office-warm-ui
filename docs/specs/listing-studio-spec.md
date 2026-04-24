@@ -56,6 +56,10 @@
   - delete saved packet
 - 客户分享页：
   - `/share/packs/[code]`
+  - `/share/collections/[code]`
+  - collection share page uses the mobile client-facing microsite pattern; tapping a property opens the internal detail view with gallery, facts, amenities, and agent contact instead of leaving for the source listing site
+  - collection share email actions copy the agent email in-page instead of relying on `mailto:` handlers; the public page does not show a `Schedule a Viewing` CTA
+  - collection share listing cards and detail badges do not show source-site labels such as StreetEasy
 - PDF 导出：
   - `/api/listing-studio/listings/[packId]/pdf`
 - 海报 / 模板导出：
@@ -153,6 +157,7 @@
   - updated-at
   - preview listings
 - collection list / detail 都支持删除入口，并在删除前给出确认
+- collection detail 支持 `Share` 按钮生成公开 collection 链接；弹框只提供取消和复制，复制后用于粘贴到浏览器查看房源信息
 - collection detail 展示：
   - saved listings card grid
   - `Add listings` 多选管理器
@@ -220,6 +225,9 @@
 - `StudioListingCollection`
   - 当前用户私有 collection
   - 保存 collection 名称、当前 organization / office scope、创建人与最后更新时间
+  - 保存最小公开分享状态：
+    - `shareEnabled`
+    - `shareCode`
 - `StudioListingCollectionItem`
   - collection 与 saved pack 的 join layer
   - 对同一 `collectionId + packId` 做唯一约束

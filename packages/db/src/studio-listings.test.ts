@@ -16,11 +16,13 @@ import {
   createStudioListingCollection,
   getStudioListingAssetRecord,
   getListingStudioCompanyDashboard,
+  getStudioListingPublicCollection,
   getStudioListingPublicPack,
   getStudioListingCollectionDetail,
   listStudioListingPacks,
   listStudioListingCollectionPickerItems,
   listStudioListingCollections,
+  publishStudioListingCollection,
   publishStudioListingPack,
   removeStudioListingPackFromCollection,
   removeStudioListingPackFromMyListings,
@@ -107,16 +109,20 @@ async function createStudioListingsTestContext() {
     neighborhood?: string;
     latitude?: number | null;
     longitude?: number | null;
+    sourceUrl?: string;
+    listingType?: string;
     companyFeedVisible?: boolean;
     companyFeedLabel?: string | null;
   }) {
+    const sourceUrl = input.sourceUrl ?? `https://example.com/${randomUUID()}`;
+    const listingType = input.listingType ?? "sale";
     const importRecord = await prisma.studioListingImport.create({
       data: {
         organizationId: organization.id,
         officeId: office.id,
         createdByMembershipId: input.membershipId,
         sourceSite: StudioListingSourceSite.streeteasy,
-        sourceUrl: `https://example.com/${randomUUID()}`,
+        sourceUrl,
         status: StudioListingImportStatus.ready,
       },
     });
@@ -129,7 +135,7 @@ async function createStudioListingsTestContext() {
         sourceSite: StudioListingSourceSite.streeteasy,
         sourceUrl: importRecord.sourceUrl,
         title: input.title,
-        listingType: "sale",
+        listingType,
         price: "995000",
         priceLabel: "$995,000",
         currency: "USD",
@@ -141,7 +147,7 @@ async function createStudioListingsTestContext() {
         heroFactsJson: [{ label: "Bedrooms", value: "2" }, { label: "Bathrooms", value: "2" }],
         rawParsedJson: {
           canonicalFields: {
-            listingType: "sale",
+            listingType,
             priceLabel: "$995,000",
           },
         },
@@ -604,6 +610,108 @@ test("publishing a pack mints a high-entropy share code", async () => {
   }
 });
 
+test("publishing a collection mints a high-entropy share code", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Collection Share Draft",
+      streetAddress: "24-16 Jackson Avenue",
+      latitude: 40.7448,
+      longitude: -73.9494,
+    });
+
+    const collection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      name: "For Sharing",
+      initialPackId: pack.packId,
+    });
+
+    const published = await publishStudioListingCollection({
+      organizationId: context.organization.id,
+      collectionId: collection?.id ?? "",
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.ok(published);
+    assert.match(
+      published?.shareCode ?? "",
+      /^collection_[A-Za-z0-9_-]{32}$/,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("public collection lookup returns current shared listings", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const firstPack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Court Square One",
+      streetAddress: "43-10 Crescent Street",
+      latitude: 40.7497,
+      longitude: -73.9421,
+      listingType: "rent",
+      sourceUrl:
+        "https://streeteasy.com/building/court-square-one/3a?utm_campaign=sale_listing&utm_medium=share",
+    });
+    const secondPack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Court Square Two",
+      streetAddress: "27-19 Thomson Avenue",
+      latitude: 40.7459,
+      longitude: -73.9432,
+    });
+
+    const collection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      name: "For Client",
+      initialPackId: firstPack.packId,
+    });
+    await addStudioListingPackToCollection({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+      collectionId: collection?.id ?? "",
+      packId: secondPack.packId,
+    });
+
+    const published = await publishStudioListingCollection({
+      organizationId: context.organization.id,
+      collectionId: collection?.id ?? "",
+      membershipId: context.ownerMembership.id,
+    });
+
+    const snapshot = await getStudioListingPublicCollection({
+      shareCode: published?.shareCode ?? "",
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.name, "For Client");
+    assert.equal(snapshot?.listingCount, 2);
+    assert.equal(snapshot?.listings.length, 2);
+    assert.ok(
+      snapshot?.listings.some((item) => item.packId === firstPack.packId),
+    );
+    assert.equal(
+      snapshot?.listings.find((item) => item.packId === firstPack.packId)
+        ?.listingType,
+      "sale",
+    );
+    assert.ok(
+      snapshot?.listings.some((item) => item.packId === secondPack.packId),
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("legacy share codes resolve public packs during the rotation window", async () => {
   const context = await createStudioListingsTestContext();
 
@@ -748,6 +856,66 @@ test("legacy share codes continue to authorize public asset reads during the rot
     const record = await getStudioListingAssetRecord({
       assetId: asset.id,
       shareCode: "oldweak-asset",
+    });
+
+    assert.ok(record);
+    assert.equal(record?.id, asset.id);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("collection share codes authorize public asset reads", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Collection Asset Share",
+      streetAddress: "5-33 47th Road",
+      latitude: 40.7445,
+      longitude: -73.9522,
+    });
+
+    const asset = await prisma.studioListingAsset.create({
+      data: {
+        organizationId: context.organization.id,
+        snapshotId: pack.snapshotId,
+        kind: StudioListingAssetKind.hero,
+        label: "Hero",
+        storageKey: `test/studio-assets/${randomUUID()}.jpg`,
+        mimeType: "image/jpeg",
+        fileName: "hero.jpg",
+        fileSizeBytes: 4096,
+        sortOrder: 0,
+      },
+    });
+
+    await prisma.studioListingPack.update({
+      where: { id: pack.packId },
+      data: {
+        coverAssetId: asset.id,
+        selectedAssetIdsJson: [asset.id],
+      },
+    });
+
+    const collection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      name: "Asset Collection",
+      initialPackId: pack.packId,
+    });
+
+    const published = await publishStudioListingCollection({
+      organizationId: context.organization.id,
+      collectionId: collection?.id ?? "",
+      membershipId: context.ownerMembership.id,
+    });
+
+    const record = await getStudioListingAssetRecord({
+      assetId: asset.id,
+      shareCode: published?.shareCode ?? "",
     });
 
     assert.ok(record);
