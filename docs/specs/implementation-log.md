@@ -9,6 +9,10 @@
 
 ## Recently completed major work
 
+- 2026-04-24: `Listing Studio collection share dialog` now separates normal link sharing from WeChat card sharing:
+  - updated [apps/web/app/listing-studio/collections/[collectionId]/listing-studio-collection-detail-client.tsx](<../../apps/web/app/listing-studio/collections/[collectionId]/listing-studio-collection-detail-client.tsx>) and [apps/web/app/globals.css](../../apps/web/app/globals.css) so the collection detail `Share` dialog now offers `Copy with message` and `WeChat card` actions, both copying the public collection link while WeChat mode keeps the dialog open with in-WeChat sharing instructions
+  - updated [docs/specs/listing-studio-spec.md](listing-studio-spec.md) so the collection detail share contract names both share methods
+
 - 2026-04-24: `Listing Studio collection shares` now has a real activity list instead of a placeholder route:
   - updated [packages/db/prisma/schema.prisma](../../packages/db/prisma/schema.prisma), added [packages/db/prisma/migrations/20260424110000_add_studio_collection_share_events/migration.sql](../../packages/db/prisma/migrations/20260424110000_add_studio_collection_share_events/migration.sql), and updated [packages/db/src/studio-listings.ts](../../packages/db/src/studio-listings.ts) so collection share-link copies write `shared` events and public collection page opens write `opened` events with the same privacy-preserving request metadata pattern used by pack shares
   - updated [apps/web/app/listing-studio/shares/page.tsx](../../apps/web/app/listing-studio/shares/page.tsx), [apps/web/app/share/collections/[code]/page.tsx](<../../apps/web/app/share/collections/[code]/page.tsx>), and [apps/web/app/globals.css](../../apps/web/app/globals.css) so `/listing-studio/shares` now lists collection share counts, view counts, latest activity, link status, and collection/public-link entry points

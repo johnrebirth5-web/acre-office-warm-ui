@@ -38,6 +38,8 @@ type CollectionShareResponse =
     }
   | null;
 
+type ShareMethod = "copy-with-message" | "wechat-card";
+
 function isCollectionDetail(
   value: CollectionDetailResponse,
 ): value is StudioListingCollectionDetail {
@@ -76,7 +78,8 @@ export function ListingStudioCollectionDetailClient({
   const [search, setSearch] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isCopyingShareLink, setIsCopyingShareLink] = useState(false);
+  const [shareMethod, setShareMethod] = useState<ShareMethod>("copy-with-message");
+  const [copyingShareMethod, setCopyingShareMethod] = useState<ShareMethod | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>(
     detail.listings.map((item) => item.packId),
@@ -84,6 +87,7 @@ export function ListingStudioCollectionDetailClient({
   const deferredSearch = useDeferredValue(search);
   const { locale } = useI18n();
   const isZh = locale === "zh-CN";
+  const isCopyingShareLink = copyingShareMethod !== null;
 
   const currentPackIds = useMemo(
     () => new Set(detailState.listings.map((item) => item.packId)),
@@ -141,12 +145,18 @@ export function ListingStudioCollectionDetailClient({
     );
   }
 
-  async function copyShareLink() {
+  function openShareDialog() {
+    setShareMethod("copy-with-message");
+    setIsShareDialogOpen(true);
+  }
+
+  async function copyShareLink(nextShareMethod: ShareMethod) {
     if (isCopyingShareLink) {
       return;
     }
 
-    setIsCopyingShareLink(true);
+    setShareMethod(nextShareMethod);
+    setCopyingShareMethod(nextShareMethod);
     setStatusMessage("");
 
     try {
@@ -175,12 +185,24 @@ export function ListingStudioCollectionDetailClient({
         shareCode: payload.shareCode,
       }));
       await copyTextToClipboard(payload.shareUrl);
-      setIsShareDialogOpen(false);
-      setStatusMessage(isZh ? "复制已成功。" : "Share link copied.");
+      if (nextShareMethod === "wechat-card") {
+        setStatusMessage(
+          isZh
+            ? "微信分享链接已复制。请按弹窗说明在微信内打开并分享卡片。"
+            : "WeChat share link copied. Follow the steps in the dialog to share the card.",
+        );
+      } else {
+        setIsShareDialogOpen(false);
+        setStatusMessage(
+          isZh
+            ? "复制已成功。把链接发给客户，让对方在浏览器中打开即可。"
+            : "Share link copied. Send it to your client so they can open it in a browser.",
+        );
+      }
     } catch {
       setStatusMessage(isZh ? "复制失败。" : "Unable to copy the share link.");
     } finally {
-      setIsCopyingShareLink(false);
+      setCopyingShareMethod(null);
     }
   }
 
@@ -310,7 +332,7 @@ export function ListingStudioCollectionDetailClient({
         <div className="office-page-actions listing-studio-header-actions">
           <button
             className="office-button office-button-secondary"
-            onClick={() => setIsShareDialogOpen(true)}
+            onClick={openShareDialog}
             type="button"
           >
             Share
@@ -350,30 +372,81 @@ export function ListingStudioCollectionDetailClient({
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
-            <p className="listing-studio-share-dialog-copy">
-              {isZh
-                ? "请点击下方按钮，复制链接，粘贴到浏览器中观看房源信息。"
-                : "Click the button below to copy the share link, then paste it into a browser to view the listing information."}
-            </p>
-
-            <footer className="listing-studio-share-dialog-actions">
+            <header className="listing-studio-share-dialog-header">
+              <div>
+                <span>Client share</span>
+                <h3>Share Collection</h3>
+              </div>
               <button
-                className="office-button office-button-secondary"
+                aria-label="Close share dialog"
                 disabled={isCopyingShareLink}
                 onClick={() => setIsShareDialogOpen(false)}
                 type="button"
               >
-                {isZh ? "取消" : "Cancel"}
+                x
               </button>
+            </header>
+
+            <div
+              aria-label="Share methods"
+              className="listing-studio-share-dialog-methods"
+              role="group"
+            >
               <button
-                className="office-button office-button-primary"
+                aria-pressed={shareMethod === "copy-with-message"}
+                className={cx(
+                  "listing-studio-share-dialog-method",
+                  shareMethod === "copy-with-message" && "is-active",
+                )}
                 disabled={isCopyingShareLink}
-                onClick={() => void copyShareLink()}
+                onClick={() => void copyShareLink("copy-with-message")}
                 type="button"
               >
-                {isZh ? "复制" : "Copy"}
+                {copyingShareMethod === "copy-with-message"
+                  ? "Copying..."
+                  : "Copy with message"}
               </button>
-            </footer>
+              <button
+                aria-pressed={shareMethod === "wechat-card"}
+                className={cx(
+                  "listing-studio-share-dialog-method",
+                  shareMethod === "wechat-card" && "is-active",
+                )}
+                disabled={isCopyingShareLink}
+                onClick={() => void copyShareLink("wechat-card")}
+                type="button"
+              >
+                {copyingShareMethod === "wechat-card"
+                  ? "Copying..."
+                  : "WeChat card"}
+              </button>
+            </div>
+
+            {shareMethod === "wechat-card" ? (
+              <div className="listing-studio-share-dialog-wechat">
+                <ol>
+                  <li>
+                    First, open this link inside WeChat (for example, send it to
+                    yourself and tap the link in a chat).
+                  </li>
+                  <li>
+                    When the page is open in WeChat&apos;s browser, tap the menu
+                    button in the top-right corner.
+                  </li>
+                  <li>
+                    Choose &quot;Send to Chat&quot; or &quot;Share to
+                    Moments&quot;. WeChat will show a card with the collection
+                    preview.
+                  </li>
+                </ol>
+              </div>
+            ) : (
+              <p className="listing-studio-share-dialog-copy">
+                {isZh
+                  ? "复制链接后直接发给客户。客户点击链接，即可在浏览器中查看这组房源。"
+                  : "Copy the link and send it to your client. They can open it in a browser to view the collection."}
+              </p>
+            )}
           </section>
         </div>
       ) : null}

@@ -161,7 +161,7 @@
   - updated-at
   - preview listings
 - collection list / detail 都支持删除入口，并在删除前给出确认
-- collection detail 支持 `Share` 按钮生成公开 collection 链接；弹框只提供取消和复制，复制后用于粘贴到浏览器查看房源信息
+- collection detail 支持 `Share` 按钮生成公开 collection 链接；弹框提供 `Copy with message` 和 `WeChat card` 两种复制入口，其中 WeChat card 模式会在复制链接后提示用户先在微信内打开链接，再通过微信右上角菜单发送聊天或分享到朋友圈以生成卡片预览
 - collection detail 展示：
   - saved listings card grid
   - `Add listings` 多选管理器
