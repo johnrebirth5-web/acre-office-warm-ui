@@ -1,7 +1,7 @@
 "use client";
 
 import type { StudioListingPublicCollectionSnapshot } from "@acre/db";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type PublicCollectionSnapshot = StudioListingPublicCollectionSnapshot;
 type PublicCollectionListing = PublicCollectionSnapshot["listings"][number];
@@ -32,10 +32,6 @@ function formatListingTypeLabel(value: string | null) {
   }
 
   return null;
-}
-
-function formatSourceSiteLabel(value: string) {
-  return value === "streeteasy" ? "StreetEasy" : "Zillow";
 }
 
 function getFacts(line: string) {
@@ -84,21 +80,36 @@ function getAmenities(listing: PublicCollectionListing) {
   return listing.amenities.flatMap((section) => section.items).slice(0, 8);
 }
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 function ListingStudioCollectionDetailView(props: {
   snapshot: PublicCollectionSnapshot;
   listing: PublicCollectionListing;
+  onCopyEmail: () => void;
   onBack: () => void;
 }) {
-  const { listing, onBack, snapshot } = props;
+  const { listing, onBack, onCopyEmail, snapshot } = props;
   const galleryAssetIds = useMemo(() => getGalleryAssetIds(listing), [listing]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const currentAssetId = galleryAssetIds[currentImageIndex] ?? null;
   const currentImageSrc = buildAssetSrc(currentAssetId, snapshot.code);
   const contactPhoneHref = snapshot.contact.phone
     ? `tel:${snapshot.contact.phone}`
-    : null;
-  const contactEmailHref = snapshot.contact.email
-    ? `mailto:${snapshot.contact.email}`
     : null;
   const beds = getFactValue(listing, [/bed/i], 0);
   const baths = getFactValue(listing, [/bath/i], 1);
@@ -137,7 +148,7 @@ function ListingStudioCollectionDetailView(props: {
                 src={currentImageSrc}
               />
             ) : (
-              <div>{formatSourceSiteLabel(listing.sourceSite)}</div>
+              <div>Listing</div>
             )}
             <span>
               {galleryAssetIds.length ? currentImageIndex + 1 : 0} /{" "}
@@ -171,7 +182,6 @@ function ListingStudioCollectionDetailView(props: {
 
         <section className="listing-studio-collection-share-detail-copy">
           <div className="listing-studio-collection-share-detail-badges">
-            <span>{formatSourceSiteLabel(listing.sourceSite)}</span>
             {listingTypeLabel ? <span>{listingTypeLabel}</span> : null}
           </div>
           <h1>{listing.priceLabel}</h1>
@@ -229,14 +239,15 @@ function ListingStudioCollectionDetailView(props: {
             {snapshot.contact.name.slice(0, 1).toUpperCase()}
           </div>
           <h3>Interested in this property?</h3>
-          <p>Contact {snapshot.contact.name} to schedule a private viewing.</p>
+          <p>Contact {snapshot.contact.name} for more information.</p>
           <div>
             {contactPhoneHref ? <a href={contactPhoneHref}>Call</a> : null}
-            {contactEmailHref ? <a href={contactEmailHref}>Email</a> : null}
+            {snapshot.contact.email ? (
+              <button onClick={onCopyEmail} type="button">
+                Email
+              </button>
+            ) : null}
           </div>
-          <a href={contactEmailHref ?? contactPhoneHref ?? "#"}>
-            Schedule a Viewing
-          </a>
         </section>
       </div>
     </div>
@@ -248,6 +259,8 @@ export function ListingStudioPublicCollectionClient(props: {
 }) {
   const { snapshot } = props;
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [emailCopyStatus, setEmailCopyStatus] = useState<string | null>(null);
+  const emailCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedListing =
     snapshot.listings.find((listing) => listing.packId === selectedPackId) ??
     null;
@@ -255,9 +268,40 @@ export function ListingStudioPublicCollectionClient(props: {
   const contactPhoneHref = snapshot.contact.phone
     ? `tel:${snapshot.contact.phone}`
     : null;
-  const contactEmailHref = snapshot.contact.email
-    ? `mailto:${snapshot.contact.email}`
-    : null;
+
+  function showEmailCopyStatus(message: string) {
+    setEmailCopyStatus(message);
+
+    if (emailCopyTimerRef.current) {
+      clearTimeout(emailCopyTimerRef.current);
+    }
+
+    emailCopyTimerRef.current = setTimeout(() => {
+      setEmailCopyStatus(null);
+      emailCopyTimerRef.current = null;
+    }, 1800);
+  }
+
+  async function handleCopyEmail() {
+    if (!snapshot.contact.email) {
+      return;
+    }
+
+    try {
+      await copyText(snapshot.contact.email);
+      showEmailCopyStatus("Email copied.");
+    } catch {
+      showEmailCopyStatus("Copy failed.");
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (emailCopyTimerRef.current) {
+        clearTimeout(emailCopyTimerRef.current);
+      }
+    };
+  }, []);
 
   function openListing(packId: string) {
     setSelectedPackId(packId);
@@ -275,9 +319,15 @@ export function ListingStudioPublicCollectionClient(props: {
         <div className="listing-studio-collection-share-phone">
           <ListingStudioCollectionDetailView
             listing={selectedListing}
+            onCopyEmail={handleCopyEmail}
             onBack={closeListing}
             snapshot={snapshot}
           />
+          {emailCopyStatus ? (
+            <div className="listing-studio-collection-share-toast">
+              {emailCopyStatus}
+            </div>
+          ) : null}
         </div>
       </main>
     );
@@ -324,7 +374,11 @@ export function ListingStudioPublicCollectionClient(props: {
             </div>
             <div className="listing-studio-collection-share-agent-actions">
               {contactPhoneHref ? <a href={contactPhoneHref}>Call</a> : null}
-              {contactEmailHref ? <a href={contactEmailHref}>Email</a> : null}
+              {snapshot.contact.email ? (
+                <button onClick={handleCopyEmail} type="button">
+                  Email
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -375,11 +429,10 @@ export function ListingStudioPublicCollectionClient(props: {
                         />
                       ) : (
                         <div className="listing-studio-collection-share-property-empty">
-                          {formatSourceSiteLabel(listing.sourceSite)}
+                          Listing
                         </div>
                       )}
                       <div className="listing-studio-collection-share-property-badges">
-                        <span>{formatSourceSiteLabel(listing.sourceSite)}</span>
                         {listingTypeLabel ? <span>{listingTypeLabel}</span> : null}
                       </div>
                       <strong>{listing.priceLabel}</strong>
@@ -418,16 +471,19 @@ export function ListingStudioPublicCollectionClient(props: {
           <p>{snapshot.contact.title}</p>
           <div className="listing-studio-collection-share-footer-actions">
             {contactPhoneHref ? <a href={contactPhoneHref}>Call</a> : null}
-            {contactEmailHref ? <a href={contactEmailHref}>Email</a> : null}
+            {snapshot.contact.email ? (
+              <button onClick={handleCopyEmail} type="button">
+                Email
+              </button>
+            ) : null}
           </div>
-          <a
-            className="listing-studio-collection-share-schedule"
-            href={contactEmailHref ?? contactPhoneHref ?? "#"}
-          >
-            Schedule a Viewing
-          </a>
           <small>Powered by ACRE Listing System · Updated {formatUpdatedLabel(snapshot.updatedAt)}</small>
         </footer>
+        {emailCopyStatus ? (
+          <div className="listing-studio-collection-share-toast">
+            {emailCopyStatus}
+          </div>
+        ) : null}
       </div>
     </main>
   );

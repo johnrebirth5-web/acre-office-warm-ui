@@ -22301,7 +22301,8 @@ body,
   gap: 6px;
 }
 
-.listing-studio-collection-share-agent-actions a {
+.listing-studio-collection-share-agent-actions a,
+.listing-studio-collection-share-agent-actions button {
   display: grid;
   place-items: center;
   width: 42px;
@@ -22310,6 +22311,8 @@ body,
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
+  cursor: pointer;
+  font: inherit;
   font-size: 11px;
   font-weight: 700;
 }
@@ -22594,29 +22597,19 @@ body,
   margin-top: 22px;
 }
 
-.listing-studio-collection-share-footer-actions a {
+.listing-studio-collection-share-footer-actions a,
+.listing-studio-collection-share-footer-actions button {
   min-width: 86px;
   padding: 11px 16px;
   border: 1px solid rgba(61, 61, 61, 0.06);
   border-radius: 999px;
   background: #ffffff;
   color: #3d3d3d;
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
   font-weight: 800;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-.listing-studio-collection-share-schedule {
-  position: relative;
-  width: 100%;
-  margin-top: 22px;
-  padding: 14px 18px;
-  border-radius: 999px;
-  background: #3d3d3d;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 12px 24px rgba(61, 61, 61, 0.16);
 }
 
 .listing-studio-collection-share-footer small {
@@ -23000,27 +22993,38 @@ body,
   margin-top: 22px;
 }
 
-.listing-studio-collection-share-detail-contact > div:not(.listing-studio-collection-share-footer-avatar) a {
+.listing-studio-collection-share-detail-contact > div:not(.listing-studio-collection-share-footer-avatar) a,
+.listing-studio-collection-share-detail-contact > div:not(.listing-studio-collection-share-footer-avatar) button {
   flex: 1;
   padding: 11px 14px;
   border: 1px solid rgba(61, 61, 61, 0.06);
   border-radius: 999px;
   background: #ffffff;
   color: #3d3d3d;
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
   font-weight: 800;
 }
 
-.listing-studio-collection-share-detail-contact > a {
-  width: 100%;
-  margin-top: 14px;
-  padding: 14px 18px;
+.listing-studio-collection-share-toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: #3d3d3d;
+  background: rgba(61, 61, 61, 0.9);
+  box-shadow: 0 16px 36px rgba(61, 61, 61, 0.24);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
-  box-shadow: 0 12px 24px rgba(61, 61, 61, 0.16);
+  text-align: center;
+  backdrop-filter: blur(18px);
 }
 
 @keyframes listing-studio-collection-share-bounce {

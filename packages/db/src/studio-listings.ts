@@ -240,8 +240,6 @@ export type StudioListingPublicCollectionSnapshot = {
     packId: string;
     title: string;
     displayTitle: string | null;
-    sourceSite: StudioListingSourceSite;
-    sourceUrl: string;
     listingType: string | null;
     priceLabel: string;
     addressLine: string;
@@ -3462,8 +3460,6 @@ export async function getStudioListingPublicCollection(input: {
         packId: item.packId,
         title: item.title,
         displayTitle: item.displayTitle,
-        sourceSite: item.sourceSite,
-        sourceUrl: item.sourceUrl,
         listingType: item.listingType,
         priceLabel: item.priceLabel,
         addressLine: item.addressLine,
