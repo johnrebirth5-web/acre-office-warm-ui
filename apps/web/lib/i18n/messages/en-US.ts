@@ -384,6 +384,9 @@ export const enUSMessages = {
     createTransaction: "New transaction",
     createTransactionSubtitle:
       "Create a new transaction from the current office fields without leaving the list.",
+    statusQuickFilters: "Status quick filters",
+    pendingOnly: "Pending only",
+    closedOnly: "Closed only",
     pageSize: "Rows",
     anyValue: "Any {label}",
     from: "From",
