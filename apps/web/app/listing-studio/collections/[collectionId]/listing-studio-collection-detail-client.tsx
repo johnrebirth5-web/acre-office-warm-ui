@@ -11,6 +11,7 @@ import type {
   StudioListingCollectionDetail,
   StudioListingListItem,
 } from "@acre/db";
+import { useI18n } from "../../../../lib/i18n/client";
 import { ListingStudioCard } from "../../listing-studio-card";
 import { DeleteCollectionButton } from "../delete-collection-button";
 import { ListingStudioCollectionMap } from "./listing-studio-collection-map";
@@ -49,13 +50,13 @@ function isCollectionDetail(
   );
 }
 
-function formatRelativeDate(value: string) {
+function formatRelativeDate(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "Recently updated";
+    return locale === "zh-CN" ? "最近更新" : "Recently updated";
   }
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -81,6 +82,8 @@ export function ListingStudioCollectionDetailClient({
     detail.listings.map((item) => item.packId),
   );
   const deferredSearch = useDeferredValue(search);
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   const currentPackIds = useMemo(
     () => new Set(detailState.listings.map((item) => item.packId)),
@@ -173,9 +176,9 @@ export function ListingStudioCollectionDetailClient({
       }));
       await copyTextToClipboard(payload.shareUrl);
       setIsShareDialogOpen(false);
-      setStatusMessage("复制已成功。");
+      setStatusMessage(isZh ? "复制已成功。" : "Share link copied.");
     } catch {
-      setStatusMessage("复制失败。");
+      setStatusMessage(isZh ? "复制失败。" : "Unable to copy the share link.");
     } finally {
       setIsCopyingShareLink(false);
     }
@@ -300,7 +303,7 @@ export function ListingStudioCollectionDetailClient({
           <p>
             {detailState.listingCount} saved listing
             {detailState.listingCount === 1 ? "" : "s"} in this folder. Updated{" "}
-            {formatRelativeDate(detailState.updatedAt)}.
+            {formatRelativeDate(detailState.updatedAt, locale)}.
           </p>
         </div>
 
@@ -348,7 +351,9 @@ export function ListingStudioCollectionDetailClient({
             role="dialog"
           >
             <p className="listing-studio-share-dialog-copy">
-              请点击下方按钮，复制链接，粘贴到浏览器中观看房源信息。
+              {isZh
+                ? "请点击下方按钮，复制链接，粘贴到浏览器中观看房源信息。"
+                : "Click the button below to copy the share link, then paste it into a browser to view the listing information."}
             </p>
 
             <footer className="listing-studio-share-dialog-actions">
@@ -358,7 +363,7 @@ export function ListingStudioCollectionDetailClient({
                 onClick={() => setIsShareDialogOpen(false)}
                 type="button"
               >
-                取消
+                {isZh ? "取消" : "Cancel"}
               </button>
               <button
                 className="office-button office-button-primary"
@@ -366,7 +371,7 @@ export function ListingStudioCollectionDetailClient({
                 onClick={() => void copyShareLink()}
                 type="button"
               >
-                复制
+                {isZh ? "复制" : "Copy"}
               </button>
             </footer>
           </section>
