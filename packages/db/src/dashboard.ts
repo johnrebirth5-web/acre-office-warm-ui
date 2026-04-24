@@ -2,6 +2,13 @@ import { AgentPayoutStatementReviewStatus, Prisma, TransactionStatus } from "@pr
 import { buildMembershipVisibilityWhere, buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import {
+  buildTransactionOverdueWhere,
+  getTransactionOverdueReferenceDate,
+  getTransactionOverdueSinceDate,
+  isTransactionOverdue,
+  reconcileOfficeNotificationReminders,
+} from "./notifications";
 
 export type OfficeDashboardStatusMetric = {
   status: "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -46,6 +53,23 @@ export type OfficeDashboardPayoutReviewQueue = {
   statements: OfficeDashboardCommissionStatement[];
 };
 
+export type OfficeDashboardOverdueTransaction = {
+  id: string;
+  label: string;
+  owner: string;
+  status: OfficeDashboardStatusMetric["status"];
+  referenceDate: string;
+  referenceDateLabel: string;
+  overdueSince: string;
+  overdueSinceLabel: string;
+  openHref: string;
+};
+
+export type OfficeDashboardTransactionOverdueQueue = {
+  count: number;
+  transactions: OfficeDashboardOverdueTransaction[];
+};
+
 export type OfficeDashboardCommissionSnapshot = {
   totalCommissionLabel: string;
   currentMonthCommissionLabel: string;
@@ -76,6 +100,7 @@ export type OfficeDashboardBusinessSnapshot = {
   transactionCountsByStatus: OfficeDashboardStatusMetric[];
   contactsNeedingFollowUp: number;
   recentTransactions: OfficeDashboardRecentTransaction[];
+  transactionOverdueQueue: OfficeDashboardTransactionOverdueQueue;
   commission: OfficeDashboardCommissionSnapshot;
 };
 
@@ -194,9 +219,54 @@ function getPurchasedPriceValue(transaction: { purchasedPrice: Prisma.Decimal | 
   return Number(transaction.purchasedPrice ?? transaction.price ?? 0);
 }
 
+function mapDashboardOverdueTransaction(transaction: {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  status: TransactionStatus;
+  moveInDate: Date | null;
+  closingDate: Date | null;
+  ownerMembership: {
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+}): OfficeDashboardOverdueTransaction | null {
+  const referenceDate = getTransactionOverdueReferenceDate(transaction);
+
+  if (!referenceDate) {
+    return null;
+  }
+
+  const overdueSince = getTransactionOverdueSinceDate(referenceDate);
+
+  return {
+    id: transaction.id,
+    label: `${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`.replace(/,\s+,/g, ", "),
+    owner: transaction.ownerMembership
+      ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`
+      : "Unassigned",
+    status: statusFromDb[transaction.status],
+    referenceDate: referenceDate.toISOString(),
+    referenceDateLabel: formatDateValue(referenceDate),
+    overdueSince: overdueSince.toISOString(),
+    overdueSinceLabel: formatDateValue(overdueSince),
+    openHref: `/office/transactions/${transaction.id}`,
+  };
+}
+
 export async function getOfficeDashboardBusinessSnapshot(
   input: GetOfficeDashboardBusinessSnapshotInput
 ): Promise<OfficeDashboardBusinessSnapshot> {
+  await reconcileOfficeNotificationReminders({
+    organizationId: input.organizationId,
+    officeId: input.officeId ?? null,
+    membershipId: input.viewerMembershipId,
+  });
+
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
@@ -241,6 +311,9 @@ export async function getOfficeDashboardBusinessSnapshot(
   const now = new Date();
   const chartWindowStart = new Date(now.getFullYear(), now.getMonth() - 12, 1);
   const commissionWindowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const transactionOverdueWhere: Prisma.TransactionWhereInput = {
+    AND: [transactionWhere, buildTransactionOverdueWhere(now)],
+  };
 
   const [
     organization,
@@ -254,7 +327,8 @@ export async function getOfficeDashboardBusinessSnapshot(
     recentCommissionRows,
     recentStatements,
     payoutReviewCount,
-    payoutReviewStatements
+    payoutReviewStatements,
+    overdueTransactionCandidates
   ] =
     await Promise.all([
       prisma.organization.findUniqueOrThrow({
@@ -382,6 +456,29 @@ export async function getOfficeDashboardBusinessSnapshot(
         },
         orderBy: [{ generatedAt: "desc" }],
         take: 3
+      }),
+      prisma.transaction.findMany({
+        where: transactionOverdueWhere,
+        select: {
+          id: true,
+          address: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          status: true,
+          moveInDate: true,
+          closingDate: true,
+          ownerMembership: {
+            select: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
       })
     ]);
 
@@ -464,6 +561,14 @@ export async function getOfficeDashboardBusinessSnapshot(
     commissionTotalsByStatus.find((entry) => entry.status === "paid")?._sum.statementAmount ?? new Prisma.Decimal(0);
   const commissionCalculationCount = commissionTotalsByStatus.reduce((sum, entry) => sum + entry._count._all, 0);
   const hasSelfServiceData = commissionCalculationCount > 0 || recentStatements.length > 0;
+  const overdueTransactions = overdueTransactionCandidates.filter((transaction) =>
+    isTransactionOverdue(transaction, now),
+  );
+  const overdueQueueTransactions = overdueTransactions
+    .map(mapDashboardOverdueTransaction)
+    .filter((transaction): transaction is OfficeDashboardOverdueTransaction => Boolean(transaction))
+    .sort((left, right) => left.overdueSince.localeCompare(right.overdueSince))
+    .slice(0, 5);
 
   return {
     goal: {
@@ -482,6 +587,10 @@ export async function getOfficeDashboardBusinessSnapshot(
     },
     transactionCountsByStatus,
     contactsNeedingFollowUp,
+    transactionOverdueQueue: {
+      count: overdueTransactions.length,
+      transactions: overdueQueueTransactions,
+    },
     commission: {
       totalCommissionLabel: formatCurrency(totalCommissionAmount),
       currentMonthCommissionLabel: formatCurrency(currentMonthCommissionAmount),

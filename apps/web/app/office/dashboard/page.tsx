@@ -97,6 +97,7 @@ export default async function OfficeDashboardPage() {
     : snapshot.commission.monthlyTotals;
   const payoutReviewQueue = snapshot.commission.payoutReviewQueue;
   const latestPayoutReviewStatement = payoutReviewQueue.statements[0] ?? null;
+  const transactionOverdueQueue = snapshot.transactionOverdueQueue;
   const transactionKpiItems: KpiStripItem[] = snapshot.transactionCountsByStatus.map((metric) => ({
     label: metric.status,
     value: metric.count,
@@ -131,6 +132,12 @@ export default async function OfficeDashboardPage() {
               <SummaryChip label={t((messages) => messages.officeDashboard.myMonthCommission)} tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
             ) : null}
             <SummaryChip label={t((messages) => messages.officeDashboard.livePipeline)} tone="accent" value={livePipelineCount} />
+            <SummaryChip
+              className={transactionOverdueQueue.count > 0 ? "office-summary-chip-danger" : undefined}
+              label={t((messages) => messages.officeDashboard.overdueTransactions)}
+              tone={transactionOverdueQueue.count > 0 ? "accent" : "default"}
+              value={transactionOverdueQueue.count}
+            />
           </>
         }
         title={t((messages) => messages.officeDashboard.title)}
@@ -138,6 +145,67 @@ export default async function OfficeDashboardPage() {
 
       <div className="office-dashboard-grid-wide">
         <div className="office-dashboard-primary-stack">
+          {transactionOverdueQueue.count > 0 ? (
+            <SectionCard
+              className="office-dashboard-overdue-card office-list-card"
+              subtitle={t((messages) => messages.officeDashboard.overdueTransactionsSubtitle)}
+              title={t((messages) => messages.officeDashboard.overdueTransactions)}
+            >
+              <div className="office-dashboard-overdue-head">
+                <div className="office-dashboard-overdue-copy">
+                  <span className="office-dashboard-overdue-eyebrow">{t((messages) => messages.officeDashboard.actionRequired)}</span>
+                  <strong>
+                    {transactionOverdueQueue.count === 1
+                      ? t((messages) => messages.officeDashboard.overdueTransactionSingle)
+                      : t((messages) => messages.officeDashboard.overdueTransactionMultiple, {
+                          count: transactionOverdueQueue.count,
+                        })}
+                  </strong>
+                </div>
+
+                <div className="office-section-actions">
+                  <StatusBadge tone="danger">
+                    {t((messages) => messages.officeDashboard.overdueCount, {
+                      count: transactionOverdueQueue.count,
+                    })}
+                  </StatusBadge>
+                  <Link className="office-button" href="/office/notifications?type=transaction_overdue">
+                    {t((messages) => messages.officeDashboard.openNotifications)}
+                  </Link>
+                </div>
+              </div>
+
+              <div className="office-dashboard-overdue-list">
+                {transactionOverdueQueue.transactions.map((transaction) => (
+                  <article className="office-dashboard-overdue-item" key={transaction.id}>
+                    <div className="office-dashboard-overdue-item-main">
+                      <strong>
+                        <Link href={transaction.openHref}>{transaction.label}</Link>
+                      </strong>
+                      <span>{transaction.owner}</span>
+                    </div>
+                    <StatusBadge tone="danger">{getTransactionStatusLabel(transaction.status, t)}</StatusBadge>
+                    <div className="office-dashboard-overdue-date">
+                      <span>{t((messages) => messages.officeDashboard.referenceDate)}</span>
+                      <strong>
+                        <LocalDateTime fallbackLabel={transaction.referenceDateLabel} value={transaction.referenceDate} />
+                      </strong>
+                    </div>
+                    <div className="office-dashboard-overdue-date">
+                      <span>{t((messages) => messages.officeDashboard.overdueSince)}</span>
+                      <strong>
+                        <LocalDateTime fallbackLabel={transaction.overdueSinceLabel} value={transaction.overdueSince} />
+                      </strong>
+                    </div>
+                    <Link className="office-button-secondary office-button-sm" href={transaction.openHref}>
+                      {t((messages) => messages.officeDashboard.openTransaction)}
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-dashboard-goal-card office-list-card"
             subtitle={t((messages) => messages.officeDashboard.goalTrackingSubtitle)}

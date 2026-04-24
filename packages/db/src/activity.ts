@@ -83,7 +83,8 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   onboarding_due_soon: "Onboarding due soon",
   payout_statement_ready: "Payout statement ready",
   payout_statement_revision_requested: "Payout statement revision requested",
-  payout_statement_confirmed: "Payout statement confirmed"
+  payout_statement_confirmed: "Payout statement confirmed",
+  transaction_overdue: "Transaction overdue"
 };
 
 function formatDateTimeLabel(date: Date | null) {

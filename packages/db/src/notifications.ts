@@ -5,6 +5,7 @@ import {
   NotificationType,
   Prisma,
   TaskStatus,
+  TransactionStatus,
   type OfferStatus,
   type UserRole
 } from "@prisma/client";
@@ -50,6 +51,7 @@ export type OfficeNotificationSummary = {
   reviewCount: number;
   timeSensitiveCount: number;
   payoutReviewCount: number;
+  transactionOverdueCount: number;
 };
 
 export type OfficeNotificationFilterState = {
@@ -100,12 +102,27 @@ export type OfficePayoutReviewReminder = {
   openHref: string;
 };
 
+export type OfficeTransactionOverdueReminder = {
+  notificationId: string;
+  transactionId: string;
+  title: string;
+  propertyLabel: string;
+  ownerLabel: string;
+  statusLabel: string;
+  referenceDate: string;
+  referenceDateLabel: string;
+  overdueSince: string;
+  overdueSinceLabel: string;
+  openHref: string;
+};
+
 export type OfficeNotificationsSnapshot = {
   filters: OfficeNotificationFilterState;
   summary: OfficeNotificationSummary;
   totalCount: number;
   unreadCount: number;
   payoutReviewQueue: OfficePayoutReviewReminder[];
+  transactionOverdueQueue: OfficeTransactionOverdueReminder[];
   groups: OfficeNotificationGroup[];
   typeOptions: OfficeNotificationFilterOption[];
   categoryOptions: OfficeNotificationFilterOption[];
@@ -155,7 +172,8 @@ export const officeNotificationInboxTypes: NotificationType[] = [
   NotificationType.onboarding_due_soon,
   NotificationType.payout_statement_ready,
   NotificationType.payout_statement_revision_requested,
-  NotificationType.payout_statement_confirmed
+  NotificationType.payout_statement_confirmed,
+  NotificationType.transaction_overdue
 ];
 
 const notificationTypeLabelMap: Record<NotificationType, string> = {
@@ -181,7 +199,8 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   onboarding_due_soon: "Onboarding due soon",
   payout_statement_ready: "Payout statement ready",
   payout_statement_revision_requested: "Payout statement revision requested",
-  payout_statement_confirmed: "Payout statement confirmed"
+  payout_statement_confirmed: "Payout statement confirmed",
+  transaction_overdue: "Transaction overdue"
 };
 
 const notificationCategoryLabelMap: Record<NotificationCategory, string> = {
@@ -193,7 +212,8 @@ const notificationCategoryLabelMap: Record<NotificationCategory, string> = {
   incoming_update: "Incoming updates",
   follow_up: "Follow-up",
   onboarding: "Onboarding",
-  event: "Events"
+  event: "Events",
+  transaction: "Transactions"
 };
 
 const notificationSeverityLabelMap: Record<NotificationSeverity, string> = {
@@ -219,6 +239,7 @@ const typeFilterOrder: NotificationType[] = [
   NotificationType.payout_statement_ready,
   NotificationType.payout_statement_revision_requested,
   NotificationType.payout_statement_confirmed,
+  NotificationType.transaction_overdue,
   NotificationType.follow_up_assigned,
   NotificationType.follow_up_overdue,
   NotificationType.onboarding_assigned,
@@ -233,7 +254,8 @@ const categoryFilterOrder: NotificationCategory[] = [
   NotificationCategory.signature,
   NotificationCategory.incoming_update,
   NotificationCategory.follow_up,
-  NotificationCategory.onboarding
+  NotificationCategory.onboarding,
+  NotificationCategory.transaction
 ];
 
 const readStateOptions: OfficeNotificationReadFilter[] = ["all", "unread", "read"];
@@ -251,6 +273,8 @@ type OfficeNotificationListRecord = {
   title: string;
   body: string;
   actionUrl: string | null;
+  entityType: NotificationEntityType | null;
+  entityId: string | null;
   readAt: Date | null;
   createdAt: Date;
   metadata: Prisma.JsonValue | null;
@@ -288,7 +312,8 @@ function getNotificationPreferenceField(type: NotificationType): NotificationPre
     type === NotificationType.follow_up_assigned ||
     type === NotificationType.follow_up_overdue ||
     type === NotificationType.onboarding_assigned ||
-    type === NotificationType.onboarding_due_soon
+    type === NotificationType.onboarding_due_soon ||
+    type === NotificationType.transaction_overdue
   ) {
     return "taskRemindersEnabled";
   }
@@ -404,6 +429,77 @@ function formatDateTimeLabel(date: Date) {
   });
 }
 
+function addCalendarMonths(date: Date, months: number) {
+  const nextDate = new Date(date);
+  const originalDate = nextDate.getDate();
+  nextDate.setDate(1);
+  nextDate.setMonth(nextDate.getMonth() + months);
+  const lastDateOfTargetMonth = new Date(
+    nextDate.getFullYear(),
+    nextDate.getMonth() + 1,
+    0,
+  ).getDate();
+  nextDate.setDate(Math.min(originalDate, lastDateOfTargetMonth));
+  return nextDate;
+}
+
+export function getTransactionOverdueSinceDate(referenceDate: Date) {
+  return addCalendarMonths(referenceDate, 3);
+}
+
+export function getTransactionOverdueReferenceDate(input: {
+  moveInDate?: Date | null;
+  closingDate?: Date | null;
+}) {
+  return input.moveInDate ?? input.closingDate ?? null;
+}
+
+export function buildTransactionOverdueWhere(now = new Date()): Prisma.TransactionWhereInput {
+  // Broad candidate query; exact calendar-month eligibility is checked by isTransactionOverdue.
+  return {
+    status: {
+      notIn: [TransactionStatus.closed, TransactionStatus.cancelled],
+    },
+    OR: [
+      {
+        moveInDate: {
+          lte: now,
+        },
+      },
+      {
+        moveInDate: null,
+        closingDate: {
+          lte: now,
+        },
+      },
+    ],
+  };
+}
+
+export function isTransactionOverdue(
+  input: {
+    moveInDate?: Date | null;
+    closingDate?: Date | null;
+    status: TransactionStatus;
+  },
+  now = new Date(),
+) {
+  if (
+    input.status === TransactionStatus.closed ||
+    input.status === TransactionStatus.cancelled
+  ) {
+    return false;
+  }
+
+  const referenceDate = getTransactionOverdueReferenceDate(input);
+
+  if (!referenceDate) {
+    return false;
+  }
+
+  return getTransactionOverdueSinceDate(referenceDate).getTime() <= now.getTime();
+}
+
 function formatPeriodLabel(periodStart: Date, periodEnd: Date) {
   return `${formatDateLabel(periodStart)} to ${formatDateLabel(periodEnd)}`;
 }
@@ -423,6 +519,11 @@ function getJsonObject(value: NotificationMetadataValue) {
   }
 
   return value as Record<string, Prisma.InputJsonValue>;
+}
+
+function readMetadataString(metadata: NotificationMetadataValue, key: string) {
+  const value = getJsonObject(metadata)?.[key];
+  return typeof value === "string" ? value : "";
 }
 
 function buildOfficeNotificationMetadata(input: {
@@ -493,6 +594,45 @@ function compareOfficeNotifications(
   }
 
   return right.createdAt.getTime() - left.createdAt.getTime();
+}
+
+function buildTransactionOverdueQueue(
+  notifications: DecoratedOfficeNotificationRecord[],
+): OfficeTransactionOverdueReminder[] {
+  return notifications
+    .filter(
+      (notification) =>
+        !notification.isArchived &&
+        notification.type === NotificationType.transaction_overdue &&
+        notification.entityType === NotificationEntityType.transaction &&
+        notification.entityId,
+    )
+    .map((notification) => {
+      const referenceDate = readMetadataString(notification.metadata, "referenceDate");
+      const overdueSince = readMetadataString(notification.metadata, "overdueSince");
+
+      return {
+        notificationId: notification.id,
+        transactionId: notification.entityId!,
+        title:
+          readMetadataString(notification.metadata, "transactionTitle") ||
+          notification.title.replace(/^Transaction overdue:\s*/, ""),
+        propertyLabel: readMetadataString(notification.metadata, "propertyLabel"),
+        ownerLabel: readMetadataString(notification.metadata, "ownerLabel") || "Unassigned",
+        statusLabel: readMetadataString(notification.metadata, "statusLabel") || "Open",
+        referenceDate,
+        referenceDateLabel: referenceDate
+          ? formatDateLabel(new Date(referenceDate))
+          : "Not set",
+        overdueSince,
+        overdueSinceLabel: overdueSince
+          ? formatDateLabel(new Date(overdueSince))
+          : "Now",
+        openHref: `/office/notifications/${notification.id}/open`,
+      };
+    })
+    .sort((left, right) => left.overdueSince.localeCompare(right.overdueSince))
+    .slice(0, 5);
 }
 
 function buildNotificationInboxWhere(input: {
@@ -961,6 +1101,51 @@ function buildAppointmentExternalTouchReminderBody(input: {
     .join(" ");
 }
 
+function formatTransactionStatusLabel(status: TransactionStatus) {
+  if (status === TransactionStatus.opportunity) {
+    return "Opportunity";
+  }
+
+  if (status === TransactionStatus.active) {
+    return "Active";
+  }
+
+  if (status === TransactionStatus.pending) {
+    return "Pending";
+  }
+
+  if (status === TransactionStatus.closed) {
+    return "Closed";
+  }
+
+  return "Cancelled";
+}
+
+function buildTransactionPropertyLabel(input: {
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}) {
+  return [input.address, input.city, input.state, input.zipCode]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildTransactionOwnerLabel(input: {
+  ownerMembership?: {
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+}) {
+  return input.ownerMembership
+    ? `${input.ownerMembership.user.firstName} ${input.ownerMembership.user.lastName}`.trim()
+    : "Unassigned";
+}
+
 export async function reconcileOfficeNotificationReminders(input: {
   organizationId: string;
   officeId?: string | null;
@@ -983,9 +1168,12 @@ export async function reconcileOfficeNotificationReminders(input: {
   appointmentCutoff.setHours(appointmentCutoff.getHours() + 24);
   const offerCutoff = new Date(now);
   offerCutoff.setHours(offerCutoff.getHours() + 72);
+  const transactionOverdueCandidateWhere = buildTransactionOverdueWhere(now);
 
   await prisma.$transaction(async (tx) => {
     const [
+      overdueTransactionCandidates,
+      transactionAdminRecipients,
       dueSoonAppointments,
       dueExternalTouchAppointments,
       expiringOffers,
@@ -993,6 +1181,55 @@ export async function reconcileOfficeNotificationReminders(input: {
       dueClientReminders,
       dueSoonOnboardingItems
     ] = await Promise.all([
+      tx.transaction.findMany({
+        where: {
+          AND: [
+            {
+              organizationId: input.organizationId,
+              ...(input.officeId
+                ? {
+                    OR: [{ officeId: input.officeId }, { officeId: null }],
+                  }
+                : {}),
+            },
+            transactionOverdueCandidateWhere,
+          ],
+        },
+        include: {
+          ownerMembership: {
+            select: {
+              id: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ updatedAt: "desc" }],
+      }),
+      tx.membership.findMany({
+        where: {
+          organizationId: input.organizationId,
+          role: {
+            in: ["owner", "office_admin", "accountant"],
+          },
+          status: "active",
+          user: {
+            isActive: true,
+          },
+          ...(input.officeId
+            ? {
+                OR: [{ officeId: input.officeId }, { officeId: null }],
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+        },
+      }),
       tx.appointment.findMany({
         where: {
           organizationId: input.organizationId,
@@ -1171,6 +1408,9 @@ export async function reconcileOfficeNotificationReminders(input: {
       })
     ]);
 
+    const overdueTransactions = overdueTransactionCandidates.filter((transaction) =>
+      isTransactionOverdue(transaction, now),
+    );
     const dueExternalTouchAppointmentRecords = dueExternalTouchAppointments
       .map((appointment) => {
         const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
@@ -1245,6 +1485,32 @@ export async function reconcileOfficeNotificationReminders(input: {
           }
         : {}),
     };
+    const activeOverdueTransactionIds = new Set(
+      overdueTransactions.map((transaction) => transaction.id),
+    );
+    const transactionReminderScopeWhere = {
+      organizationId: input.organizationId,
+      entityType: NotificationEntityType.transaction,
+      ...(input.officeId
+        ? {
+            OR: [{ officeId: input.officeId }, { officeId: null }],
+          }
+        : {}),
+    };
+
+    await tx.notification.deleteMany({
+      where: {
+        ...transactionReminderScopeWhere,
+        type: NotificationType.transaction_overdue,
+        ...(activeOverdueTransactionIds.size
+          ? {
+              entityId: {
+                notIn: [...activeOverdueTransactionIds],
+              },
+            }
+          : {}),
+      },
+    });
 
     await tx.notification.deleteMany({
       where: {
@@ -1301,6 +1567,55 @@ export async function reconcileOfficeNotificationReminders(input: {
           : {}),
       },
     });
+
+    const transactionAdminRecipientIds = transactionAdminRecipients.map(
+      (membership) => membership.id,
+    );
+
+    for (const transaction of overdueTransactions) {
+      const referenceDate = getTransactionOverdueReferenceDate(transaction);
+
+      if (!referenceDate) {
+        continue;
+      }
+
+      const overdueSince = getTransactionOverdueSinceDate(referenceDate);
+      const ownerLabel = buildTransactionOwnerLabel(transaction);
+      const propertyLabel = buildTransactionPropertyLabel(transaction);
+      const statusLabel = formatTransactionStatusLabel(transaction.status);
+      const recipientIds = Array.from(
+        new Set(
+          [
+            transaction.ownerMembershipId,
+            ...transactionAdminRecipientIds,
+          ].filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      await upsertNotificationForMemberships(tx, {
+        organizationId: input.organizationId,
+        officeId: transaction.officeId ?? input.officeId ?? null,
+        membershipIds: recipientIds,
+        type: NotificationType.transaction_overdue,
+        category: NotificationCategory.transaction,
+        severity: NotificationSeverity.critical,
+        entityType: NotificationEntityType.transaction,
+        entityId: transaction.id,
+        title: `Transaction overdue: ${transaction.title}`,
+        body: `${transaction.title} has been past ${formatDateLabel(referenceDate)} for more than 3 months and is still ${statusLabel}. Confirm collection and close the file when resolved.`,
+        actionUrl: `/office/transactions/${transaction.id}`,
+        metadata: {
+          transactionId: transaction.id,
+          transactionTitle: transaction.title,
+          propertyLabel,
+          ownerLabel,
+          statusLabel,
+          referenceDate: referenceDate.toISOString(),
+          overdueSince: overdueSince.toISOString(),
+        },
+        resetReadState: false,
+      });
+    }
 
     for (const appointment of dueSoonAppointments) {
       await upsertNotificationForMemberships(tx, {
@@ -1502,6 +1817,8 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         title: true,
         body: true,
         actionUrl: true,
+        entityType: true,
+        entityId: true,
         readAt: true,
         createdAt: true,
         metadata: true
@@ -1530,6 +1847,10 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
   }));
   const activeNotifications = allNotifications.filter((notification) => !notification.isArchived);
   const archivedNotifications = allNotifications.filter((notification) => notification.isArchived);
+  const transactionOverdueQueue = buildTransactionOverdueQueue(activeNotifications);
+  const transactionOverdueCount = activeNotifications.filter(
+    (notification) => notification.type === NotificationType.transaction_overdue,
+  ).length;
   const notificationsInSelectedView = (selectedView === "archived" ? archivedNotifications : activeNotifications).filter(
     (notification) =>
       (!selectedType || notification.type === selectedType) &&
@@ -1631,13 +1952,16 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         notification.type === NotificationType.appointment_external_touch_due ||
         notification.type === NotificationType.offer_expiring_soon ||
         notification.type === NotificationType.follow_up_overdue ||
-        notification.type === NotificationType.onboarding_due_soon
+        notification.type === NotificationType.onboarding_due_soon ||
+        notification.type === NotificationType.transaction_overdue
       ).length,
-      payoutReviewCount
+      payoutReviewCount,
+      transactionOverdueCount
     },
     totalCount: filteredNotifications.length,
     unreadCount: filteredNotifications.filter((notification) => !notification.readAt).length,
     payoutReviewQueue,
+    transactionOverdueQueue,
     groups: Array.from(groupsByDate.values()),
     typeOptions,
     categoryOptions
