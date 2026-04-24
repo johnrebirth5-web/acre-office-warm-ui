@@ -28,7 +28,7 @@ function formatListingTypeLabel(value: string | null) {
   const normalized = value?.trim().toLowerCase();
 
   if (normalized === "sale") {
-    return "Sale";
+    return "For sale";
   }
 
   if (normalized === "rent") {
@@ -40,6 +40,20 @@ function formatListingTypeLabel(value: string | null) {
 
 function formatSourceSiteLabel(value: string) {
   return value === "streeteasy" ? "StreetEasy" : "Zillow";
+}
+
+function getFacts(line: string) {
+  return line
+    .split(" · ")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function buildAssetSrc(assetId: string | null, code: string) {
+  return assetId
+    ? `/api/listing-studio/assets/${assetId}?shareCode=${code}`
+    : null;
 }
 
 export default async function ListingStudioPublicCollectionPage(
@@ -66,88 +80,161 @@ export default async function ListingStudioPublicCollectionPage(
     notFound();
   }
 
+  const heroImageSrc = buildAssetSrc(snapshot.listings[0]?.heroAssetId ?? null, snapshot.code);
+  const contactPhoneHref = snapshot.contact.phone
+    ? `tel:${snapshot.contact.phone}`
+    : null;
+  const contactEmailHref = snapshot.contact.email
+    ? `mailto:${snapshot.contact.email}`
+    : null;
+
   return (
-    <main className="listing-studio-share-shell listing-studio-collection-share-shell">
-      <div className="listing-studio-share-page listing-studio-collection-share-page">
-        <section className="listing-studio-collection-share-hero">
-          <div className="listing-studio-collection-share-copy">
-            <span className="office-eyebrow">Shared collection</span>
+    <main className="listing-studio-collection-share-app">
+      <div className="listing-studio-collection-share-phone">
+        <section
+          className="listing-studio-collection-share-hero"
+          style={
+            heroImageSrc
+              ? {
+                  backgroundImage: `linear-gradient(180deg, rgba(26, 21, 16, 0.58), rgba(26, 21, 16, 0.12) 42%, rgba(26, 21, 16, 0.82)), url("${heroImageSrc}")`,
+                }
+              : undefined
+          }
+        >
+          <header className="listing-studio-collection-share-topbar">
+            <strong>ACRE</strong>
+            <span>Shared Collection</span>
+          </header>
+
+          <div className="listing-studio-collection-share-hero-copy">
+            <div className="listing-studio-collection-share-kicker">
+              <span />
+              <small>Curated for you</small>
+              <span />
+            </div>
             <h1>{snapshot.name}</h1>
             <p>
-              {snapshot.listingCount} curated listing
-              {snapshot.listingCount === 1 ? "" : "s"} ready to review.
+              {snapshot.listingCount} handpicked propert
+              {snapshot.listingCount === 1 ? "y" : "ies"} in New York
             </p>
           </div>
 
-          <div className="listing-studio-collection-share-summary">
-            <strong>{snapshot.listingCount}</strong>
-            <span>Listings</span>
-            <p>Updated {formatUpdatedLabel(snapshot.updatedAt)}</p>
+          <div className="listing-studio-collection-share-agent-card">
+            <div className="listing-studio-collection-share-agent-avatar">
+              {snapshot.contact.name.slice(0, 1).toUpperCase()}
+            </div>
+            <div>
+              <strong>{snapshot.contact.name}</strong>
+              <span>{snapshot.contact.title}</span>
+            </div>
+            <div className="listing-studio-collection-share-agent-actions">
+              {contactPhoneHref ? <a href={contactPhoneHref}>Call</a> : null}
+              {contactEmailHref ? <a href={contactEmailHref}>Email</a> : null}
+            </div>
+          </div>
+
+          <div className="listing-studio-collection-share-scroll-cue">
+            <span>Scroll</span>
+            <i aria-hidden="true">⌄</i>
           </div>
         </section>
 
-        {snapshot.listings.length ? (
-          <section className="listing-studio-collection-share-grid">
-            {snapshot.listings.map((listing, index) => {
-              const listingTypeLabel = formatListingTypeLabel(
-                listing.listingType,
-              );
+        <section className="listing-studio-collection-share-listings">
+          <header className="listing-studio-collection-share-listings-head">
+            <span>{snapshot.listingCount}</span>
+            <div>
+              <p>Properties</p>
+              <h2>Selected for you</h2>
+            </div>
+          </header>
 
-              return (
-                <article
-                  className="listing-studio-collection-share-card"
-                  key={listing.packId}
-                >
-                  <div className="listing-studio-collection-share-card-media">
-                    {listing.heroAssetId ? (
-                      <img
-                        alt={listing.displayTitle || listing.addressLine}
-                        src={`/api/listing-studio/assets/${listing.heroAssetId}?shareCode=${snapshot.code}`}
-                      />
-                    ) : (
-                      <div className="listing-studio-collection-share-card-empty">
-                        <span>{formatSourceSiteLabel(listing.sourceSite)}</span>
+          <div className="listing-studio-collection-share-list">
+            {snapshot.listings.length ? (
+              snapshot.listings.map((listing, index) => {
+                const assetSrc = buildAssetSrc(listing.heroAssetId, snapshot.code);
+                const facts = getFacts(listing.factsLine);
+                const listingTypeLabel = formatListingTypeLabel(listing.listingType);
+
+                return (
+                  <article
+                    className="listing-studio-collection-share-property"
+                    key={listing.packId}
+                  >
+                    <header className="listing-studio-collection-share-property-head">
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h3>{listing.displayTitle || listing.addressLine}</h3>
+                        <p>{listing.locationLine}</p>
                       </div>
-                    )}
+                    </header>
 
-                    <div className="listing-studio-collection-share-card-badges">
-                      <span className="listing-studio-collection-share-card-index">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="listing-studio-collection-share-card-source">
-                        {formatSourceSiteLabel(listing.sourceSite)}
-                      </span>
-                      {listingTypeLabel ? (
-                        <span className="listing-studio-collection-share-card-type">
-                          {listingTypeLabel}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="listing-studio-collection-share-card-body">
-                    <div className="listing-studio-collection-share-card-copy">
+                    <a
+                      className="listing-studio-collection-share-property-media"
+                      href={listing.sourceUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {assetSrc ? (
+                        <img
+                          alt={listing.displayTitle || listing.addressLine}
+                          src={assetSrc}
+                        />
+                      ) : (
+                        <div className="listing-studio-collection-share-property-empty">
+                          {formatSourceSiteLabel(listing.sourceSite)}
+                        </div>
+                      )}
+                      <div className="listing-studio-collection-share-property-badges">
+                        <span>{formatSourceSiteLabel(listing.sourceSite)}</span>
+                        {listingTypeLabel ? <span>{listingTypeLabel}</span> : null}
+                      </div>
                       <strong>{listing.priceLabel}</strong>
-                      <h2>{listing.displayTitle || listing.addressLine}</h2>
-                      <p>{listing.addressLine}</p>
-                      {listing.locationLine ? <p>{listing.locationLine}</p> : null}
-                    </div>
+                    </a>
 
-                    <div className="listing-studio-collection-share-card-meta">
-                      {listing.factsLine ? <span>{listing.factsLine}</span> : null}
-                      {listing.statusLabel ? <span>{listing.statusLabel}</span> : null}
+                    <div className="listing-studio-collection-share-property-body">
+                      <div className="listing-studio-collection-share-property-facts">
+                        {facts.map((fact) => (
+                          <span key={fact}>{fact}</span>
+                        ))}
+                      </div>
+                      <a
+                        className="listing-studio-collection-share-property-link"
+                        href={listing.sourceUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        View Details
+                      </a>
                     </div>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
-        ) : (
-          <section className="listing-studio-share-section">
-            <h2>No listings available</h2>
-            <p>This shared collection is empty right now.</p>
-          </section>
-        )}
+                  </article>
+                );
+              })
+            ) : (
+              <div className="listing-studio-collection-share-empty">
+                This shared collection is empty right now.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <footer className="listing-studio-collection-share-footer">
+          <div className="listing-studio-collection-share-footer-avatar">
+            {snapshot.contact.name.slice(0, 1).toUpperCase()}
+          </div>
+          <h2>{snapshot.contact.name}</h2>
+          <p>{snapshot.contact.title}</p>
+          <div className="listing-studio-collection-share-footer-actions">
+            {contactPhoneHref ? <a href={contactPhoneHref}>Call</a> : null}
+            {contactEmailHref ? <a href={contactEmailHref}>Email</a> : null}
+          </div>
+          <a
+            className="listing-studio-collection-share-schedule"
+            href={contactEmailHref ?? contactPhoneHref ?? "#"}
+          >
+            Schedule a Viewing
+          </a>
+          <small>Powered by ACRE Listing System · Updated {formatUpdatedLabel(snapshot.updatedAt)}</small>
+        </footer>
       </div>
     </main>
   );

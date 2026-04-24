@@ -230,6 +230,12 @@ export type StudioListingPublicCollectionSnapshot = {
   name: string;
   listingCount: number;
   updatedAt: string;
+  contact: {
+    name: string;
+    title: string;
+    phone: string;
+    email: string;
+  };
   listings: Array<{
     packId: string;
     title: string;
@@ -3387,7 +3393,15 @@ export async function getStudioListingPublicCollection(input: {
     return null;
   }
 
-  const listings = sortStudioListingPackRecords(record.items.map((item) => item.pack)).map(
+  const listingRecords = sortStudioListingPackRecords(record.items.map((item) => item.pack));
+  const primaryContactRecord = listingRecords.find(
+    (pack) =>
+      trimString(pack.contactName) ||
+      trimString(pack.contactTitle) ||
+      trimString(pack.contactPhone) ||
+      trimString(pack.contactEmail),
+  );
+  const listings = listingRecords.map(
     (pack) => {
       const item = mapListItem(pack);
 
@@ -3413,6 +3427,12 @@ export async function getStudioListingPublicCollection(input: {
     name: record.name,
     listingCount: listings.length,
     updatedAt: record.updatedAt.toISOString(),
+    contact: {
+      name: primaryContactRecord?.contactName?.trim() || "Acre Agent",
+      title: primaryContactRecord?.contactTitle?.trim() || "Acre NY Realty",
+      phone: primaryContactRecord?.contactPhone?.trim() || "",
+      email: primaryContactRecord?.contactEmail?.trim() || "",
+    },
     listings,
   } satisfies StudioListingPublicCollectionSnapshot;
 }
