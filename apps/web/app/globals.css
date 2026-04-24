@@ -19281,6 +19281,27 @@ body,
   font-size: 1.1rem;
 }
 
+.listing-studio-shares-table {
+  --office-table-row-height: 58px;
+}
+
+.listing-studio-shares-table-row {
+  min-width: 980px;
+  grid-template-columns:
+    minmax(260px, 1.7fr)
+    minmax(96px, 0.62fr)
+    minmax(84px, 0.5fr)
+    minmax(84px, 0.5fr)
+    minmax(150px, 0.92fr)
+    minmax(150px, 0.92fr)
+    minmax(96px, 0.54fr);
+}
+
+.listing-studio-share-count {
+  color: #0f172a;
+  font-weight: 800;
+}
+
 .listing-studio-collection-detail-page {
   display: grid;
   gap: 20px;

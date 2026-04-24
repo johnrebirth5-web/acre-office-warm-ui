@@ -254,13 +254,14 @@
   - `Share Studio` 是当前 owner-facing poster/export 工作面：detail 页上的 `share` 动作会进入独立的内部 `/share` route（不再套 Acre workspace 外壳），在五套竖版 poster 模板之间切换主图和 listing status，然后通过 `/api/listing-studio/listings/[packId]/poster` 输出同源 `svg / html / png`
   - 核心复用：
     - `StudioListingImport / Snapshot / Asset / Pack / ShareEvent`
-    - `StudioListingCollection / StudioListingCollectionItem`
+    - `StudioListingCollection / StudioListingCollectionItem / StudioListingCollectionShareEvent`
     - `StudioListingExtensionToken / StudioListingExtensionChallenge`
   - 现有 `document-storage` 适配器保存 raw HTML、raw JSON、下载图片和 PDF
   - 设计原则：
     - `Snapshot` 是原始事实层，只读
     - `Pack` 是客户版整理层，可编辑
     - `Collections` 当前按 `organization + current membership` 做私有作用域，不与 FO curated listings 混用
+    - `Shares` 当前聚合 collection share-copy events 和 public collection open events，不做收件人身份、自动发送或 resend workflow
     - 扩展保存动作在源站页面内完成，不要求用户先跳回 Acre 确认
     - collection detail 的 live map / nearby POI 当前通过 Google Maps JavaScript API + Places 在运行时查询，不做 Acre 内部 POI 存储
 - 当前 `Office Accounting` 页面已经从旧 ledger/billing/EMD 工作台收口为 `office_admin` 专属的 `Agent Statements` 工作台：

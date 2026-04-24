@@ -19,6 +19,7 @@ import {
   getStudioListingPublicCollection,
   getStudioListingPublicPack,
   getStudioListingCollectionDetail,
+  listStudioListingCollectionShares,
   listStudioListingPacks,
   listStudioListingCollectionPickerItems,
   listStudioListingCollections,
@@ -641,6 +642,18 @@ test("publishing a collection mints a high-entropy share code", async () => {
       published?.shareCode ?? "",
       /^collection_[A-Za-z0-9_-]{32}$/,
     );
+
+    const shares = await listStudioListingCollectionShares({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.equal(shares.summary.sharedCollections, 1);
+    assert.equal(shares.summary.shareCount, 1);
+    assert.equal(shares.summary.viewCount, 0);
+    assert.equal(shares.items[0]?.id, collection?.id);
+    assert.equal(shares.items[0]?.shareCount, 1);
+    assert.equal(shares.items[0]?.viewCount, 0);
   } finally {
     await context.cleanup();
   }
@@ -707,6 +720,16 @@ test("public collection lookup returns current shared listings", async () => {
     assert.ok(
       snapshot?.listings.some((item) => item.packId === secondPack.packId),
     );
+
+    const shares = await listStudioListingCollectionShares({
+      organizationId: context.organization.id,
+      membershipId: context.ownerMembership.id,
+    });
+
+    assert.equal(shares.summary.shareCount, 1);
+    assert.equal(shares.summary.viewCount, 1);
+    assert.equal(shares.items[0]?.id, collection?.id);
+    assert.equal(shares.items[0]?.lastViewedAt !== null, true);
   } finally {
     await context.cleanup();
   }

@@ -4,6 +4,7 @@ import {
   Prisma,
   StudioExtensionChallengeStatus,
   StudioListingAssetKind,
+  StudioListingCollectionShareEventKind,
   StudioListingImportStatus,
   StudioListingPackStatus,
   StudioListingSavedPackSource,
@@ -123,6 +124,30 @@ export type StudioListingCollectionDetail = {
   updatedAt: string;
   listingsWithoutCoordinates: number;
   listings: StudioListingCollectionListingItem[];
+};
+
+export type StudioListingCollectionShareListItem = {
+  id: string;
+  name: string;
+  listingCount: number;
+  shareEnabled: boolean;
+  shareCode: string | null;
+  shareCount: number;
+  viewCount: number;
+  lastSharedAt: string | null;
+  lastViewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StudioListingCollectionSharesSnapshot = {
+  summary: {
+    sharedCollections: number;
+    shareCount: number;
+    viewCount: number;
+    activeShareLinks: number;
+  };
+  items: StudioListingCollectionShareListItem[];
 };
 
 export type StudioListingDetailSnapshot = {
@@ -2023,6 +2048,142 @@ export async function listStudioListingCollections(input: {
   return records.map(mapCollectionListItem);
 }
 
+export async function listStudioListingCollectionShares(input: {
+  organizationId: string;
+  membershipId: string;
+}): Promise<StudioListingCollectionSharesSnapshot> {
+  const records = await prisma.studioListingCollection.findMany({
+    where: {
+      organizationId: input.organizationId,
+      createdByMembershipId: input.membershipId,
+      OR: [
+        { shareEnabled: true },
+        {
+          shareEvents: {
+            some: {},
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      shareEnabled: true,
+      shareCode: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          items: true,
+        },
+      },
+    },
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+  });
+
+  const collectionIds = records.map((record) => record.id);
+  const groupedEvents = collectionIds.length
+    ? await prisma.studioListingCollectionShareEvent.groupBy({
+        by: ["collectionId", "eventKind"],
+        where: {
+          organizationId: input.organizationId,
+          collectionId: {
+            in: collectionIds,
+          },
+        },
+        _count: {
+          _all: true,
+        },
+        _max: {
+          occurredAt: true,
+        },
+      })
+    : [];
+
+  const rollups = new Map<
+    string,
+    {
+      shareCount: number;
+      viewCount: number;
+      lastSharedAt: Date | null;
+      lastViewedAt: Date | null;
+    }
+  >();
+
+  for (const eventGroup of groupedEvents) {
+    const rollup =
+      rollups.get(eventGroup.collectionId) ??
+      {
+        shareCount: 0,
+        viewCount: 0,
+        lastSharedAt: null,
+        lastViewedAt: null,
+      };
+
+    if (eventGroup.eventKind === StudioListingCollectionShareEventKind.shared) {
+      rollup.shareCount = eventGroup._count._all;
+      rollup.lastSharedAt = eventGroup._max.occurredAt ?? null;
+    } else if (
+      eventGroup.eventKind === StudioListingCollectionShareEventKind.opened
+    ) {
+      rollup.viewCount = eventGroup._count._all;
+      rollup.lastViewedAt = eventGroup._max.occurredAt ?? null;
+    }
+
+    rollups.set(eventGroup.collectionId, rollup);
+  }
+
+  const items = records
+    .map((record) => {
+      const rollup = rollups.get(record.id) ?? {
+        shareCount: 0,
+        viewCount: 0,
+        lastSharedAt: null,
+        lastViewedAt: null,
+      };
+
+      return {
+        id: record.id,
+        name: record.name,
+        listingCount: record._count.items,
+        shareEnabled: record.shareEnabled,
+        shareCode: record.shareCode,
+        shareCount: rollup.shareCount,
+        viewCount: rollup.viewCount,
+        lastSharedAt: rollup.lastSharedAt?.toISOString() ?? null,
+        lastViewedAt: rollup.lastViewedAt?.toISOString() ?? null,
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+      } satisfies StudioListingCollectionShareListItem;
+    })
+    .sort((left, right) => {
+      const leftLatest = Math.max(
+        new Date(left.lastViewedAt ?? 0).getTime(),
+        new Date(left.lastSharedAt ?? 0).getTime(),
+        new Date(left.updatedAt).getTime(),
+      );
+      const rightLatest = Math.max(
+        new Date(right.lastViewedAt ?? 0).getTime(),
+        new Date(right.lastSharedAt ?? 0).getTime(),
+        new Date(right.updatedAt).getTime(),
+      );
+
+      return rightLatest - leftLatest || left.name.localeCompare(right.name);
+    });
+
+  return {
+    summary: {
+      sharedCollections: items.length,
+      shareCount: items.reduce((sum, item) => sum + item.shareCount, 0),
+      viewCount: items.reduce((sum, item) => sum + item.viewCount, 0),
+      activeShareLinks: items.filter(
+        (item) => item.shareEnabled && Boolean(item.shareCode),
+      ).length,
+    },
+    items,
+  };
+}
+
 export async function listStudioListingCollectionPickerItems(input: {
   organizationId: string;
   membershipId: string;
@@ -2111,14 +2272,25 @@ export async function publishStudioListingCollection(input: {
       ? existing.shareCode
       : createStudioListingCollectionShareCode();
 
-  await prisma.studioListingCollection.update({
-    where: { id: existing.id },
-    data: {
-      updatedByMembershipId: input.membershipId,
-      shareEnabled: true,
-      shareCode,
-    },
-  });
+  await prisma.$transaction([
+    prisma.studioListingCollection.update({
+      where: { id: existing.id },
+      data: {
+        updatedByMembershipId: input.membershipId,
+        shareEnabled: true,
+        shareCode,
+      },
+    }),
+    prisma.studioListingCollectionShareEvent.create({
+      data: {
+        organizationId: existing.organizationId,
+        collectionId: existing.id,
+        shareCode,
+        eventKind: StudioListingCollectionShareEventKind.shared,
+        createdByMembershipId: input.membershipId,
+      },
+    }),
+  ]);
 
   return {
     shareCode,
@@ -3418,6 +3590,10 @@ export async function getStudioListingPublicPack(input: {
 
 export async function getStudioListingPublicCollection(input: {
   shareCode: string;
+  viewerFingerprint?: string | null;
+  referrer?: string | null;
+  userAgent?: string | null;
+  ipAddress?: string | null;
 }) {
   const record = await prisma.studioListingCollection.findFirst({
     where: buildStudioListingCollectionShareWhere(input.shareCode),
@@ -3427,6 +3603,19 @@ export async function getStudioListingPublicCollection(input: {
   if (!record) {
     return null;
   }
+
+  await prisma.studioListingCollectionShareEvent.create({
+    data: {
+      organizationId: record.organizationId,
+      collectionId: record.id,
+      shareCode: input.shareCode,
+      eventKind: StudioListingCollectionShareEventKind.opened,
+      viewerFingerprint: trimString(input.viewerFingerprint),
+      referrer: trimString(input.referrer),
+      userAgent: trimString(input.userAgent),
+      ipAddressHash: hashViewerValue(trimString(input.ipAddress)),
+    },
+  });
 
   const listingRecords = sortStudioListingPackRecords(record.items.map((item) => item.pack));
   const primaryContactRecord = listingRecords.find(

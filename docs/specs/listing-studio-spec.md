@@ -60,6 +60,10 @@
   - collection share page uses the mobile client-facing microsite pattern; tapping a property opens the internal detail view with gallery, facts, amenities, and agent contact instead of leaving for the source listing site
   - collection share email actions copy the agent email in-page instead of relying on `mailto:` handlers; the public page does not show a `Schedule a Viewing` CTA
   - collection share listing cards and detail badges do not show source-site labels such as StreetEasy
+- collection share tracking:
+  - copying a collection share link records a `shared` event
+  - opening `/share/collections/[code]` records an `opened` event
+  - `/listing-studio/shares` lists current-user collection share counts and public view counts
 - PDF 导出：
   - `/api/listing-studio/listings/[packId]/pdf`
 - 海报 / 模板导出：
@@ -73,7 +77,7 @@
 
 ### Explicitly not included in v1
 
-- share management center
+- full recipient management, resend workflow, and outbound delivery automation
 - Canva sync
 - batch import
 - scheduled re-crawl
@@ -174,9 +178,16 @@
 
 ### Shares
 
-- 当前只保留路由和导航占位
-- 本轮不包含 share management center
-- 后续再定义真正的 share workspace、filters、history、analytics 和 resend workflow
+- 当前先作为 collection share activity list
+- 展示当前 membership 的 shared collections
+- 每行展示：
+  - collection name
+  - listing count
+  - link status
+  - share count（复制 / 生成 collection share link 次数）
+  - view count（公开 collection 页面打开次数）
+  - last shared / last viewed
+- 不记录收件人身份，不做自动发送，不做 resend workflow
 
 ### Listing detail
 
@@ -231,8 +242,12 @@
 - `StudioListingCollectionItem`
   - collection 与 saved pack 的 join layer
   - 对同一 `collectionId + packId` 做唯一约束
+- `StudioListingCollectionShareEvent`
+  - collection share 的事件表
+  - `shared`：agent 复制 / 生成 collection share link
+  - `opened`：公开 `/share/collections/[code]` 被打开
 - `StudioListingShareEvent`
-  - public share 的打开事件
+  - pack public share 的打开事件
 - `StudioListingExtensionToken`
   - 扩展长期 token
 - `StudioListingExtensionChallenge`
@@ -302,6 +317,7 @@
 - `DELETE /api/listing-studio/collections/[collectionId]`
 - `POST /api/listing-studio/collections/[collectionId]/items`
 - `DELETE /api/listing-studio/collections/[collectionId]/items/[packId]`
+- `POST /api/listing-studio/collections/[collectionId]/share`
 - `POST /api/listing-studio/listings/[packId]/share`
 - `GET /api/listing-studio/listings/[packId]/pdf`
 - `GET /api/listing-studio/listings/[packId]/poster`
@@ -345,7 +361,7 @@
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
 - `Collections` 目前只支持当前用户私有视图，不做组织共享或办公室共享
-- `Shares` 目前仍是 placeholder，不是正式 share management center
+- `Shares` 目前只聚合 collection share / view counts；还不是 recipient-level delivery or resend center
 - `Collections` 地图与 POI 依赖 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`；缺失时页面会降级到 card-only 模式
 - 海报模板当前是手动 HTML 预览 / 打印 / 下载导出，并由服务端 `svg -> png` 输出 `2160 x 2880` PNG；它还不是 Canva 工作流
 - 联系人信息现在可在 packet editor 里直接修改，并会流入 share / PDF / poster，但它仍然是手动维护的 packet 字段，不是独立 CRM 同步或外部模板同步

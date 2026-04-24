@@ -66,6 +66,11 @@ enum StudioListingSavedPackSource {
   saved_from_dashboard
 }
 
+enum StudioListingCollectionShareEventKind {
+  shared
+  opened
+}
+
 enum StudioExtensionChallengeStatus {
   pending
   approved
@@ -767,6 +772,7 @@ model Organization {
   studioListingPacks                    StudioListingPack[]
   studioListingSavedPacks               StudioListingSavedPack[]
   studioListingCollections              StudioListingCollection[]
+  studioListingCollectionShareEvents     StudioListingCollectionShareEvent[]
   studioListingShareEvents              StudioListingShareEvent[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
@@ -979,6 +985,7 @@ model Membership {
   studioListingSavedPacks                      StudioListingSavedPack[]               @relation("StudioListingSavedPackMembership")
   studioListingCollectionsCreated              StudioListingCollection[]              @relation("StudioListingCollectionCreatedBy")
   studioListingCollectionsUpdated              StudioListingCollection[]              @relation("StudioListingCollectionUpdatedBy")
+  studioListingCollectionShareEventsCreated     StudioListingCollectionShareEvent[]     @relation("StudioListingCollectionShareEventCreatedBy")
   studioListingExtensionTokens                 StudioListingExtensionToken[]          @relation("StudioListingExtensionTokenMembership")
   approvedStudioListingExtensionChallenges     StudioListingExtensionChallenge[]      @relation("StudioListingExtensionChallengeApprovedBy")
 
@@ -1553,6 +1560,7 @@ model StudioListingCollection {
   createdByMembership   Membership                    @relation("StudioListingCollectionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
   updatedByMembership   Membership                    @relation("StudioListingCollectionUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: Cascade)
   items                 StudioListingCollectionItem[]
+  shareEvents           StudioListingCollectionShareEvent[]
 
   @@unique([organizationId, createdByMembershipId, nameNormalized])
   @@index([organizationId, createdByMembershipId, updatedAt])
@@ -1569,6 +1577,27 @@ model StudioListingCollectionItem {
 
   @@unique([collectionId, packId])
   @@index([packId, createdAt])
+}
+
+model StudioListingCollectionShareEvent {
+  id                    String                                @id @default(cuid())
+  organizationId        String
+  collectionId          String
+  shareCode             String
+  eventKind             StudioListingCollectionShareEventKind
+  createdByMembershipId String?
+  viewerFingerprint     String?
+  referrer              String?
+  userAgent             String?
+  ipAddressHash         String?
+  occurredAt            DateTime                              @default(now())
+  organization          Organization                          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  collection            StudioListingCollection               @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership?                           @relation("StudioListingCollectionShareEventCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, collectionId, eventKind, occurredAt])
+  @@index([organizationId, shareCode, eventKind, occurredAt])
+  @@index([organizationId, createdByMembershipId, occurredAt])
 }
 
 model StudioListingShareEvent {

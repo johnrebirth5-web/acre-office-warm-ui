@@ -52,10 +52,15 @@
     - 现在是当前 agent 的个人工作台
     - 顶部承接 Chrome extension connect 和 Studio overview
     - 列表主体只显示“我导入的房源 + 我从公司 dashboard 收录的房源”
+  - `/listing-studio/collections`
+    - 当前 agent 的私有 collection / folder 管理入口，可把 saved listings 组织成客户短名单并生成公开 collection 链接
+  - `/listing-studio/shares`
+    - collection share activity list：记录 collection link 被复制分享的次数，以及公开 collection 页面被打开的次数
   - `/listing-studio/listings/[packId]`
   - `/listing-studio/listings/[packId]/edit`
   - `/listing-studio/listings/[packId]/share`
   - `/share/packs/[code]`
+  - `/share/collections/[code]`
   - `/api/listing-studio/*`
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie

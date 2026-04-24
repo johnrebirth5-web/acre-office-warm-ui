@@ -180,6 +180,7 @@ Trade-off：
   - `StudioListingSnapshot`
   - `StudioListingAsset`
   - `StudioListingPack`
+  - `StudioListingCollectionShareEvent`
   - `StudioListingShareEvent`
 - 对客分享页走 `/share/packs/[code]`，不复用旧的 listing share contract
 
