@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { OfficeCommissionManagementSnapshot } from "@acre/db";
+import styles from "./commission-management-panel.module.css";
 import {
   Button,
   ConfirmActionDialog,
@@ -69,6 +71,8 @@ type SplitTemplateFormState = {
   agentPercent: string;
   isActive: string;
 };
+
+type MemberDefaultSourceFilter = "all" | "template" | "custom";
 
 type ConfirmDialogState = {
   title: string;
@@ -292,6 +296,8 @@ export function CommissionManagementPanel({
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries((snapshot?.calculations ?? []).map((row) => [row.id, row.statusValue]))
   );
+  const [memberDefaultQuery, setMemberDefaultQuery] = useState("");
+  const [memberDefaultSourceFilter, setMemberDefaultSourceFilter] = useState<MemberDefaultSourceFilter>("all");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
@@ -300,6 +306,35 @@ export function CommissionManagementPanel({
     () => snapshot?.plans.map((plan) => ({ id: plan.id, label: plan.name })) ?? [],
     [snapshot]
   );
+
+  const filteredMemberDefaults = useMemo(() => {
+    const query = memberDefaultQuery.trim().toLowerCase();
+
+    return (snapshot?.memberDefaults ?? []).filter((setting) => {
+      if (memberDefaultSourceFilter !== "all" && setting.sourceType !== memberDefaultSourceFilter) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return [
+        setting.membershipLabel,
+        setting.settingLabel,
+        setting.sourceLabel,
+        setting.splitTemplateLabel,
+        setting.agentPercent,
+        setting.companyPercent,
+        setting.effectiveFrom,
+        setting.effectiveTo,
+        setting.sourceType
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [memberDefaultQuery, memberDefaultSourceFilter, snapshot?.memberDefaults]);
 
   useEffect(() => {
     if (!snapshot) {
@@ -761,25 +796,67 @@ export function CommissionManagementPanel({
           </div>
 
           <div className="office-side-stack">
-            <ListPageSection subtitle="Current member-level default split source, ratio, and effective date." title="Member defaults">
+            <ListPageSection
+              actions={
+                snapshot.memberDefaults.length ? (
+                  <span className={styles.memberDefaultsCount}>
+                    {filteredMemberDefaults.length} of {snapshot.memberDefaults.length}
+                  </span>
+                ) : null
+              }
+              subtitle="Current member-level default split source, ratio, and effective date."
+              title="Member defaults"
+            >
               {snapshot.memberDefaults.length ? (
-                <div className="office-queue-list">
-                  {snapshot.memberDefaults.map((setting) => (
-                    <QueueItem
-                      badgeLabel={setting.sourceType === "template" ? "Template" : "Custom"}
-                      badgeTone={setting.sourceType === "template" ? "accent" : "neutral"}
-                      description={setting.settingLabel}
-                      key={setting.id}
-                      meta={
-                        <>
-                          <span>{setting.sourceLabel}</span>
-                          <span>Effective {setting.effectiveFrom}</span>
-                        </>
-                      }
-                      title={setting.membershipLabel}
+                <>
+                  <div className={styles.memberDefaultsToolbar}>
+                    <FormField label="Search members">
+                      <TextInput
+                        onChange={(event) => setMemberDefaultQuery(event.target.value)}
+                        placeholder="Name, split, template, date"
+                        type="search"
+                        value={memberDefaultQuery}
+                      />
+                    </FormField>
+                    <FormField label="Source">
+                      <SelectInput
+                        onChange={(event) => setMemberDefaultSourceFilter(event.target.value as MemberDefaultSourceFilter)}
+                        value={memberDefaultSourceFilter}
+                      >
+                        <option value="all">All sources</option>
+                        <option value="template">Template</option>
+                        <option value="custom">Custom</option>
+                      </SelectInput>
+                    </FormField>
+                  </div>
+
+                  {filteredMemberDefaults.length ? (
+                    <div aria-label="Member default splits" className={styles.memberDefaultsList} role="list">
+                      {filteredMemberDefaults.map((setting) => (
+                        <article className={styles.memberDefaultRow} key={setting.id} role="listitem">
+                          <div className={styles.memberDefaultMain}>
+                            <Link className={styles.memberDefaultName} href={`/office/settings/users/${setting.membershipId}`}>
+                              {setting.membershipLabel}
+                            </Link>
+                            <span className={styles.memberDefaultSplit}>{setting.settingLabel}</span>
+                          </div>
+                          <div className={styles.memberDefaultDetails}>
+                            <StatusBadge tone={setting.sourceType === "template" ? "accent" : "neutral"}>
+                              {setting.sourceType === "template" ? "Template" : "Custom"}
+                            </StatusBadge>
+                            <span>{setting.sourceLabel}</span>
+                            <span>Effective {setting.effectiveFrom}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      description="Try a different name, split ratio, source, template, or effective date."
+                      title="No matching member defaults"
                     />
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <EmptyState
                   description="Assign default splits from user creation or the user profile page."
