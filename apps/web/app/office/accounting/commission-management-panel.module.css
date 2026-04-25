@@ -1,0 +1,82 @@
+.memberDefaultsCount {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.memberDefaultsToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.42fr);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.memberDefaultsList {
+  display: grid;
+  gap: 7px;
+  max-height: min(60vh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.memberDefaultRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, auto);
+  gap: 10px 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(248, 250, 253, 0.72);
+}
+
+.memberDefaultMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.memberDefaultName {
+  overflow: hidden;
+  color: var(--accent);
+  font-weight: 750;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberDefaultName:hover {
+  text-decoration: underline;
+}
+
+.memberDefaultSplit {
+  color: #213249;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.memberDefaultDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+@media (max-width: 820px) {
+  .memberDefaultsToolbar,
+  .memberDefaultRow {
+    grid-template-columns: 1fr;
+  }
+
+  .memberDefaultDetails {
+    justify-content: flex-start;
+  }
+}
