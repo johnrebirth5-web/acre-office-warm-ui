@@ -5,6 +5,7 @@ import {
   consumePublicTokenRateLimit,
   PUBLIC_LISTING_SHARE_READ_RATE_LIMIT_OPTIONS,
 } from "../../../../lib/public-token-rate-limit";
+import { getServerI18n } from "../../../../lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ type PublicListingSharePageProps = {
 export default async function PublicListingSharePage(
   props: PublicListingSharePageProps,
 ) {
+  const { locale } = await getServerI18n();
+  const isZh = locale === "zh-CN";
   const { code } = await props.params;
   const headerStore = await headers();
   const rateLimitDecision = await consumePublicTokenRateLimit({
@@ -52,33 +55,36 @@ export default async function PublicListingSharePage(
           <p>{snapshot.shareContextLabel}</p>
         </div>
 
-        <section className="listing-share-metrics" aria-label="Listing facts">
+        <section
+          className="listing-share-metrics"
+          aria-label={isZh ? "房源信息" : "Listing facts"}
+        >
           <div className="listing-share-facts-primary">
             <article>
-              <span>Price</span>
+              <span>{isZh ? "价格" : "Price"}</span>
               <strong>{snapshot.priceLabel}</strong>
             </article>
             <article>
-              <span>Area</span>
+              <span>{isZh ? "区域" : "Area"}</span>
               <strong>{snapshot.areaLabel}</strong>
             </article>
             <article>
-              <span>Layout</span>
+              <span>{isZh ? "户型" : "Layout"}</span>
               <strong>{snapshot.factsLabel}</strong>
             </article>
           </div>
 
           <div className="listing-share-facts-secondary">
             <article>
-              <span>Shared by</span>
+              <span>{isZh ? "分享人" : "Shared by"}</span>
               <strong>{snapshot.agentLabel}</strong>
             </article>
             <article>
-              <span>Channel</span>
+              <span>{isZh ? "渠道" : "Channel"}</span>
               <strong>{snapshot.channelLabel}</strong>
             </article>
             <article>
-              <span>Availability</span>
+              <span>{isZh ? "状态" : "Availability"}</span>
               <strong>{snapshot.statusLabel}</strong>
             </article>
           </div>
@@ -87,7 +93,7 @@ export default async function PublicListingSharePage(
         <div className="listing-share-actions">
           {snapshot.agentPhone ? (
             <a className="office-button" href={`tel:${snapshot.agentPhone}`}>
-              Call agent
+              {isZh ? "联系经纪人" : "Call agent"}
             </a>
           ) : null}
           {snapshot.agentEmail ? (
@@ -95,7 +101,7 @@ export default async function PublicListingSharePage(
               className="office-button-secondary"
               href={`mailto:${snapshot.agentEmail}`}
             >
-              Email agent
+              {isZh ? "邮件联系经纪人" : "Email agent"}
             </a>
           ) : null}
           {snapshot.sourceUrl ? (
@@ -105,7 +111,7 @@ export default async function PublicListingSharePage(
               rel="noreferrer"
               target="_blank"
             >
-              Open source listing
+              {isZh ? "打开原始房源" : "Open source listing"}
             </a>
           ) : null}
         </div>

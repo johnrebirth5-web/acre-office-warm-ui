@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listStudioListingCollections } from "@acre/db";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { CreateCollectionForm } from "./create-collection-form";
 import { DeleteCollectionButton } from "./delete-collection-button";
 
@@ -16,13 +17,15 @@ function readSearchParam(
   return typeof value === "string" ? value : Array.isArray(value) ? value[0] : "";
 }
 
-function formatUpdatedLabel(value: string) {
+function formatUpdatedLabel(value: string, locale: string) {
   const date = new Date(value);
+  const isZh = locale === "zh-CN";
+
   if (Number.isNaN(date.getTime())) {
-    return "Recently updated";
+    return isZh ? "最近更新" : "Recently updated";
   }
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(isZh ? "zh-CN" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -33,6 +36,10 @@ export default async function ListingStudioCollectionsPage(
   props: ListingStudioCollectionsPageProps,
 ) {
   const context = await requireSessionContext();
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
   const searchParams = (await props.searchParams) ?? {};
   const deleted = readSearchParam(searchParams, "deleted");
   const collections = await listStudioListingCollections({
@@ -44,11 +51,14 @@ export default async function ListingStudioCollectionsPage(
     <div className="office-list-page listing-studio-page">
       <section className="office-page-header listing-studio-header">
         <div className="office-page-heading">
-          <span className="office-eyebrow">Listing Studio</span>
-          <h2>Collections</h2>
+          <span className="office-eyebrow">
+            {isZh ? "房源工作室" : "Listing Studio"}
+          </span>
+          <h2>{isZh ? "客户清单" : "Collections"}</h2>
           <p>
-            Build private client folders from imported listing packets, then use
-            the detail view to study how those homes spread across the map.
+            {isZh
+              ? "把导入的房源资料整理成私密客户清单，并在详情页查看这些房源在地图上的分布。"
+              : "Build private client folders from imported listing packets, then use the detail view to study how those homes spread across the map."}
           </p>
         </div>
       </section>
@@ -56,7 +66,9 @@ export default async function ListingStudioCollectionsPage(
       <div className="listing-studio-shell">
         {deleted ? (
           <div className="listing-studio-status-message">
-            Collection deleted from Listing Studio.
+            {isZh
+              ? "清单已从房源工作室删除。"
+              : "Collection deleted from Listing Studio."}
           </div>
         ) : null}
 
@@ -67,13 +79,17 @@ export default async function ListingStudioCollectionsPage(
         <section className="listing-studio-listed-section">
           <div className="listing-studio-listed-section-head">
             <div>
-              <span className="listing-studio-shell-eyebrow">Private folders</span>
-              <h2>Your saved collections</h2>
+              <span className="listing-studio-shell-eyebrow">
+                {isZh ? "私密分组" : "Private folders"}
+              </span>
+              <h2>{isZh ? "已保存的客户清单" : "Your saved collections"}</h2>
             </div>
             <p>
-              {collections.length} collection
-              {collections.length === 1 ? "" : "s"} currently belong to this
-              Front Office seat.
+              {isZh
+                ? `当前前台席位下有 ${collections.length} 个清单。`
+                : `${collections.length} collection${
+                    collections.length === 1 ? "" : "s"
+                  } currently belong to this Front Office seat.`}
             </p>
           </div>
 
@@ -119,7 +135,7 @@ export default async function ListingStudioCollectionsPage(
                         ))
                       ) : (
                         <div className="listing-studio-collection-card-empty">
-                          Empty collection
+                          {isZh ? "空清单" : "Empty collection"}
                         </div>
                       )}
                     </div>
@@ -127,15 +143,29 @@ export default async function ListingStudioCollectionsPage(
                     <div className="listing-studio-collection-card-body">
                       <div className="listing-studio-collection-card-meta">
                         <span>
-                          {collection.listingCount} listing
-                          {collection.listingCount === 1 ? "" : "s"}
+                          {isZh
+                            ? `${collection.listingCount} 套房源`
+                            : `${collection.listingCount} listing${
+                                collection.listingCount === 1 ? "" : "s"
+                              }`}
                         </span>
-                        <span>Updated {formatUpdatedLabel(collection.updatedAt)}</span>
+                        <span>
+                          {isZh
+                            ? `更新于 ${formatUpdatedLabel(
+                                collection.updatedAt,
+                                locale,
+                              )}`
+                            : `Updated ${formatUpdatedLabel(
+                                collection.updatedAt,
+                                locale,
+                              )}`}
+                        </span>
                       </div>
                       <strong>{collection.name}</strong>
                       <p>
-                        Open this folder to review every saved listing and the live
-                        map view for the area.
+                        {isZh
+                          ? "打开这个清单，查看所有已保存房源以及区域地图。"
+                          : "Open this folder to review every saved listing and the live map view for the area."}
                       </p>
                     </div>
                   </Link>
@@ -143,10 +173,11 @@ export default async function ListingStudioCollectionsPage(
               ))
             ) : (
               <div className="listing-studio-empty-state">
-                <strong>No collections yet.</strong>
+                <strong>{isZh ? "还没有客户清单。" : "No collections yet."}</strong>
                 <p>
-                  Create a named folder above, then start grouping imported packets
-                  by building, neighborhood, or client short-list.
+                  {isZh
+                    ? "先创建一个命名清单，再按楼宇、街区或客户候选列表整理导入的房源。"
+                    : "Create a named folder above, then start grouping imported packets by building, neighborhood, or client short-list."}
                 </p>
               </div>
             )}

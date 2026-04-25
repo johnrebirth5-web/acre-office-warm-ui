@@ -4,6 +4,7 @@ import Link from "next/link";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import type { StudioListingDetailSnapshot } from "@acre/db";
 import { useRouter } from "next/navigation";
+import { useI18n } from "../../../../../lib/i18n/client";
 import {
   appendListingStudioPosterDraftSearchParams,
   buildListingStudioPosterDraft,
@@ -135,10 +136,32 @@ function openExternalWindow(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+function formatShareStudioLabel(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  return value
+    .replace(/\bFor sale\b/gi, "出售")
+    .replace(/\bFor rent\b/gi, "出租")
+    .replace(/\bJust listed\b/gi, "新上房源")
+    .replace(/\bNew listing\b/gi, "新房源")
+    .replace(/\bOpen house\b/gi, "开放日")
+    .replace(/\bSold\b/gi, "已售出")
+    .replace(/\bRented\b/gi, "已出租")
+    .replace(/\bPending\b/gi, "待成交")
+    .replace(/\bPhoto\b/gi, "照片")
+    .replace(/\bImage\b/gi, "图片")
+    .replace(/\bHero\b/gi, "主图")
+    .replace(/\bGallery\b/gi, "图库");
+}
+
 export function ListingStudioShareStudioClient({
   detail,
   initialDraft,
 }: ListingStudioShareStudioClientProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const [detailState, setDetailState] = useState(detail);
   const [draft, setDraft] = useState(initialDraft);
@@ -306,7 +329,11 @@ export function ListingStudioShareStudioClient({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || "Unable to publish the share page.");
+        throw new Error(
+          isZh
+            ? "无法发布分享页。"
+            : body?.error || "Unable to publish the share page.",
+        );
       }
 
       const body = (await response.json()) as {
@@ -325,9 +352,11 @@ export function ListingStudioShareStudioClient({
       return body.shareCode;
     } catch (error) {
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to publish the share page.",
+        isZh
+          ? "无法发布分享页。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to publish the share page.",
       );
       return null;
     } finally {
@@ -357,7 +386,9 @@ export function ListingStudioShareStudioClient({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || "Unable to download the PNG.");
+        throw new Error(
+          isZh ? "无法下载 PNG。" : body?.error || "Unable to download the PNG.",
+        );
       }
 
       const blob = await response.blob();
@@ -374,7 +405,11 @@ export function ListingStudioShareStudioClient({
       window.URL.revokeObjectURL(objectUrl);
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to download the PNG.",
+        isZh
+          ? "无法下载 PNG。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to download the PNG.",
       );
     } finally {
       setIsDownloadingPng(false);
@@ -416,7 +451,11 @@ export function ListingStudioShareStudioClient({
                     >
                       <div className="listing-studio-share-studio-template-image">
                         <img
-                          alt={`${template.label} template preview`}
+                          alt={
+                            isZh
+                              ? `${formatShareStudioLabel(template.label, isZh)} 模板预览`
+                              : `${template.label} template preview`
+                          }
                           loading="lazy"
                           src={templatePreviewMap[template.id]}
                         />
@@ -438,7 +477,11 @@ export function ListingStudioShareStudioClient({
               <div className="listing-studio-share-studio-preview-canvas">
                 <div className="listing-studio-share-studio-preview-stage">
                   <img
-                    alt={`${detailState.addressLine} ${draft.templateId} poster preview`}
+                    alt={
+                      isZh
+                        ? `${detailState.addressLine} ${draft.templateId} 海报预览`
+                        : `${detailState.addressLine} ${draft.templateId} poster preview`
+                    }
                     className="listing-studio-share-studio-preview-image"
                     src={previewHref}
                   />
@@ -447,7 +490,11 @@ export function ListingStudioShareStudioClient({
 
                     return (
                       <button
-                        aria-label={`Select ${slot.label}`}
+                        aria-label={
+                          isZh
+                            ? `选择 ${formatShareStudioLabel(slot.label, isZh)}`
+                            : `Select ${slot.label}`
+                        }
                         className={`listing-studio-share-studio-preview-slot${isSelected ? " is-selected" : ""}`}
                         key={slot.id}
                         onClick={() => toggleSelectedSlot(slot.id)}
@@ -457,11 +504,11 @@ export function ListingStudioShareStudioClient({
                           top: `${(slot.y / 2880) * 100}%`,
                           width: `${(slot.width / 2160) * 100}%`,
                         }}
-                        title={slot.label}
+                        title={formatShareStudioLabel(slot.label, isZh)}
                         type="button"
                       >
                         <span className="listing-studio-share-studio-preview-slot-label">
-                          {slot.label}
+                          {formatShareStudioLabel(slot.label, isZh)}
                         </span>
                       </button>
                     );
@@ -477,7 +524,15 @@ export function ListingStudioShareStudioClient({
                   type="button"
                 >
                   <IconDownload />
-                  <span>{isDownloadingPng ? "Preparing PNG..." : "Download PNG"}</span>
+                  <span>
+                    {isDownloadingPng
+                      ? isZh
+                        ? "正在准备 PNG..."
+                        : "Preparing PNG..."
+                      : isZh
+                        ? "下载 PNG"
+                        : "Download PNG"}
+                  </span>
                 </button>
               </div>
             </div>
@@ -490,20 +545,21 @@ export function ListingStudioShareStudioClient({
                 href={`/listing-studio/listings/${detailState.packId}`}
               >
                 <IconArrowLeft />
-                <span>Back to listing</span>
+                <span>{isZh ? "返回房源" : "Back to listing"}</span>
               </Link>
 
               <div className="listing-studio-share-studio-panel-head">
-                <strong>Poster studio</strong>
+                <strong>{isZh ? "海报工作台" : "Poster studio"}</strong>
                 <p>
-                  Match the layout, update the listing status, then export a
-                  vertical PNG.
+                  {isZh
+                    ? "选择版式、更新房源状态，然后导出竖版 PNG。"
+                    : "Match the layout, update the listing status, then export a vertical PNG."}
                 </p>
               </div>
 
               <div className="listing-studio-share-studio-section">
                 <div className="listing-studio-share-studio-section-head">
-                  <strong>Listing status</strong>
+                  <strong>{isZh ? "房源状态" : "Listing status"}</strong>
                 </div>
                 <div className="listing-studio-share-studio-status-grid">
                   {statusVariants.map((statusVariant) => {
@@ -516,7 +572,7 @@ export function ListingStudioShareStudioClient({
                         onClick={() => updateStatus(statusVariant.id)}
                         type="button"
                       >
-                        {statusVariant.label}
+                        {formatShareStudioLabel(statusVariant.label, isZh)}
                       </button>
                     );
                   })}
@@ -525,7 +581,7 @@ export function ListingStudioShareStudioClient({
 
               <div className="listing-studio-share-studio-section">
                 <div className="listing-studio-share-studio-section-head">
-                  <strong>Photos</strong>
+                  <strong>{isZh ? "照片" : "Photos"}</strong>
                 </div>
                 <div className="listing-studio-share-studio-photo-grid">
                   {photoAssets.map((asset) => {
@@ -556,7 +612,7 @@ export function ListingStudioShareStudioClient({
 
               <div className="listing-studio-share-studio-section">
                 <div className="listing-studio-share-studio-section-head">
-                  <strong>Export</strong>
+                  <strong>{isZh ? "导出" : "Export"}</strong>
                 </div>
                 <div className="listing-studio-share-studio-action-stack">
                   <button
@@ -566,7 +622,7 @@ export function ListingStudioShareStudioClient({
                     type="button"
                   >
                     <IconExternalLink />
-                    <span>Open live share</span>
+                    <span>{isZh ? "打开公开分享" : "Open live share"}</span>
                   </button>
                   <button
                     className="office-button-secondary"
@@ -575,7 +631,15 @@ export function ListingStudioShareStudioClient({
                     type="button"
                   >
                     <IconPrinter />
-                    <span>{isOpeningHtml ? "Opening..." : "Print preview"}</span>
+                    <span>
+                      {isOpeningHtml
+                        ? isZh
+                          ? "正在打开..."
+                          : "Opening..."
+                        : isZh
+                          ? "打印预览"
+                          : "Print preview"}
+                    </span>
                   </button>
                 </div>
               </div>

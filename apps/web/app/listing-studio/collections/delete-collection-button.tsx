@@ -4,6 +4,8 @@ import { ConfirmActionDialog } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { startTransition, useState } from "react";
 
+import { useI18n } from "../../../lib/i18n/client";
+
 type DeleteCollectionButtonProps = {
   collectionId: string;
   collectionName: string;
@@ -38,8 +40,12 @@ export function DeleteCollectionButton({
   onError = null,
 }: DeleteCollectionButtonProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const resolvedButtonLabel =
+    buttonLabel === "Delete collection" && isZh ? "删除清单" : buttonLabel;
 
   async function handleDelete() {
     if (isDeleting) {
@@ -60,7 +66,11 @@ export function DeleteCollectionButton({
         | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to delete the collection.");
+        throw new Error(
+          isZh
+            ? "无法删除清单。"
+            : payload?.error || "Unable to delete the collection.",
+        );
       }
 
       setIsDialogOpen(false);
@@ -70,7 +80,11 @@ export function DeleteCollectionButton({
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unable to delete the collection.";
+        isZh
+          ? "无法删除清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to delete the collection.";
 
       if (onError) {
         onError(message);
@@ -85,7 +99,7 @@ export function DeleteCollectionButton({
   return (
     <>
       <button
-        aria-label={`Delete ${collectionName}`}
+        aria-label={isZh ? `删除 ${collectionName}` : `Delete ${collectionName}`}
         className={buttonClassName ?? "office-button office-button-danger"}
         disabled={isDeleting}
         onClick={(event) => {
@@ -93,17 +107,29 @@ export function DeleteCollectionButton({
           event.stopPropagation();
           setIsDialogOpen(true);
         }}
-        title="Delete collection"
+        title={isZh ? "删除清单" : "Delete collection"}
         type="button"
       >
-        {iconOnly ? <IconTrash /> : buttonLabel}
+        {iconOnly ? <IconTrash /> : resolvedButtonLabel}
       </button>
 
       <ConfirmActionDialog
-        cancelLabel="Keep collection"
-        confirmLabel={isDeleting ? "Deleting..." : "Delete collection"}
+        cancelLabel={isZh ? "保留清单" : "Keep collection"}
+        confirmLabel={
+          isDeleting
+            ? isZh
+              ? "正在删除..."
+              : "Deleting..."
+            : isZh
+              ? "删除清单"
+              : "Delete collection"
+        }
         confirmVariant="danger"
-        description="This removes the collection and all of its saved listing memberships. The underlying listing packets will stay in Listing Studio."
+        description={
+          isZh
+            ? "这会移除该清单以及其中保存的房源关联，原始房源资料仍会保留在房源工作室。"
+            : "This removes the collection and all of its saved listing memberships. The underlying listing packets will stay in Listing Studio."
+        }
         isOpen={isDialogOpen}
         onCancel={() => {
           if (!isDeleting) {
@@ -113,9 +139,9 @@ export function DeleteCollectionButton({
         onConfirm={() => {
           void handleDelete();
         }}
-        title={`Delete ${collectionName}?`}
+        title={isZh ? `删除 ${collectionName}？` : `Delete ${collectionName}?`}
       >
-        <p>This action cannot be undone.</p>
+        <p>{isZh ? "此操作无法撤销。" : "This action cannot be undone."}</p>
       </ConfirmActionDialog>
     </>
   );

@@ -2,6 +2,8 @@
 
 import { type FocusEvent, useEffect, useId, useState } from "react";
 import { formatCurrency } from "../../../../lib/i18n/format";
+import { useI18n } from "../../../../lib/i18n/client";
+import { type LocaleCode } from "../../../../lib/i18n/config";
 
 type LabeledValue = {
   label: string;
@@ -59,11 +61,35 @@ function formatPercentInput(value: number) {
     .replace(/\.$/, "");
 }
 
-function formatMoney(value: number) {
-  return formatCurrency(value, "en-US", "USD", {
+function formatMoney(value: number, locale: LocaleCode = "en-US") {
+  return formatCurrency(value, locale, "USD", {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
   });
+}
+
+function formatMonthlyExpenseLabel(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  if (value === "HOA") {
+    return "HOA";
+  }
+
+  if (/maintenance/i.test(value)) {
+    return "维护费";
+  }
+
+  if (/common charges/i.test(value)) {
+    return "管理费";
+  }
+
+  if (/tax/i.test(value)) {
+    return "房产税";
+  }
+
+  return value;
 }
 
 function parsePriceFallback(priceLabel: string) {
@@ -155,6 +181,8 @@ function MortgageSummaryRow(props: {
 export function ListingStudioMortgageCalculator(
   props: ListingStudioMortgageCalculatorProps,
 ) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const combinedFacts = [...props.facts, ...props.sourceFacts];
   const commonCharges = findMonthlyExpense(
     combinedFacts,
@@ -327,17 +355,24 @@ export function ListingStudioMortgageCalculator(
   return (
     <>
       <section
-        aria-label="Monthly payment estimate"
+        aria-label={isZh ? "月供估算" : "Monthly payment estimate"}
         className="listing-studio-mortgage-callout"
       >
         <div className="listing-studio-mortgage-callout-copy">
-          <span>Estimated monthly payment</span>
-          <strong>{formatMoney(estimatedMonthlyPayment)}</strong>
+          <span>{isZh ? "预估每月支出" : "Estimated monthly payment"}</span>
+          <strong>{formatMoney(estimatedMonthlyPayment, locale)}</strong>
           <p>
-            Based on {formatPercentInput(downPaymentPercent)}% down, a{" "}
-            {loanTermYears}-year loan, and {formatPercentInput(interestRate)}%
-            interest. HOA, common charges, and taxes are included when available
-            from the imported listing.
+            {isZh
+              ? `按首付 ${formatPercentInput(
+                  downPaymentPercent,
+                )}%、${loanTermYears} 年贷款、${formatPercentInput(
+                  interestRate,
+                )}% 利率估算。若导入的房源资料包含 HOA、管理费或税费，也会一并计入。`
+              : `Based on ${formatPercentInput(
+                  downPaymentPercent,
+                )}% down, a ${loanTermYears}-year loan, and ${formatPercentInput(
+                  interestRate,
+                )}% interest. HOA, common charges, and taxes are included when available from the imported listing.`}
           </p>
         </div>
 
@@ -346,7 +381,7 @@ export function ListingStudioMortgageCalculator(
           onClick={() => setIsOpen(true)}
           type="button"
         >
-          Open calculator
+          {isZh ? "打开计算器" : "Open calculator"}
         </button>
       </section>
 
@@ -364,9 +399,15 @@ export function ListingStudioMortgageCalculator(
             role="dialog"
           >
             <header className="listing-studio-mortgage-modal-header">
-              <h3 id={dialogTitleId}>Monthly payment calculator</h3>
+              <h3 id={dialogTitleId}>
+                {isZh ? "月供计算器" : "Monthly payment calculator"}
+              </h3>
               <button
-                aria-label="Close monthly payment calculator"
+                aria-label={
+                  isZh
+                    ? "关闭月供计算器"
+                    : "Close monthly payment calculator"
+                }
                 className="listing-studio-mortgage-modal-close"
                 onClick={() => setIsOpen(false)}
                 type="button"
@@ -378,7 +419,7 @@ export function ListingStudioMortgageCalculator(
             <div className="listing-studio-mortgage-modal-body">
               <div className="listing-studio-mortgage-form-grid">
                 <label className="listing-studio-mortgage-field">
-                  <span>Home price</span>
+                  <span>{isZh ? "房价" : "Home price"}</span>
                   <input
                     inputMode="numeric"
                     onChange={(event) =>
@@ -393,7 +434,7 @@ export function ListingStudioMortgageCalculator(
 
                 <div className="listing-studio-mortgage-field-row">
                   <label className="listing-studio-mortgage-field">
-                    <span>Down payment</span>
+                    <span>{isZh ? "首付金额" : "Down payment"}</span>
                     <input
                       inputMode="numeric"
                       onChange={(event) =>
@@ -407,7 +448,7 @@ export function ListingStudioMortgageCalculator(
                   </label>
 
                   <label className="listing-studio-mortgage-field">
-                    <span>Down payment %</span>
+                    <span>{isZh ? "首付比例" : "Down payment %"}</span>
                     <input
                       inputMode="decimal"
                       onChange={(event) =>
@@ -422,7 +463,7 @@ export function ListingStudioMortgageCalculator(
                 </div>
 
                 <label className="listing-studio-mortgage-field">
-                  <span>Loan term</span>
+                  <span>{isZh ? "贷款年限" : "Loan term"}</span>
                   <select
                     onChange={(event) =>
                       setLoanTermYearsInput(event.target.value)
@@ -431,14 +472,14 @@ export function ListingStudioMortgageCalculator(
                   >
                     {LOAN_TERM_OPTIONS.map((term) => (
                       <option key={term} value={term}>
-                        {term} years
+                        {isZh ? `${term} 年` : `${term} years`}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="listing-studio-mortgage-field">
-                  <span>Interest rate</span>
+                  <span>{isZh ? "利率" : "Interest rate"}</span>
                   <input
                     inputMode="decimal"
                     onChange={(event) =>
@@ -454,43 +495,56 @@ export function ListingStudioMortgageCalculator(
 
               <div className="listing-studio-mortgage-summary-card">
                 <MortgageSummaryRow
-                  label="Mortgage amount"
-                  value={formatMoney(mortgageAmount)}
+                  label={isZh ? "贷款金额" : "Mortgage amount"}
+                  value={formatMoney(mortgageAmount, locale)}
                 />
                 <MortgageSummaryRow
-                  label="Mortgage payment"
-                  value={formatMoney(mortgagePayment)}
+                  label={isZh ? "月供本息" : "Mortgage payment"}
+                  value={formatMoney(mortgagePayment, locale)}
                 />
                 <MortgageSummaryRow
-                  helperText="Monthly building fees carried from the imported listing facts."
+                  helperText={
+                    isZh
+                      ? "从导入房源资料中带入的月度楼宇费用。"
+                      : "Monthly building fees carried from the imported listing facts."
+                  }
                   isMuted={commonCharges.amount === null}
-                  label={commonCharges.label}
+                  label={formatMonthlyExpenseLabel(commonCharges.label, isZh)}
                   value={
                     commonCharges.amount === null
-                      ? "Not provided"
-                      : formatMoney(commonCharges.amount)
+                      ? isZh
+                        ? "未提供"
+                        : "Not provided"
+                      : formatMoney(commonCharges.amount, locale)
                   }
                 />
                 <MortgageSummaryRow
-                  helperText="Monthly property taxes captured from the source listing when available."
+                  helperText={
+                    isZh
+                      ? "如源房源中有月度房产税，会显示在这里。"
+                      : "Monthly property taxes captured from the source listing when available."
+                  }
                   isMuted={taxes.amount === null}
-                  label={taxes.label}
+                  label={formatMonthlyExpenseLabel(taxes.label, isZh)}
                   value={
                     taxes.amount === null
-                      ? "Not provided"
-                      : formatMoney(taxes.amount)
+                      ? isZh
+                        ? "未提供"
+                        : "Not provided"
+                      : formatMoney(taxes.amount, locale)
                   }
                 />
 
                 <div className="listing-studio-mortgage-disclaimer">
                   <p>
-                    These figures are estimates for planning only. Mortgage
-                    payment includes principal and interest. Insurance, closing
-                    costs, utilities, and lender-specific fees are not included.
+                    {isZh
+                      ? "这些数字仅供规划参考。月供包含本金和利息，不包含保险、成交费用、水电杂费或贷款机构的额外费用。"
+                      : "These figures are estimates for planning only. Mortgage payment includes principal and interest. Insurance, closing costs, utilities, and lender-specific fees are not included."}
                   </p>
                   <p>
-                    Adjust the rate, down payment, and loan term above to model
-                    different monthly payment scenarios for this listing.
+                    {isZh
+                      ? "可以调整上方利率、首付和贷款年限，比较这套房源的不同月供方案。"
+                      : "Adjust the rate, down payment, and loan term above to model different monthly payment scenarios for this listing."}
                   </p>
                 </div>
               </div>
@@ -498,8 +552,8 @@ export function ListingStudioMortgageCalculator(
 
             <footer className="listing-studio-mortgage-modal-footer">
               <div>
-                <span>Estimated monthly payment</span>
-                <strong>{formatMoney(estimatedMonthlyPayment)}</strong>
+                <span>{isZh ? "预估每月支出" : "Estimated monthly payment"}</span>
+                <strong>{formatMoney(estimatedMonthlyPayment, locale)}</strong>
               </div>
             </footer>
           </section>

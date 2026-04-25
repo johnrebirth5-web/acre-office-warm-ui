@@ -2,6 +2,8 @@ import { getStudioListingPublicPack } from "@acre/db";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { formatDate } from "../../../../lib/i18n/format";
+import { type LocaleCode } from "../../../../lib/i18n/config";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import {
   consumePublicTokenRateLimit,
   PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
@@ -12,14 +14,14 @@ type ListingStudioPublicSharePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function formatLegacyShareRetirementDate(value: Date) {
+function formatLegacyShareRetirementDate(value: Date, locale: LocaleCode) {
   return (
-    formatDate(value, "en-US", {
+    formatDate(value, locale, {
       month: "long",
       day: "numeric",
       year: "numeric",
     }) ||
-    value.toLocaleDateString("en-US", {
+    value.toLocaleDateString(locale, {
       month: "long",
       day: "numeric",
       year: "numeric",
@@ -27,9 +29,38 @@ function formatLegacyShareRetirementDate(value: Date) {
   );
 }
 
+function formatPublicListingText(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  return value
+    .replace(/\bBedrooms?\b/gi, "卧室")
+    .replace(/\bBathrooms?\b/gi, "卫浴")
+    .replace(/\bBeds?\b/gi, "卧室")
+    .replace(/\bBaths?\b/gi, "卫浴")
+    .replace(/\bSqft\b/gi, "面积")
+    .replace(/\bSq\.?\s?Ft\.?\b/gi, "平方英尺")
+    .replace(/\bProperty type\b/gi, "物业类型")
+    .replace(/\bYear built\b/gi, "建造年份")
+    .replace(/\bList date\b/gi, "挂牌日期")
+    .replace(/\bCommon charges\b/gi, "管理费")
+    .replace(/\bTaxes\b/gi, "房产税")
+    .replace(/\bTransit details captured\b/gi, "已采集交通信息")
+    .replace(/\bAmenities\b/gi, "设施")
+    .replace(/\bServices & Facilities\b/gi, "服务与配套")
+    .replace(/\bWellness & Recreation\b/gi, "健身与休闲")
+    .replace(/\bShared Outdoor Space\b/gi, "共享户外空间")
+    .replace(/\bFamily & Pets\b/gi, "家庭与宠物")
+    .replace(/\bUnit \/ Apartment Amenities\b/gi, "户内设施")
+    .replace(/\bViews \/ Exposure\b/gi, "景观与朝向");
+}
+
 export default async function ListingStudioPublicSharePage(
   props: ListingStudioPublicSharePageProps,
 ) {
+  const { locale } = await getServerI18n();
+  const isZh = locale === "zh-CN";
   const { code } = await props.params;
   const searchParams = (await props.searchParams) ?? {};
   const viewerFingerprint =
@@ -66,20 +97,25 @@ export default async function ListingStudioPublicSharePage(
         {snapshot.usesLegacyShareCode && snapshot.legacyShareCodeExpiresAt ? (
           <div className="public-share-legacy-notice" role="status">
             <p>
-              This link will be retired on{" "}
+              {isZh ? "此链接将在 " : "This link will be retired on "}
               <strong>
                 {formatLegacyShareRetirementDate(
                   snapshot.legacyShareCodeExpiresAt,
+                  locale,
                 )}
               </strong>
-              . Please ask the sender for an updated link.
+              {isZh
+                ? " 停用。请向发送人索取新的链接。"
+                : ". Please ask the sender for an updated link."}
             </p>
           </div>
         ) : null}
 
         <section className="listing-studio-share-hero">
           <div className="listing-studio-share-copy">
-            <span className="office-eyebrow">Acre listing</span>
+            <span className="office-eyebrow">
+              {isZh ? "Acre 房源" : "Acre listing"}
+            </span>
             <h1>{snapshot.headline}</h1>
             <p>{snapshot.summary}</p>
             <div className="listing-studio-share-price">{snapshot.priceLabel}</div>
@@ -101,8 +137,8 @@ export default async function ListingStudioPublicSharePage(
         <section className="listing-studio-share-facts">
           {snapshot.facts.map((fact) => (
             <div className="listing-studio-fact-card" key={fact.label}>
-              <span>{fact.label}</span>
-              <strong>{fact.value}</strong>
+              <span>{formatPublicListingText(fact.label, isZh)}</span>
+              <strong>{formatPublicListingText(fact.value, isZh)}</strong>
             </div>
           ))}
         </section>
@@ -122,7 +158,7 @@ export default async function ListingStudioPublicSharePage(
 
         <section className="listing-studio-share-sections">
           <div className="listing-studio-share-section">
-            <h2>Listing overview</h2>
+            <h2>{isZh ? "房源概览" : "Listing overview"}</h2>
             {snapshot.descriptionText ? <p>{snapshot.descriptionText}</p> : null}
             {snapshot.agentNote ? (
               <blockquote>{snapshot.agentNote}</blockquote>
@@ -131,12 +167,12 @@ export default async function ListingStudioPublicSharePage(
 
           {snapshot.sourceFacts.length ? (
             <div className="listing-studio-share-section">
-              <h2>Source facts</h2>
+              <h2>{isZh ? "原始房源信息" : "Source facts"}</h2>
               <div className="listing-studio-keyvalue-grid">
                 {snapshot.sourceFacts.map((item) => (
                   <div className="listing-studio-keyvalue-card" key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
+                    <span>{formatPublicListingText(item.label, isZh)}</span>
+                    <strong>{formatPublicListingText(item.value, isZh)}</strong>
                   </div>
                 ))}
               </div>
@@ -145,14 +181,14 @@ export default async function ListingStudioPublicSharePage(
 
           {snapshot.amenities.length ? (
             <div className="listing-studio-share-section">
-              <h2>Amenities</h2>
+              <h2>{isZh ? "设施" : "Amenities"}</h2>
               {snapshot.amenities.map((section) => (
                 <div className="listing-studio-pill-group" key={section.title}>
-                  <strong>{section.title}</strong>
+                  <strong>{formatPublicListingText(section.title, isZh)}</strong>
                   <div className="listing-studio-pill-row">
                     {section.items.map((item) => (
                       <span className="listing-studio-pill" key={item}>
-                        {item}
+                        {formatPublicListingText(item, isZh)}
                       </span>
                     ))}
                   </div>
@@ -163,7 +199,7 @@ export default async function ListingStudioPublicSharePage(
 
           {snapshot.transit.length ? (
             <div className="listing-studio-share-section">
-              <h2>Transit</h2>
+              <h2>{isZh ? "交通" : "Transit"}</h2>
               <div className="listing-studio-transit-list">
                 {snapshot.transit.map((item) => (
                   <div
@@ -171,7 +207,12 @@ export default async function ListingStudioPublicSharePage(
                     key={`${item.label}-${item.distanceLabel ?? ""}`}
                   >
                     <strong>{item.label}</strong>
-                    <span>{item.detail ?? "Transit details captured"}</span>
+                    <span>
+                      {formatPublicListingText(
+                        item.detail ?? "Transit details captured",
+                        isZh,
+                      )}
+                    </span>
                     {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
                   </div>
                 ))}
@@ -181,7 +222,7 @@ export default async function ListingStudioPublicSharePage(
 
           {snapshot.propertyHistory.length ? (
             <div className="listing-studio-share-section">
-              <h2>History</h2>
+              <h2>{isZh ? "历史记录" : "History"}</h2>
               <div className="listing-studio-detail-section-list">
                 {snapshot.propertyHistory.map((section) => (
                   <div className="listing-studio-detail-section-block" key={section.title}>
@@ -199,7 +240,7 @@ export default async function ListingStudioPublicSharePage(
 
           {snapshot.capturedSections.length ? (
             <div className="listing-studio-share-section">
-              <h2>Additional details</h2>
+              <h2>{isZh ? "更多详情" : "Additional details"}</h2>
               <div className="listing-studio-detail-section-list">
                 {snapshot.capturedSections.map((section) => (
                   <div className="listing-studio-detail-section-block" key={section.title}>
@@ -224,11 +265,15 @@ export default async function ListingStudioPublicSharePage(
             {snapshot.contact.email ? <span>{snapshot.contact.email}</span> : null}
           </div>
           <div className="listing-studio-share-footer-meta">
-            <span>Source: {snapshot.sourceSite}</span>
+            <span>
+              {isZh ? `来源：${snapshot.sourceSite}` : `Source: ${snapshot.sourceSite}`}
+            </span>
             <a href={snapshot.sourceUrl} rel="noreferrer" target="_blank">
-              View original listing
+              {isZh ? "查看原始房源" : "View original listing"}
             </a>
-            <span>Captured {snapshot.capturedAtLabel}</span>
+            <span>
+              {isZh ? `采集于 ${snapshot.capturedAtLabel}` : `Captured ${snapshot.capturedAtLabel}`}
+            </span>
           </div>
         </footer>
       </div>

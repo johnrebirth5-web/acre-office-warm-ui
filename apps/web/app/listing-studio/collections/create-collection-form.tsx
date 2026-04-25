@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+import { useI18n } from "../../../lib/i18n/client";
+
 type CreateCollectionResponse =
   | {
       collection?: { id: string; name: string };
@@ -12,6 +14,8 @@ type CreateCollectionResponse =
 
 export function CreateCollectionForm() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -39,7 +43,9 @@ export function CreateCollectionForm() {
 
       if (!response.ok || !payload?.collection?.id) {
         throw new Error(
-          payload?.error || "Unable to create the collection.",
+          isZh
+            ? "无法创建清单。"
+            : payload?.error || "Unable to create the collection.",
         );
       }
 
@@ -47,7 +53,11 @@ export function CreateCollectionForm() {
       router.refresh();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unable to create the collection.",
+        isZh
+          ? "无法创建清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to create the collection.",
       );
     } finally {
       setIsSaving(false);
@@ -57,10 +67,14 @@ export function CreateCollectionForm() {
   return (
     <form className="listing-studio-create-collection-form" onSubmit={handleSubmit}>
       <label className="listing-studio-shell-search">
-        <span>Create a new collection</span>
+        <span>{isZh ? "创建新清单" : "Create a new collection"}</span>
         <input
           onChange={(event) => setName(event.target.value)}
-          placeholder="For Kyung, LIC tour, Waterfront shortlist..."
+          placeholder={
+            isZh
+              ? "例如：Kyung 客户、LIC 看房、滨水候选..."
+              : "For Kyung, LIC tour, Waterfront shortlist..."
+          }
           value={name}
         />
       </label>
@@ -70,7 +84,13 @@ export function CreateCollectionForm() {
         disabled={!name.trim() || isSaving}
         type="submit"
       >
-        {isSaving ? "Creating..." : "Create collection"}
+        {isSaving
+          ? isZh
+            ? "正在创建..."
+            : "Creating..."
+          : isZh
+            ? "创建清单"
+            : "Create collection"}
       </button>
 
       {errorMessage ? (

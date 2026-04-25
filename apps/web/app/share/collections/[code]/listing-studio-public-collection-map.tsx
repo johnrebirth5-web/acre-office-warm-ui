@@ -3,6 +3,8 @@
 import type { StudioListingPublicCollectionSnapshot } from "@acre/db";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useI18n } from "../../../../lib/i18n/client";
+
 type PublicCollectionListing =
   StudioListingPublicCollectionSnapshot["listings"][number];
 
@@ -238,6 +240,7 @@ function createListingMarker(
   googleMaps: any,
   map: any,
   group: CoordinateGroup,
+  isZh: boolean,
 ) {
   return new googleMaps.maps.Marker({
     map,
@@ -253,7 +256,9 @@ function createListingMarker(
     },
     title:
       group.listings.length > 1
-        ? `${group.listings.length} properties at this location`
+        ? isZh
+          ? `这里有 ${group.listings.length} 套房源`
+          : `${group.listings.length} properties at this location`
         : group.listings[0]?.displayTitle || group.listings[0]?.addressLine,
     icon: {
       path: googleMaps.maps.SymbolPath.CIRCLE,
@@ -269,6 +274,7 @@ function createListingMarker(
 function createInfoWindowContent(
   group: CoordinateGroup,
   onOpenListing: (packId: string) => void,
+  isZh: boolean,
 ) {
   const root = document.createElement("div");
   root.className = "listing-studio-collection-share-map-popover";
@@ -276,8 +282,12 @@ function createInfoWindowContent(
   const eyebrow = document.createElement("span");
   eyebrow.textContent =
     group.listings.length > 1
-      ? `${group.listings.length} properties here`
-      : `Property ${(group.listings[0]?.collectionIndex ?? 0) + 1}`;
+      ? isZh
+        ? `这里有 ${group.listings.length} 套房源`
+        : `${group.listings.length} properties here`
+      : isZh
+        ? `房源 ${(group.listings[0]?.collectionIndex ?? 0) + 1}`
+        : `Property ${(group.listings[0]?.collectionIndex ?? 0) + 1}`;
   root.appendChild(eyebrow);
 
   const title = document.createElement("strong");
@@ -306,8 +316,9 @@ function createInfoWindowContent(
 function ListingStudioKeylessCollectionMap(props: {
   listings: MapListing[];
   onOpenListing: (packId: string) => void;
+  isZh: boolean;
 }) {
-  const { listings, onOpenListing } = props;
+  const { listings, onOpenListing, isZh } = props;
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<MapViewport>(
     DEFAULT_KEYLESS_MAP_VIEWPORT,
@@ -350,7 +361,11 @@ function ListingStudioKeylessCollectionMap(props: {
 
   return (
     <div
-      aria-label="Map preview showing the selected properties"
+      aria-label={
+        isZh
+          ? "所选房源的地图预览"
+          : "Map preview showing the selected properties"
+      }
       className="listing-studio-collection-share-map-canvas listing-studio-collection-share-map-tiles"
       ref={mapRef}
     >
@@ -372,8 +387,12 @@ function ListingStudioKeylessCollectionMap(props: {
         <button
           aria-label={
             group.listings.length > 1
-              ? `View ${group.listings.length} properties at this location`
-              : `View ${group.listings[0]?.displayTitle || group.listings[0]?.addressLine}`
+              ? isZh
+                ? `查看这里的 ${group.listings.length} 套房源`
+                : `View ${group.listings.length} properties at this location`
+              : isZh
+                ? `查看 ${group.listings[0]?.displayTitle || group.listings[0]?.addressLine}`
+                : `View ${group.listings[0]?.displayTitle || group.listings[0]?.addressLine}`
           }
           className={
             group.listings.length > 1
@@ -412,7 +431,11 @@ function ListingStudioKeylessCollectionMap(props: {
             top: activeMarker.top,
           }}
         >
-          <strong>{activeMarker.group.listings.length} properties here</strong>
+          <strong>
+            {isZh
+              ? `这里有 ${activeMarker.group.listings.length} 套房源`
+              : `${activeMarker.group.listings.length} properties here`}
+          </strong>
           {activeMarker.group.listings.map((listing) => (
             <button
               key={listing.packId}
@@ -442,6 +465,8 @@ export function ListingStudioPublicCollectionMap({
   listings,
   onOpenListing,
 }: ListingStudioPublicCollectionMapProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const mapRootRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const listingMarkersRef = useRef<any[]>([]);
@@ -470,7 +495,9 @@ export function ListingStudioPublicCollectionMap({
 
   const listingsWithoutCoordinates = listings.length - mappedListings.length;
   const canRenderKeylessMap = mappedListings.length > 0;
-  const fallbackMessage = "No saved coordinates were found for these listings yet.";
+  const fallbackMessage = isZh
+    ? "这些房源还没有保存坐标，暂时无法生成地图。"
+    : "No saved coordinates were found for these listings yet.";
 
   const mapSignature = useMemo(
     () =>
@@ -537,10 +564,13 @@ export function ListingStudioPublicCollectionMap({
             googleMaps,
             map,
             group,
+            isZh,
           );
           marker.addListener("click", () => {
-            const content = createInfoWindowContent(group, (packId) =>
-              onOpenListingRef.current(packId),
+            const content = createInfoWindowContent(
+              group,
+              (packId) => onOpenListingRef.current(packId),
+              isZh,
             );
             infoWindowRef.current.setContent(content);
             infoWindowRef.current.open({
@@ -564,8 +594,12 @@ export function ListingStudioPublicCollectionMap({
         if (!isCancelled) {
           setMapError(
             error instanceof Error
-              ? error.message
-              : "Unable to load the collection map.",
+              ? isZh
+                ? "地图暂时加载失败。"
+                : error.message
+              : isZh
+                ? "地图暂时加载失败。"
+                : "Unable to load the collection map.",
           );
         }
       }
@@ -578,19 +612,23 @@ export function ListingStudioPublicCollectionMap({
       listingMarkersRef.current.forEach((marker) => marker.setMap(null));
       listingMarkersRef.current = [];
     };
-  }, [apiKey, mapSignature, mappedListings]);
+  }, [apiKey, isZh, mapSignature, mappedListings]);
 
   return (
     <section className="listing-studio-collection-share-map" id="map">
       <header className="listing-studio-collection-share-map-head">
-        <span>Map View</span>
-        <h2>Where the properties are</h2>
+        <span>{isZh ? "地图视图" : "Map View"}</span>
+        <h2>{isZh ? "房源分布位置" : "Where the properties are"}</h2>
         <p>
-          A quick read on the neighborhood spread across this collection.
+          {isZh
+            ? "快速查看这组房源在不同街区之间的分布。"
+            : "A quick read on the neighborhood spread across this collection."}
           {listingsWithoutCoordinates > 0
-            ? ` ${listingsWithoutCoordinates} listing${
-                listingsWithoutCoordinates === 1 ? "" : "s"
-              } could not be pinned yet.`
+            ? isZh
+              ? ` 还有 ${listingsWithoutCoordinates} 套房源暂时无法定位。`
+              : ` ${listingsWithoutCoordinates} listing${
+                  listingsWithoutCoordinates === 1 ? "" : "s"
+                } could not be pinned yet.`
             : ""}
         </p>
       </header>
@@ -598,18 +636,21 @@ export function ListingStudioPublicCollectionMap({
       <div className="listing-studio-collection-share-map-frame">
         {apiKey && mappedListings.length && !mapError ? (
           <div
-            aria-label="Map showing the selected properties"
+            aria-label={
+              isZh ? "所选房源地图" : "Map showing the selected properties"
+            }
             className="listing-studio-collection-share-map-canvas"
             ref={mapRootRef}
           />
         ) : canRenderKeylessMap ? (
           <ListingStudioKeylessCollectionMap
+            isZh={isZh}
             listings={mappedListings}
             onOpenListing={onOpenListing}
           />
         ) : (
           <div className="listing-studio-collection-share-map-fallback">
-            <strong>Map unavailable</strong>
+            <strong>{isZh ? "地图暂不可用" : "Map unavailable"}</strong>
             <p>{mapError || fallbackMessage}</p>
           </div>
         )}

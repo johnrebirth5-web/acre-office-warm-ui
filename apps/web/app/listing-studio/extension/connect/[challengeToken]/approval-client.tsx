@@ -3,12 +3,15 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@acre/ui";
+import { useI18n } from "../../../../../lib/i18n/client";
 
 const RETURN_TO_LISTINGS_DELAY_MS = 1200;
 
 export function ListingStudioExtensionApprovalClient(props: {
   challengeToken: string;
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [status, setStatus] = useState<"idle" | "submitting" | "approved" | "error">("idle");
   const [message, setMessage] = useState("");
   const hasAttemptedRef = useRef(false);
@@ -48,11 +51,15 @@ export function ListingStudioExtensionApprovalClient(props: {
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Approval failed.");
+          throw new Error(isZh ? "授权失败。" : body?.error || "Approval failed.");
         }
 
         setStatus("approved");
-        setMessage("Extension approved. Returning to Listing Studio...");
+        setMessage(
+          isZh
+            ? "扩展已授权，正在返回房源工作室..."
+            : "Extension approved. Returning to Listing Studio...",
+        );
         try {
           window.localStorage.setItem(
             "acre-listing-studio-extension-approved-at",
@@ -62,7 +69,13 @@ export function ListingStudioExtensionApprovalClient(props: {
         scheduleListingsReturn();
       } catch (error) {
         setStatus("error");
-        setMessage(error instanceof Error ? error.message : "Approval failed.");
+        setMessage(
+          isZh
+            ? "授权失败。"
+            : error instanceof Error
+              ? error.message
+              : "Approval failed.",
+        );
       }
     });
   }
@@ -85,7 +98,17 @@ export function ListingStudioExtensionApprovalClient(props: {
   return (
     <div className="listing-studio-approval-actions">
       <Button onClick={approve} variant="primary">
-        {status === "submitting" ? "Approving..." : status === "approved" ? "Approved" : "Approve extension"}
+        {status === "submitting"
+          ? isZh
+            ? "正在授权..."
+            : "Approving..."
+          : status === "approved"
+            ? isZh
+              ? "已授权"
+              : "Approved"
+            : isZh
+              ? "授权扩展"
+              : "Approve extension"}
       </Button>
       {message ? <p className="listing-studio-status-message">{message}</p> : null}
     </div>

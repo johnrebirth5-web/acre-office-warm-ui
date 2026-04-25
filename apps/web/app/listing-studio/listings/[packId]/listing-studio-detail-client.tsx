@@ -10,6 +10,7 @@ import {
   TextareaInput,
   TextInput,
 } from "@acre/ui";
+import { useI18n } from "../../../../lib/i18n/client";
 import { StudioCollectionPicker } from "../../studio-collection-picker";
 import { ListingStudioMortgageCalculator } from "./listing-studio-mortgage-calculator";
 
@@ -115,6 +116,154 @@ const PROPERTY_TYPE_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = ["Active", "Off market", "Pending", "Rented", "Sold"];
+
+const AMENITY_ZH_LABELS: Record<string, string> = {
+  servicesandfacilities: "服务与配套",
+  wellnessandrecreation: "健身与休闲",
+  sharedoutdoorspace: "共享户外空间",
+  familypets: "家庭与宠物",
+  unitapartmentamenities: "户内设施",
+  viewsexposure: "景观与朝向",
+  highlighttags: "亮点标签",
+  bikeroom: "自行车房",
+  bikestorage: "自行车存放",
+  bicyclestorage: "自行车存放",
+  concierge: "礼宾服务",
+  doorman: "门卫",
+  virtualdoorman: "虚拟门卫",
+  videodoorman: "视频门卫",
+  elevator: "电梯",
+  packageroom: "包裹室",
+  smartpackageroom: "智能包裹室",
+  laundryinbuilding: "楼内洗衣房",
+  laundryroom: "洗衣房",
+  storage: "储物空间",
+  storageavailable: "可用储物空间",
+  tenantstorage: "租户储物空间",
+  coldstorage: "冷藏储物",
+  lockercagestorage: "储物柜",
+  liveinsuper: "驻楼管理员",
+  superlivesinbuilding: "驻楼管理员",
+  garageparking: "车库停车",
+  garage: "车库",
+  parking: "停车位",
+  parkingavailable: "可用停车位",
+  assignedparking: "固定车位",
+  valetparking: "代客泊车",
+  coveredparking: "有顶车位",
+  attendedparking: "有人值守停车",
+  wheelchairaccess: "无障碍通行",
+  accessibleentrance: "无障碍入口",
+  smokefree: "无烟环境",
+  securityguard: "安保人员",
+  securitycameras: "安防摄像",
+  gatedaccess: "门禁入口",
+  intercom: "对讲系统",
+  videointercom: "视频对讲",
+  keylessentry: "无钥匙进入",
+  gym: "健身房",
+  fitnesscenter: "健身中心",
+  gymnasium: "健身馆",
+  yogaroom: "瑜伽室",
+  yogastudio: "瑜伽室",
+  yogadancestudio: "瑜伽/舞蹈室",
+  pilatesstudio: "普拉提室",
+  crossfitroom: "CrossFit 训练室",
+  swimmingpool: "泳池",
+  indoorpool: "室内泳池",
+  outdoorpool: "室外泳池",
+  sauna: "桑拿房",
+  steamroom: "蒸汽房",
+  spa: "水疗区",
+  hottub: "热水池",
+  coldplunge: "冷水池",
+  mediaroom: "影音室",
+  screeningroom: "放映室",
+  theaterroom: "影音厅",
+  gameroom: "游戏室",
+  billiardsroom: "台球室",
+  residentlounge: "住户休息室",
+  lounge: "休息室",
+  library: "图书室",
+  coworkingspace: "共享办公空间",
+  coworkinglounge: "共享办公休息区",
+  businesscenter: "商务中心",
+  conferenceroom: "会议室",
+  golfsimulator: "高尔夫模拟器",
+  golfroom: "高尔夫室",
+  musicroom: "音乐室",
+  studyroom: "学习室",
+  skylounge: "空中休息室",
+  roofdeck: "屋顶露台",
+  rooftop: "屋顶平台",
+  deck: "露台",
+  terrace: "露台",
+  patio: "庭院",
+  courtyard: "内庭",
+  garden: "花园",
+  zengarden: "禅意花园",
+  wellnessgarden: "健康花园",
+  sharedbackyard: "共享后院",
+  outdoorlounge: "户外休息区",
+  bbqarea: "烧烤区",
+  bbqgrills: "烧烤炉",
+  outdoorkitchen: "户外厨房",
+  sundeck: "日光平台",
+  outdooryogalawn: "户外瑜伽草坪",
+  childrensplayroom: "儿童活动室",
+  kidsroom: "儿童房",
+  playground: "游乐区",
+  dogrun: "遛狗区",
+  dogpark: "犬只活动区",
+  petspa: "宠物护理区",
+  dogspa: "犬只护理区",
+  dogwashingstation: "宠物清洗站",
+  petfriendly: "允许宠物",
+  petsallowed: "允许宠物",
+  washerdryer: "洗衣机/烘干机",
+  washerdryerinunit: "户内洗衣机/烘干机",
+  inunitwasherdryer: "户内洗衣机/烘干机",
+  washeranddryer: "洗衣机和烘干机",
+  washeranddryerinunit: "户内洗衣机和烘干机",
+  sharedlaundry: "共享洗衣房",
+  laundryinunit: "户内洗衣",
+  dishwasher: "洗碗机",
+  microwave: "微波炉",
+  refrigerator: "冰箱",
+  stainlesssteelappliances: "不锈钢家电",
+  gasrange: "燃气灶",
+  electricrange: "电炉",
+  garbagedisposal: "厨余处理器",
+  chefskitchen: "厨师厨房",
+  kitchenisland: "厨房岛台",
+  centralair: "中央空调",
+  centralairconditioning: "中央空调",
+  splitunitheating: "分体供暖",
+  splitunitcooling: "分体制冷",
+  splitunitheatac: "分体冷暖空调",
+  individualacunits: "独立空调",
+  heating: "供暖",
+  airconditioning: "空调",
+  hardwoodfloors: "木地板",
+  highceilings: "高天花板",
+  floortoceilingwindows: "落地窗",
+  largewindows: "大窗",
+  walkincloset: "步入式衣帽间",
+  abundantclosets: "充足衣柜",
+  privateoutdoorspace: "私人户外空间",
+  balcony: "阳台",
+  terraceprivate: "私人露台",
+  patioprivate: "私人庭院",
+  verizonfios: "Verizon Fios",
+  highspeedinternet: "高速网络",
+  cableready: "有线电视就绪",
+  smartcontrols: "智能控制",
+  cityview: "城市景观",
+  skylineview: "天际线景观",
+  waterview: "水景",
+  parkview: "公园景观",
+  gardenview: "花园景观",
+};
 
 const AMENITY_CATALOG: AmenityCatalogSection[] = [
   {
@@ -989,6 +1138,7 @@ function renderPrimaryFactIcon(label: string) {
 function ListingStudioDisclosure(props: {
   children: ReactNode;
   description: string;
+  expandLabel?: string;
   title: string;
 }) {
   return (
@@ -998,7 +1148,9 @@ function ListingStudioDisclosure(props: {
           <strong>{props.title}</strong>
           <span>{props.description}</span>
         </div>
-        <span className="listing-studio-disclosure-toggle">Expand</span>
+        <span className="listing-studio-disclosure-toggle">
+          {props.expandLabel ?? "Expand"}
+        </span>
       </summary>
       <div className="listing-studio-disclosure-body">{props.children}</div>
     </details>
@@ -1049,6 +1201,72 @@ function formatAmenityLabel(value: string) {
     .replace(/\bHoa\b/g, "HOA")
     .replace(/\bNy\b/g, "NY")
     .replace(/\bAnd\b/g, "&");
+}
+
+function formatAmenityLabelForLocale(value: string, isZh: boolean) {
+  const formatted = formatAmenityLabel(value);
+  if (!isZh) {
+    return formatted;
+  }
+
+  const key = formatted.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return AMENITY_ZH_LABELS[key] ?? formatted;
+}
+
+function formatListingDetailText(value: string | null | undefined, isZh: boolean) {
+  if (!value || !isZh) {
+    return value ?? "";
+  }
+
+  return value
+    .replace(/\bFor rent\b/gi, "出租")
+    .replace(/\bFor sale\b/gi, "出售")
+    .replace(/\bSaved listing\b/gi, "已保存房源")
+    .replace(/\bBedrooms?\b/gi, "卧室")
+    .replace(/\bBathrooms?\b/gi, "卫浴")
+    .replace(/\bBeds?\b/gi, "卧室")
+    .replace(/\bBaths?\b/gi, "卫浴")
+    .replace(/\bSqft\b/gi, "面积")
+    .replace(/\bSq\.?\s?Ft\.?\b/gi, "平方英尺")
+    .replace(/\bSquare Feet\b/gi, "平方英尺")
+    .replace(/\bAvailability\b/gi, "可入住时间")
+    .replace(/\bCommon charges\b/gi, "管理费")
+    .replace(/\bTaxes\b/gi, "房产税")
+    .replace(/\bAvailable now\b/gi, "随时可入住")
+    .replace(/\bAvailable\b/gi, "可入住")
+    .replace(/\bActive\b/gi, "在售")
+    .replace(/\bOff market\b/gi, "未公开")
+    .replace(/\bPending\b/gi, "待成交")
+    .replace(/\bRented\b/gi, "已出租")
+    .replace(/\bSold\b/gi, "已售出")
+    .replace(/(\d+)\s*min(?:ute)?s?\s*walk/gi, "步行 $1 分钟")
+    .replace(/(\d+)\s*min(?:ute)?s?/gi, "$1 分钟")
+    .replace(/(\d+)\s*stations?/gi, "$1 个车站")
+    .replace(/\bwithin\s+1km\b/gi, "1 公里内")
+    .replace(/\bwithin\s+500m\b/gi, "500 米内");
+}
+
+function formatPropertyTypeOption(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  const labels: Record<string, string> = {
+    "Rental unit": "出租单元",
+    Condo: "公寓产权",
+    "Co-op": "合作公寓",
+    Apartment: "公寓",
+    Townhouse: "联排别墅",
+    "Multi-family": "多户住宅",
+    Loft: "Loft",
+    House: "独栋住宅",
+  };
+
+  return labels[value] ?? value;
+}
+
+function formatStatusOption(value: string, isZh: boolean) {
+  return formatListingDetailText(value, isZh);
 }
 
 function normalizeDateInput(value: string | null) {
@@ -1446,6 +1664,8 @@ export function ListingStudioDetailClient({
   mode = "detail",
 }: ListingStudioDetailClientProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const editorScrollRef = useRef<HTMLDivElement | null>(null);
   const [detailState, setDetailState] = useState(detail);
@@ -1493,12 +1713,17 @@ export function ListingStudioDetailClient({
     floorPlanAsset?.mimeType ?? null,
   );
   const floorPlanLabel =
-    floorPlanAsset?.label ?? detailState.floorPlans[0]?.label ?? "Floor plan";
+    floorPlanAsset?.label ??
+    detailState.floorPlans[0]?.label ??
+    (isZh ? "户型图" : "Floor plan");
   const mapEmbedUrl = useMemo(
     () => buildMapEmbedUrl(detailState),
     [detailState],
   );
-  const statusPill = getListingStateLabel(detailState);
+  const statusPill = formatListingDetailText(
+    getListingStateLabel(detailState),
+    isZh,
+  );
   const headerEyebrow = getHeaderEyebrow(detailState);
   const primaryFactCards = useMemo(
     () => buildPrimaryFactCards(detailState),
@@ -1778,9 +2003,9 @@ export function ListingStudioDetailClient({
     try {
       await navigator.clipboard.writeText(nextCopyValue);
       setIsAddressCopied(true);
-      setStatusMessage("Address copied.");
+      setStatusMessage(isZh ? "地址已复制。" : "Address copied.");
     } catch {
-      setStatusMessage("Unable to copy the address.");
+      setStatusMessage(isZh ? "无法复制地址。" : "Unable to copy the address.");
     }
   }
 
@@ -1855,16 +2080,22 @@ export function ListingStudioDetailClient({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || "Unable to upload media.");
+        throw new Error(
+          isZh ? "无法上传媒体。" : body?.error || "Unable to upload media.",
+        );
       }
 
       const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
       syncDetailState(nextDetail);
       syncEditorPhotos(nextDetail);
-      setStatusMessage("Media uploaded.");
+      setStatusMessage(isZh ? "媒体已上传。" : "Media uploaded.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to upload media.",
+        isZh
+          ? "无法上传媒体。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to upload media.",
       );
     } finally {
       setIsUploadingAssets(false);
@@ -1895,16 +2126,22 @@ export function ListingStudioDetailClient({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || "Unable to delete media.");
+        throw new Error(
+          isZh ? "无法删除媒体。" : body?.error || "Unable to delete media.",
+        );
       }
 
       const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
       syncDetailState(nextDetail);
       syncEditorPhotos(nextDetail);
-      setStatusMessage("Media removed.");
+      setStatusMessage(isZh ? "媒体已移除。" : "Media removed.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to delete media.",
+        isZh
+          ? "无法删除媒体。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to delete media.",
       );
     } finally {
       setDeletingAssetId(null);
@@ -1991,13 +2228,15 @@ export function ListingStudioDetailClient({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || "Unable to save the listing.");
+        throw new Error(
+          isZh ? "无法保存房源。" : body?.error || "Unable to save the listing.",
+        );
       }
 
       const nextDetail = (await response.json()) as StudioListingDetailSnapshot;
       syncDetailState(nextDetail);
       setEditorState(buildEditorState(nextDetail));
-      setStatusMessage("Listing changes saved.");
+      setStatusMessage(isZh ? "房源修改已保存。" : "Listing changes saved.");
 
       if (options?.closeEditor) {
         if (isStandaloneEditor) {
@@ -2009,7 +2248,11 @@ export function ListingStudioDetailClient({
       }
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to save the listing.",
+        isZh
+          ? "无法保存房源。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to save the listing.",
       );
     } finally {
       setIsSaving(false);
@@ -2035,7 +2278,11 @@ export function ListingStudioDetailClient({
           const body = (await response.json().catch(() => null)) as {
             error?: string;
           } | null;
-          throw new Error(body?.error || "Unable to publish the share link.");
+          throw new Error(
+            isZh
+              ? "无法发布分享链接。"
+              : body?.error || "Unable to publish the share link.",
+          );
         }
 
         const body = (await response.json()) as { shareCode: string };
@@ -2059,12 +2306,14 @@ export function ListingStudioDetailClient({
       }`;
 
       router.push(nextStudioUrl);
-      setStatusMessage("Share studio is ready.");
+      setStatusMessage(isZh ? "分享工作台已准备好。" : "Share studio is ready.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to open the share studio.",
+        isZh
+          ? "无法打开分享工作台。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to open the share studio.",
       );
     } finally {
       setIsSharing(false);
@@ -2110,14 +2359,14 @@ export function ListingStudioDetailClient({
                       />
 
                       <StageActionButton
-                        ariaLabel="Open share studio"
+                        ariaLabel={isZh ? "打开分享工作台" : "Open share studio"}
                         disabled={isSharing}
                         onClick={() => void openShareStudio()}
                       >
                         <IconShare />
                       </StageActionButton>
                       <StageActionButton
-                        ariaLabel="Open original listing"
+                        ariaLabel={isZh ? "打开原始房源" : "Open original listing"}
                         onClick={() =>
                           openExternalWindow(detailState.sourceUrl)
                         }
@@ -2125,7 +2374,7 @@ export function ListingStudioDetailClient({
                         <IconLink />
                       </StageActionButton>
                       <StageActionButton
-                        ariaLabel="Edit listing"
+                        ariaLabel={isZh ? "编辑房源" : "Edit listing"}
                         onClick={openEditor}
                       >
                         <IconEdit />
@@ -2138,7 +2387,7 @@ export function ListingStudioDetailClient({
                         className="listing-studio-view-stage-frame"
                         loading="lazy"
                         src={mapEmbedUrl}
-                        title={`${detailState.addressLine} map`}
+                        title={`${detailState.addressLine} ${isZh ? "地图" : "map"}`}
                       />
                     ) : mediaMode === "floorplan" && floorPlanSrc ? (
                       floorPlanIsPdf ? (
@@ -2161,7 +2410,7 @@ export function ListingStudioDetailClient({
                         {photoAssets.length > 1 ? (
                           <>
                             <button
-                              aria-label="Previous photo"
+                              aria-label={isZh ? "上一张照片" : "Previous photo"}
                               className="listing-studio-view-stage-nav listing-studio-view-stage-nav--prev"
                               onClick={() => handleCyclePhoto(-1)}
                               type="button"
@@ -2169,7 +2418,7 @@ export function ListingStudioDetailClient({
                               <IconArrowLeft />
                             </button>
                             <button
-                              aria-label="Next photo"
+                              aria-label={isZh ? "下一张照片" : "Next photo"}
                               className="listing-studio-view-stage-nav listing-studio-view-stage-nav--next"
                               onClick={() => handleCyclePhoto(1)}
                               type="button"
@@ -2189,7 +2438,9 @@ export function ListingStudioDetailClient({
                       </>
                     ) : (
                       <div className="listing-studio-view-stage-empty">
-                        No media was captured for this listing yet.
+                        {isZh
+                          ? "这套房源还没有采集到媒体。"
+                          : "No media was captured for this listing yet."}
                       </div>
                     )}
 
@@ -2228,7 +2479,7 @@ export function ListingStudioDetailClient({
                           onClick={() => setMediaMode("floorplan")}
                           type="button"
                         >
-                          Floor Plan
+                          {isZh ? "户型图" : "Floor Plan"}
                         </button>
                       ) : null}
                       {mapEmbedUrl ? (
@@ -2237,7 +2488,7 @@ export function ListingStudioDetailClient({
                           onClick={() => setMediaMode("map")}
                           type="button"
                         >
-                          Map
+                          {isZh ? "地图" : "Map"}
                         </button>
                       ) : null}
                     </div>
@@ -2260,7 +2511,13 @@ export function ListingStudioDetailClient({
                         </span>
                         <button
                           aria-label={
-                            isAddressCopied ? "Address copied" : "Copy address"
+                            isAddressCopied
+                              ? isZh
+                                ? "地址已复制"
+                                : "Address copied"
+                              : isZh
+                                ? "复制地址"
+                                : "Copy address"
                           }
                           className={`listing-studio-view-address-copy${isAddressCopied ? " is-copied" : ""}`}
                           onClick={() => void copyAddressLine()}
@@ -2282,8 +2539,8 @@ export function ListingStudioDetailClient({
                           <div className="listing-studio-view-fact-icon">
                             {renderPrimaryFactIcon(fact.label)}
                           </div>
-                          <strong>{fact.value}</strong>
-                          <span>{fact.label}</span>
+                          <strong>{formatListingDetailText(fact.value, isZh)}</strong>
+                          <span>{formatListingDetailText(fact.label, isZh)}</span>
                         </div>
                       ))}
                     </div>
@@ -2296,7 +2553,7 @@ export function ListingStudioDetailClient({
                           className="listing-studio-view-chip"
                           key={item.label}
                         >
-                          {item.label} {item.value}
+                          {formatListingDetailText(item.label, isZh)} {item.value}
                         </span>
                       ))}
                     </div>
@@ -2313,7 +2570,7 @@ export function ListingStudioDetailClient({
                 {displayAmenitySections.length ? (
                   <section className="listing-studio-view-info-card">
                     <div className="listing-studio-view-section-head">
-                      <h2>Building amenities</h2>
+                      <h2>{isZh ? "楼宇设施" : "Building amenities"}</h2>
                     </div>
                     <div className="listing-studio-view-amenities-sections">
                       {displayAmenitySections.map((section) => (
@@ -2321,11 +2578,13 @@ export function ListingStudioDetailClient({
                           className="listing-studio-view-amenity-group"
                           key={section.title}
                         >
-                          <strong>{section.title}</strong>
+                          <strong>
+                            {formatAmenityLabelForLocale(section.title, isZh)}
+                          </strong>
                           <ul className="listing-studio-view-amenity-list">
                             {section.items.map((item) => (
                               <li key={`${section.title}-${item}`}>
-                                {formatAmenityLabel(item)}
+                                {formatAmenityLabelForLocale(item, isZh)}
                               </li>
                             ))}
                           </ul>
@@ -2340,7 +2599,7 @@ export function ListingStudioDetailClient({
                     <div className="listing-studio-view-section-head">
                       <div className="listing-studio-view-section-title">
                         <IconTransit />
-                        <h2>Nearby Transit</h2>
+                        <h2>{isZh ? "周边交通" : "Nearby Transit"}</h2>
                       </div>
                     </div>
 
@@ -2349,17 +2608,21 @@ export function ListingStudioDetailClient({
                       <div className="listing-studio-view-transit-summary">
                         {transitSummary.nearestWalkMinutes !== null ? (
                           <div className="listing-studio-view-transit-summary-card">
-                            <span>Nearest station</span>
+                            <span>{isZh ? "最近车站" : "Nearest station"}</span>
                             <strong>
-                              {transitSummary.nearestWalkMinutes} min walk
+                              {isZh
+                                ? `步行 ${transitSummary.nearestWalkMinutes} 分钟`
+                                : `${transitSummary.nearestWalkMinutes} min walk`}
                             </strong>
                           </div>
                         ) : null}
                         {transitSummary.withinFiveHundredMeters !== null ? (
                           <div className="listing-studio-view-transit-summary-card">
-                            <span>Within 500m</span>
+                            <span>{isZh ? "500 米内" : "Within 500m"}</span>
                             <strong>
-                              {transitSummary.withinFiveHundredMeters} stations
+                              {isZh
+                                ? `${transitSummary.withinFiveHundredMeters} 个车站`
+                                : `${transitSummary.withinFiveHundredMeters} stations`}
                             </strong>
                           </div>
                         ) : null}
@@ -2381,20 +2644,24 @@ export function ListingStudioDetailClient({
                             </span>
                             <div>
                               <strong>{item.label}</strong>
-                              {item.detail ? <span>{item.detail}</span> : null}
+                              {item.detail ? (
+                                <span>{formatListingDetailText(item.detail, isZh)}</span>
+                              ) : null}
                             </div>
                           </div>
                           {item.distanceLabel ? (
-                            <em>{item.distanceLabel}</em>
+                            <em>{formatListingDetailText(item.distanceLabel, isZh)}</em>
                           ) : null}
                         </div>
                       ))}
                     </div>
                     {hiddenTransitWithinOneKilometer > 0 ? (
                       <p className="listing-studio-view-transit-more">
-                        + {hiddenTransitWithinOneKilometer} more station
-                        {hiddenTransitWithinOneKilometer === 1 ? "" : "s"}{" "}
-                        within 1km
+                        {isZh
+                          ? `1 公里内还有 ${hiddenTransitWithinOneKilometer} 个车站`
+                          : `+ ${hiddenTransitWithinOneKilometer} more station${
+                              hiddenTransitWithinOneKilometer === 1 ? "" : "s"
+                            } within 1km`}
                       </p>
                     ) : null}
                   </section>
@@ -2403,7 +2670,8 @@ export function ListingStudioDetailClient({
                 {detailState.propertyHistory.length ? (
                   <ListingStudioDisclosure
                     description=""
-                    title="Property history"
+                    expandLabel={isZh ? "展开" : "Expand"}
+                    title={isZh ? "房源历史" : "Property history"}
                   >
                     <div className="listing-studio-detail-section-list">
                       {detailState.propertyHistory.map((section) => (
@@ -2428,7 +2696,8 @@ export function ListingStudioDetailClient({
                 {detailState.capturedSections.length ? (
                   <ListingStudioDisclosure
                     description=""
-                    title="Additional details"
+                    expandLabel={isZh ? "展开" : "Expand"}
+                    title={isZh ? "更多详情" : "Additional details"}
                   >
                     <div className="listing-studio-detail-section-list">
                       {detailState.capturedSections.map((section) => (
@@ -2472,7 +2741,7 @@ export function ListingStudioDetailClient({
             }
           >
             <section
-              aria-label="Edit listing"
+              aria-label={isZh ? "编辑房源" : "Edit listing"}
               aria-modal={isStandaloneEditor ? undefined : true}
               className={`listing-studio-editor-surface${isStandaloneEditor ? " is-page" : ""}`}
               role={isStandaloneEditor ? undefined : "dialog"}
@@ -2486,7 +2755,7 @@ export function ListingStudioDetailClient({
                   <IconArrowLeft />
                 </button>
                 <div className="listing-studio-editor-header-copy">
-                  <strong>Edit Listing</strong>
+                  <strong>{isZh ? "编辑房源" : "Edit Listing"}</strong>
                 </div>
               </header>
 
@@ -2501,7 +2770,7 @@ export function ListingStudioDetailClient({
               >
                 <section className="listing-studio-editor-section">
                   <div className="listing-studio-editor-section-head">
-                    <strong>Listing Type</strong>
+                    <strong>{isZh ? "房源类型" : "Listing Type"}</strong>
                   </div>
                   <div className="listing-studio-editor-type-toggle">
                     <button
@@ -2509,22 +2778,26 @@ export function ListingStudioDetailClient({
                       onClick={() => updateEditorField("listingKind", "rental")}
                       type="button"
                     >
-                      Rental
+                      {isZh ? "出租" : "Rental"}
                     </button>
                     <button
                       className={`listing-studio-editor-type-button${editorState.listingKind === "sale" ? " is-active" : ""}`}
                       onClick={() => updateEditorField("listingKind", "sale")}
                       type="button"
                     >
-                      Sale
+                      {isZh ? "出售" : "Sale"}
                     </button>
                   </div>
                 </section>
 
                 <section className="listing-studio-editor-section">
                   <div className="listing-studio-editor-section-head">
-                    <strong>Photos &amp; Videos</strong>
-                    <span>{photoAssets.length} photos</span>
+                    <strong>{isZh ? "照片与视频" : "Photos & Videos"}</strong>
+                    <span>
+                      {isZh
+                        ? `${photoAssets.length} 张照片`
+                        : `${photoAssets.length} photos`}
+                    </span>
                   </div>
 
                   <div className="listing-studio-editor-photo-grid">
@@ -2563,11 +2836,15 @@ export function ListingStudioDetailClient({
                             )}
                             {isCover ? (
                               <span className="listing-studio-editor-photo-badge">
-                                Cover
+                                {isZh ? "封面" : "Cover"}
                               </span>
                             ) : null}
                             <button
-                              aria-label={`Delete ${asset.label ?? "photo"}`}
+                              aria-label={
+                                isZh
+                                  ? `删除 ${asset.label ?? "照片"}`
+                                  : `Delete ${asset.label ?? "photo"}`
+                              }
                               className="listing-studio-editor-photo-remove"
                               disabled={isDeletingAsset}
                               onClick={(event) => {
@@ -2631,8 +2908,12 @@ export function ListingStudioDetailClient({
                       <IconUpload />
                       <span>
                         {isUploadingAssets
-                          ? "Uploading media..."
-                          : "Drop files or click to upload"}
+                          ? isZh
+                            ? "正在上传媒体..."
+                            : "Uploading media..."
+                          : isZh
+                            ? "拖入文件或点击上传"
+                            : "Drop files or click to upload"}
                       </span>
                     </span>
                   </button>
@@ -2640,11 +2921,11 @@ export function ListingStudioDetailClient({
 
                 <section className="listing-studio-editor-section">
                   <div className="listing-studio-editor-section-head">
-                    <strong>Address</strong>
+                    <strong>{isZh ? "地址" : "Address"}</strong>
                   </div>
                   <div className="listing-studio-editor-grid">
                     <label className="listing-studio-editor-field is-span-3">
-                      <span>Street Address</span>
+                      <span>{isZh ? "街道地址" : "Street Address"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2654,7 +2935,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>City</span>
+                      <span>{isZh ? "城市" : "City"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2664,7 +2945,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>State</span>
+                      <span>{isZh ? "州" : "State"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2674,7 +2955,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>ZIP</span>
+                      <span>{isZh ? "邮编" : "ZIP"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2688,11 +2969,11 @@ export function ListingStudioDetailClient({
 
                 <section className="listing-studio-editor-section">
                   <div className="listing-studio-editor-section-head">
-                    <strong>Details</strong>
+                    <strong>{isZh ? "房源信息" : "Details"}</strong>
                   </div>
                   <div className="listing-studio-editor-grid">
                     <label className="listing-studio-editor-field">
-                      <span>Price</span>
+                      <span>{isZh ? "价格" : "Price"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2702,7 +2983,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Beds</span>
+                      <span>{isZh ? "卧室" : "Beds"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2712,7 +2993,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Baths</span>
+                      <span>{isZh ? "卫浴" : "Baths"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2722,7 +3003,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Sqft</span>
+                      <span>{isZh ? "面积" : "Sqft"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2732,7 +3013,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Property Type</span>
+                      <span>{isZh ? "物业类型" : "Property Type"}</span>
                       <SelectInput
                         className="listing-studio-editor-select"
                         onChange={(event) =>
@@ -2740,16 +3021,18 @@ export function ListingStudioDetailClient({
                         }
                         value={editorState.propertyType}
                       >
-                        <option value="">Select type</option>
+                        <option value="">
+                          {isZh ? "选择类型" : "Select type"}
+                        </option>
                         {PROPERTY_TYPE_OPTIONS.map((option) => (
                           <option key={option} value={option}>
-                            {option}
+                            {formatPropertyTypeOption(option, isZh)}
                           </option>
                         ))}
                       </SelectInput>
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Status</span>
+                      <span>{isZh ? "状态" : "Status"}</span>
                       <SelectInput
                         className="listing-studio-editor-select"
                         onChange={(event) =>
@@ -2759,7 +3042,7 @@ export function ListingStudioDetailClient({
                       >
                         {STATUS_OPTIONS.map((option) => (
                           <option key={option} value={option}>
-                            {option}
+                            {formatStatusOption(option, isZh)}
                           </option>
                         ))}
                       </SelectInput>
@@ -2771,13 +3054,17 @@ export function ListingStudioDetailClient({
                   <div className="listing-studio-editor-section-head">
                     <strong>
                       {editorState.listingKind === "sale"
-                        ? "Sale Details"
-                        : "Rental Details"}
+                        ? isZh
+                          ? "出售详情"
+                          : "Sale Details"
+                        : isZh
+                          ? "出租详情"
+                          : "Rental Details"}
                     </strong>
                   </div>
                   <div className="listing-studio-editor-grid">
                     <label className="listing-studio-editor-field">
-                      <span>Year Built</span>
+                      <span>{isZh ? "建造年份" : "Year Built"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2787,7 +3074,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>List Date</span>
+                      <span>{isZh ? "挂牌日期" : "List Date"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2798,7 +3085,9 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Common Charges (HOA, /mo)</span>
+                      <span>
+                        {isZh ? "管理费（HOA，每月）" : "Common Charges (HOA, /mo)"}
+                      </span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2808,7 +3097,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Taxes (/mo)</span>
+                      <span>{isZh ? "房产税（每月）" : "Taxes (/mo)"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2822,11 +3111,11 @@ export function ListingStudioDetailClient({
 
                 <section className="listing-studio-editor-section">
                   <div className="listing-studio-editor-section-head">
-                    <strong>Additional</strong>
+                    <strong>{isZh ? "补充信息" : "Additional"}</strong>
                   </div>
 
                   <label className="listing-studio-editor-field">
-                    <span>Description</span>
+                    <span>{isZh ? "描述" : "Description"}</span>
                     <TextareaInput
                       className="listing-studio-editor-textarea"
                       onChange={(event) =>
@@ -2838,7 +3127,7 @@ export function ListingStudioDetailClient({
                   </label>
 
                   <div className="listing-studio-editor-subsection-label">
-                    <span>Building Amenities</span>
+                    <span>{isZh ? "楼宇设施" : "Building Amenities"}</span>
                   </div>
 
                   <div className="listing-studio-editor-amenity-stack">
@@ -2852,7 +3141,9 @@ export function ListingStudioDetailClient({
                           onClick={() => toggleAmenityOpen(section.title)}
                           type="button"
                         >
-                          <span>{section.title}</span>
+                          <span>
+                            {formatAmenityLabelForLocale(section.title, isZh)}
+                          </span>
                           <em>
                             {section.selected.length +
                               section.customItems.length}
@@ -2867,7 +3158,7 @@ export function ListingStudioDetailClient({
                                 <CheckboxField
                                   className="listing-studio-editor-checkbox"
                                   key={`${section.title}-${option}`}
-                                  label={option}
+                                  label={formatAmenityLabelForLocale(option, isZh)}
                                 >
                                   <input
                                     checked={section.selected.includes(option)}
@@ -2884,7 +3175,7 @@ export function ListingStudioDetailClient({
                               {section.customItems.length ? (
                                 <div className="listing-studio-editor-custom-chip-stack">
                                   <span className="listing-studio-editor-custom-label">
-                                    Custom amenities:
+                                    {isZh ? "自定义设施：" : "Custom amenities:"}
                                   </span>
                                   <div className="listing-studio-editor-chip-row">
                                     {section.customItems.map((item) => (
@@ -2894,7 +3185,9 @@ export function ListingStudioDetailClient({
                                       >
                                         {item}
                                         <button
-                                          aria-label={`Remove ${item}`}
+                                          aria-label={
+                                            isZh ? `移除 ${item}` : `Remove ${item}`
+                                          }
                                           onClick={() =>
                                             removeCustomAmenity(
                                               section.title,
@@ -2931,7 +3224,9 @@ export function ListingStudioDetailClient({
                                         toggleAddCustom(section.title, false);
                                       }
                                     }}
-                                    placeholder="Add custom amenity"
+                                    placeholder={
+                                      isZh ? "添加自定义设施" : "Add custom amenity"
+                                    }
                                     value={section.draftCustom}
                                   />
                                   <Button
@@ -2941,7 +3236,7 @@ export function ListingStudioDetailClient({
                                     type="button"
                                     variant="secondary"
                                   >
-                                    Add
+                                    {isZh ? "添加" : "Add"}
                                   </Button>
                                   <Button
                                     onClick={() =>
@@ -2950,7 +3245,7 @@ export function ListingStudioDetailClient({
                                     type="button"
                                     variant="ghost"
                                   >
-                                    Cancel
+                                    {isZh ? "取消" : "Cancel"}
                                   </Button>
                                 </div>
                               ) : (
@@ -2962,7 +3257,7 @@ export function ListingStudioDetailClient({
                                   type="button"
                                 >
                                   <IconPlus />
-                                  <span>Add custom</span>
+                                  <span>{isZh ? "添加自定义" : "Add custom"}</span>
                                 </button>
                               )}
                             </div>
@@ -2974,7 +3269,7 @@ export function ListingStudioDetailClient({
 
                   <div className="listing-studio-editor-grid listing-studio-editor-meta-grid">
                     <label className="listing-studio-editor-field">
-                      <span>Unit Number</span>
+                      <span>{isZh ? "单元号" : "Unit Number"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2984,7 +3279,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field">
-                      <span>Neighborhood</span>
+                      <span>{isZh ? "街区" : "Neighborhood"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -2994,7 +3289,7 @@ export function ListingStudioDetailClient({
                       />
                     </label>
                     <label className="listing-studio-editor-field listing-studio-editor-meta-url">
-                      <span>Listing URL</span>
+                      <span>{isZh ? "房源链接" : "Listing URL"}</span>
                       <TextInput
                         className="listing-studio-editor-input"
                         onChange={(event) =>
@@ -3014,14 +3309,20 @@ export function ListingStudioDetailClient({
                     type="button"
                     variant="secondary"
                   >
-                    Cancel
+                    {isZh ? "取消" : "Cancel"}
                   </Button>
                   <Button
                     disabled={isSaving}
                     onClick={() => void savePack({ closeEditor: true })}
                     type="button"
                   >
-                    {isSaving ? "Saving..." : "Save Changes"}
+                    {isSaving
+                      ? isZh
+                        ? "正在保存..."
+                        : "Saving..."
+                      : isZh
+                        ? "保存修改"
+                        : "Save Changes"}
                   </Button>
                 </div>
               </footer>

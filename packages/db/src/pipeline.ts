@@ -97,6 +97,7 @@ export type GetOfficePipelineWorkspaceInput = {
   organizationId: string;
   viewerMembershipId: string;
   officeId?: string | null;
+  locale?: string;
   search?: string;
   representing?: string;
   ownerMembershipId?: string;
@@ -370,28 +371,28 @@ export function buildPipelineHistoryYearOptions(now: Date = new Date(), oldestCl
   return years;
 }
 
-function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
+function formatCurrency(value: Prisma.Decimal | number | string | null | undefined, locale = "en-US") {
   const numericValue = Number(value ?? 0);
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: numericValue % 1 === 0 ? 0 : 2
   }).format(numericValue);
 }
 
-function formatDateLabel(value: Date) {
-  return value.toLocaleDateString("en-US", {
+function formatDateLabel(value: Date, locale = "en-US") {
+  return value.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric"
   });
 }
 
-function formatMonthLabel(monthKey: string) {
+function formatMonthLabel(monthKey: string, locale = "en-US") {
   const [year, month] = monthKey.split("-").map(Number);
 
-  return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+  return new Date(year, month - 1, 1).toLocaleDateString(locale, {
     month: "long",
     year: "numeric"
   });
@@ -753,7 +754,8 @@ function resolveSelection(
 function mapPipelineRow(
   transaction: PipelineWorkspaceTransaction,
   metricMode: OfficePipelineMetricMode,
-  membershipIds: string[]
+  membershipIds: string[],
+  locale = "en-US"
 ): OfficePipelineWorkspaceRow {
   const keyDate = transaction.closingDate ?? transaction.importantDate ?? transaction.updatedAt;
   const keyDateTypeLabel = transaction.closingDate ? "Closed" : transaction.importantDate ? "Important date" : "Updated";
@@ -761,13 +763,13 @@ function mapPipelineRow(
   return {
     id: transaction.id,
     addressLine: buildTransactionAddressLabel(transaction),
-    amountLabel: formatCurrency(getTransactionMetricValue(transaction, metricMode, membershipIds)),
+    amountLabel: formatCurrency(getTransactionMetricValue(transaction, metricMode, membershipIds), locale),
     owner: buildOwnerLabel(transaction),
     status: pipelineStatusFromDb[transaction.status],
     representing: representingLabelMap[transaction.representing],
     keyDateTypeLabel,
-    keyDateLabel: keyDate ? formatDateLabel(keyDate) : "—",
-    updatedLabel: formatDateLabel(transaction.updatedAt)
+    keyDateLabel: keyDate ? formatDateLabel(keyDate, locale) : "—",
+    updatedLabel: formatDateLabel(transaction.updatedAt, locale)
   };
 }
 
@@ -776,7 +778,8 @@ function buildHistoryMonths(
   historyMonthKeys: string[],
   metricMode: OfficePipelineMetricMode,
   membershipIds: string[],
-  currentMonthKey: string
+  currentMonthKey: string,
+  locale = "en-US"
 ) {
   return historyMonthKeys.map((monthKey) => {
     const monthTransactions = transactions.filter((transaction) => getMonthlyRollupKey(transaction) === monthKey);
@@ -787,9 +790,9 @@ function buildHistoryMonths(
 
     return {
       monthKey,
-      label: formatMonthLabel(monthKey),
+      label: formatMonthLabel(monthKey, locale),
       count: monthTransactions.length,
-      metricLabel: formatCurrency(totalMetric),
+      metricLabel: formatCurrency(totalMetric, locale),
       isCurrentMonth: monthKey === currentMonthKey
     } satisfies OfficePipelineHistoryMonth;
   });
@@ -884,6 +887,7 @@ export async function getOfficePipelineWorkspaceSnapshot(
   input: GetOfficePipelineWorkspaceInput
 ): Promise<OfficePipelineWorkspaceSnapshot> {
   const now = new Date();
+  const locale = input.locale ?? "en-US";
   const currentMonthKey = buildPipelineHistoryMonthKeys(now)[0];
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
@@ -938,10 +942,11 @@ export async function getOfficePipelineWorkspaceSnapshot(
     historyMonthKeys,
     metricMode,
     metricMembershipIds,
-    currentMonthKey
+    currentMonthKey,
+    locale
   );
   const currentMonthHistory =
-    buildHistoryMonths(currentMonthTransactions, [currentMonthKey], metricMode, metricMembershipIds, currentMonthKey)[0] ?? null;
+    buildHistoryMonths(currentMonthTransactions, [currentMonthKey], metricMode, metricMembershipIds, currentMonthKey, locale)[0] ?? null;
   const selectionFilters = resolveSelection(requestedSelection, historyMonths);
   const selectedMetricTransactions =
     selectionFilters.view === "pending"
@@ -966,7 +971,7 @@ export async function getOfficePipelineWorkspaceSnapshot(
   const contextChips = [
     representingFilterLabel,
     ...(input.search?.trim() ? [`Search: ${input.search.trim()}`] : []),
-    ...(input.ownerMembershipId?.trim() ? ["Owner filter applied"] : [])
+      ...(input.ownerMembershipId?.trim() ? ["Owner filter applied"] : [])
   ];
   const selectedHistoryMonth = selectionFilters.view === "history"
     ? historyMonths.find((month) => month.monthKey === selectionFilters.historyMonth) ?? null
@@ -998,13 +1003,13 @@ export async function getOfficePipelineWorkspaceSnapshot(
     },
     summary: {
       totalCount: selectedMetricTransactions.length,
-      totalMetricLabel: formatCurrency(selectedMetricTotal)
+      totalMetricLabel: formatCurrency(selectedMetricTotal, locale)
     },
     pendingSummary: {
       count: pendingTransactions.length,
-      metricLabel: formatCurrency(pendingMetricTotal)
+      metricLabel: formatCurrency(pendingMetricTotal, locale)
     },
     historyMonths,
-    rows: selectedTransactions.map((transaction) => mapPipelineRow(transaction, metricMode, metricMembershipIds))
+    rows: selectedTransactions.map((transaction) => mapPipelineRow(transaction, metricMode, metricMembershipIds, locale))
   };
 }

@@ -10,6 +10,8 @@ import {
 } from "react";
 import type { StudioListingCollectionPickerItem } from "@acre/db";
 
+import { useI18n } from "../../lib/i18n/client";
+
 type StudioCollectionPickerProps = {
   packId: string;
   variant?: "icon" | "button";
@@ -67,6 +69,8 @@ export function StudioCollectionPicker({
   className,
   onUpdated,
 }: StudioCollectionPickerProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,6 +80,8 @@ export function StudioCollectionPicker({
   const [errorMessage, setErrorMessage] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
   const deferredSearch = useDeferredValue(search);
+  const resolvedButtonLabel =
+    buttonLabel === "Add to collection" && isZh ? "加入清单" : buttonLabel;
 
   const filteredItems = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
@@ -135,7 +141,11 @@ export function StudioCollectionPicker({
       const payload = (await response.json().catch(() => null)) as CollectionPickerResponse;
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to load collections.");
+        throw new Error(
+          isZh
+            ? "无法加载清单。"
+            : payload?.error || "Unable to load collections.",
+        );
       }
 
       startTransition(() => {
@@ -146,7 +156,11 @@ export function StudioCollectionPicker({
       setHasLoaded(true);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unable to load collections.",
+        isZh
+          ? "无法加载清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to load collections.",
       );
     } finally {
       setIsLoading(false);
@@ -193,16 +207,20 @@ export function StudioCollectionPicker({
 
       if (!response.ok) {
         throw new Error(
-          payload?.error || "Unable to update the collection.",
+          isZh
+            ? "无法更新清单。"
+            : payload?.error || "Unable to update the collection.",
         );
       }
 
       await loadItems();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to update the collection.",
+        isZh
+          ? "无法更新清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to update the collection.",
       );
     } finally {
       setIsMutating(false);
@@ -235,7 +253,9 @@ export function StudioCollectionPicker({
 
       if (!response.ok) {
         throw new Error(
-          payload?.error || "Unable to create the collection.",
+          isZh
+            ? "无法创建清单。"
+            : payload?.error || "Unable to create the collection.",
         );
       }
 
@@ -243,9 +263,11 @@ export function StudioCollectionPicker({
       await loadItems();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to create the collection.",
+        isZh
+          ? "无法创建清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to create the collection.",
       );
     } finally {
       setIsMutating(false);
@@ -263,7 +285,7 @@ export function StudioCollectionPicker({
       ref={rootRef}
     >
       <button
-        aria-label={buttonLabel}
+        aria-label={resolvedButtonLabel}
         aria-expanded={isOpen}
         className={cx(
           variant === "icon"
@@ -274,20 +296,20 @@ export function StudioCollectionPicker({
         type="button"
       >
         <IconPlus />
-        {variant === "button" ? <span>{buttonLabel}</span> : null}
+        {variant === "button" ? <span>{resolvedButtonLabel}</span> : null}
       </button>
 
       {isOpen ? (
         <div className="listing-studio-view-collection-popover">
           <div className="listing-studio-view-collection-head">
-            <strong>Add to collection</strong>
+            <strong>{isZh ? "加入清单" : "Add to collection"}</strong>
           </div>
 
           <label className="listing-studio-view-collection-search">
             <IconSearch />
             <input
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search or create..."
+              placeholder={isZh ? "搜索或新建..." : "Search or create..."}
               value={search}
             />
           </label>
@@ -301,7 +323,7 @@ export function StudioCollectionPicker({
           <div className="listing-studio-view-collection-list">
             {isLoading ? (
               <p className="listing-studio-view-collection-empty">
-                Loading collections...
+                {isZh ? "正在加载清单..." : "Loading collections..."}
               </p>
             ) : filteredItems.length ? (
               filteredItems.map((item) => (
@@ -322,7 +344,9 @@ export function StudioCollectionPicker({
               ))
             ) : (
               <p className="listing-studio-view-collection-empty">
-                No collections yet. Create one below.
+                {isZh
+                  ? "还没有清单，可以在下方新建。"
+                  : "No collections yet. Create one below."}
               </p>
             )}
           </div>
@@ -334,7 +358,15 @@ export function StudioCollectionPicker({
             type="button"
           >
             <IconPlus />
-            <span>{isMutating ? "Saving..." : "Create New"}</span>
+            <span>
+              {isMutating
+                ? isZh
+                  ? "正在保存..."
+                  : "Saving..."
+                : isZh
+                  ? "新建清单"
+                  : "Create New"}
+            </span>
           </button>
         </div>
       ) : null}

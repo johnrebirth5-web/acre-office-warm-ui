@@ -2,6 +2,7 @@
 
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { StudioListingCollectionListingItem } from "@acre/db";
+import { useI18n } from "../../../../lib/i18n/client";
 
 type ListingStudioCollectionMapProps = {
   listings: StudioListingCollectionListingItem[];
@@ -22,12 +23,8 @@ type PoiCategoryId =
 
 type PoiCategory = {
   id: PoiCategoryId;
-  label: string;
   requests: Array<{ keyword?: string; type?: string }>;
 };
-
-const EMPTY_POI_SUMMARY =
-  "No nearby places selected. Choose a category to show nearby places on the map.";
 
 type MapListing = StudioListingCollectionListingItem & {
   latitude: number;
@@ -56,38 +53,33 @@ declare global {
 const POI_CATEGORIES: PoiCategory[] = [
   {
     id: "supermarket",
-    label: "Supermarket",
     requests: [{ type: "grocery_or_supermarket" }],
   },
   {
     id: "subway",
-    label: "Subway",
     requests: [{ type: "subway_station" }, { type: "transit_station" }],
   },
   {
     id: "restaurant",
-    label: "Restaurant",
     requests: [{ type: "restaurant" }],
   },
   {
     id: "coffee",
-    label: "Coffee",
     requests: [{ type: "cafe" }],
   },
   {
     id: "nightlife",
-    label: "Nightlife",
     requests: [{ type: "bar" }, { type: "night_club" }],
   },
 ];
 
-const CATEGORY_TABS: Array<{ id: PoiCategoryId; label: string }> = [
-  { id: "supermarket", label: "Supermarket" },
-  { id: "subway", label: "Subway" },
-  { id: "restaurant", label: "Restaurant" },
-  { id: "coffee", label: "Coffee" },
-  { id: "nightlife", label: "Nightlife" },
-  { id: "all", label: "All" },
+const CATEGORY_TABS: Array<{ id: PoiCategoryId }> = [
+  { id: "supermarket" },
+  { id: "subway" },
+  { id: "restaurant" },
+  { id: "coffee" },
+  { id: "nightlife" },
+  { id: "all" },
 ];
 
 function getGoogleMapsKey() {
@@ -131,6 +123,37 @@ function loadGoogleMapsApi(apiKey: string) {
   }
 
   return window.__acreGoogleMapsPromise;
+}
+
+function getEmptyPoiSummary(isZh: boolean) {
+  return isZh
+    ? "尚未选择周边地点分类。请选择一个分类，在地图上查看附近设施。"
+    : "No nearby places selected. Choose a category to show nearby places on the map.";
+}
+
+function getMapFallbackMessage(input: { hasApiKey: boolean; isZh: boolean }) {
+  if (!input.hasApiKey) {
+    return input.isZh
+      ? "添加 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY 后，即可启用实时地图和周边设施筛选。"
+      : "Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable the live collection map and nearby places filters.";
+  }
+
+  return input.isZh
+    ? "这个清单还没有保存坐标，因此暂时无法显示地图。"
+    : "No saved coordinates were found for this collection yet, so the map can’t be drawn.";
+}
+
+function getPoiCategoryLabel(category: PoiCategoryId, isZh: boolean) {
+  const labels: Record<PoiCategoryId, { en: string; zh: string }> = {
+    all: { en: "All", zh: "全部" },
+    supermarket: { en: "Supermarket", zh: "超市" },
+    subway: { en: "Subway", zh: "地铁" },
+    restaurant: { en: "Restaurant", zh: "餐厅" },
+    coffee: { en: "Coffee", zh: "咖啡" },
+    nightlife: { en: "Nightlife", zh: "夜生活" },
+  };
+
+  return isZh ? labels[category].zh : labels[category].en;
 }
 
 function haversineDistanceMeters(
@@ -230,15 +253,12 @@ function buildPoiRequests(category: PoiCategoryId) {
   return POI_CATEGORIES.find((entry) => entry.id === category)?.requests ?? [];
 }
 
-function getPoiSummaryLabel(category: PoiCategoryId) {
+function getPoiSummaryLabel(category: PoiCategoryId, isZh: boolean) {
   if (category === "all") {
-    return "places across all categories";
+    return isZh ? "全部分类的地点" : "places across all categories";
   }
 
-  return (
-    CATEGORY_TABS.find((item) => item.id === category)?.label.toLowerCase() ??
-    "places"
-  );
+  return isZh ? getPoiCategoryLabel(category, true) : getPoiCategoryLabel(category, false).toLowerCase();
 }
 
 function createListingMarker(
@@ -300,6 +320,8 @@ export function ListingStudioCollectionMap({
   listings,
   listingsWithoutCoordinates,
 }: ListingStudioCollectionMapProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const mapRootRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const listingMarkersRef = useRef<any[]>([]);
@@ -307,7 +329,7 @@ export function ListingStudioCollectionMap({
   const [activeCategory, setActiveCategory] = useState<PoiCategoryId | null>(
     null,
   );
-  const [poiSummary, setPoiSummary] = useState(EMPTY_POI_SUMMARY);
+  const [poiSummary, setPoiSummary] = useState(() => getEmptyPoiSummary(isZh));
   const [isPoiLoading, setIsPoiLoading] = useState(false);
   const [mapError, setMapError] = useState("");
   const apiKey = getGoogleMapsKey();
@@ -332,9 +354,7 @@ export function ListingStudioCollectionMap({
         .join("|"),
     [mappedListings],
   );
-  const fallbackMessage = !apiKey
-    ? "Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable the live collection map and nearby places filters."
-    : "No saved coordinates were found for this collection yet, so the map can’t be drawn.";
+  const fallbackMessage = getMapFallbackMessage({ hasApiKey: Boolean(apiKey), isZh });
 
   useEffect(() => {
     if (!mapRootRef.current) {
@@ -342,16 +362,12 @@ export function ListingStudioCollectionMap({
     }
 
     if (!apiKey) {
-      setMapError(
-        "Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable the live collection map and nearby places filters.",
-      );
+      setMapError(getMapFallbackMessage({ hasApiKey: false, isZh }));
       return;
     }
 
     if (!mappedListings.length) {
-      setMapError(
-        "No saved coordinates were found for this collection yet, so the map can’t be drawn.",
-      );
+      setMapError(getMapFallbackMessage({ hasApiKey: true, isZh }));
       return;
     }
 
@@ -411,7 +427,7 @@ export function ListingStudioCollectionMap({
 
         if (!activeCategory) {
           startTransition(() => {
-            setPoiSummary(EMPTY_POI_SUMMARY);
+            setPoiSummary(getEmptyPoiSummary(isZh));
           });
           return;
         }
@@ -448,19 +464,25 @@ export function ListingStudioCollectionMap({
           .filter(Boolean);
 
         startTransition(() => {
-          const categoryLabel = getPoiSummaryLabel(activeCategory);
+          const categoryLabel = getPoiSummaryLabel(activeCategory, isZh);
           setPoiSummary(
-            dedupedPlaces.length
-              ? `${dedupedPlaces.length} nearby ${categoryLabel} shown on the map.`
-              : `No nearby ${categoryLabel} were found in this view.`,
+            isZh
+              ? dedupedPlaces.length
+                ? `地图上已显示 ${dedupedPlaces.length} 个附近${categoryLabel}。`
+                : `当前视图中没有找到附近${categoryLabel}。`
+              : dedupedPlaces.length
+                ? `${dedupedPlaces.length} nearby ${categoryLabel} shown on the map.`
+                : `No nearby ${categoryLabel} were found in this view.`,
           );
         });
       } catch (error) {
         if (!isCancelled) {
           setMapError(
-            error instanceof Error
+            !isZh && error instanceof Error
               ? error.message
-              : "Unable to load the collection map.",
+              : isZh
+                ? "暂时无法加载清单地图。"
+                : "Unable to load the collection map.",
           );
         }
       } finally {
@@ -475,7 +497,7 @@ export function ListingStudioCollectionMap({
     return () => {
       isCancelled = true;
     };
-  }, [activeCategory, apiKey, mapSignature, mappedListings]);
+  }, [activeCategory, apiKey, isZh, mapSignature, mappedListings]);
 
   if (!apiKey || !mappedListings.length) {
     return (
@@ -483,18 +505,18 @@ export function ListingStudioCollectionMap({
         <div className="listing-studio-collection-map-header">
           <div>
             <span className="listing-studio-collection-map-eyebrow">
-              Collection map
+              {isZh ? "清单地图" : "Collection map"}
             </span>
-            <h3>Map unavailable</h3>
+            <h3>{isZh ? "地图暂不可用" : "Map unavailable"}</h3>
           </div>
         </div>
         <div className="listing-studio-collection-map-fallback">
           <p>{mapError || fallbackMessage}</p>
           {listingsWithoutCoordinates > 0 ? (
             <p>
-              {listingsWithoutCoordinates} listing
-              {listingsWithoutCoordinates === 1 ? "" : "s"} in this collection
-              are still missing coordinates.
+              {isZh
+                ? `这个清单里还有 ${listingsWithoutCoordinates} 套房源缺少坐标。`
+                : `${listingsWithoutCoordinates} listing${listingsWithoutCoordinates === 1 ? "" : "s"} in this collection are still missing coordinates.`}
             </p>
           ) : null}
         </div>
@@ -507,19 +529,23 @@ export function ListingStudioCollectionMap({
       <div className="listing-studio-collection-map-header">
         <div>
           <span className="listing-studio-collection-map-eyebrow">
-            Collection map
+            {isZh ? "清单地图" : "Collection map"}
           </span>
-          <h3>Where these listings cluster</h3>
+          <h3>{isZh ? "房源分布位置" : "Where these listings cluster"}</h3>
         </div>
         <p>
-          {listingsWithoutCoordinates > 0
-            ? `${listingsWithoutCoordinates} saved listing${listingsWithoutCoordinates === 1 ? "" : "s"} could not be pinned on the map yet.`
-            : "All saved listings in this collection are plotted on the map."}
+          {isZh
+            ? listingsWithoutCoordinates > 0
+              ? `还有 ${listingsWithoutCoordinates} 套已保存房源暂时无法标到地图上。`
+              : "这个清单里的已保存房源都已显示在地图上。"
+            : listingsWithoutCoordinates > 0
+              ? `${listingsWithoutCoordinates} saved listing${listingsWithoutCoordinates === 1 ? "" : "s"} could not be pinned on the map yet.`
+              : "All saved listings in this collection are plotted on the map."}
         </p>
       </div>
 
       <div
-        aria-label="Nearby place filters"
+        aria-label={isZh ? "周边地点筛选" : "Nearby place filters"}
         className="listing-studio-collection-map-filters"
         role="toolbar"
       >
@@ -534,7 +560,7 @@ export function ListingStudioCollectionMap({
             onClick={() => setActiveCategory(category.id)}
             type="button"
           >
-            {category.label}
+            {getPoiCategoryLabel(category.id, isZh)}
           </button>
         ))}
         <button
@@ -542,14 +568,14 @@ export function ListingStudioCollectionMap({
           onClick={() => setActiveCategory(null)}
           type="button"
         >
-          Clear
+          {isZh ? "清空" : "Clear"}
         </button>
       </div>
 
       <div className="listing-studio-collection-map-canvas" ref={mapRootRef} />
 
       <div className="listing-studio-collection-map-footnote">
-        <span>{isPoiLoading ? "Refreshing nearby places..." : poiSummary}</span>
+        <span>{isPoiLoading ? (isZh ? "正在刷新周边地点..." : "Refreshing nearby places...") : poiSummary}</span>
       </div>
     </section>
   );

@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { canViewOfficeTransactions } from "@acre/auth";
-import { getOfficePipelineWorkspaceSnapshot } from "@acre/db";
+import {
+  getOfficePipelineWorkspaceSnapshot,
+  type OfficePipelineMetricMode,
+  type OfficePipelineStatus
+} from "@acre/db";
 import { StatusBadge, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
@@ -100,6 +104,101 @@ function getRepresentingLabel(
   return t((messages) => messages.officePipeline.anySide);
 }
 
+function getMetricModeLabel(
+  metricMode: OfficePipelineMetricMode,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  if (metricMode === "office_net") {
+    return t((messages) => messages.officePipeline.metricOfficeNet);
+  }
+
+  if (metricMode === "office_sales_volume") {
+    return t((messages) => messages.officePipeline.metricOfficeSalesVolume);
+  }
+
+  if (metricMode === "office_gross") {
+    return t((messages) => messages.officePipeline.metricOfficeGross);
+  }
+
+  if (metricMode === "my_net_income") {
+    return t((messages) => messages.officePipeline.metricMyNetIncome);
+  }
+
+  if (metricMode === "my_gross_commission") {
+    return t((messages) => messages.officePipeline.metricMyGrossCommission);
+  }
+
+  return t((messages) => messages.officePipeline.metricMySalesVolume);
+}
+
+function getPipelineStatusLabel(
+  status: OfficePipelineStatus,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  if (status === "Opportunity") {
+    return t((messages) => messages.officePipeline.statusOpportunity);
+  }
+
+  if (status === "Active") {
+    return t((messages) => messages.officePipeline.statusActive);
+  }
+
+  if (status === "Pending") {
+    return t((messages) => messages.officePipeline.statusPending);
+  }
+
+  if (status === "Closed") {
+    return t((messages) => messages.officePipeline.statusClosed);
+  }
+
+  return t((messages) => messages.officePipeline.statusCancelled);
+}
+
+function getPipelineRepresentingRowLabel(
+  value: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  if (value === "Buyer") {
+    return t((messages) => messages.officePipeline.buyer);
+  }
+
+  if (value === "Seller") {
+    return t((messages) => messages.officePipeline.seller);
+  }
+
+  if (value === "Both") {
+    return t((messages) => messages.officePipeline.both);
+  }
+
+  if (value === "Tenant") {
+    return t((messages) => messages.officePipeline.tenant);
+  }
+
+  return t((messages) => messages.officePipeline.landlord);
+}
+
+function getPipelineKeyDateTypeLabel(
+  value: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  if (value === "Closed") {
+    return t((messages) => messages.officePipeline.keyDateClosed);
+  }
+
+  if (value === "Important date") {
+    return t((messages) => messages.officePipeline.keyDateImportantDate);
+  }
+
+  return t((messages) => messages.officePipeline.keyDateUpdated);
+}
+
+function getPipelineOwnerLabel(
+  value: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  return value === "Unassigned" ? t((messages) => messages.officePipeline.unassigned) : value;
+}
+
 function getHistoryRangeLabel(
   historyYear: string,
   t: Awaited<ReturnType<typeof getServerI18n>>["t"],
@@ -130,10 +229,10 @@ function getHistoryYearForCurrentMonth(currentHistoryYear: string, monthKey: str
 
 function getKeyDateCopy(
   row: {
-  keyDateTypeLabel: string;
-  keyDateLabel: string;
-  updatedLabel: string;
-},
+    keyDateTypeLabel: string;
+    keyDateLabel: string;
+    updatedLabel: string;
+  },
   t: Awaited<ReturnType<typeof getServerI18n>>["t"],
 ) {
   if (row.keyDateTypeLabel === "Updated") {
@@ -143,14 +242,14 @@ function getKeyDateCopy(
   }
 
   return t((messages) => messages.officePipeline.keyDatePrefix, {
-    label: row.keyDateTypeLabel.toLowerCase(),
+    label: getPipelineKeyDateTypeLabel(row.keyDateTypeLabel, t),
     value: row.keyDateLabel,
   });
 }
 
 export default async function OfficePipelinePage(props: PipelinePageProps) {
   const context = await requireOfficeSession();
-  const { t, formatNumber } = await getServerI18n({
+  const { locale, t, formatNumber } = await getServerI18n({
     userLocale: context.currentUser.locale,
   });
 
@@ -163,6 +262,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id,
+    locale,
     search: searchParams.search,
     representing: searchParams.representing,
     ownerMembershipId: searchParams.ownerMembershipId,
@@ -189,6 +289,23 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
   const currentMonthClosed = snapshot.currentMonthHistory;
   const historyRangeLabel = getHistoryRangeLabel(snapshot.filters.historyYear, t);
   const historyRangeNote = getHistoryRangeNote(snapshot.filters.historyYear, t);
+  const metricModeLabel = getMetricModeLabel(snapshot.filters.metricMode, t);
+  const selectedHistoryMonthLabel = snapshot.filters.view === "history"
+    ? snapshot.historyMonths.find((month) => month.monthKey === snapshot.filters.historyMonth)?.label
+    : "";
+  const selectionLabel = snapshot.filters.view === "pending"
+    ? t((messages) => messages.officePipeline.selectedPending)
+    : t((messages) => messages.officePipeline.selectedClosed, {
+        month: selectedHistoryMonthLabel || t((messages) => messages.officePipeline.closedHistory),
+      });
+  const selectionNote = snapshot.filters.view === "pending"
+    ? t((messages) => messages.officePipeline.pendingSelectionNote)
+    : t((messages) => messages.officePipeline.historySelectionNote);
+  const contextChips = [
+    getRepresentingLabel(snapshot.filters.representing, t),
+    ...(snapshot.filters.search ? [t((messages) => messages.officePipeline.searchChip, { value: snapshot.filters.search })] : []),
+    ...(snapshot.filters.ownerMembershipId ? [t((messages) => messages.officePipeline.ownerFilterChip)] : [])
+  ];
 
   return (
     <OfficeListPageShell className="office-pipeline-page office-pipeline-v2-page">
@@ -198,8 +315,8 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
         summary={
           <>
             <SummaryChip label={t((messages) => messages.common.officeScope)} value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label={t((messages) => messages.officePipeline.visibleMetric)} tone="accent" value={snapshot.metricModeLabel} />
-            <SummaryChip label={t((messages) => messages.officePipeline.selection)} value={snapshot.selection.label} />
+            <SummaryChip label={t((messages) => messages.officePipeline.visibleMetric)} tone="accent" value={metricModeLabel} />
+            <SummaryChip label={t((messages) => messages.officePipeline.selection)} value={selectionLabel} />
           </>
         }
         title={t((messages) => messages.officePipeline.title)}
@@ -237,7 +354,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
         </details>
 
         <details className="office-pipeline-v2-menu">
-          <summary className="office-pipeline-v2-menu-trigger">{snapshot.metricModeLabel}</summary>
+          <summary className="office-pipeline-v2-menu-trigger">{metricModeLabel}</summary>
           <div className="office-pipeline-v2-menu-popover office-pipeline-v2-menu-popover-metric">
             {officeMetricOptions.length > 0 ? (
               <>
@@ -250,7 +367,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                     })}
                     key={option.value}
                   >
-                    <span>{option.label}</span>
+                    <span>{getMetricModeLabel(option.value, t)}</span>
                   </Link>
                 ))}
                 <div className="office-pipeline-v2-menu-divider" />
@@ -265,7 +382,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 })}
                 key={option.value}
               >
-                <span>{option.label}</span>
+                <span>{getMetricModeLabel(option.value, t)}</span>
               </Link>
             ))}
           </div>
@@ -280,7 +397,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 <span className="office-pipeline-v2-sidebar-label">{t((messages) => messages.officePipeline.pipelineFocus)}</span>
                 <p>{t((messages) => messages.officePipeline.pipelineFocusBody)}</p>
               </div>
-              <span className="office-pipeline-v2-selection-pill">{snapshot.selection.label}</span>
+              <span className="office-pipeline-v2-selection-pill">{selectionLabel}</span>
             </div>
 
             <div className="office-pipeline-v2-stage-grid">
@@ -388,12 +505,12 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 <strong>{transactionCountLabel}</strong> {t((messages) => messages.officePipeline.title)}
               </h2>
               <p className="office-pipeline-v2-panel-metric">
-                {snapshot.summary.totalMetricLabel} {snapshot.metricModeLabel}
+                {snapshot.summary.totalMetricLabel} {metricModeLabel}
               </p>
-              <p className="office-pipeline-v2-panel-note">{snapshot.selection.note}</p>
-              {snapshot.selection.contextChips.length > 0 ? (
+              <p className="office-pipeline-v2-panel-note">{selectionNote}</p>
+              {contextChips.length > 0 ? (
                 <div className="office-pipeline-v2-chip-row">
-                  {snapshot.selection.contextChips.map((chip) => (
+                  {contextChips.map((chip) => (
                     <span className="office-pipeline-v2-chip" key={chip}>
                       {chip}
                     </span>
@@ -437,13 +554,13 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                     <strong>{transaction.addressLine}</strong>
                     <b>{transaction.amountLabel}</b>
                     <span className="office-pipeline-v2-row-inline-meta">
-                      <StatusBadge tone={getPipelineStatusTone(transaction.status)}>{transaction.status}</StatusBadge>
-                      <small>{transaction.representing}</small>
+                      <StatusBadge tone={getPipelineStatusTone(transaction.status)}>{getPipelineStatusLabel(transaction.status, t)}</StatusBadge>
+                      <small>{getPipelineRepresentingRowLabel(transaction.representing, t)}</small>
                     </span>
                   </span>
 
                   <span className="office-pipeline-v2-row-meta">
-                    <strong>{transaction.owner}</strong>
+                    <strong>{getPipelineOwnerLabel(transaction.owner, t)}</strong>
                     <small>{getKeyDateCopy(transaction, t)}</small>
                   </span>
                 </Link>

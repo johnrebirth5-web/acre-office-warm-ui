@@ -179,7 +179,7 @@ export function ListingStudioCollectionDetailClient({
         typeof payload.shareUrl !== "string" ||
         typeof payload.shareCode !== "string"
       ) {
-        throw new Error("Unable to copy the share link.");
+        throw new Error(isZh ? "无法复制分享链接。" : "Unable to copy the share link.");
       }
 
       setDetailState((current) => ({
@@ -217,9 +217,11 @@ export function ListingStudioCollectionDetailClient({
 
     if (!response.ok || !isCollectionDetail(payload)) {
       throw new Error(
-        payload && typeof payload === "object" && "error" in payload
-          ? payload.error || "Unable to refresh the collection."
-          : "Unable to refresh the collection.",
+        isZh
+          ? "无法刷新清单。"
+          : payload && typeof payload === "object" && "error" in payload
+            ? payload.error || "Unable to refresh the collection."
+            : "Unable to refresh the collection.",
       );
     }
 
@@ -239,14 +241,20 @@ export function ListingStudioCollectionDetailClient({
 
     if (!response.ok || !isCollectionDetail(payload)) {
       throw new Error(
-        payload && typeof payload === "object" && "error" in payload
-          ? payload.error || "Unable to remove the listing from this collection."
-          : "Unable to remove the listing from this collection.",
+        isZh
+          ? "无法从清单中移除这套房源。"
+          : payload && typeof payload === "object" && "error" in payload
+            ? payload.error || "Unable to remove the listing from this collection."
+            : "Unable to remove the listing from this collection.",
       );
     }
 
     applyDetailState(payload);
-    setStatusMessage("Listing removed from this collection.");
+    setStatusMessage(
+      isZh
+        ? "房源已从此清单中移除。"
+        : "Listing removed from this collection.",
+    );
   }
 
   async function saveSelectionChanges() {
@@ -281,7 +289,9 @@ export function ListingStudioCollectionDetailClient({
                 | { error?: string }
                 | null;
               throw new Error(
-                payload?.error || "Unable to add listings to the collection.",
+                isZh
+                  ? "无法把房源加入清单。"
+                  : payload?.error || "Unable to add listings to the collection.",
               );
             }
           }),
@@ -297,7 +307,9 @@ export function ListingStudioCollectionDetailClient({
                 | { error?: string }
                 | null;
               throw new Error(
-                payload?.error || "Unable to remove listings from the collection.",
+                isZh
+                  ? "无法从清单中移除房源。"
+                  : payload?.error || "Unable to remove listings from the collection.",
               );
             }
           }),
@@ -306,12 +318,14 @@ export function ListingStudioCollectionDetailClient({
 
       await refreshCollection();
       setIsManagerOpen(false);
-      setStatusMessage("Collection listings updated.");
+      setStatusMessage(isZh ? "清单房源已更新。" : "Collection listings updated.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to update the collection.",
+        isZh
+          ? "无法更新清单。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to update the collection.",
       );
     } finally {
       setIsSaving(false);
@@ -322,12 +336,22 @@ export function ListingStudioCollectionDetailClient({
     <div className="listing-studio-collection-detail-page">
       <section className="office-page-header listing-studio-header listing-studio-header-with-actions">
         <div className="office-page-heading">
-          <span className="office-eyebrow">Collections</span>
+          <span className="office-eyebrow">
+            {isZh ? "客户清单" : "Collections"}
+          </span>
           <h2>{detailState.name}</h2>
           <p>
-            {detailState.listingCount} saved listing
-            {detailState.listingCount === 1 ? "" : "s"} in this folder. Updated{" "}
-            {formatRelativeDate(detailState.updatedAt, locale)}.
+            {isZh
+              ? `此清单中有 ${detailState.listingCount} 套已保存房源。更新于 ${formatRelativeDate(
+                  detailState.updatedAt,
+                  locale,
+                )}。`
+              : `${detailState.listingCount} saved listing${
+                  detailState.listingCount === 1 ? "" : "s"
+                } in this folder. Updated ${formatRelativeDate(
+                  detailState.updatedAt,
+                  locale,
+                )}.`}
           </p>
         </div>
 
@@ -337,14 +361,14 @@ export function ListingStudioCollectionDetailClient({
             onClick={openShareDialog}
             type="button"
           >
-            Share
+            {isZh ? "分享" : "Share"}
           </button>
           <button
             className="office-button office-button-secondary"
             onClick={openManager}
             type="button"
           >
-            Add listings
+            {isZh ? "添加房源" : "Add listings"}
           </button>
           <DeleteCollectionButton
             collectionId={detailState.id}
@@ -368,7 +392,7 @@ export function ListingStudioCollectionDetailClient({
           }}
         >
           <section
-            aria-label="Share collection"
+            aria-label={isZh ? "分享清单" : "Share collection"}
             aria-modal="true"
             className="office-modal listing-studio-share-dialog"
             onClick={(event) => event.stopPropagation()}
@@ -376,11 +400,11 @@ export function ListingStudioCollectionDetailClient({
           >
             <header className="listing-studio-share-dialog-header">
               <div>
-                <span>Client share</span>
-                <h3>Share Collection</h3>
+                <span>{isZh ? "客户分享" : "Client share"}</span>
+                <h3>{isZh ? "分享清单" : "Share Collection"}</h3>
               </div>
               <button
-                aria-label="Close share dialog"
+                aria-label={isZh ? "关闭分享弹窗" : "Close share dialog"}
                 disabled={isCopyingShareLink}
                 onClick={() => setIsShareDialogOpen(false)}
                 type="button"
@@ -390,7 +414,7 @@ export function ListingStudioCollectionDetailClient({
             </header>
 
             <div
-              aria-label="Share methods"
+              aria-label={isZh ? "分享方式" : "Share methods"}
               className="listing-studio-share-dialog-methods"
               role="group"
             >
@@ -405,8 +429,12 @@ export function ListingStudioCollectionDetailClient({
                 type="button"
               >
                 {copyingShareMethod === "copy-with-message"
-                  ? "Copying..."
-                  : "Copy with message"}
+                  ? isZh
+                    ? "正在复制..."
+                    : "Copying..."
+                  : isZh
+                    ? "复制链接与说明"
+                    : "Copy with message"}
               </button>
               <button
                 aria-pressed={shareMethod === "wechat-card"}
@@ -419,8 +447,12 @@ export function ListingStudioCollectionDetailClient({
                 type="button"
               >
                 {copyingShareMethod === "wechat-card"
-                  ? "Copying..."
-                  : "WeChat card"}
+                  ? isZh
+                    ? "正在复制..."
+                    : "Copying..."
+                  : isZh
+                    ? "微信卡片"
+                    : "WeChat card"}
               </button>
             </div>
 
@@ -438,17 +470,19 @@ export function ListingStudioCollectionDetailClient({
               <div className="listing-studio-share-dialog-wechat">
                 <ol>
                   <li>
-                    First, open this link inside WeChat (for example, send it to
-                    yourself and tap the link in a chat).
+                    {isZh
+                      ? "先在微信内打开这个链接，例如发给自己后在聊天中点击。"
+                      : "First, open this link inside WeChat (for example, send it to yourself and tap the link in a chat)."}
                   </li>
                   <li>
-                    When the page is open in WeChat&apos;s browser, tap the menu
-                    button in the top-right corner.
+                    {isZh
+                      ? "页面在微信浏览器中打开后，点击右上角菜单。"
+                      : "When the page is open in WeChat's browser, tap the menu button in the top-right corner."}
                   </li>
                   <li>
-                    Choose &quot;Send to Chat&quot; or &quot;Share to
-                    Moments&quot;. WeChat will show a card with the collection
-                    preview.
+                    {isZh
+                      ? "选择“发送给朋友”或“分享到朋友圈”，微信会展示带清单预览的卡片。"
+                      : 'Choose "Send to Chat" or "Share to Moments". WeChat will show a card with the collection preview.'}
                   </li>
                 </ol>
               </div>
@@ -467,10 +501,13 @@ export function ListingStudioCollectionDetailClient({
         <section className="listing-studio-collection-manager">
           <div className="listing-studio-collection-manager-header">
             <div>
-              <strong>Manage collection listings</strong>
+              <strong>
+                {isZh ? "管理清单房源" : "Manage collection listings"}
+              </strong>
               <p>
-                Search all imported Listing Studio packets, then decide which ones
-                belong in this collection.
+                {isZh
+                  ? "搜索所有已导入的房源资料，并选择哪些应加入此清单。"
+                  : "Search all imported Listing Studio packets, then decide which ones belong in this collection."}
               </p>
             </div>
             <button
@@ -478,15 +515,19 @@ export function ListingStudioCollectionDetailClient({
               onClick={() => setIsManagerOpen(false)}
               type="button"
             >
-              Close
+              {isZh ? "关闭" : "Close"}
             </button>
           </div>
 
           <label className="listing-studio-shell-search">
-            <span>Search imported listings</span>
+            <span>{isZh ? "搜索已导入房源" : "Search imported listings"}</span>
             <input
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Address, building, neighborhood, price..."
+              placeholder={
+                isZh
+                  ? "地址、楼宇、街区、价格..."
+                  : "Address, building, neighborhood, price..."
+              }
               value={search}
             />
           </label>
@@ -507,7 +548,13 @@ export function ListingStudioCollectionDetailClient({
                     type="button"
                   >
                     <span className="listing-studio-collection-option-check">
-                      {isSelected ? "Selected" : "Add"}
+                      {isSelected
+                        ? isZh
+                          ? "已选择"
+                          : "Selected"
+                        : isZh
+                          ? "添加"
+                          : "Add"}
                     </span>
                     <div className="listing-studio-collection-option-copy">
                       <strong>{item.displayTitle || item.addressLine}</strong>
@@ -522,8 +569,16 @@ export function ListingStudioCollectionDetailClient({
               })
             ) : (
               <div className="listing-studio-empty-state">
-                <strong>No imported listings match this search.</strong>
-                <p>Try a broader keyword or clear the search field.</p>
+                <strong>
+                  {isZh
+                    ? "没有符合搜索条件的已导入房源。"
+                    : "No imported listings match this search."}
+                </strong>
+                <p>
+                  {isZh
+                    ? "可以尝试更宽泛的关键词，或清空搜索框。"
+                    : "Try a broader keyword or clear the search field."}
+                </p>
               </div>
             )}
           </div>
@@ -535,7 +590,13 @@ export function ListingStudioCollectionDetailClient({
               onClick={() => void saveSelectionChanges()}
               type="button"
             >
-              {isSaving ? "Saving..." : "Save collection"}
+              {isSaving
+                ? isZh
+                  ? "正在保存..."
+                  : "Saving..."
+                : isZh
+                  ? "保存清单"
+                  : "Save collection"}
             </button>
           </div>
         </section>
@@ -544,13 +605,27 @@ export function ListingStudioCollectionDetailClient({
       <section className="listing-studio-listed-section">
         <div className="listing-studio-listed-section-head">
           <div>
-            <span className="listing-studio-shell-eyebrow">Saved listings</span>
-            <h2>{detailState.listingCount ? "Current collection view" : "No listings yet"}</h2>
+            <span className="listing-studio-shell-eyebrow">
+              {isZh ? "已保存房源" : "Saved listings"}
+            </span>
+            <h2>
+              {detailState.listingCount
+                ? isZh
+                  ? "当前清单视图"
+                  : "Current collection view"
+                : isZh
+                  ? "还没有房源"
+                  : "No listings yet"}
+            </h2>
           </div>
           <p>
             {detailState.listingCount
-              ? "Cards stay ordered to match the numbered markers on the map below."
-              : "Use Add listings to start grouping imported packets into this collection."}
+              ? isZh
+                ? "房源卡片顺序会与下方地图上的编号标记保持一致。"
+                : "Cards stay ordered to match the numbered markers on the map below."
+              : isZh
+                ? "点击“添加房源”，开始把已导入资料整理进此清单。"
+                : "Use Add listings to start grouping imported packets into this collection."}
           </p>
         </div>
 
@@ -558,20 +633,27 @@ export function ListingStudioCollectionDetailClient({
           {detailState.listings.length ? (
             detailState.listings.map((item) => (
               <ListingStudioCard
-                collectionPickerButtonLabel="Manage collections"
+                collectionPickerButtonLabel={
+                  isZh ? "管理清单" : "Manage collections"
+                }
                 item={item}
                 key={item.packId}
                 onRemoveFromCollection={removeListingFromCollection}
-                removeFromCollectionLabel="Remove from this collection"
+                removeFromCollectionLabel={
+                  isZh ? "从此清单移除" : "Remove from this collection"
+                }
                 showCollectionPicker
               />
             ))
           ) : (
             <div className="listing-studio-empty-state">
-              <strong>This collection is empty.</strong>
+              <strong>
+                {isZh ? "这个清单还是空的。" : "This collection is empty."}
+              </strong>
               <p>
-                Add imported Listing Studio packets to turn this into a client-ready
-                neighborhood folder.
+                {isZh
+                  ? "加入已导入的房源资料，把它整理成可直接发给客户的街区清单。"
+                  : "Add imported Listing Studio packets to turn this into a client-ready neighborhood folder."}
               </p>
             </div>
           )}

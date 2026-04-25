@@ -8,18 +8,21 @@ import {
   StatusBadge,
 } from "@acre/ui";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null, locale: string) {
+  const isZh = locale === "zh-CN";
+
   if (!value) {
-    return "No activity yet";
+    return isZh ? "暂无活动" : "No activity yet";
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "Recently";
+    return isZh ? "最近" : "Recently";
   }
 
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString(isZh ? "zh-CN" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -28,14 +31,27 @@ function formatDateTime(value: string | null) {
   });
 }
 
-function formatCollectionMeta(listingCount: number, updatedAt: string) {
-  const updatedLabel = formatDateTime(updatedAt);
+function formatCollectionMeta(
+  listingCount: number,
+  updatedAt: string,
+  locale: string,
+) {
+  const isZh = locale === "zh-CN";
+  const updatedLabel = formatDateTime(updatedAt, locale);
+
+  if (isZh) {
+    return `${listingCount} 套房源 · 更新于 ${updatedLabel}`;
+  }
 
   return `${listingCount} listing${listingCount === 1 ? "" : "s"} · Updated ${updatedLabel}`;
 }
 
 export default async function ListingStudioSharesPage() {
   const context = await requireSessionContext();
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
   const snapshot = await listStudioListingCollectionShares({
     organizationId: context.currentOrganization.id,
     membershipId: context.currentMembership.id,
@@ -45,11 +61,14 @@ export default async function ListingStudioSharesPage() {
     <div className="office-list-page listing-studio-page">
       <section className="office-page-header listing-studio-header">
         <div className="office-page-heading">
-          <span className="office-eyebrow">Listing Studio</span>
-          <h2>Shares</h2>
+          <span className="office-eyebrow">
+            {isZh ? "房源工作室" : "Listing Studio"}
+          </span>
+          <h2>{isZh ? "分享记录" : "Shares"}</h2>
           <p>
-            Review collection links you copied out of Studio and the public opens
-            recorded after clients viewed those collection pages.
+            {isZh
+              ? "查看从房源工作室复制出去的清单链接，以及客户打开公开页面后的访问记录。"
+              : "Review collection links you copied out of Studio and the public opens recorded after clients viewed those collection pages."}
           </p>
         </div>
       </section>
@@ -57,28 +76,44 @@ export default async function ListingStudioSharesPage() {
       <div className="office-list-page-stack listing-studio-stack">
         <SectionCard
           className="office-list-card"
-          subtitle="Collection share activity for your current Studio workspace."
-          title="Collection share pulse"
+          subtitle={
+            isZh
+              ? "当前房源工作区内的清单分享活动。"
+              : "Collection share activity for your current Studio workspace."
+          }
+          title={isZh ? "清单分享概览" : "Collection share pulse"}
         >
           <ListPageStatsGrid>
             <StatCard
-              hint="Collections with a live link or recorded share history"
-              label="Shared collections"
+              hint={
+                isZh
+                  ? "已有公开链接或分享历史的清单"
+                  : "Collections with a live link or recorded share history"
+              }
+              label={isZh ? "已分享清单" : "Shared collections"}
               value={snapshot.summary.sharedCollections}
             />
             <StatCard
-              hint="Times a collection share link was copied"
-              label="Shares"
+              hint={
+                isZh
+                  ? "清单分享链接被复制的次数"
+                  : "Times a collection share link was copied"
+              }
+              label={isZh ? "分享次数" : "Shares"}
               value={snapshot.summary.shareCount}
             />
             <StatCard
-              hint="Public collection page opens"
-              label="Views"
+              hint={isZh ? "公开清单页打开次数" : "Public collection page opens"}
+              label={isZh ? "访问次数" : "Views"}
               value={snapshot.summary.viewCount}
             />
             <StatCard
-              hint="Currently enabled collection share links"
-              label="Live links"
+              hint={
+                isZh
+                  ? "当前仍可访问的清单分享链接"
+                  : "Currently enabled collection share links"
+              }
+              label={isZh ? "有效链接" : "Live links"}
               value={snapshot.summary.activeShareLinks}
             />
           </ListPageStatsGrid>
@@ -88,26 +123,30 @@ export default async function ListingStudioSharesPage() {
           <section className="listing-studio-listed-section">
             <div className="listing-studio-listed-section-head">
               <div>
-                <span className="listing-studio-shell-eyebrow">Share history</span>
-                <h2>Collection shares</h2>
+                <span className="listing-studio-shell-eyebrow">
+                  {isZh ? "分享历史" : "Share history"}
+                </span>
+                <h2>{isZh ? "清单分享" : "Collection shares"}</h2>
               </div>
               <p>
-                {snapshot.items.length} collection
-                {snapshot.items.length === 1 ? "" : "s"} currently have share
-                activity.
+                {isZh
+                  ? `当前有 ${snapshot.items.length} 个清单产生过分享活动。`
+                  : `${snapshot.items.length} collection${
+                      snapshot.items.length === 1 ? "" : "s"
+                    } currently have share activity.`}
               </p>
             </div>
 
             {snapshot.items.length ? (
               <div className="office-list-table listing-studio-shares-table">
                 <div className="office-list-table-header listing-studio-shares-table-row">
-                  <span>Collection</span>
-                  <span>Status</span>
-                  <span>Shares</span>
-                  <span>Views</span>
-                  <span>Last shared</span>
-                  <span>Last viewed</span>
-                  <span>Link</span>
+                  <span>{isZh ? "清单" : "Collection"}</span>
+                  <span>{isZh ? "状态" : "Status"}</span>
+                  <span>{isZh ? "分享" : "Shares"}</span>
+                  <span>{isZh ? "访问" : "Views"}</span>
+                  <span>{isZh ? "最近分享" : "Last shared"}</span>
+                  <span>{isZh ? "最近访问" : "Last viewed"}</span>
+                  <span>{isZh ? "链接" : "Link"}</span>
                 </div>
 
                 <div className="office-list-table-body">
@@ -122,12 +161,24 @@ export default async function ListingStudioSharesPage() {
                             {item.name}
                           </Link>
                         </strong>
-                        <p>{formatCollectionMeta(item.listingCount, item.updatedAt)}</p>
+                        <p>
+                          {formatCollectionMeta(
+                            item.listingCount,
+                            item.updatedAt,
+                            locale,
+                          )}
+                        </p>
                       </div>
 
                       <span>
                         <StatusBadge tone={item.shareEnabled ? "success" : "neutral"}>
-                          {item.shareEnabled ? "Live" : "Inactive"}
+                          {item.shareEnabled
+                            ? isZh
+                              ? "有效"
+                              : "Live"
+                            : isZh
+                              ? "未启用"
+                              : "Inactive"}
                         </StatusBadge>
                       </span>
 
@@ -137,8 +188,8 @@ export default async function ListingStudioSharesPage() {
                       <span className="listing-studio-share-count">
                         {item.viewCount}
                       </span>
-                      <span>{formatDateTime(item.lastSharedAt)}</span>
-                      <span>{formatDateTime(item.lastViewedAt)}</span>
+                      <span>{formatDateTime(item.lastSharedAt, locale)}</span>
+                      <span>{formatDateTime(item.lastViewedAt, locale)}</span>
                       <span>
                         {item.shareCode ? (
                           <Link
@@ -147,10 +198,10 @@ export default async function ListingStudioSharesPage() {
                             rel="noreferrer"
                             target="_blank"
                           >
-                            Open
+                            {isZh ? "打开" : "Open"}
                           </Link>
                         ) : (
-                          "Not minted"
+                          isZh ? "未生成" : "Not minted"
                         )}
                       </span>
                     </div>
@@ -164,12 +215,16 @@ export default async function ListingStudioSharesPage() {
                     className="office-button office-button-primary"
                     href="/listing-studio/collections"
                   >
-                    Open collections
+                    {isZh ? "打开客户清单" : "Open collections"}
                   </Link>
                 }
                 className="listing-studio-empty-state"
-                description="Copy a collection share link from a collection detail page to start the share history."
-                title="No collection shares yet."
+                description={
+                  isZh
+                    ? "从清单详情页复制分享链接后，这里会开始记录分享历史。"
+                    : "Copy a collection share link from a collection detail page to start the share history."
+                }
+                title={isZh ? "还没有清单分享记录。" : "No collection shares yet."}
               />
             )}
           </section>

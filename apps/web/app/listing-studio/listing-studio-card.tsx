@@ -8,6 +8,7 @@ import type {
   StudioListingCompanyFeedItem,
   StudioListingListItem,
 } from "@acre/db";
+import { useI18n } from "../../lib/i18n/client";
 import { StudioCollectionPicker } from "./studio-collection-picker";
 
 type ListingStudioCardMode = "personal" | "dashboard";
@@ -40,15 +41,56 @@ type ListingStudioCardProps = {
   removeFromCollectionLabel?: string;
 };
 
-function getListingTypeLabel(listingType: string | null) {
+function getListingTypeLabel(listingType: string | null, isZh: boolean) {
   const normalized = listingType?.trim().toLowerCase();
   if (normalized === "sale") {
-    return "For sale";
+    return isZh ? "出售" : "For sale";
   }
   if (normalized === "rent") {
-    return "Rental";
+    return isZh ? "出租" : "Rental";
   }
   return null;
+}
+
+function formatListingText(value: string | null | undefined, isZh: boolean) {
+  if (!value || !isZh) {
+    return value ?? "";
+  }
+
+  return value
+    .replace(/\bBeds?\b/gi, "卧室")
+    .replace(/\bBaths?\b/gi, "卫浴")
+    .replace(/\bSq\.?\s?Ft\.?\b/gi, "平方英尺")
+    .replace(/\bSquare Feet\b/gi, "平方英尺")
+    .replace(/\bFor sale\b/gi, "出售")
+    .replace(/\bRental\b/gi, "出租")
+    .replace(/\bActive\b/gi, "在售")
+    .replace(/\bPending\b/gi, "待成交")
+    .replace(/\bClosed\b/gi, "已成交")
+    .replace(/\bOff market\b/gi, "未公开");
+}
+
+function formatCompanyFeedLabel(value: string | null | undefined, isZh: boolean) {
+  if (!value || !isZh) {
+    return value ?? "";
+  }
+
+  switch (value) {
+    case "Acre Exclusive":
+      return "Acre 独家";
+    case "Acre Lising":
+      return "Acre 房源";
+    case "Acre Agent Rep":
+      return "Acre 经纪代理";
+    case "Acre Featured":
+      return "Acre 精选";
+    case "Acre Off-Market":
+      return "Acre 非公开";
+    case OTHER_COMPANY_FEED_LABEL:
+      return "其他";
+    default:
+      return value;
+  }
 }
 
 function readInitialSavedState(
@@ -127,10 +169,12 @@ export function ListingStudioCard({
   onRemoveFromCollection = null,
   removeFromCollectionLabel = "Remove from collection",
 }: ListingStudioCardProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const listingTypeLabel = getListingTypeLabel(item.listingType);
+  const listingTypeLabel = getListingTypeLabel(item.listingType, isZh);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -160,6 +204,14 @@ export function ListingStudioCard({
   const companyFeedMediaBadgeLabel = companyFeedVisible
     ? companyFeedLabel || DEFAULT_COMPANY_FEED_LABEL
     : null;
+  const resolvedCollectionPickerButtonLabel =
+    collectionPickerButtonLabel === "Add to collection" && isZh
+      ? "加入清单"
+      : collectionPickerButtonLabel;
+  const resolvedRemoveFromCollectionLabel =
+    removeFromCollectionLabel === "Remove from collection" && isZh
+      ? "从清单移除"
+      : removeFromCollectionLabel;
 
   if (isHidden || (mode === "dashboard" && !companyFeedVisible)) {
     return null;
@@ -189,10 +241,14 @@ export function ListingStudioCard({
 
       if (!response.ok) {
         throw new Error(
-          payload?.error ||
-            (isRemovingFromMyListings
-              ? "Unable to remove this listing from My listings."
-              : "Unable to delete this listing."),
+          isZh
+            ? isRemovingFromMyListings
+              ? "无法从我的房源中移除。"
+              : "无法删除这套房源。"
+            : payload?.error ||
+                (isRemovingFromMyListings
+                  ? "Unable to remove this listing from My listings."
+                  : "Unable to delete this listing."),
         );
       }
 
@@ -215,11 +271,15 @@ export function ListingStudioCard({
       });
     } catch (error) {
       window.alert(
-        error instanceof Error
-          ? error.message
-          : resolvedDeleteActionMode === "remove_from_my_listings"
-            ? "Unable to remove this listing from My listings."
-            : "Unable to delete this listing.",
+        isZh
+          ? resolvedDeleteActionMode === "remove_from_my_listings"
+            ? "无法从我的房源中移除。"
+            : "无法删除这套房源。"
+          : error instanceof Error
+            ? error.message
+            : resolvedDeleteActionMode === "remove_from_my_listings"
+              ? "Unable to remove this listing from My listings."
+              : "Unable to delete this listing.",
       );
     } finally {
       setIsDeleting(false);
@@ -245,13 +305,19 @@ export function ListingStudioCard({
         | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to save this listing.");
+        throw new Error(
+          isZh ? "无法保存这套房源。" : payload?.error || "Unable to save this listing.",
+        );
       }
 
       setIsSavedToMyListings(true);
     } catch (error) {
       window.alert(
-        error instanceof Error ? error.message : "Unable to save this listing.",
+        isZh
+          ? "无法保存这套房源。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to save this listing.",
       );
     } finally {
       setIsSavingToMyListings(false);
@@ -269,9 +335,11 @@ export function ListingStudioCard({
       await onRemoveFromCollection(item.packId);
     } catch (error) {
       window.alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to remove this listing from the collection.",
+        isZh
+          ? "无法从清单中移除这套房源。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to remove this listing from the collection.",
       );
     } finally {
       setIsRemovingFromCollection(false);
@@ -316,7 +384,9 @@ export function ListingStudioCard({
 
       if (!response.ok) {
         throw new Error(
-          payload?.error || "Unable to update company dashboard visibility.",
+          isZh
+            ? "无法更新公司面板显示状态。"
+            : payload?.error || "Unable to update company dashboard visibility.",
         );
       }
 
@@ -335,9 +405,11 @@ export function ListingStudioCard({
       }
     } catch (error) {
       window.alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to update company dashboard visibility.",
+        isZh
+          ? "无法更新公司面板显示状态。"
+          : error instanceof Error
+            ? error.message
+            : "Unable to update company dashboard visibility.",
       );
     } finally {
       setIsUpdatingCompanyFeed(false);
@@ -351,7 +423,9 @@ export function ListingStudioCard({
         : companyFeedLabelChoice;
 
     if (!nextLabel) {
-      setPublishDialogError("Enter a custom label before publishing.");
+      setPublishDialogError(
+        isZh ? "发布前请输入自定义标签。" : "Enter a custom label before publishing.",
+      );
       return;
     }
 
@@ -364,7 +438,11 @@ export function ListingStudioCard({
         {showDeleteAction ? (
           <div className="listing-studio-card-top-actions">
             <button
-              aria-label={`${resolvedDeleteActionMode === "remove_from_my_listings" ? "Remove" : "Delete"} ${item.displayTitle || item.addressLine}`}
+              aria-label={
+                isZh
+                  ? `${resolvedDeleteActionMode === "remove_from_my_listings" ? "移除" : "删除"} ${item.displayTitle || item.addressLine}`
+                  : `${resolvedDeleteActionMode === "remove_from_my_listings" ? "Remove" : "Delete"} ${item.displayTitle || item.addressLine}`
+              }
               className="listing-studio-card-delete-button"
               disabled={isDeleting}
               onClick={(event) => {
@@ -374,8 +452,12 @@ export function ListingStudioCard({
               }}
               title={
                 resolvedDeleteActionMode === "remove_from_my_listings"
-                  ? "Remove from My listings"
-                  : "Delete listing"
+                  ? isZh
+                    ? "从我的房源移除"
+                    : "Remove from My listings"
+                  : isZh
+                    ? "删除房源"
+                    : "Delete listing"
               }
               type="button"
             >
@@ -393,7 +475,7 @@ export function ListingStudioCard({
               <div className="listing-studio-card-media-badges">
                 {companyFeedMediaBadgeLabel ? (
                   <span className="listing-studio-card-media-badge">
-                    {companyFeedMediaBadgeLabel}
+                    {formatCompanyFeedLabel(companyFeedMediaBadgeLabel, isZh)}
                   </span>
                 ) : null}
                 {listingTypeLabel ? (
@@ -419,7 +501,7 @@ export function ListingStudioCard({
               </span>
               {item.shareEnabled ? (
                 <span className="office-status-badge office-status-badge-success">
-                  Shared
+                  {isZh ? "已分享" : "Shared"}
                 </span>
               ) : null}
             </div>
@@ -431,9 +513,13 @@ export function ListingStudioCard({
             {item.locationLine ? (
               <span className="listing-studio-card-location">{item.locationLine}</span>
             ) : null}
-            <span className="listing-studio-card-facts">{item.factsLine}</span>
+            <span className="listing-studio-card-facts">
+              {formatListingText(item.factsLine, isZh)}
+            </span>
             {item.statusLabel ? (
-              <span className="listing-studio-card-status">{item.statusLabel}</span>
+              <span className="listing-studio-card-status">
+                {formatListingText(item.statusLabel, isZh)}
+              </span>
             ) : null}
           </div>
         </Link>
@@ -451,10 +537,16 @@ export function ListingStudioCard({
                 type="button"
               >
                 {isSavingToMyListings
-                  ? "Adding..."
+                  ? isZh
+                    ? "正在加入..."
+                    : "Adding..."
                   : isSavedToMyListings
-                    ? "Added to my listings"
-                    : "+ Add to my listings"}
+                    ? isZh
+                      ? "已加入我的房源"
+                      : "Added to my listings"
+                    : isZh
+                      ? "+ 加入我的房源"
+                      : "+ Add to my listings"}
               </button>
             ) : null}
 
@@ -466,14 +558,16 @@ export function ListingStudioCard({
                 type="button"
               >
                 {isRemovingFromCollection
-                  ? "Removing..."
-                  : removeFromCollectionLabel}
+                  ? isZh
+                    ? "正在移除..."
+                    : "Removing..."
+                  : resolvedRemoveFromCollectionLabel}
               </button>
             ) : null}
 
             {showCollectionPicker ? (
               <StudioCollectionPicker
-                buttonLabel={collectionPickerButtonLabel}
+                buttonLabel={resolvedCollectionPickerButtonLabel}
                 packId={item.packId}
               />
             ) : null}
@@ -491,11 +585,19 @@ export function ListingStudioCard({
               >
                 {isUpdatingCompanyFeed
                   ? mode === "dashboard" || companyFeedVisible
-                    ? "Updating..."
-                    : "Publishing..."
+                    ? isZh
+                      ? "正在更新..."
+                      : "Updating..."
+                    : isZh
+                      ? "正在发布..."
+                      : "Publishing..."
                   : mode === "dashboard" || companyFeedVisible
-                    ? "Remove from dashboard"
-                    : "Publish to dashboard"}
+                    ? isZh
+                      ? "从公司面板移除"
+                      : "Remove from dashboard"
+                    : isZh
+                      ? "发布到公司面板"
+                      : "Publish to dashboard"}
               </button>
             ) : null}
           </div>
@@ -503,21 +605,33 @@ export function ListingStudioCard({
       </article>
 
       <ConfirmActionDialog
-        cancelLabel="Keep listing"
+        cancelLabel={isZh ? "保留房源" : "Keep listing"}
         confirmLabel={
           isDeleting
             ? resolvedDeleteActionMode === "remove_from_my_listings"
-              ? "Removing..."
-              : "Deleting..."
+              ? isZh
+                ? "正在移除..."
+                : "Removing..."
+              : isZh
+                ? "正在删除..."
+                : "Deleting..."
             : resolvedDeleteActionMode === "remove_from_my_listings"
-              ? "Remove from my listings"
-              : "Delete listing"
+              ? isZh
+                ? "从我的房源移除"
+                : "Remove from my listings"
+              : isZh
+                ? "删除房源"
+                : "Delete listing"
         }
         confirmVariant="danger"
         description={
           resolvedDeleteActionMode === "remove_from_my_listings"
-            ? "This will remove the listing from your personal workspace and from any of your collections that currently include it. The shared company packet will stay available."
-            : "This will permanently remove the saved packet, its imported assets, and its collection memberships."
+            ? isZh
+              ? "这会把房源从你的个人工作区以及包含它的客户清单中移除，公司共享的原始资料仍会保留。"
+              : "This will remove the listing from your personal workspace and from any of your collections that currently include it. The shared company packet will stay available."
+            : isZh
+              ? "这会永久删除已保存资料、导入的媒体以及相关清单关联。"
+              : "This will permanently remove the saved packet, its imported assets, and its collection memberships."
         }
         isOpen={isDeleteDialogOpen}
         onCancel={() => {
@@ -530,22 +644,42 @@ export function ListingStudioCard({
         }}
         title={
           resolvedDeleteActionMode === "remove_from_my_listings"
-            ? `Remove ${item.displayTitle || item.addressLine} from My listings?`
-            : `Delete ${item.displayTitle || item.addressLine}?`
+            ? isZh
+              ? `从我的房源移除 ${item.displayTitle || item.addressLine}？`
+              : `Remove ${item.displayTitle || item.addressLine} from My listings?`
+            : isZh
+              ? `删除 ${item.displayTitle || item.addressLine}？`
+              : `Delete ${item.displayTitle || item.addressLine}?`
         }
       >
         <p>
           {resolvedDeleteActionMode === "remove_from_my_listings"
-            ? "You can always add it back again from the company dashboard later."
-            : "This action cannot be undone."}
+            ? isZh
+              ? "之后仍可从公司面板重新加入。"
+              : "You can always add it back again from the company dashboard later."
+            : isZh
+              ? "此操作无法撤销。"
+              : "This action cannot be undone."}
         </p>
       </ConfirmActionDialog>
 
       <ConfirmActionDialog
-        cancelLabel="Cancel"
-        confirmLabel={isUpdatingCompanyFeed ? "Publishing..." : "Confirm"}
+        cancelLabel={isZh ? "取消" : "Cancel"}
+        confirmLabel={
+          isUpdatingCompanyFeed
+            ? isZh
+              ? "正在发布..."
+              : "Publishing..."
+            : isZh
+              ? "确认"
+              : "Confirm"
+        }
         confirmVariant="primary"
-        description="Choose the status label that should appear on this card after it is published to the company dashboard."
+        description={
+          isZh
+            ? "选择发布到公司面板后显示在房源卡片上的状态标签。"
+            : "Choose the status label that should appear on this card after it is published to the company dashboard."
+        }
         isOpen={isPublishDialogOpen}
         onCancel={() => {
           if (!isUpdatingCompanyFeed) {
@@ -556,11 +690,17 @@ export function ListingStudioCard({
         onConfirm={() => {
           void handlePublishToDashboard();
         }}
-        title={`Publish ${item.displayTitle || item.addressLine} to dashboard?`}
+        title={
+          isZh
+            ? `发布 ${item.displayTitle || item.addressLine} 到公司面板？`
+            : `Publish ${item.displayTitle || item.addressLine} to dashboard?`
+        }
       >
         <div className="listing-studio-publish-dialog">
           <div
-            aria-label="Company dashboard status label"
+            aria-label={
+              isZh ? "公司面板状态标签" : "Company dashboard status label"
+            }
             className="listing-studio-publish-options"
             role="radiogroup"
           >
@@ -579,7 +719,7 @@ export function ListingStudioCard({
                   type="radio"
                   value={option}
                 />
-                <span>{option}</span>
+                <span>{formatCompanyFeedLabel(option, isZh)}</span>
               </label>
             ))}
 
@@ -596,19 +736,23 @@ export function ListingStudioCard({
                 type="radio"
                 value={OTHER_COMPANY_FEED_LABEL}
               />
-              <span>{OTHER_COMPANY_FEED_LABEL}</span>
+              <span>{formatCompanyFeedLabel(OTHER_COMPANY_FEED_LABEL, isZh)}</span>
             </label>
           </div>
 
           {companyFeedLabelChoice === OTHER_COMPANY_FEED_LABEL ? (
-            <FormField label="Custom label">
+            <FormField label={isZh ? "自定义标签" : "Custom label"}>
               <TextInput
                 maxLength={48}
                 onChange={(event) => {
                   setCustomCompanyFeedLabel(event.target.value);
                   setPublishDialogError(null);
                 }}
-                placeholder="Enter a custom dashboard label"
+                placeholder={
+                  isZh
+                    ? "输入自定义公司面板标签"
+                    : "Enter a custom dashboard label"
+                }
                 value={customCompanyFeedLabel}
               />
             </FormField>
