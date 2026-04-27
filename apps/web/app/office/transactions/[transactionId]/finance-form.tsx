@@ -220,7 +220,11 @@ export function TransactionFinanceForm({
 
       if (shouldAutoCalculate) {
         const calculateResponse = await fetch(`/api/office/transactions/${transactionId}/commissions/calculate`, {
-          method: "POST"
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({})
         });
 
         if (!calculateResponse.ok) {
