@@ -263,6 +263,30 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
   assert.equal(billPayload.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value, "expense_nj");
 });
 
+test("postQuickBooksBill explains when QuickBooks bill posting is not configured", async () => {
+  await assert.rejects(
+    () =>
+      withQuickBooksEnv(
+        {
+          ACRE_QUICKBOOKS_CLIENT_ID: undefined,
+          ACRE_QUICKBOOKS_CLIENT_SECRET: undefined,
+          ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: undefined,
+          ACRE_QUICKBOOKS_REALM_ID: undefined,
+          ACRE_QUICKBOOKS_REFRESH_TOKEN: undefined,
+          ACRE_QUICKBOOKS_AP_ACCOUNT_ID: undefined,
+          ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID: undefined
+        },
+        async () =>
+          postQuickBooksBill(createDraft({ officeSlug: "acre-ny-realty", officeLabel: "Acre NY Realty" }) as never, {
+            fetchImpl: async () => {
+              throw new Error("QuickBooks should not be called without posting configuration.");
+            }
+          })
+      ),
+    /QuickBooks bill posting is not configured for Acre NY Realty.*ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON/
+  );
+});
+
 test("postQuickBooksBill resolves a missing vendor id from an exact QuickBooks agent display name", async () => {
   const fetchCalls: Array<{
     url: string;

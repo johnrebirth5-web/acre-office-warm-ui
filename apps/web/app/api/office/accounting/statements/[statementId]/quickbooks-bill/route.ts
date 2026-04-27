@@ -120,8 +120,6 @@ function readMappedQuickBooksConnections() {
     throw new Error("QuickBooks is not configured. ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON must be a JSON object.");
   }
 
-  const clientIdFallback = readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_ID");
-  const clientSecretFallback = readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_SECRET");
   const connections = new Map<string, QuickBooksCompanyConnection>();
 
   for (const [key, value] of Object.entries(parsed)) {
@@ -140,8 +138,8 @@ function readMappedQuickBooksConnections() {
       key: normalizedKey,
       companyName: readOptionalQuickBooksText(entry.companyName) || normalizedKey,
       realmId: readQuickBooksConnectionField(entry, "realmId", `${normalizedKey}.realmId`),
-      clientId: readOptionalQuickBooksText(entry.clientId) || clientIdFallback,
-      clientSecret: readOptionalQuickBooksText(entry.clientSecret) || clientSecretFallback,
+      clientId: readOptionalQuickBooksText(entry.clientId) || readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_ID"),
+      clientSecret: readOptionalQuickBooksText(entry.clientSecret) || readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_SECRET"),
       refreshToken: readQuickBooksConnectionField(entry, "refreshToken", `${normalizedKey}.refreshToken`),
       apAccountId: readQuickBooksConnectionField(entry, "apAccountId", `${normalizedKey}.apAccountId`),
       agentCommissionExpenseAccountId: readQuickBooksConnectionField(
@@ -172,6 +170,17 @@ function resolveQuickBooksCompanyConnection(draft: AgentPayoutStatementQuickBook
     const expectedKey = draft.officeSlug || draft.officeId || draft.officeLabel || "this office";
     throw new Error(
       `QuickBooks company mapping is not configured for ${draft.officeLabel || "this statement office"}. Add ${expectedKey} to ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON.`
+    );
+  }
+
+  if (
+    !process.env.ACRE_QUICKBOOKS_REALM_ID?.trim() &&
+    !process.env.ACRE_QUICKBOOKS_REFRESH_TOKEN?.trim() &&
+    !process.env.ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON?.trim()
+  ) {
+    const expectedKey = draft.officeSlug || draft.officeId || draft.officeLabel || "this office";
+    throw new Error(
+      `QuickBooks bill posting is not configured for ${draft.officeLabel || "this statement office"}. Add a ${expectedKey} entry to ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON before posting payout statements.`
     );
   }
 
