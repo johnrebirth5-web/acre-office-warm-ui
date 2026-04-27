@@ -365,6 +365,22 @@ QUICKBOOKS_ENVIRONMENT="sandbox"
 QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
 ```
 
+QuickBooks production app URL checklist:
+
+- End-user license agreement URL:
+  `https://acresystem.us/legal/acre-back-office-eula`
+- Privacy policy URL:
+  `https://acresystem.us/legal/acre-back-office-privacy`
+- Host domain: `acresystem.us`
+- Launch URL:
+  `https://acresystem.us/office/settings/quickbooks`
+- Disconnect URL:
+  `https://acresystem.us/quickbooks/disconnect`
+- Connect/Reconnect URL:
+  `https://acresystem.us/quickbooks/connect`
+- Hosted country: `United States`
+- Hosted IP address: `45.55.247.137` unless the production infrastructure changes
+
 ### `PRISMA_SLOW_QUERY_MS`
 
 用途：

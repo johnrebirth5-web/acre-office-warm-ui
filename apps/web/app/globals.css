@@ -24191,6 +24191,138 @@ body,
   gap: 10px;
 }
 
+.acre-legal-shell {
+  min-height: 100vh;
+  padding: 36px 18px;
+  background: #f5f7fa;
+  color: var(--ink);
+}
+
+.acre-legal-page {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.acre-legal-hero,
+.acre-legal-summary,
+.acre-legal-section {
+  border: 1px solid rgba(22, 39, 60, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 28px rgba(22, 39, 60, 0.07);
+}
+
+.acre-legal-hero {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+}
+
+.acre-legal-kicker {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.acre-legal-hero h1,
+.acre-legal-section h2 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.acre-legal-hero h1 {
+  max-width: 780px;
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  line-height: 1;
+}
+
+.acre-legal-section h2 {
+  font-size: 1.08rem;
+}
+
+.acre-legal-hero p,
+.acre-legal-copy p,
+.acre-legal-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.acre-legal-hero p {
+  max-width: 760px;
+  font-size: 1.02rem;
+}
+
+.acre-legal-meta,
+.acre-legal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.acre-legal-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.acre-legal-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(22, 39, 60, 0.16);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.acre-legal-button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.acre-legal-summary,
+.acre-legal-section {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.acre-legal-summary strong {
+  color: var(--ink);
+}
+
+.acre-legal-sections,
+.acre-legal-copy {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .acre-legal-shell {
+    padding: 24px 12px;
+  }
+
+  .acre-legal-hero,
+  .acre-legal-summary,
+  .acre-legal-section {
+    padding: 16px;
+  }
+
+  .acre-legal-button {
+    width: 100%;
+  }
+}
+
 .listing-studio-install-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
