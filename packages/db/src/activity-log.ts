@@ -49,6 +49,9 @@ export const activityLogActions = {
   settingsSmtpDeleted: "settings.smtp_deleted",
   settingsSignatureDriveUpdated: "settings.signature_drive_updated",
   settingsSignatureDriveDeleted: "settings.signature_drive_deleted",
+  settingsQuickBooksConnected: "settings.quickbooks_connected",
+  settingsQuickBooksDisconnected: "settings.quickbooks_disconnected",
+  settingsQuickBooksValidated: "settings.quickbooks_validated",
   settingsSignatureTemplateCreated: "settings.signature_template_created",
   settingsSignatureTemplateUpdated: "settings.signature_template_updated",
   settingsTransactionSearchLayoutUpdated:
@@ -199,6 +202,7 @@ export type ActivityLogEntityType =
   | "organization_table_layout"
   | "organization_smtp_setting"
   | "organization_signature_drive_setting"
+  | "organization_quickbooks_connection"
   | "signature_template"
   | "organization_role_template"
   | "membership_permission_override"
@@ -474,6 +478,9 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.smtp_deleted": "Email delivery removed",
   "settings.signature_drive_updated": "Signature Drive updated",
   "settings.signature_drive_deleted": "Signature Drive removed",
+  "settings.quickbooks_connected": "QuickBooks connected",
+  "settings.quickbooks_disconnected": "QuickBooks disconnected",
+  "settings.quickbooks_validated": "QuickBooks checked",
   "settings.signature_template_created": "Signature template created",
   "settings.signature_template_updated": "Signature template updated",
   "settings.transaction_search_layout_updated":
@@ -636,6 +643,9 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsTableLayoutUpdated ||
       action === activityLogActions.settingsSmtpUpdated ||
       action === activityLogActions.settingsSmtpDeleted ||
+      action === activityLogActions.settingsQuickBooksConnected ||
+      action === activityLogActions.settingsQuickBooksDisconnected ||
+      action === activityLogActions.settingsQuickBooksValidated ||
       action === activityLogActions.settingsTransactionSearchLayoutUpdated ||
       action ===
         activityLogActions.settingsTransactionReportSearchLayoutUpdated ||
@@ -1113,6 +1123,10 @@ function getActivityHref(
     return `/office/accounting?entryId=${record.entityId}`;
   }
 
+  if (record.entityType === "organization_quickbooks_connection") {
+    return payload.contextHref ?? "/office/settings/quickbooks";
+  }
+
   if (
     record.entityType === "commission_plan" ||
     record.entityType === "commission_statement"
@@ -1495,6 +1509,12 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "updated email delivery settings";
     case activityLogActions.settingsSmtpDeleted:
       return "removed email delivery settings";
+    case activityLogActions.settingsQuickBooksConnected:
+      return "connected QuickBooks Online";
+    case activityLogActions.settingsQuickBooksDisconnected:
+      return "disconnected QuickBooks Online";
+    case activityLogActions.settingsQuickBooksValidated:
+      return "checked the QuickBooks Online connection";
     case activityLogActions.settingsTransactionSearchLayoutUpdated:
       return "updated the transaction search layout";
     case activityLogActions.settingsTransactionReportSearchLayoutUpdated:

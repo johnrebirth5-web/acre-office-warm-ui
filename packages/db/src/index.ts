@@ -11,6 +11,7 @@ export const databaseModules = [
   "organization_table_layouts",
   "organization_smtp_settings",
   "organization_signature_drive_settings",
+  "organization_quickbooks_connections",
   "listings",
   "listing_share_links",
   "studio_listing_imports",
@@ -578,6 +579,13 @@ export {
   saveOrganizationSignatureDriveSettings,
 } from "./signature-drive-settings";
 export {
+  buildQuickBooksAuthorizationUrl,
+  connectOrganizationQuickBooksConnection,
+  deleteOrganizationQuickBooksConnection,
+  getOfficeQuickBooksSettingsSnapshot,
+  validateOrganizationQuickBooksConnection,
+} from "./quickbooks-settings";
+export {
   getOfficeSignatureTemplate,
   getOfficeSignatureTemplateLibrarySnapshot,
   saveSignatureTemplate,
@@ -905,6 +913,13 @@ export type {
   ResolveOrganizationSignatureDriveConfigResult,
   SaveOrganizationSignatureDriveSettingsInput,
 } from "./signature-drive-settings";
+export type {
+  BuildQuickBooksAuthorizationUrlInput,
+  ConnectOrganizationQuickBooksConnectionInput,
+  DeleteOrganizationQuickBooksConnectionInput,
+  OfficeQuickBooksSettingsSnapshot,
+  ValidateOrganizationQuickBooksConnectionInput,
+} from "./quickbooks-settings";
 export type {
   OfficeSignatureTemplate,
   OfficeSignatureTemplateField,

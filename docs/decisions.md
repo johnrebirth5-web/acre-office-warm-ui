@@ -561,8 +561,9 @@ Trade-off：
 Trade-off：
 
 - 当前 accounting 已经是真实数据库模块，但仍然不是完整会计产品
+- QuickBooks Online 先落地 OAuth 连接基础，用于保存 organization-level `realmId`、加密 token 和 company-info 健康检查；业务对象同步必须另行建模
 - 没有：
-  - QuickBooks sync
+  - QuickBooks object sync
   - bank reconciliation
   - payroll
   - office rent / utilities accounting

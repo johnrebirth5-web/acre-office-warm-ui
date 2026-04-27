@@ -758,6 +758,7 @@ model Organization {
   tableLayouts                          OrganizationTableLayout[]
   smtpSetting                           OrganizationSmtpSetting?
   signatureDriveSetting                 OrganizationSignatureDriveSetting?
+  quickBooksConnection                  OrganizationQuickBooksConnection?
   transactionSearchLayouts              TransactionSearchLayout[]
   transactionReportSearchLayouts        TransactionReportSearchLayout[]
   roleTemplates                         OrganizationRoleTemplate[]
@@ -939,6 +940,7 @@ model Membership {
   subjectMembershipSignatureRequests           SignatureRequest[]                     @relation("SignatureRequestSubjectMembership")
   createdSignatureTemplates                    SignatureTemplate[]                    @relation("SignatureTemplateCreatedBy")
   updatedSignatureDriveSettings                OrganizationSignatureDriveSetting[]    @relation("OrganizationSignatureDriveSettingUpdatedBy")
+  updatedQuickBooksConnections                 OrganizationQuickBooksConnection[]     @relation("OrganizationQuickBooksConnectionUpdatedBy")
   signatureRecipients                          SignatureRecipient[]                   @relation("SignatureRecipientMembership")
   subjectMembershipSignatureArtifacts          SignatureArtifact[]                    @relation("SignatureArtifactSubjectMembership")
   signatureAuditEntries                        SignatureAuditEntry[]
@@ -1134,6 +1136,34 @@ model OrganizationSignatureDriveSetting {
   updatedByMembership   Membership?  @relation("OrganizationSignatureDriveSettingUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, isEnabled])
+}
+
+model OrganizationQuickBooksConnection {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  updatedByMembershipId String?
+  isEnabled             Boolean      @default(true)
+  realmId               String
+  companyName           String?
+  legalName             String?
+  scope                 String?
+  tokenType             String?
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  connectedAt           DateTime     @default(now())
+  disconnectedAt        DateTime?
+  lastValidatedAt       DateTime?
+  lastValidationStatus  String?
+  lastValidationMessage String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership?  @relation("OrganizationQuickBooksConnectionUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, isEnabled])
+  @@index([organizationId, realmId])
 }
 
 model TransactionSearchLayout {

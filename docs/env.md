@@ -16,6 +16,7 @@
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
 - transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
 - `Settings > Signature Drive` 保存的 Google Drive service account 私钥也会使用系统设置加密 secret 做加密 / 解密；当前没有单独的 `GOOGLE_*` env 变量要求
+- `Settings > QuickBooks` 的 OAuth token 也会使用系统设置加密 secret 做加密 / 解密；QuickBooks client id / secret 仍来自环境变量
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -203,7 +204,7 @@ ACRE_SESSION_SECRET="replace-with-a-long-random-string"
 
 - 如果工作目录、截图、日志、备份或聊天内容暴露了当前值，应视为已泄露并立刻轮换
 - 先确认生产环境是否已经显式配置 `ACRE_SETTINGS_ENCRYPTION_SECRET`
-- 如果系统内 SMTP / Signature Drive 设置仍在回退使用 `ACRE_SESSION_SECRET` 做加密，先补上独立的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，或准备在轮换后重新保存这些设置
+- 如果系统内 SMTP / Signature Drive / QuickBooks 设置仍在回退使用 `ACRE_SESSION_SECRET` 做加密，先补上独立的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，或准备在轮换后重新保存这些设置
 - 先生成新的强随机值作为 `ACRE_SESSION_SECRET`
 - 把旧值临时放到 `ACRE_SESSION_SECRET_SECONDARY`
 - 部署一版后，让现有 cookie 在主/次 key 双验签窗口内自然过渡
@@ -286,6 +287,99 @@ ACRE_METRICS_TOKEN="replace-with-a-long-random-token"
 
 - 生产环境应把它放进 `/etc/acre/acre-ui-rebuild.env`
 - 不要把真实 token 写进仓库内 `.env.example`
+
+### `QUICKBOOKS_CLIENT_ID`
+
+用途：
+
+- 启用 `/office/settings/quickbooks` 的 QuickBooks Online OAuth 连接
+- 当前由 `packages/db/src/quickbooks-settings.ts` 读取
+- 与 `QUICKBOOKS_CLIENT_SECRET` 一起用于生成 Intuit OAuth authorize URL 和交换 token
+
+是否必填：
+
+- 只有需要连接 QuickBooks Online 时必填
+- 缺失时 QuickBooks 设置页仍可打开，但 Connect 按钮会被禁用
+
+示例格式：
+
+```env
+QUICKBOOKS_CLIENT_ID="replace-with-intuit-app-client-id"
+```
+
+### `QUICKBOOKS_CLIENT_SECRET`
+
+用途：
+
+- QuickBooks Online OAuth confidential client secret
+- 当前由 `packages/db/src/quickbooks-settings.ts` 读取
+- 只用于服务器端 token exchange / refresh，永远不回传到浏览器
+
+是否必填：
+
+- 只有需要连接 QuickBooks Online 时必填
+- 必须和 `QUICKBOOKS_CLIENT_ID` 同时配置
+
+示例格式：
+
+```env
+QUICKBOOKS_CLIENT_SECRET="replace-with-intuit-app-client-secret"
+```
+
+### `QUICKBOOKS_ENVIRONMENT`
+
+用途：
+
+- 选择 QuickBooks Accounting API base URL
+- `sandbox` 使用 Intuit sandbox API
+- 其他值或缺失时使用 production API
+
+是否必填：
+
+- 非必填
+- 本地或测试 QuickBooks app 建议显式设为 `sandbox`
+
+示例格式：
+
+```env
+QUICKBOOKS_ENVIRONMENT="sandbox"
+```
+
+### `QUICKBOOKS_REDIRECT_URI`
+
+用途：
+
+- 覆盖 QuickBooks OAuth callback URL
+- 当前默认会从 `ACRE_BASE_URL` 或请求 origin 生成：
+  `https://<host>/api/office/settings/quickbooks/callback`
+- 如果 Intuit app 里登记的是固定 callback，生产建议显式配置，避免 proxy / host header 导致 callback 不一致
+
+是否必填：
+
+- 非必填
+- QuickBooks app 里的 redirect URI 必须和实际发起 OAuth 时使用的值完全匹配
+
+示例格式：
+
+```env
+QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
+```
+
+QuickBooks production app URL checklist:
+
+- End-user license agreement URL:
+  `https://acresystem.us/legal/acre-back-office-eula`
+- Privacy policy URL:
+  `https://acresystem.us/legal/acre-back-office-privacy`
+- Host domain: `acresystem.us`
+- Launch URL:
+  `https://acresystem.us/office/settings/quickbooks`
+- Disconnect URL:
+  `https://acresystem.us/quickbooks/disconnect`
+- Connect/Reconnect URL:
+  `https://acresystem.us/quickbooks/connect`
+- Hosted country: `United States`
+- Hosted IP address: `45.55.247.137` unless the production infrastructure changes
 
 ### `PRISMA_SLOW_QUERY_MS`
 
@@ -598,8 +692,10 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="AIza..."
 
 - 为系统内保存的 SMTP 密码做加密 / 解密
 - 为系统内保存的 `Signature Drive` service account 私钥做加密 / 解密
+- 为系统内保存的 QuickBooks Online access token / refresh token 做加密 / 解密
 - 当前由 `packages/db/src/smtp-settings.ts` 读取
 - 当前也由 `packages/db/src/signature-drive-settings.ts` 读取
+- 当前也由 `packages/db/src/quickbooks-settings.ts` 读取
 - 当前会优先使用这个值；未设置时会回退到 `ACRE_SESSION_SECRET`
 
 是否必填：
@@ -607,7 +703,7 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="AIza..."
 - 不是强制必填
 - 如果没有配置它，但已经配置了 `ACRE_SESSION_SECRET`，系统内 SMTP 设置仍然可以工作
 - 如果没有配置它，但已经配置了 `ACRE_SESSION_SECRET`，系统内 `Signature Drive` 设置仍然可以工作
-- 如果两者都缺失，系统内保存的 SMTP 密码和 Google Drive 私钥都无法写入或解密
+- 如果两者都缺失，系统内保存的 SMTP 密码、Google Drive 私钥和 QuickBooks token 都无法写入或解密
 
 示例格式：
 
@@ -1146,8 +1242,9 @@ npm run state:mirror:from-production
 | Secret | Source of truth | Compatibility window | Last rotated at |
 | --- | --- | --- | --- |
 | `ACRE_SESSION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | `30 days` via `ACRE_SESSION_SECRET_SECONDARY` | `<pending>` |
-| `ACRE_SETTINGS_ENCRYPTION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | none; re-save SMTP / Signature Drive only if decrypt fails | `<pending>` |
+| `ACRE_SETTINGS_ENCRYPTION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | none; re-save SMTP / Signature Drive / QuickBooks only if decrypt fails | `<pending>` |
 | `ACRE_RESEND_API_KEY` | `/etc/acre/acre-ui-rebuild.env` + Resend dashboard | none | `<pending>` |
+| `QUICKBOOKS_CLIENT_SECRET` | `/etc/acre/acre-ui-rebuild.env` + Intuit developer app | reconnect QuickBooks after app-secret rotation | `<pending>` |
 | `DATABASE_URL` (`acre_app` password) | `/etc/acre/acre-ui-rebuild.env` + PostgreSQL role `acre_app` | until the app reconnects with the restarted process | `<pending>` |
 
 配套文档：
@@ -1164,7 +1261,7 @@ npm run state:mirror:from-production
 3. `PostgreSQL`：为 `acre_app` 执行 `ALTER USER ... WITH PASSWORD ...`，然后同步更新生产 `/etc/acre/acre-ui-rebuild.env`
 4. `Session`：生成新的 `ACRE_SESSION_SECRET`，把旧值临时移到 `ACRE_SESSION_SECRET_SECONDARY`，等待当前 cookie 最大存活期过去后再删除 secondary
 5. 重启生产服务：`systemctl restart acre-ui-rebuild-web.service`
-6. 如果历史上没有单独的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，确认 SMTP / Signature Drive 的已保存密钥仍可解密；必要时在新 secret 生效后重新保存这些设置
+6. 如果历史上没有单独的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，确认 SMTP / Signature Drive / QuickBooks 的已保存密钥仍可解密；必要时在新 secret 生效后重新保存这些设置
 7. 本地环境不要继续保留长期生产或共享环境 secret；优先迁移到 `1Password CLI`、`Doppler` 或其他外部 secret source
 
 ### git 历史扫描 checklist

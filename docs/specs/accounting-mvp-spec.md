@@ -40,6 +40,12 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - payment methods foundation
   - collections / payments
   - statement summary
+- QuickBooks Online connection foundation exists:
+  - office admins manage it at `/office/settings/quickbooks`
+  - connection uses Intuit OAuth 2.0 and stores organization-level `realmId`
+  - access token / refresh token values are encrypted with the same system settings secret path used by other saved integrations
+  - company info validation checks the connected QuickBooks company file before marking the connection as healthy
+  - this foundation does not automatically push invoices, payments, payouts, commissions, or ledger entries
 - 1099 Tracker now exists as a separate `office_admin`-only accounting-adjacent module at `/office/1099-tracker`:
   - `Payment Record` stores actual company-paid agent payouts by `Agent + Tax Year` with editable free line items
   - `1099 Summary / Preview` aggregates annual totals per agent from those saved payment records only
@@ -73,7 +79,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 ## Current gaps
 
 - no bank reconciliation
-- no QuickBooks sync
+- no QuickBooks object sync yet; the OAuth connection and company-info validation foundation exists, but invoices / payments / payouts / ledger rows are not pushed automatically
 - no payroll
 - no ACH payout execution
 - chart editing is still read-first / limited

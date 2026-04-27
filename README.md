@@ -529,7 +529,12 @@
     - ledger rows linked back to accounting transactions 和 originating transaction
   - 当前 gateway / collection 边界仍然是 MVP：
     - `card on file` 只是配置基础，不代表已自动扣款
-    - 没有 ACH / Stripe / QuickBooks sync
+    - 没有 ACH / Stripe / QuickBooks object sync
+  - `Settings > QuickBooks` 当前已有 QuickBooks Online OAuth 连接基础：
+    - office admin 可连接 / 重连 / 断开 QuickBooks company file
+    - 系统保存 QuickBooks `realmId`、company info 和加密后的 OAuth token
+    - `Check connection` 会真实调用 QuickBooks company-info API 验证连接
+    - 这一步不自动推送 invoices / payments / payouts / ledger rows，也不会把本地记录标记为已同步
   - 已有最小 earnest money / EMD workflow：
     - expected
     - received
@@ -967,7 +972,7 @@
 - `Dashboard`、`Pipeline`、`Transactions`、`Contacts`、`Reports` 之外的大多数页面和 API 仍使用 `@acre/backoffice` 的内存示例数据
 - 已实现数据库 runtime、migration、seed，且 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Reports`、`Notifications`、`Account`、`Activity`、`Accounting` 已接入真实数据库；其余主页面和主 API 仍未完成数据库切换
 - 已实现最小正式内部 auth/session，但还没有 forgot-password、2FA、第三方 auth provider、数据级权限
-- 未实现 `Brokermint` 中更深层的 offer ingestion / MLS-email sync，以及更完整的 accounting workflows（如 reconciliation、QuickBooks sync、ACH/网关自动扣款）
+- 未实现 `Brokermint` 中更深层的 offer ingestion / MLS-email sync，以及更完整的 accounting workflows（如 reconciliation、QuickBooks object sync、ACH/网关自动扣款；QuickBooks OAuth 连接基础已存在）
 - 写操作接口当前只覆盖：
   - `Transactions` 的 create / status update
   - `Contacts` 的 create / edit / follow-up task create / transaction link
