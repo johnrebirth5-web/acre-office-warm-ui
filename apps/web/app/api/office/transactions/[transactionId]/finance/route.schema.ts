@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { amountString, rateString } from "../../../../../../lib/api/field-validators";
+import { amountString, optionalRateString } from "../../../../../../lib/api/field-validators";
 
 const transactionFinanceFeeSchema = z.object({
   feeType: z.string().trim().min(1, "Fee type is required."),
-  rate: rateString("Enter a valid rate.").optional(),
+  rate: optionalRateString("Enter a valid rate.").optional(),
   amount: amountString("Enter a valid amount.").optional(),
   selectedCalculationType: z.string().optional(),
   approvalStatus: z.string().optional(),

@@ -27,6 +27,10 @@ export function rateString(message = "Enter a valid rate.") {
   return z.string().regex(RATE_STRING_PATTERN, message);
 }
 
+export function optionalRateString(message = "Enter a valid rate.") {
+  return z.union([z.literal(""), rateString(message)]);
+}
+
 export function domainId(message = "Enter a valid identifier.") {
   return z.string().regex(DOMAIN_ID_PATTERN, message);
 }
