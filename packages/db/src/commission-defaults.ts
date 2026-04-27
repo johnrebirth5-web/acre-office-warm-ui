@@ -849,10 +849,12 @@ async function saveMembershipCommissionSettingWithDb(tx: ScopedPrismaClient, inp
   }
 
   const agentPercent = splitTemplate ? splitTemplate.agentPercent : parsePercentValue(normalizedCustomPercent, "Agent split");
+  const targetOfficeId = input.officeId ?? membership.officeId ?? null;
 
   await tx.membershipCommissionSetting.updateMany({
     where: {
       organizationId: input.organizationId,
+      officeId: targetOfficeId,
       membershipId: input.membershipId,
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }]
     },
@@ -864,7 +866,7 @@ async function saveMembershipCommissionSettingWithDb(tx: ScopedPrismaClient, inp
   const setting = await tx.membershipCommissionSetting.create({
     data: {
       organizationId: input.organizationId,
-      officeId: input.officeId ?? membership.officeId ?? null,
+      officeId: targetOfficeId,
       membershipId: input.membershipId,
       splitTemplateId: splitTemplate?.id ?? null,
       agentPercent,
@@ -885,7 +887,7 @@ async function saveMembershipCommissionSettingWithDb(tx: ScopedPrismaClient, inp
 
   await syncAgentProfileCommissionLabel(tx, {
     organizationId: input.organizationId,
-    officeId: input.officeId ?? membership.officeId ?? null,
+    officeId: targetOfficeId,
     membershipId: input.membershipId,
     commissionLabel: settingLabel
   });
@@ -898,7 +900,7 @@ async function saveMembershipCommissionSettingWithDb(tx: ScopedPrismaClient, inp
       entityId: membership.id,
       action: activityLogActions.agentProfileUpdated,
       payload: {
-        officeId: input.officeId ?? membership.officeId ?? null,
+        officeId: targetOfficeId,
         objectLabel: `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email,
         contextHref: input.contextHref ?? `/office/settings/users/${membership.id}`,
         details: [`Default split: ${settingLabel}`]

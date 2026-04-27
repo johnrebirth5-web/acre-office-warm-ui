@@ -424,8 +424,12 @@ test("saving company-specific agent profile fields keeps each office isolated", 
       njOfficeProfile?.expirationDate?.toISOString().slice(0, 10),
       "2028-11-10",
     );
+    assert.equal(nySnapshot?.defaultCommission.agentPercent, "60");
+    assert.equal(njSnapshot?.defaultCommission.agentPercent, "80");
     assert.equal(Number(nySplit?.agentPercent ?? 0), 60);
     assert.equal(Number(njSplit?.agentPercent ?? 0), 80);
+    assert.equal(nySplit?.effectiveTo, null);
+    assert.equal(njSplit?.effectiveTo, null);
   } finally {
     await context.cleanup();
   }
