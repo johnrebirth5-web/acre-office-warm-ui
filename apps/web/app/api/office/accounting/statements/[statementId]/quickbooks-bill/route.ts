@@ -3,6 +3,7 @@ import {
   getAgentPayoutStatementQuickBooksBillDraft,
   markAgentPayoutStatementQuickBooksBillFailed,
   markAgentPayoutStatementQuickBooksBillPosted,
+  saveAgentProfile,
   type AgentPayoutStatementQuickBooksBillDraft,
   type SessionMembershipContext
 } from "@acre/db";
@@ -20,11 +21,13 @@ type QuickBooksBillRouteDependencies = {
   markAgentPayoutStatementQuickBooksBillFailed?: typeof markAgentPayoutStatementQuickBooksBillFailed;
   markAgentPayoutStatementQuickBooksBillPosted?: typeof markAgentPayoutStatementQuickBooksBillPosted;
   postQuickBooksBill?: typeof postQuickBooksBill;
+  saveAgentProfile?: typeof saveAgentProfile;
 };
 
 type QuickBooksBillPostResult = {
   billId: string;
   docNumber: string;
+  vendorId?: string;
 };
 
 type QuickBooksBillResponseBody = {
@@ -48,6 +51,19 @@ type QuickBooksTokenResponseBody = {
   refresh_token?: string;
   error?: string;
   error_description?: string;
+};
+
+type QuickBooksVendor = {
+  Id?: string;
+  DisplayName?: string;
+  Active?: boolean;
+};
+
+type QuickBooksVendorQueryResponseBody = {
+  QueryResponse?: {
+    Vendor?: QuickBooksVendor[];
+  };
+  Fault?: QuickBooksBillResponseBody["Fault"];
 };
 
 type QuickBooksCompanyConnection = {
@@ -189,7 +205,10 @@ function getQuickBooksMinorVersion() {
   return process.env.ACRE_QUICKBOOKS_MINOR_VERSION?.trim() || "75";
 }
 
-function formatQuickBooksFault(body: QuickBooksBillResponseBody | QuickBooksTokenResponseBody | null, fallback: string) {
+function formatQuickBooksFault(
+  body: QuickBooksBillResponseBody | QuickBooksTokenResponseBody | QuickBooksVendorQueryResponseBody | null,
+  fallback: string
+) {
   if (body && "Fault" in body && body.Fault?.Error?.length) {
     return body.Fault.Error.map((error) => [error.code, error.Message, error.Detail].filter(Boolean).join(": ")).join("; ");
   }
@@ -239,10 +258,103 @@ async function getQuickBooksAccessToken(fetchImpl: typeof fetch, connection: Qui
   return tokenBody.access_token;
 }
 
-function buildQuickBooksBillPayload(draft: AgentPayoutStatementQuickBooksBillDraft, connection: QuickBooksCompanyConnection) {
+function getQuickBooksVendorLookupNames(draft: AgentPayoutStatementQuickBooksBillDraft) {
+  return Array.from(
+    new Set([draft.payeeLabel, draft.agentLabel].map((value) => value.trim()).filter(Boolean))
+  );
+}
+
+function escapeQuickBooksQueryString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function buildQuickBooksVendorLookupError(draft: AgentPayoutStatementQuickBooksBillDraft) {
+  const lookupNames = getQuickBooksVendorLookupNames(draft);
+
+  if (lookupNames.length === 0) {
+    return "Add a QuickBooks Vendor ID on this agent profile before posting the payout statement.";
+  }
+
+  return `Add a QuickBooks Vendor ID on this agent profile or create an active QuickBooks Vendor named "${lookupNames.join('" or "')}" before posting the payout statement.`;
+}
+
+async function findQuickBooksVendorIdByDisplayName(input: {
+  accessToken: string;
+  connection: QuickBooksCompanyConnection;
+  fetchImpl: typeof fetch;
+  displayName: string;
+}) {
+  const url = new URL(`/v3/company/${input.connection.realmId}/query`, getQuickBooksApiBaseUrl());
+  url.searchParams.set("minorversion", getQuickBooksMinorVersion());
+  url.searchParams.set(
+    "query",
+    `select Id, DisplayName, Active from Vendor where DisplayName = '${escapeQuickBooksQueryString(input.displayName)}'`
+  );
+
+  const vendorResponse = await input.fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${input.accessToken}`
+    }
+  });
+  const vendorBody = (await vendorResponse.json().catch(() => null)) as QuickBooksVendorQueryResponseBody | null;
+
+  if (!vendorResponse.ok) {
+    throw new Error(formatQuickBooksFault(vendorBody, "Failed to find the QuickBooks vendor."));
+  }
+
+  const matches = (vendorBody?.QueryResponse?.Vendor ?? []).filter((vendor) => {
+    const vendorId = vendor.Id?.trim() ?? "";
+    const displayName = vendor.DisplayName?.trim() ?? "";
+
+    return vendorId.length > 0 && vendor.Active !== false && displayName === input.displayName;
+  });
+
+  if (matches.length > 1) {
+    throw new Error(
+      `QuickBooks returned multiple active vendors named "${input.displayName}". Save the QuickBooks Vendor ID on the agent profile before posting.`
+    );
+  }
+
+  return matches[0]?.Id?.trim() ?? "";
+}
+
+async function resolveQuickBooksVendorId(input: {
+  draft: AgentPayoutStatementQuickBooksBillDraft;
+  accessToken: string;
+  connection: QuickBooksCompanyConnection;
+  fetchImpl: typeof fetch;
+}) {
+  const savedVendorId = input.draft.vendorId.trim();
+
+  if (savedVendorId) {
+    return savedVendorId;
+  }
+
+  for (const displayName of getQuickBooksVendorLookupNames(input.draft)) {
+    const vendorId = await findQuickBooksVendorIdByDisplayName({
+      accessToken: input.accessToken,
+      connection: input.connection,
+      fetchImpl: input.fetchImpl,
+      displayName
+    });
+
+    if (vendorId) {
+      return vendorId;
+    }
+  }
+
+  throw new Error(buildQuickBooksVendorLookupError(input.draft));
+}
+
+function buildQuickBooksBillPayload(
+  draft: AgentPayoutStatementQuickBooksBillDraft,
+  connection: QuickBooksCompanyConnection,
+  vendorId: string
+) {
   return {
     VendorRef: {
-      value: draft.vendorId
+      value: vendorId
     },
     APAccountRef: {
       value: connection.apAccountId
@@ -273,6 +385,12 @@ export async function postQuickBooksBill(
   const fetchImpl = options.fetchImpl ?? fetch;
   const connection = resolveQuickBooksCompanyConnection(draft);
   const accessToken = await getQuickBooksAccessToken(fetchImpl, connection);
+  const vendorId = await resolveQuickBooksVendorId({
+    draft,
+    accessToken,
+    connection,
+    fetchImpl
+  });
   const url = new URL(`/v3/company/${connection.realmId}/bill`, getQuickBooksApiBaseUrl());
   url.searchParams.set("minorversion", getQuickBooksMinorVersion());
   url.searchParams.set("requestid", draft.requestId);
@@ -284,7 +402,7 @@ export async function postQuickBooksBill(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(buildQuickBooksBillPayload(draft, connection))
+    body: JSON.stringify(buildQuickBooksBillPayload(draft, connection, vendorId))
   });
   const billBody = (await billResponse.json().catch(() => null)) as QuickBooksBillResponseBody | null;
   const billId = billBody?.Bill?.Id?.trim() ?? "";
@@ -295,7 +413,8 @@ export async function postQuickBooksBill(
 
   return {
     billId,
-    docNumber: billBody?.Bill?.DocNumber?.trim() || draft.docNumber
+    docNumber: billBody?.Bill?.DocNumber?.trim() || draft.docNumber,
+    vendorId
   };
 }
 
@@ -347,6 +466,16 @@ export async function handlePostAccountingStatementQuickBooksBillPost(
     }).catch(() => null);
 
     return NextResponse.json({ error: errorMessage }, { status: 502 });
+  }
+
+  if (!draft.vendorId.trim() && quickBooksBill.vendorId?.trim()) {
+    await (dependencies.saveAgentProfile ?? saveAgentProfile)({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      membershipId: draft.membershipId,
+      actorMembershipId: context.currentMembership.id,
+      quickBooksVendorId: quickBooksBill.vendorId
+    }).catch(() => null);
   }
 
   try {
