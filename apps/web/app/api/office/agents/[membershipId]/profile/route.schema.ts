@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const bankTaxIdTypeSchema = z.union([z.enum(["ssn", "ein"]), z.literal("")]).optional();
+const bankAccountTypeSchema = z
+  .union([z.enum(["checking", "savings", "business_checking", "business_savings", "other"]), z.literal("")])
+  .optional();
+
 export const saveAgentProfileBodySchema = z.object({
   displayName: z.string().optional(),
   bio: z.string().optional(),
@@ -23,8 +28,8 @@ export const saveAgentProfileBodySchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankRoutingNumber: z.string().optional(),
   bankPhoneNumber: z.string().optional(),
-  bankTaxIdType: z.enum(["ssn", "ein"]).optional(),
+  bankTaxIdType: bankTaxIdTypeSchema,
   bankTaxIdValue: z.string().optional(),
   bankDateOfBirth: z.string().optional(),
-  bankAccountType: z.enum(["checking", "savings", "business_checking", "business_savings", "other"]).optional()
+  bankAccountType: bankAccountTypeSchema
 });
