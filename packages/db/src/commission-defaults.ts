@@ -122,7 +122,13 @@ function parsePercentValue(value: string | undefined | null, label: string) {
     throw new Error(`${label} is required.`);
   }
 
-  const numeric = Number(normalized.replaceAll(",", ""));
+  const numericText = normalized.replaceAll(",", "").replace(/\s*%$/, "").trim();
+
+  if (!numericText) {
+    throw new Error(`${label} must be a valid percentage.`);
+  }
+
+  const numeric = Number(numericText);
 
   if (!Number.isFinite(numeric)) {
     throw new Error(`${label} must be a valid percentage.`);

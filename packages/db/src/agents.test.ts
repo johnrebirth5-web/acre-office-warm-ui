@@ -364,7 +364,7 @@ test("saving company-specific agent profile fields keeps each office isolated", 
       licenseState: "NJ",
       startDate: "2028-11-10",
       notes: "NJ notes",
-      customAgentPercent: "80",
+      customAgentPercent: "80%",
       commissionEffectiveFrom: "2026-04-22",
     });
 
