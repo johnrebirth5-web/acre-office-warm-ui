@@ -355,6 +355,9 @@ export type AgentPayoutStatementQuickBooksBillDraftLine = {
 export type AgentPayoutStatementQuickBooksBillDraft = {
   statementId: string;
   membershipId: string;
+  officeId: string;
+  officeSlug: string;
+  officeLabel: string;
   agentLabel: string;
   payeeLabel: string;
   vendorId: string;
@@ -1324,6 +1327,7 @@ function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayout
 
   const agentLabel = formatMembershipLabel(record.membership);
   const payeeLabel = record.membership.agentBankInformation?.payeeName?.trim() || agentLabel;
+  const officeLabel = record.office?.name ?? record.organization.name;
   const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(record.lineItems.map((lineItem) => lineItem.invoiceNumber));
   const docNumber = record.quickBooksBillDocNumber?.trim() || buildAgentPayoutStatementQuickBooksDocNumber(record.id);
   const requestId = record.quickBooksBillRequestId?.trim() || buildAgentPayoutStatementQuickBooksRequestId(record.id);
@@ -1335,6 +1339,9 @@ function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayout
   return {
     statementId: record.id,
     membershipId: record.membershipId,
+    officeId: record.officeId ?? "",
+    officeSlug: record.office?.slug ?? "",
+    officeLabel,
     agentLabel,
     payeeLabel,
     vendorId,
@@ -1348,6 +1355,7 @@ function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayout
       `Acre payout statement: ${record.id}`,
       `Agent: ${agentLabel}`,
       `Payee: ${payeeLabel}`,
+      `Acre office/company: ${officeLabel}`,
       `Period: ${periodLabel}`,
       `Invoices: ${invoiceNumbers.join(", ") || "N/A"}`,
       `Manual adjustments: ${formatCurrency(manualAdjustmentTotal)}`,

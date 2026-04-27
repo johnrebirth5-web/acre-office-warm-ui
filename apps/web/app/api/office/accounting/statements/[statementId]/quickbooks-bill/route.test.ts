@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
-import { handlePostAccountingStatementQuickBooksBillPost } from "./route";
+import { handlePostAccountingStatementQuickBooksBillPost, postQuickBooksBill } from "./route";
 
 function createQuickBooksBillRequest(origin = "http://localhost:3105") {
   return new NextRequest(`${origin}/api/office/accounting/statements/statement_1/quickbooks-bill`, {
@@ -36,6 +36,9 @@ function createDraft() {
   return {
     statementId: "statement_1",
     membershipId: "membership_agent",
+    officeId: "office_1",
+    officeSlug: "acre-nj-llc",
+    officeLabel: "Acre NJ LLC",
     agentLabel: "Casey Agent",
     payeeLabel: "Casey Agent LLC",
     vendorId: "88",
@@ -53,6 +56,30 @@ function createDraft() {
       }
     ]
   };
+}
+
+function withQuickBooksEnv<T>(values: Record<string, string | undefined>, callback: () => Promise<T>) {
+  const previousValues = new Map<string, string | undefined>();
+
+  for (const key of Object.keys(values)) {
+    previousValues.set(key, process.env[key]);
+
+    if (values[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = values[key];
+    }
+  }
+
+  return callback().finally(() => {
+    for (const [key, value] of previousValues) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
 }
 
 test("handlePostAccountingStatementQuickBooksBillPost posts draft and marks the statement posted", async () => {
@@ -151,4 +178,80 @@ test("handlePostAccountingStatementQuickBooksBillPost returns 400 when the state
   assert.deepEqual(await readJson(response), {
     error: "Only payout statements confirmed by the agent can be posted to QuickBooks."
   });
+});
+
+test("postQuickBooksBill uses the QuickBooks company mapped to the statement office", async () => {
+  const fetchCalls: Array<{
+    url: string;
+    body: string;
+    authorization: string;
+  }> = [];
+
+  const result = await withQuickBooksEnv(
+    {
+      ACRE_QUICKBOOKS_CLIENT_ID: "client_id",
+      ACRE_QUICKBOOKS_CLIENT_SECRET: "client_secret",
+      ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: JSON.stringify({
+        "acre-nj-llc": {
+          companyName: "ACRE NJ LLC",
+          realmId: "realm_nj",
+          refreshToken: "refresh_nj",
+          apAccountId: "ap_nj",
+          agentCommissionExpenseAccountId: "expense_nj"
+        },
+        "acre-ny-realty": {
+          companyName: "ACRE NY REALTY INC",
+          realmId: "realm_ny_realty",
+          refreshToken: "refresh_ny_realty",
+          apAccountId: "ap_ny_realty",
+          agentCommissionExpenseAccountId: "expense_ny_realty"
+        }
+      })
+    },
+    async () =>
+      postQuickBooksBill(createDraft() as never, {
+        fetchImpl: async (input, init) => {
+          fetchCalls.push({
+            url: String(input),
+            body: String(init?.body ?? ""),
+            authorization: String(init?.headers instanceof Headers ? init.headers.get("Authorization") : (init?.headers as Record<string, string> | undefined)?.Authorization)
+          });
+
+          if (fetchCalls.length === 1) {
+            return Response.json({
+              access_token: "access_nj",
+              expires_in: 3600
+            });
+          }
+
+          return Response.json({
+            Bill: {
+              Id: "bill_nj",
+              DocNumber: "ACRE-STMT-1"
+            }
+          });
+        }
+      })
+  );
+
+  assert.deepEqual(result, {
+    billId: "bill_nj",
+    docNumber: "ACRE-STMT-1"
+  });
+  assert.equal(fetchCalls[0]?.url, "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer");
+  assert.equal(fetchCalls[0]?.body, "grant_type=refresh_token&refresh_token=refresh_nj");
+  assert.equal(fetchCalls[1]?.url, "https://quickbooks.api.intuit.com/v3/company/realm_nj/bill?minorversion=75&requestid=acre-qb-bill-statement_1");
+  assert.equal(fetchCalls[1]?.authorization, "Bearer access_nj");
+
+  const billPayload = JSON.parse(fetchCalls[1]?.body ?? "{}") as {
+    APAccountRef?: { value?: string };
+    Line?: Array<{
+      AccountBasedExpenseLineDetail?: {
+        AccountRef?: { value?: string };
+      };
+    }>;
+  };
+
+  assert.equal(billPayload.APAccountRef?.value, "ap_nj");
+  assert.equal(billPayload.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value, "expense_nj");
 });

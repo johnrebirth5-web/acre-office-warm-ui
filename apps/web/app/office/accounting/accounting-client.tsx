@@ -1584,7 +1584,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <div className="office-accounting-candidate-copy">
                   <span className="office-mini-heading">QuickBooks AP</span>
                   <p className="office-form-helper">
-                    Post the agent-confirmed statement as an unpaid QuickBooks bill for manual review and payment in QuickBooks.
+                    Post the agent-confirmed statement to the QuickBooks company mapped to this Acre office as an unpaid bill for manual review and payment.
                   </p>
                 </div>
 
@@ -1609,7 +1609,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 {selectedStatement.quickBooksBill.status === "posted"
                   ? `QuickBooks bill ${selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.billId} was posted as unpaid.`
                   : selectedStatement.quickBooksBill.canPost
-                    ? "This action creates Accounts Payable only; Feifei still checks and pays the bill manually in QuickBooks."
+                    ? "This action creates Accounts Payable only in the mapped QuickBooks company; Feifei still checks and pays the bill manually."
                     : "The button appears after the agent confirms the statement inside Acre."}
               </p>
               {selectedStatement.quickBooksBill.postedAtLabel ? (

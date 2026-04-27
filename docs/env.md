@@ -268,15 +268,34 @@ ACRE_BASE_URL="https://acresystem.us"
 - 当前只创建 QuickBooks unpaid bill / Accounts Payable
 - 不自动付款，不触发 ACH / 银行出款；出纳菲菲仍在 QuickBooks 中人工检查并手动付款
 
-必填变量：
+三家公司映射变量：
 
 ```env
-ACRE_QUICKBOOKS_REALM_ID="<quickbooks-company-realm-id>"
 ACRE_QUICKBOOKS_CLIENT_ID="<intuit-oauth-client-id>"
 ACRE_QUICKBOOKS_CLIENT_SECRET="<intuit-oauth-client-secret>"
-ACRE_QUICKBOOKS_REFRESH_TOKEN="<intuit-oauth-refresh-token>"
-ACRE_QUICKBOOKS_AP_ACCOUNT_ID="<quickbooks-accounts-payable-account-id>"
-ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commission-expense-account-id>"
+ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON='{
+  "acre-nj-llc": {
+    "companyName": "ACRE NJ LLC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  },
+  "acre-ny-realty": {
+    "companyName": "ACRE NY REALTY INC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  },
+  "acre-ny-rental": {
+    "companyName": "Acre NY Rentals LLC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  }
+}'
 ```
 
 可选变量：
@@ -286,12 +305,24 @@ ACRE_QUICKBOOKS_API_BASE_URL="https://quickbooks.api.intuit.com"
 ACRE_QUICKBOOKS_MINOR_VERSION="75"
 ```
 
+兼容单公司 / 本地测试变量：
+
+```env
+ACRE_QUICKBOOKS_REALM_ID="<quickbooks-company-realm-id>"
+ACRE_QUICKBOOKS_REFRESH_TOKEN="<intuit-oauth-refresh-token>"
+ACRE_QUICKBOOKS_AP_ACCOUNT_ID="<quickbooks-accounts-payable-account-id>"
+ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commission-expense-account-id>"
+```
+
 使用约束：
 
+- 生产应配置 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON`，按 Acre office slug 分流：
+  `acre-nj-llc -> ACRE NJ LLC`、`acre-ny-realty -> ACRE NY REALTY INC`、`acre-ny-rental -> Acre NY Rentals LLC`
+- `Acre Media LLC` 是作废 QuickBooks company，不配置到 Acre 映射中
 - 每个 agent profile 需要保存 `QuickBooks Vendor ID`，否则对应 payout statement 不能 post
 - payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
 - 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
-- QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按运维流程更新环境值
+- QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按对应 company 更新环境值
 
 ### `ACRE_METRICS_TOKEN`
 
