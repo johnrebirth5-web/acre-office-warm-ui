@@ -165,6 +165,7 @@
   - `/office/settings`
   - `/office/settings/roles`
   - `/office/settings/email-delivery`
+  - `/office/settings/quickbooks`
   - `/office/settings/users`
   - `/office/settings/teams`
   - `/office/settings/fields`
@@ -174,6 +175,7 @@
     - `MembershipOfficeAccess` 做 per-user company access list
     - `MembershipCommissionSetting` 做 user default commission split 真源
     - `OrganizationSmtpSetting` 做组织级发件人配置和 SMTP fallback
+    - `OrganizationQuickBooksConnection` 做组织级 QuickBooks Online OAuth 连接、`realmId`、company info 和加密 token 存储
     - `OrganizationRoleTemplate / OrganizationRoleTemplatePermission` 做 organization-scoped role templates
     - `MembershipPermissionOverride` 做 per-user allow / deny overrides
     - `MembershipOfficePermissionOverride` 做 per-company permission overrides
@@ -843,6 +845,13 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `AgentPaymentMethod`
 - `AgentPayoutStatement`
 - `AgentPayoutStatementLine`
+- `OrganizationQuickBooksConnection`
+
+QuickBooks 现在只作为外部 accounting system 的连接基础存在：
+
+- `/office/settings/quickbooks` 负责 OAuth 连接 / 断开 / company-info 验证
+- access token / refresh token 以加密形式保存，不回传给浏览器
+- 当前不会自动推送 invoices、payments、agent payouts、commission rows 或 GL entries
 
 当前支持的 accounting transaction types：
 
@@ -922,7 +931,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - ACH / autopay execution
 - payroll
 - broad office operational accounting
-- QuickBooks sync
+- QuickBooks object sync
 
 所以页面里如果看到 `card on file`，应理解为：
 
@@ -1110,7 +1119,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 
 故意没做的范围：
 
-- QuickBooks sync
+- QuickBooks object sync（OAuth 连接基础已存在）
 - bank reconciliation
 - payroll
 - office-rent / utilities accounting
