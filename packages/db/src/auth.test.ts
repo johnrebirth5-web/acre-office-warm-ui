@@ -45,11 +45,26 @@ async function createBootstrapOrganizationContext() {
         }
       });
 
-      await prisma.user.deleteMany({
+      const bootstrapUser = await prisma.user.findUnique({
         where: {
           email: getBootstrapAdminEmail()
+        },
+        include: {
+          _count: {
+            select: {
+              memberships: true
+            }
+          }
         }
       });
+
+      if (bootstrapUser && bootstrapUser._count.memberships === 0) {
+        await prisma.user.delete({
+          where: {
+            id: bootstrapUser.id
+          }
+        });
+      }
     }
   };
 }
