@@ -301,6 +301,7 @@ ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON='{
 可选变量：
 
 ```env
+ACRE_QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
 ACRE_QUICKBOOKS_API_BASE_URL="https://quickbooks.api.intuit.com"
 ACRE_QUICKBOOKS_MINOR_VERSION="75"
 ```
@@ -323,6 +324,17 @@ ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commissio
 - payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
 - 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
 - QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按对应 company 更新环境值
+
+Intuit Developer 生产 app 信息：
+
+- Host domain: `acresystem.us`
+- Launch URL: `https://acresystem.us/office/settings/quickbooks`
+- Connect / reconnect URL: `https://acresystem.us/api/office/settings/quickbooks/connect`
+- OAuth redirect URI: `https://acresystem.us/api/office/settings/quickbooks/callback`
+- Disconnect URL: `https://acresystem.us/api/office/settings/quickbooks/disconnect`
+- Privacy policy URL: `https://acresystem.us/legal/privacy`
+- Terms / EULA URL: `https://acresystem.us/legal/terms`
+- `/office/settings/quickbooks` 只显示配置状态和发起 OAuth；OAuth callback 会把 QuickBooks `realmId` 和新的 refresh token 显示在管理员本机浏览器中，供运维写入 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON`。不要把 refresh token 复制进聊天、工单、PR 或代码仓库。
 
 ### `ACRE_METRICS_TOKEN`
 

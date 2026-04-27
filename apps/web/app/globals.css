@@ -8689,6 +8689,101 @@ a {
   font-size: 0.84rem;
 }
 
+.office-quickbooks-setup-grid {
+  align-items: start;
+}
+
+.office-quickbooks-url-list,
+.office-quickbooks-policy-list,
+.office-quickbooks-office-list,
+.office-quickbooks-office-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.office-quickbooks-url-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.32fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--office-border-soft);
+}
+
+.office-quickbooks-url-row:last-child {
+  border-bottom: 0;
+}
+
+.office-quickbooks-url-row span,
+.office-quickbooks-office-card small {
+  color: var(--office-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.office-quickbooks-url-row code {
+  min-width: 0;
+  padding: 2px 0;
+  color: var(--office-text);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.office-quickbooks-policy-list p,
+.office-quickbooks-office-card p {
+  margin: 0;
+  color: var(--office-text-muted);
+  line-height: 1.55;
+}
+
+.office-quickbooks-policy-list p {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--office-border-soft);
+}
+
+.office-quickbooks-policy-list p:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.office-quickbooks-office-list {
+  margin-top: 14px;
+}
+
+.office-quickbooks-office-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--office-border);
+  border-radius: 8px;
+  background: var(--office-surface-subtle);
+}
+
+.office-quickbooks-office-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.office-quickbooks-office-heading strong {
+  color: var(--office-text);
+}
+
+.office-quickbooks-office-card p span {
+  color: var(--office-text);
+  font-weight: 700;
+}
+
+.office-quickbooks-office-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .office-inline-error {
   display: inline-flex;
   align-items: center;
@@ -11352,6 +11447,8 @@ a {
   }
 
   .office-settings-card-grid,
+  .office-quickbooks-office-card,
+  .office-quickbooks-url-row,
   .office-settings-checkbox-grid,
   .office-settings-users-company-access-grid,
   .office-settings-template-item-grid {

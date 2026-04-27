@@ -20,6 +20,7 @@ function getSettingsLinks(currentAccess: PermissionSubject) {
     { href: "/office/settings", label: "Overview", isVisible: canAccessOfficeSettings(currentAccess) },
     { href: "/office/settings/roles", label: "Roles", isVisible: canManageOfficeSettings(currentAccess) },
     { href: "/office/settings/email-delivery", label: "Email delivery", isVisible: canManageOfficeSettings(currentAccess) },
+    { href: "/office/settings/quickbooks", label: "QuickBooks", isVisible: canManageOfficeSettings(currentAccess) },
     { href: "/office/settings/users", label: "Users", isVisible: canViewOfficeUsers(currentAccess) || canViewOfficeAgents(currentAccess) },
     { href: "/office/settings/teams", label: "Teams", isVisible: canViewOfficeTeams(currentAccess) },
     { href: "/office/settings/fields", label: "Fields", isVisible: canViewOfficeFields(currentAccess) },

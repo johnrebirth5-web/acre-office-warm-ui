@@ -71,6 +71,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - after an agent confirms a payout statement inside Acre, admins can post it to QuickBooks as an unpaid bill
   - the post requires a saved QuickBooks Vendor ID on the agent profile plus service-level QuickBooks company mapping
   - QuickBooks posting routes by the statement office: `acre-nj-llc -> ACRE NJ LLC`, `acre-ny-realty -> ACRE NY REALTY INC`, and `acre-ny-rental -> Acre NY Rentals LLC`
+  - admins can use `/office/settings/quickbooks` to view the Intuit app URLs, launch a per-company OAuth setup, and capture the realm ID / refresh token needed for the server-side mapping
   - successful posts store QuickBooks bill id / doc number on the payout statement and create a local open AP `AccountingTransaction` bill
   - the workflow stops at unpaid bill creation; Feifei still manually reviews and pays the bill in QuickBooks
 - commission management primary workspace now lives at `/office/settings/commission-plans`
