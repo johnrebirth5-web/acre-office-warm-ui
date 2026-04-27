@@ -416,6 +416,7 @@
     - `AgentPayoutStatementManualLineItem`
   - 工资单金额来自 `CommissionCalculation` 的 agent rows 加上 statement-level manual adjustments；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
   - 当前工资单生成依据是 transaction field 里的 `invoiceNumber`；这版还没有独立的 “invoice 已收款” 数据模型
+  - 批量补跑 imported / legacy transactions 的 commission calculation 时，先使用 `scripts/backfill-commission-calculations.ts` dry-run 预检；脚本会列出缺 `grossCommission`、缺 owner、未满足 referral / rebate approval、已有 calculation、缺 `invoiceNumber`、以及 agent payout 为 `$0` 等 blocker，只有显式 `--execute` 且提供 actor membership 时才写入
   - manual adjustment 只允许在已保存 statement detail 中编辑，不会回写 invoice snapshot，也不会改变底层 `CommissionCalculation` status
   - statement detail / PDF 当前不再向 agent-facing payout output 暴露 `Office net`
   - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
@@ -1084,6 +1085,25 @@ npm run import:acre-2026-04 -- run --execute --supplemental-sheet-url='https://d
 详细映射、已知限制和执行说明见：
 
 - [docs/specs/legacy-import-2026-04.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/legacy-import-2026-04.md)
+
+## Commission calculation 批量预检 / 补跑
+
+`Agent Statements` 只会读取已经存在的 eligible `CommissionCalculation` agent rows。导入一批 transaction 后，不要逐单手点 calculation；先用批量预检脚本确认哪些单可以安全自动计算：
+
+```bash
+npx tsx scripts/backfill-commission-calculations.ts --organization-slug acre --office-slug acre-ny-realty --dry-run
+npx tsx scripts/backfill-commission-calculations.ts --organization-slug acre --office-slug acre-ny-realty --dry-run --json
+```
+
+- 默认只扫描 `pending / closed`，可用 `--status active,pending,closed` 或 `--all-statuses` 改范围
+- 默认不会重算已有 `CommissionCalculation` 的 transaction；需要重算时显式加 `--include-existing`
+- 默认把 agent payout 算成 `$0` 的 transaction 当作 blocker，避免批量生成无效 payout rows；确认要允许时才加 `--allow-zero-agent-payout`
+- `invoiceNumber` 缺失默认是 warning，因为 calculation 可以跑，但 `Agent Statements` 的 invoice picker 不会显示该 row；需要强制拦截时加 `--require-invoice-number`
+- 真正写库必须显式传 `--execute`，并提供 `--actor-email <email>` 或 `--actor-membership-id <id>`，例如：
+
+```bash
+npx tsx scripts/backfill-commission-calculations.ts --organization-slug acre --office-slug acre-ny-realty --execute --actor-email office@acreny.us
+```
 
 如果你当前本地开发直接连的是 `DigitalOcean` 上的数据库，并且希望本地网站尽量一直在线、同时保持 `next dev` 开发态，可以额外开一个终端长期运行：
 
