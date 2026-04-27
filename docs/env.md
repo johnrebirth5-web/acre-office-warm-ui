@@ -16,6 +16,7 @@
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
 - transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
 - `Settings > Signature Drive` 保存的 Google Drive service account 私钥也会使用系统设置加密 secret 做加密 / 解密；当前没有单独的 `GOOGLE_*` env 变量要求
+- `Office Accounting` 的 `Post to QuickBooks` payout statement 动作额外依赖 QuickBooks Online OAuth 和账户映射环境变量；缺失时不会创建本地“已同步”状态
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -258,6 +259,39 @@ ACRE_BASE_URL="https://acresystem.us"
 - 脚本仍可运行
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
+
+### QuickBooks Online unpaid bill sync
+
+用途：
+
+- 支持 `/office/accounting` 中已由 agent 确认的 payout statement 通过 `Post to QuickBooks` 推送到 QuickBooks Online
+- 当前只创建 QuickBooks unpaid bill / Accounts Payable
+- 不自动付款，不触发 ACH / 银行出款；出纳菲菲仍在 QuickBooks 中人工检查并手动付款
+
+必填变量：
+
+```env
+ACRE_QUICKBOOKS_REALM_ID="<quickbooks-company-realm-id>"
+ACRE_QUICKBOOKS_CLIENT_ID="<intuit-oauth-client-id>"
+ACRE_QUICKBOOKS_CLIENT_SECRET="<intuit-oauth-client-secret>"
+ACRE_QUICKBOOKS_REFRESH_TOKEN="<intuit-oauth-refresh-token>"
+ACRE_QUICKBOOKS_AP_ACCOUNT_ID="<quickbooks-accounts-payable-account-id>"
+ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commission-expense-account-id>"
+```
+
+可选变量：
+
+```env
+ACRE_QUICKBOOKS_API_BASE_URL="https://quickbooks.api.intuit.com"
+ACRE_QUICKBOOKS_MINOR_VERSION="75"
+```
+
+使用约束：
+
+- 每个 agent profile 需要保存 `QuickBooks Vendor ID`，否则对应 payout statement 不能 post
+- payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
+- 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
+- QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按运维流程更新环境值
 
 ### `ACRE_METRICS_TOKEN`
 

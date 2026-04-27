@@ -562,7 +562,7 @@ Trade-off：
 
 - 当前 accounting 已经是真实数据库模块，但仍然不是完整会计产品
 - 没有：
-  - QuickBooks sync
+  - generalized QuickBooks sync beyond confirmed payout statement -> unpaid bill posting
   - bank reconciliation
   - payroll
   - office rent / utilities accounting
@@ -681,6 +681,7 @@ Trade-off：
   - 自动外部出款
 - 当前 `statement_ready / payable / paid` 只是内部状态与可见性，不自动代表外部银行资金已打出
 - `AgentPayoutStatement` 生成时会把被纳入该期工资单的 `calculated / reviewed / statement_ready` agent rows 推进到 `payable`，但 `payable / paid` rows 仍然允许再次生成新的 durable statement snapshot，且不会把 `paid` 状态降回 `payable`
+- 已确认的 `AgentPayoutStatement` 可以由 admin 显式 `Post to QuickBooks`，在 QuickBooks 生成 unpaid bill 并在 Acre 留下本地 open AP bill；这个动作不代表付款，出纳仍需在 QuickBooks 里人工检查和付款
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
 

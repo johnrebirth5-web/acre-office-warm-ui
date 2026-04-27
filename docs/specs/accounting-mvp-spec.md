@@ -67,12 +67,17 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - finance/admin can resend the statement with an internal note, and the full conversation stays on the statement timeline inside the BO system
   - no payout-statement delivery, confirmation, or revision handling should depend on email / WeChat; this workflow is intentionally system-internal only
   - self-service users cannot generate statements; creation stays in admin/accounting workflows
+- QuickBooks payout statement sync now exists:
+  - after an agent confirms a payout statement inside Acre, admins can post it to QuickBooks as an unpaid bill
+  - the post requires a saved QuickBooks Vendor ID on the agent profile plus service-level QuickBooks account/env configuration
+  - successful posts store QuickBooks bill id / doc number on the payout statement and create a local open AP `AccountingTransaction` bill
+  - the workflow stops at unpaid bill creation; Feifei still manually reviews and pays the bill in QuickBooks
 - commission management primary workspace now lives at `/office/settings/commission-plans`
 
 ## Current gaps
 
 - no bank reconciliation
-- no QuickBooks sync
+- no generalized QuickBooks sync beyond confirmed payout statement -> unpaid bill posting
 - no payroll
 - no ACH payout execution
 - chart editing is still read-first / limited

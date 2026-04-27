@@ -633,6 +633,12 @@ enum AgentPayoutStatementReviewStatus {
   paid
 }
 
+enum AgentPayoutStatementQuickBooksBillStatus {
+  not_posted
+  posted
+  failed
+}
+
 enum AgentPayoutStatementMessageType {
   sent_to_agent
   finance_response
@@ -2886,6 +2892,7 @@ model AgentProfile {
   commissionPlanName String?
   avatarUrl          String?
   internalExtension  String?
+  quickBooksVendorId String?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -3405,6 +3412,13 @@ model AgentPayoutStatement {
   totalGrossCommission     Decimal                              @default(0) @db.Decimal(12, 2)
   totalOfficeNet           Decimal                              @default(0) @db.Decimal(12, 2)
   totalAgentNet            Decimal                              @default(0) @db.Decimal(12, 2)
+  quickBooksBillStatus                  AgentPayoutStatementQuickBooksBillStatus @default(not_posted)
+  quickBooksBillId                      String?
+  quickBooksBillDocNumber               String?
+  quickBooksBillPostedAt                DateTime?
+  quickBooksBillRequestId               String?
+  quickBooksBillSyncError               String?
+  quickBooksBillAccountingTransactionId String?
   organization             Organization                         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                   Office?                              @relation(fields: [officeId], references: [id], onDelete: SetNull)
   membership               Membership                           @relation(fields: [membershipId], references: [id], onDelete: Cascade)
@@ -3417,6 +3431,7 @@ model AgentPayoutStatement {
   @@index([organizationId, officeId, generatedAt])
   @@index([organizationId, membershipId, generatedAt])
   @@index([organizationId, reviewStatus, generatedAt])
+  @@index([organizationId, quickBooksBillStatus, generatedAt], map: "AgentPayoutStatement_org_qbBillStatus_generatedAt_idx")
   @@index([organizationId, periodStart, periodEnd])
 }
 

@@ -40,6 +40,7 @@ type ProfileState = {
   commissionEffectiveTo: string;
   avatarUrl: string;
   internalExtension: string;
+  quickBooksVendorId: string;
   bankPayeeName: string;
   bankFirstName: string;
   bankLastName: string;
@@ -163,6 +164,7 @@ function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
     commissionEffectiveTo: snapshot.defaultCommission.effectiveTo,
     avatarUrl: snapshot.profile.avatarUrl,
     internalExtension: snapshot.profile.internalExtension,
+    quickBooksVendorId: snapshot.profile.quickBooksVendorId,
     bankPayeeName: snapshot.bankInformation.payeeName,
     bankFirstName: snapshot.bankInformation.firstName,
     bankLastName: snapshot.bankInformation.lastName,
@@ -687,6 +689,18 @@ export function UserOperationsDetailSections({
                   <strong>{defaultCommissionSummary.settingLabel}</strong>
                   <p>{defaultCommissionSummary.sourceLabel}</p>
                 </div>
+                <FormField
+                  className="office-detail-field"
+                  helper="Required before a confirmed payout statement can be posted to QuickBooks as an unpaid bill."
+                  label="QuickBooks Vendor ID"
+                >
+                  <TextInput
+                    autoComplete="off"
+                    onChange={(event) => setProfileField("quickBooksVendorId", event.target.value)}
+                    readOnly={!canManageAgents}
+                    value={profileState.quickBooksVendorId}
+                  />
+                </FormField>
                 <FormField className="office-detail-field office-detail-field-wide" label="Bio">
                   <TextareaInput onChange={(event) => setProfileField("bio", event.target.value)} readOnly={!canManageAgents} value={profileState.bio} />
                 </FormField>

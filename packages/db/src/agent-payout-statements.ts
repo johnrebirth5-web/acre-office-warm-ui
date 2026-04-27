@@ -1,5 +1,6 @@
 import {
   AgentPayoutStatementPeriodBasis,
+  AgentPayoutStatementQuickBooksBillStatus,
   AgentPayoutStatementMessageType,
   AgentPayoutStatementReviewStatus,
   AgentBankInformationAccountType,
@@ -15,6 +16,7 @@ import {
   TransactionFinanceFeeType,
   TransactionFinanceVersionSource
 } from "@prisma/client";
+import { accountingSystemAccountCodes, saveAccountingTransactionInternal } from "./accounting";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -195,6 +197,17 @@ export type OfficeAgentPayoutStatementBankInformationRecord = {
   accountTypeLabel: string;
 };
 
+export type OfficeAgentPayoutStatementQuickBooksBillRecord = {
+  status: AgentPayoutStatementQuickBooksBillStatus;
+  statusLabel: string;
+  billId: string;
+  docNumber: string;
+  postedAt: string;
+  postedAtLabel: string;
+  syncError: string;
+  canPost: boolean;
+};
+
 export type OfficeAgentPayoutStatementRecord = {
   id: string;
   membershipId: string;
@@ -216,6 +229,7 @@ export type OfficeAgentPayoutStatementRecord = {
   lineItemCount: number;
   totalStatementAmountLabel: string;
   totalStatementAmountValue: string;
+  quickBooksBill: OfficeAgentPayoutStatementQuickBooksBillRecord;
 };
 
 export type OfficeAgentPayoutStatementDetail = {
@@ -253,6 +267,7 @@ export type OfficeAgentPayoutStatementDetail = {
   totalAgentNetLabel: string;
   totalAgentNetValue: string;
   bankInformation: OfficeAgentPayoutStatementBankInformationRecord | null;
+  quickBooksBill: OfficeAgentPayoutStatementQuickBooksBillRecord;
   timeline: OfficeAgentPayoutStatementTimelineItem[];
   manualLineItems: OfficeAgentPayoutStatementManualLineItemRecord[];
   lineItems: OfficeAgentPayoutStatementLineRecord[];
@@ -332,6 +347,52 @@ export type GetOfficeAgentPayoutStatementDetailInput = {
   statementId: string;
 };
 
+export type AgentPayoutStatementQuickBooksBillDraftLine = {
+  description: string;
+  amountValue: string;
+};
+
+export type AgentPayoutStatementQuickBooksBillDraft = {
+  statementId: string;
+  membershipId: string;
+  agentLabel: string;
+  payeeLabel: string;
+  vendorId: string;
+  docNumber: string;
+  requestId: string;
+  txnDate: string;
+  dueDate: string;
+  totalAmountValue: string;
+  lineDescription: string;
+  privateNote: string;
+  lines: AgentPayoutStatementQuickBooksBillDraftLine[];
+};
+
+export type GetAgentPayoutStatementQuickBooksBillDraftInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+};
+
+export type MarkAgentPayoutStatementQuickBooksBillPostedInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  actorMembershipId: string;
+  quickBooksBillId: string;
+  quickBooksBillDocNumber?: string;
+  quickBooksBillRequestId: string;
+};
+
+export type MarkAgentPayoutStatementQuickBooksBillFailedInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  actorMembershipId: string;
+  quickBooksBillRequestId: string;
+  errorMessage: string;
+};
+
 type StatementDateSubject = {
   calculatedAt: Date;
   closingDate: Date | null;
@@ -376,6 +437,12 @@ const statementReviewStatusLabelMap: Record<AgentPayoutStatementReviewStatus, st
   revision_requested: "Revision requested",
   confirmed: "Confirmed",
   paid: "Paid"
+};
+
+const quickBooksBillStatusLabelMap: Record<AgentPayoutStatementQuickBooksBillStatus, string> = {
+  not_posted: "Not posted",
+  posted: "Posted",
+  failed: "Failed"
 };
 
 const statementMessageTypeLabelMap: Record<AgentPayoutStatementMessageType, string> = {
@@ -587,9 +654,37 @@ function formatMembershipLabel(membership: {
   user: {
     firstName: string;
     lastName: string;
+    email?: string | null;
   };
 }) {
-  return `${membership.user.firstName} ${membership.user.lastName}`.trim();
+  return `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email?.trim() || "Unknown member";
+}
+
+function mapQuickBooksBillRecord(record: {
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  confirmedAt: Date | null;
+  quickBooksBillStatus: AgentPayoutStatementQuickBooksBillStatus;
+  quickBooksBillId: string | null;
+  quickBooksBillDocNumber: string | null;
+  quickBooksBillPostedAt: Date | null;
+  quickBooksBillSyncError: string | null;
+  organization: {
+    timezone?: string | null;
+  };
+}): OfficeAgentPayoutStatementQuickBooksBillRecord {
+  return {
+    status: record.quickBooksBillStatus,
+    statusLabel: quickBooksBillStatusLabelMap[record.quickBooksBillStatus],
+    billId: record.quickBooksBillId?.trim() ?? "",
+    docNumber: record.quickBooksBillDocNumber?.trim() ?? "",
+    postedAt: record.quickBooksBillPostedAt?.toISOString() ?? "",
+    postedAtLabel: formatDateTimeValue(record.quickBooksBillPostedAt, record.organization.timezone),
+    syncError: record.quickBooksBillSyncError?.trim() ?? "",
+    canPost:
+      record.reviewStatus === "confirmed" &&
+      Boolean(record.confirmedAt) &&
+      record.quickBooksBillStatus !== "posted"
+  };
 }
 
 function buildOwnerLabel(
@@ -1081,8 +1176,21 @@ function buildAgentPayoutStatementSelfServiceHref(statementId: string) {
   return `/office/payout-statements/${statementId}`;
 }
 
+function buildAgentPayoutStatementQuickBooksDocNumber(statementId: string) {
+  return `ACRE-${statementId.slice(-12).toUpperCase()}`;
+}
+
+function buildAgentPayoutStatementQuickBooksRequestId(statementId: string) {
+  return `acre-qb-bill-${statementId}`;
+}
+
 function normalizeStatementMessage(value: string | null | undefined) {
   return value?.trim() ?? "";
+}
+
+function normalizeQuickBooksSyncErrorMessage(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+  return normalized.length > 1000 ? `${normalized.slice(0, 997)}...` : normalized;
 }
 
 function reviewStatusKeepsConfirmation(status: AgentPayoutStatementReviewStatus) {
@@ -1179,6 +1287,81 @@ function buildStatementLineSnapshot(
   };
 }
 
+function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayoutStatementGetPayload<{
+  include: {
+    organization: true;
+    office: true;
+    membership: {
+      include: {
+        user: true;
+        agentBankInformation: true;
+        agentProfile: true;
+      };
+    };
+    manualLineItems: true;
+    lineItems: true;
+  };
+}>): AgentPayoutStatementQuickBooksBillDraft {
+  if (record.quickBooksBillStatus === "posted") {
+    throw new Error("This payout statement has already been posted to QuickBooks.");
+  }
+
+  if (record.reviewStatus !== "confirmed" || !record.confirmedAt) {
+    throw new Error("Only payout statements confirmed by the agent can be posted to QuickBooks.");
+  }
+
+  const totalAmount = normalizeCurrencyDecimal(new Prisma.Decimal(record.totalStatementAmount ?? 0));
+
+  if (totalAmount.lte(0)) {
+    throw new Error("A positive payout statement total is required before posting to QuickBooks.");
+  }
+
+  const vendorId = record.membership.agentProfile?.quickBooksVendorId?.trim() ?? "";
+
+  if (!vendorId) {
+    throw new Error("Add a QuickBooks Vendor ID on this agent profile before posting the payout statement.");
+  }
+
+  const agentLabel = formatMembershipLabel(record.membership);
+  const payeeLabel = record.membership.agentBankInformation?.payeeName?.trim() || agentLabel;
+  const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(record.lineItems.map((lineItem) => lineItem.invoiceNumber));
+  const docNumber = record.quickBooksBillDocNumber?.trim() || buildAgentPayoutStatementQuickBooksDocNumber(record.id);
+  const requestId = record.quickBooksBillRequestId?.trim() || buildAgentPayoutStatementQuickBooksRequestId(record.id);
+  const txnDate = formatDateValue(record.confirmedAt);
+  const manualAdjustmentTotal = summarizeStatementManualLineItems(record.manualLineItems);
+  const periodLabel = formatPeriodLabel(record.periodStart, record.periodEnd);
+  const lineDescription = `Acre agent payout statement ${docNumber} · ${agentLabel} · ${periodLabel}`;
+
+  return {
+    statementId: record.id,
+    membershipId: record.membershipId,
+    agentLabel,
+    payeeLabel,
+    vendorId,
+    docNumber,
+    requestId,
+    txnDate,
+    dueDate: txnDate,
+    totalAmountValue: decimalToString(totalAmount),
+    lineDescription,
+    privateNote: [
+      `Acre payout statement: ${record.id}`,
+      `Agent: ${agentLabel}`,
+      `Payee: ${payeeLabel}`,
+      `Period: ${periodLabel}`,
+      `Invoices: ${invoiceNumbers.join(", ") || "N/A"}`,
+      `Manual adjustments: ${formatCurrency(manualAdjustmentTotal)}`,
+      "Creates an unpaid QuickBooks bill only. Payment remains manual in QuickBooks."
+    ].join("\n"),
+    lines: [
+      {
+        description: lineDescription,
+        amountValue: decimalToString(totalAmount)
+      }
+    ]
+  };
+}
+
 function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPayoutStatementRecord {
   return {
     id: record.id,
@@ -1200,7 +1383,8 @@ function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPa
     confirmedAtLabel: formatDateTimeValue(record.confirmedAt, record.organization.timezone),
     lineItemCount: record.lineItemCount,
     totalStatementAmountLabel: formatCurrency(record.totalStatementAmount),
-    totalStatementAmountValue: decimalToString(record.totalStatementAmount)
+    totalStatementAmountValue: decimalToString(record.totalStatementAmount),
+    quickBooksBill: mapQuickBooksBillRecord(record)
   };
 }
 
@@ -1258,6 +1442,7 @@ function mapStatementDetail(
     totalAgentNetLabel: formatCurrency(record.totalAgentNet),
     totalAgentNetValue: decimalToString(record.totalAgentNet),
     bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
+    quickBooksBill: mapQuickBooksBillRecord(record),
     timeline: record.messages.map((message) => ({
       id: message.id,
       messageType: message.messageType,
@@ -1582,6 +1767,56 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
     history: history.map(mapStatementRecord),
     selectedStatement
   };
+}
+
+export async function getAgentPayoutStatementQuickBooksBillDraft(
+  input: GetAgentPayoutStatementQuickBooksBillDraftInput
+): Promise<AgentPayoutStatementQuickBooksBillDraft | null> {
+  const [statement, agentCommissionExpenseAccount] = await Promise.all([
+    prisma.agentPayoutStatement.findFirst({
+      where: {
+        id: input.statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        organization: true,
+        office: true,
+        membership: {
+          include: {
+            user: true,
+            agentBankInformation: true,
+            agentProfile: true
+          }
+        },
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        },
+        lineItems: {
+          orderBy: [{ calculatedAt: "desc" }, { transactionLabel: "asc" }]
+        }
+      }
+    }),
+    prisma.ledgerAccount.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        code: accountingSystemAccountCodes.agentCommissionExpense
+      },
+      select: {
+        id: true
+      }
+    })
+  ]);
+
+  if (!statement) {
+    return null;
+  }
+
+  if (!agentCommissionExpenseAccount) {
+    throw new Error(`Missing system ledger account ${accountingSystemAccountCodes.agentCommissionExpense}.`);
+  }
+
+  return buildAgentPayoutStatementQuickBooksBillDraft(statement);
 }
 
 export async function createAgentPayoutStatement(input: CreateAgentPayoutStatementInput) {
@@ -2082,6 +2317,282 @@ export async function updateAgentPayoutStatementReviewStatus(input: UpdateAgentP
 
     return {
       statementId: statement.id
+    };
+  });
+}
+
+export async function markAgentPayoutStatementQuickBooksBillPosted(
+  input: MarkAgentPayoutStatementQuickBooksBillPostedInput
+) {
+  const statementId = input.statementId.trim();
+  const quickBooksBillId = input.quickBooksBillId.trim();
+  const quickBooksBillRequestId = input.quickBooksBillRequestId.trim();
+  const quickBooksBillDocNumber = input.quickBooksBillDocNumber?.trim() ?? "";
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  if (!quickBooksBillId) {
+    throw new Error("QuickBooks bill id is required.");
+  }
+
+  if (!quickBooksBillRequestId) {
+    throw new Error("QuickBooks request id is required.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        organization: true,
+        office: true,
+        membership: {
+          include: {
+            user: true,
+            agentBankInformation: true,
+            agentProfile: true
+          }
+        },
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        },
+        lineItems: {
+          orderBy: [{ calculatedAt: "desc" }, { transactionLabel: "asc" }]
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    if (statement.quickBooksBillStatus === "posted") {
+      return {
+        statementId: statement.id,
+        quickBooksBillId: statement.quickBooksBillId ?? quickBooksBillId,
+        quickBooksBillDocNumber: statement.quickBooksBillDocNumber ?? quickBooksBillDocNumber
+      };
+    }
+
+    const agentCommissionExpenseAccount = await tx.ledgerAccount.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        code: accountingSystemAccountCodes.agentCommissionExpense
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!agentCommissionExpenseAccount) {
+      throw new Error(`Missing system ledger account ${accountingSystemAccountCodes.agentCommissionExpense}.`);
+    }
+
+    const draft = buildAgentPayoutStatementQuickBooksBillDraft(statement);
+    const resolvedDocNumber = quickBooksBillDocNumber || draft.docNumber;
+    const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+    );
+    const workspaceHref = buildAgentPayoutStatementWorkspaceHref({
+      membershipId: statement.membershipId,
+      invoiceNumbers,
+      statementId: statement.id
+    });
+    const accountingTransactionId = await saveAccountingTransactionInternal(tx, {
+      organizationId: input.organizationId,
+      officeId: statement.officeId,
+      relatedMembershipId: statement.membershipId,
+      type: "bill",
+      status: "open",
+      accountingDate: draft.txnDate,
+      dueDate: draft.dueDate,
+      referenceNumber: resolvedDocNumber,
+      counterpartyName: draft.payeeLabel,
+      memo: `QuickBooks unpaid bill ${resolvedDocNumber}`,
+      notes: [
+        `Posted from Acre payout statement ${statement.id}.`,
+        `QuickBooks bill id: ${quickBooksBillId}.`,
+        "This creates Accounts Payable only; payment remains manual in QuickBooks."
+      ].join("\n"),
+      isAgentBilling: false,
+      billingCategory: "agent_payout_statement",
+      lineItems: draft.lines.map((line, index) => ({
+        ledgerAccountId: agentCommissionExpenseAccount.id,
+        description: line.description,
+        amount: line.amountValue,
+        entrySide: "debit"
+      })),
+      createdByMembershipId: input.actorMembershipId,
+      actorMembershipId: input.actorMembershipId,
+      activityContextHref: workspaceHref
+    });
+
+    await tx.accountingTransaction.update({
+      where: {
+        id: accountingTransactionId
+      },
+      data: {
+        externalSyncStatus: "quickbooks_unpaid_bill",
+        externalReferenceId: quickBooksBillId
+      }
+    });
+
+    const postedAt = new Date();
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        quickBooksBillStatus: "posted",
+        quickBooksBillId,
+        quickBooksBillDocNumber: resolvedDocNumber,
+        quickBooksBillPostedAt: postedAt,
+        quickBooksBillRequestId,
+        quickBooksBillSyncError: null,
+        quickBooksBillAccountingTransactionId: accountingTransactionId
+      }
+    });
+
+    const changes = [
+      buildActivityLogChange(
+        "QuickBooks bill status",
+        quickBooksBillStatusLabelMap[statement.quickBooksBillStatus],
+        quickBooksBillStatusLabelMap.posted
+      )
+    ].filter((change): change is ActivityLogChange => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "agent_payout_statement",
+      entityId: statement.id,
+      action: activityLogActions.agentPayoutStatementQuickBooksBillPosted,
+      payload: {
+        officeId: statement.officeId,
+        objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+        contextHref: workspaceHref,
+        details: [
+          `Agent: ${formatMembershipLabel(statement.membership)}`,
+          `QuickBooks bill id: ${quickBooksBillId}`,
+          `QuickBooks bill number: ${resolvedDocNumber}`,
+          `Amount: ${formatCurrency(statement.totalStatementAmount)}`
+        ],
+        changes
+      }
+    });
+
+    return {
+      statementId: statement.id,
+      quickBooksBillId,
+      quickBooksBillDocNumber: resolvedDocNumber,
+      accountingTransactionId
+    };
+  });
+}
+
+export async function markAgentPayoutStatementQuickBooksBillFailed(
+  input: MarkAgentPayoutStatementQuickBooksBillFailedInput
+) {
+  const statementId = input.statementId.trim();
+  const quickBooksBillRequestId = input.quickBooksBillRequestId.trim();
+  const errorMessage = normalizeQuickBooksSyncErrorMessage(input.errorMessage);
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  if (!quickBooksBillRequestId) {
+    throw new Error("QuickBooks request id is required.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        organization: true,
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        lineItems: {
+          select: {
+            invoiceNumber: true
+          }
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    if (statement.quickBooksBillStatus === "posted") {
+      return {
+        statementId: statement.id,
+        quickBooksBillStatus: statement.quickBooksBillStatus
+      };
+    }
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        quickBooksBillStatus: "failed",
+        quickBooksBillRequestId,
+        quickBooksBillSyncError: errorMessage || "QuickBooks bill post failed."
+      }
+    });
+
+    const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+    );
+    const workspaceHref = buildAgentPayoutStatementWorkspaceHref({
+      membershipId: statement.membershipId,
+      invoiceNumbers,
+      statementId: statement.id
+    });
+    const changes = [
+      buildActivityLogChange(
+        "QuickBooks bill status",
+        quickBooksBillStatusLabelMap[statement.quickBooksBillStatus],
+        quickBooksBillStatusLabelMap.failed
+      )
+    ].filter((change): change is ActivityLogChange => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "agent_payout_statement",
+      entityId: statement.id,
+      action: activityLogActions.agentPayoutStatementQuickBooksBillFailed,
+      payload: {
+        officeId: statement.officeId,
+        objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+        contextHref: workspaceHref,
+        details: [
+          `Agent: ${formatMembershipLabel(statement.membership)}`,
+          `Request id: ${quickBooksBillRequestId}`,
+          `Error: ${errorMessage || "QuickBooks bill post failed."}`
+        ],
+        changes
+      }
+    });
+
+    return {
+      statementId: statement.id,
+      quickBooksBillStatus: "failed" as AgentPayoutStatementQuickBooksBillStatus
     };
   });
 }

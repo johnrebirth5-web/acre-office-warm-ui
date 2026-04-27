@@ -3289,7 +3289,8 @@ select {
     minmax(144px, 0.96fr)
     76px
     120px
-    168px;
+    132px
+    232px;
 }
 
 .office-table-row-emd {
@@ -5872,7 +5873,7 @@ a {
 }
 
 .office-table-row-accounting-statement-history {
-  min-width: 1180px;
+  min-width: 1380px;
 }
 
 .office-table-row-emd {
@@ -6452,8 +6453,7 @@ a {
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
-    :nth-child(7),
-    :nth-child(8)
+    :nth-child(7)
   ),
 .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
 .office-table-row-1099-summary
