@@ -468,6 +468,8 @@
         - owner 先拿自己的 split
         - 每级上级只拿高于下级的差额
         - company 拿剩余 balance
+      - 如果旧 transaction 锁过 0% chain，但后续把历史 `MembershipCommissionSetting.effectiveFrom` 修回 transaction `createdAt`，重新计算会按锁定日期重新取回可解析的 default split
+      - 如果 owner / upline chain 里仍有人没有 default split，正式 calculation 会报出具体成员，不再静默把该成员算成 `$0`
     - commission plan create / update
     - membership / agent plan assignment
     - team-level plan assignment
