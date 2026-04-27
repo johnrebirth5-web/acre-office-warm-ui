@@ -563,7 +563,7 @@ Trade-off：
 - 当前 accounting 已经是真实数据库模块，但仍然不是完整会计产品
 - QuickBooks Online 先落地 OAuth 连接基础，用于保存 organization-level `realmId`、加密 token 和 company-info 健康检查；业务对象同步必须另行建模
 - 没有：
-  - QuickBooks object sync
+  - generalized QuickBooks sync beyond confirmed payout statement -> unpaid bill posting
   - bank reconciliation
   - payroll
   - office rent / utilities accounting
@@ -682,6 +682,8 @@ Trade-off：
   - 自动外部出款
 - 当前 `statement_ready / payable / paid` 只是内部状态与可见性，不自动代表外部银行资金已打出
 - `AgentPayoutStatement` 生成时会把被纳入该期工资单的 `calculated / reviewed / statement_ready` agent rows 推进到 `payable`，但 `payable / paid` rows 仍然允许再次生成新的 durable statement snapshot，且不会把 `paid` 状态降回 `payable`
+- 已确认的 `AgentPayoutStatement` 可以由 admin 显式 `Post to QuickBooks`，按 statement 所属 office 映射到对应 QuickBooks company 后生成 unpaid bill，并在 Acre 留下本地 open AP bill；这个动作不代表付款，出纳仍需在 QuickBooks 里人工检查和付款
+- 当前有效映射范围是 `Acre NJ LLC -> ACRE NJ LLC`、`Acre NY Realty -> ACRE NY REALTY INC`、`Acre NY Rental -> Acre NY Rentals LLC`；作废的 `Acre Media LLC` 不接入
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
 

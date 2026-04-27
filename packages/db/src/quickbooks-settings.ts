@@ -190,8 +190,14 @@ function getQuickBooksApiBaseUrl() {
 }
 
 function getQuickBooksClientConfig() {
-  const clientId = process.env.QUICKBOOKS_CLIENT_ID?.trim() ?? "";
-  const clientSecret = process.env.QUICKBOOKS_CLIENT_SECRET?.trim() ?? "";
+  const clientId =
+    process.env.QUICKBOOKS_CLIENT_ID?.trim() ??
+    process.env.ACRE_QUICKBOOKS_CLIENT_ID?.trim() ??
+    "";
+  const clientSecret =
+    process.env.QUICKBOOKS_CLIENT_SECRET?.trim() ??
+    process.env.ACRE_QUICKBOOKS_CLIENT_SECRET?.trim() ??
+    "";
 
   return {
     clientId,
@@ -205,7 +211,7 @@ function assertQuickBooksClientConfig() {
   const config = getQuickBooksClientConfig();
 
   if (!config.clientId || !config.clientSecret) {
-    throw new Error("QuickBooks OAuth requires QUICKBOOKS_CLIENT_ID and QUICKBOOKS_CLIENT_SECRET.");
+    throw new Error("QuickBooks OAuth requires QUICKBOOKS_CLIENT_ID / QUICKBOOKS_CLIENT_SECRET or ACRE_QUICKBOOKS_CLIENT_ID / ACRE_QUICKBOOKS_CLIENT_SECRET.");
   }
 
   return config;

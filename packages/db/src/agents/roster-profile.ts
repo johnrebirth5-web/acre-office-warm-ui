@@ -1136,7 +1136,8 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       onboardingStatusValue: profileStatus,
       commissionPlanName: membership.agentProfile?.commissionPlanName ?? "",
       avatarUrl: membership.agentProfile?.avatarUrl ?? "",
-      internalExtension: officeProfileFields.internalExtension
+      internalExtension: officeProfileFields.internalExtension,
+      quickBooksVendorId: membership.agentProfile?.quickBooksVendorId ?? ""
     },
     bankInformation: {
       canView: canViewBankInformationForProfile,
@@ -1296,6 +1297,9 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         ? { commissionPlanName: parseOptionalText(input.commissionPlanName) }
         : {}),
       ...(input.avatarUrl !== undefined ? { avatarUrl: parseOptionalText(input.avatarUrl) } : {}),
+      ...(input.quickBooksVendorId !== undefined
+        ? { quickBooksVendorId: parseOptionalText(input.quickBooksVendorId) }
+        : {}),
       ...(previousProfile?.notes !== undefined ? { notes: previousProfile.notes } : {}),
       ...(previousProfile?.licenseNumber !== undefined ? { licenseNumber: previousProfile.licenseNumber } : {}),
       ...(previousProfile?.licenseState !== undefined ? { licenseState: previousProfile.licenseState } : {}),

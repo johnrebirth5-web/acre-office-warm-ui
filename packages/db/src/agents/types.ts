@@ -396,6 +396,7 @@ export type OfficeAgentProfileSnapshot = {
     commissionPlanName: string;
     avatarUrl: string;
     internalExtension: string;
+    quickBooksVendorId: string;
   };
   bankInformation: OfficeAgentBankInformationRecord;
   defaultCommission: OfficeMembershipCommissionEditorSnapshot;
@@ -480,6 +481,7 @@ export type SaveAgentProfileInput = {
   commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
+  quickBooksVendorId?: string;
   bankPayeeName?: string;
   bankFirstName?: string;
   bankLastName?: string;

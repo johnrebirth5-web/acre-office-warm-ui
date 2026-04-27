@@ -16,7 +16,8 @@
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
 - transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
 - `Settings > Signature Drive` 保存的 Google Drive service account 私钥也会使用系统设置加密 secret 做加密 / 解密；当前没有单独的 `GOOGLE_*` env 变量要求
-- `Settings > QuickBooks` 的 OAuth token 也会使用系统设置加密 secret 做加密 / 解密；QuickBooks client id / secret 仍来自环境变量
+- `Settings > QuickBooks` 的 OAuth token 也会使用系统设置加密 secret 做加密 / 解密；QuickBooks client id / secret 仍来自环境变量，可使用 `QUICKBOOKS_*` 或 `ACRE_QUICKBOOKS_*`
+- `Office Accounting` 的 `Post to QuickBooks` payout statement 动作额外依赖 QuickBooks Online OAuth 和账户映射环境变量；缺失时不会创建本地“已同步”状态
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -260,6 +261,82 @@ ACRE_BASE_URL="https://acresystem.us"
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
 
+### QuickBooks Online unpaid bill sync
+
+用途：
+
+- 支持 `/office/accounting` 中已由 agent 确认的 payout statement 通过 `Post to QuickBooks` 推送到 QuickBooks Online
+- 当前只创建 QuickBooks unpaid bill / Accounts Payable
+- 不自动付款，不触发 ACH / 银行出款；出纳菲菲仍在 QuickBooks 中人工检查并手动付款
+
+三家公司映射变量：
+
+```env
+ACRE_QUICKBOOKS_CLIENT_ID="<intuit-oauth-client-id>"
+ACRE_QUICKBOOKS_CLIENT_SECRET="<intuit-oauth-client-secret>"
+ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON='{
+  "acre-nj-llc": {
+    "companyName": "ACRE NJ LLC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  },
+  "acre-ny-realty": {
+    "companyName": "ACRE NY REALTY INC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  },
+  "acre-ny-rental": {
+    "companyName": "Acre NY Rentals LLC",
+    "realmId": "<quickbooks-company-realm-id>",
+    "refreshToken": "<intuit-oauth-refresh-token-for-this-company>",
+    "apAccountId": "<quickbooks-accounts-payable-account-id>",
+    "agentCommissionExpenseAccountId": "<quickbooks-agent-commission-expense-account-id>"
+  }
+}'
+```
+
+可选变量：
+
+```env
+ACRE_QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
+ACRE_QUICKBOOKS_API_BASE_URL="https://quickbooks.api.intuit.com"
+ACRE_QUICKBOOKS_MINOR_VERSION="75"
+```
+
+兼容单公司 / 本地测试变量：
+
+```env
+ACRE_QUICKBOOKS_REALM_ID="<quickbooks-company-realm-id>"
+ACRE_QUICKBOOKS_REFRESH_TOKEN="<intuit-oauth-refresh-token>"
+ACRE_QUICKBOOKS_AP_ACCOUNT_ID="<quickbooks-accounts-payable-account-id>"
+ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commission-expense-account-id>"
+```
+
+使用约束：
+
+- 生产应配置 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON`，按 Acre office slug 分流：
+  `acre-nj-llc -> ACRE NJ LLC`、`acre-ny-realty -> ACRE NY REALTY INC`、`acre-ny-rental -> Acre NY Rentals LLC`
+- `Acre Media LLC` 是作废 QuickBooks company，不配置到 Acre 映射中
+- 每个 agent profile 需要保存 `QuickBooks Vendor ID`，否则对应 payout statement 不能 post
+- payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
+- 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
+- QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按对应 company 更新环境值
+
+Intuit Developer 生产 app 信息：
+
+- Host domain: `acresystem.us`
+- Launch URL: `https://acresystem.us/office/settings/quickbooks`
+- Connect / reconnect URL: `https://acresystem.us/api/office/settings/quickbooks/connect`
+- OAuth redirect URI: `https://acresystem.us/api/office/settings/quickbooks/callback`
+- Disconnect URL: `https://acresystem.us/api/office/settings/quickbooks/disconnect`
+- Privacy policy URL: `https://acresystem.us/legal/privacy`
+- Terms / EULA URL: `https://acresystem.us/legal/terms`
+- `/office/settings/quickbooks` 管理 organization-level OAuth 连接状态和健康检查；payout bill posting 当前仍读取服务端 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON` 的 per-office company / account mapping。不要把 refresh token 复制进聊天、工单、PR 或代码仓库。
+
 ### `ACRE_METRICS_TOKEN`
 
 用途：
@@ -294,7 +371,7 @@ ACRE_METRICS_TOKEN="replace-with-a-long-random-token"
 
 - 启用 `/office/settings/quickbooks` 的 QuickBooks Online OAuth 连接
 - 当前由 `packages/db/src/quickbooks-settings.ts` 读取
-- 与 `QUICKBOOKS_CLIENT_SECRET` 一起用于生成 Intuit OAuth authorize URL 和交换 token
+- 与 `QUICKBOOKS_CLIENT_SECRET` 一起用于生成 Intuit OAuth authorize URL 和交换 token；如果未设置，也可使用 `ACRE_QUICKBOOKS_CLIENT_ID`
 
 是否必填：
 
@@ -305,6 +382,7 @@ ACRE_METRICS_TOKEN="replace-with-a-long-random-token"
 
 ```env
 QUICKBOOKS_CLIENT_ID="replace-with-intuit-app-client-id"
+# or ACRE_QUICKBOOKS_CLIENT_ID="replace-with-intuit-app-client-id"
 ```
 
 ### `QUICKBOOKS_CLIENT_SECRET`
@@ -312,7 +390,7 @@ QUICKBOOKS_CLIENT_ID="replace-with-intuit-app-client-id"
 用途：
 
 - QuickBooks Online OAuth confidential client secret
-- 当前由 `packages/db/src/quickbooks-settings.ts` 读取
+- 当前由 `packages/db/src/quickbooks-settings.ts` 读取；如果未设置，也可使用 `ACRE_QUICKBOOKS_CLIENT_SECRET`
 - 只用于服务器端 token exchange / refresh，永远不回传到浏览器
 
 是否必填：
@@ -324,6 +402,7 @@ QUICKBOOKS_CLIENT_ID="replace-with-intuit-app-client-id"
 
 ```env
 QUICKBOOKS_CLIENT_SECRET="replace-with-intuit-app-client-secret"
+# or ACRE_QUICKBOOKS_CLIENT_SECRET="replace-with-intuit-app-client-secret"
 ```
 
 ### `QUICKBOOKS_ENVIRONMENT`
@@ -352,6 +431,7 @@ QUICKBOOKS_ENVIRONMENT="sandbox"
 - 覆盖 QuickBooks OAuth callback URL
 - 当前默认会从 `ACRE_BASE_URL` 或请求 origin 生成：
   `https://<host>/api/office/settings/quickbooks/callback`
+- 如果未设置 `QUICKBOOKS_REDIRECT_URI`，也可用 `ACRE_QUICKBOOKS_REDIRECT_URI`
 - 如果 Intuit app 里登记的是固定 callback，生产建议显式配置，避免 proxy / host header 导致 callback 不一致
 
 是否必填：

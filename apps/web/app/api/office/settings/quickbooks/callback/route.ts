@@ -13,7 +13,9 @@ type QuickBooksCallbackRouteDependencies = {
 };
 
 function getQuickBooksRedirectUri(request: NextRequest) {
-  const configuredRedirectUri = process.env.QUICKBOOKS_REDIRECT_URI?.trim();
+  const configuredRedirectUri =
+    process.env.QUICKBOOKS_REDIRECT_URI?.trim() ??
+    process.env.ACRE_QUICKBOOKS_REDIRECT_URI?.trim();
 
   if (configuredRedirectUri) {
     return configuredRedirectUri;

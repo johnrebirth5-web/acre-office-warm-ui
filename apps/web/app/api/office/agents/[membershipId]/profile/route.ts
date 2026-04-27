@@ -25,6 +25,7 @@ type AgentProfilePatchBody = {
   commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
+  quickBooksVendorId?: string;
   bankPayeeName?: string;
   bankFirstName?: string;
   bankLastName?: string;
@@ -98,6 +99,7 @@ export async function handleSaveAgentProfilePatch(
       commissionEffectiveTo: input?.commissionEffectiveTo,
       avatarUrl: input?.avatarUrl,
       internalExtension: input?.internalExtension,
+      quickBooksVendorId: input?.quickBooksVendorId,
       bankPayeeName: input?.bankPayeeName,
       bankFirstName: input?.bankFirstName,
       bankLastName: input?.bankLastName,

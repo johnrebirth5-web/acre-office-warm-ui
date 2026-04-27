@@ -160,6 +160,10 @@ export const activityLogActions = {
     "agent_payout_statement.revision_requested",
   agentPayoutStatementConfirmed: "agent_payout_statement.confirmed",
   agentPayoutStatementAdjusted: "agent_payout_statement.adjusted",
+  agentPayoutStatementQuickBooksBillPosted:
+    "agent_payout_statement.quickbooks_bill_posted",
+  agentPayoutStatementQuickBooksBillFailed:
+    "agent_payout_statement.quickbooks_bill_failed",
   commissionPlanCreated: "commission.plan_created",
   commissionPlanUpdated: "commission.plan_updated",
   commissionPlanAssigned: "commission.plan_assigned",
@@ -587,6 +591,10 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
     "Agent payout statement revision requested",
   "agent_payout_statement.confirmed": "Agent payout statement confirmed",
   "agent_payout_statement.adjusted": "Agent payout statement adjusted",
+  "agent_payout_statement.quickbooks_bill_posted":
+    "QuickBooks bill posted",
+  "agent_payout_statement.quickbooks_bill_failed":
+    "QuickBooks bill post failed",
   "commission.plan_created": "Commission plan created",
   "commission.plan_updated": "Commission plan updated",
   "commission.plan_assigned": "Commission plan assigned",
@@ -772,6 +780,8 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.agentPayoutStatementRevisionRequested ||
       action === activityLogActions.agentPayoutStatementConfirmed ||
       action === activityLogActions.agentPayoutStatementAdjusted ||
+      action === activityLogActions.agentPayoutStatementQuickBooksBillPosted ||
+      action === activityLogActions.agentPayoutStatementQuickBooksBillFailed ||
       action === activityLogActions.commissionPlanCreated ||
       action === activityLogActions.commissionPlanUpdated ||
       action === activityLogActions.commissionPlanAssigned ||
@@ -1772,6 +1782,10 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "confirmed an agent payout statement";
     case activityLogActions.agentPayoutStatementAdjusted:
       return "updated an agent payout statement";
+    case activityLogActions.agentPayoutStatementQuickBooksBillPosted:
+      return "posted a QuickBooks bill";
+    case activityLogActions.agentPayoutStatementQuickBooksBillFailed:
+      return "recorded a QuickBooks bill post failure";
     case activityLogActions.commissionPlanCreated:
       return "created a commission plan";
     case activityLogActions.commissionPlanUpdated:

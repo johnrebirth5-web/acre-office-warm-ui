@@ -14,6 +14,7 @@ export const saveAgentProfileBodySchema = z.object({
   commissionEffectiveTo: z.string().optional(),
   avatarUrl: z.string().optional(),
   internalExtension: z.string().optional(),
+  quickBooksVendorId: z.string().optional(),
   bankPayeeName: z.string().optional(),
   bankFirstName: z.string().optional(),
   bankLastName: z.string().optional(),

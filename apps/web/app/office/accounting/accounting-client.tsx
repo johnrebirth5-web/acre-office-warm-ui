@@ -123,6 +123,18 @@ function getReviewStatusTone(status: StatementReviewStatus) {
   return "neutral" as const;
 }
 
+function getQuickBooksBillStatusTone(status: SelectedStatementDetail["quickBooksBill"]["status"]) {
+  if (status === "posted") {
+    return "success" as const;
+  }
+
+  if (status === "failed") {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
+}
+
 function getStatementStatusSelectClassName(status: StatementReviewStatus) {
   return `office-accounting-status-select office-accounting-status-select-${getReviewStatusTone(status)}`;
 }
@@ -353,6 +365,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isSavingManualLineItems, setIsSavingManualLineItems] = useState(false);
   const [isSendingStatement, setIsSendingStatement] = useState(false);
   const [quickSendingStatementId, setQuickSendingStatementId] = useState("");
+  const [postingQuickBooksBillId, setPostingQuickBooksBillId] = useState("");
   const [updatingStatementStatusId, setUpdatingStatementStatusId] = useState("");
   const [pendingStatementStatuses, setPendingStatementStatuses] = useState<Record<string, StatementReviewStatus>>({});
   const [filterError, setFilterError] = useState("");
@@ -361,6 +374,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [sendError, setSendError] = useState("");
   const [historySendError, setHistorySendError] = useState("");
   const [historyStatusError, setHistoryStatusError] = useState("");
+  const [quickBooksPostError, setQuickBooksPostError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
@@ -552,6 +566,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setIsSendingStatement(false);
       setQuickSendingStatementId("");
       setHistorySendError("");
+      setPostingQuickBooksBillId("");
+      setQuickBooksPostError("");
       return;
     }
 
@@ -563,6 +579,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setIsSendingStatement(false);
     setQuickSendingStatementId("");
     setHistorySendError("");
+    setPostingQuickBooksBillId("");
+    setQuickBooksPostError("");
   }, [selectedStatement?.id, selectedStatementManualSignature]);
 
   function selectAgentOption(option: AgentOption) {
@@ -968,6 +986,45 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
   }
 
+  async function handlePostStatementToQuickBooks(statement: {
+    id: string;
+    quickBooksBill: SelectedStatementDetail["quickBooksBill"];
+  }) {
+    if (!statement.quickBooksBill.canPost) {
+      setQuickBooksPostError("The agent must confirm this payout statement before it can be posted to QuickBooks.");
+      return;
+    }
+
+    if (selectedStatement?.id === statement.id && hasManualLineItemChanges) {
+      setQuickBooksPostError("Save the current manual adjustment changes before posting this statement to QuickBooks.");
+      return;
+    }
+
+    setPostingQuickBooksBillId(statement.id);
+    setQuickBooksPostError("");
+    setHistorySendError("");
+    setHistoryStatusError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/statements/${statement.id}/quickbooks-bill`, {
+        method: "POST"
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to post the QuickBooks unpaid bill.");
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      setQuickBooksPostError(error instanceof Error ? error.message : "Failed to post the QuickBooks unpaid bill.");
+    } finally {
+      setPostingQuickBooksBillId("");
+    }
+  }
+
   return (
     <ListPageStack className="office-accounting-statements-stack">
       <ListPageSection
@@ -1298,6 +1355,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       >
         {historySendError ? <p className="office-inline-error">{historySendError}</p> : null}
         {historyStatusError ? <p className="office-inline-error">{historyStatusError}</p> : null}
+        {quickBooksPostError ? <p className="office-inline-error">{quickBooksPostError}</p> : null}
         {snapshot.history.length > 0 ? (
           <HorizontalScrollArea>
             <DataTable className="office-table">
@@ -1309,6 +1367,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <span>Basis</span>
                 <span>Rows</span>
                 <span>Total payout</span>
+                <span>QB bill</span>
                 <span>Actions</span>
               </DataTableHeader>
               <DataTableBody>
@@ -1340,7 +1399,23 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <span>{statement.periodBasisLabel}</span>
                       <span>{statement.lineItemCount}</span>
                       <span>{statement.totalStatementAmountLabel}</span>
+                      <span>
+                        <StatusBadge tone={getQuickBooksBillStatusTone(statement.quickBooksBill.status)}>
+                          {statement.quickBooksBill.docNumber || statement.quickBooksBill.statusLabel}
+                        </StatusBadge>
+                      </span>
                       <div className="office-accounting-inline-actions office-accounting-statement-history-actions">
+                        {statement.quickBooksBill.canPost ? (
+                          <Button
+                            className="office-inline-action-sm"
+                            disabled={postingQuickBooksBillId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}
+                            onClick={() => void handlePostStatementToQuickBooks(statement)}
+                            size="sm"
+                            type="button"
+                          >
+                            {postingQuickBooksBillId === statement.id ? "Posting..." : "Post to QuickBooks"}
+                          </Button>
+                        ) : null}
                         <Button
                           className="office-inline-action-sm"
                           disabled={quickSendingStatementId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}
@@ -1502,6 +1577,48 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                   : "Each send or resend is logged in-system and stays visible in Acre until the agent confirms it or requests another revision."}
               </p>
               {sendError ? <p className="office-inline-error">{sendError}</p> : null}
+            </div>
+
+            <div className="office-accounting-candidate-block">
+              <div className="office-accounting-candidate-head">
+                <div className="office-accounting-candidate-copy">
+                  <span className="office-mini-heading">QuickBooks AP</span>
+                  <p className="office-form-helper">
+                    Post the agent-confirmed statement to the QuickBooks company mapped to this Acre office as an unpaid bill for manual review and payment.
+                  </p>
+                </div>
+
+                <div className="office-section-actions">
+                  <StatusBadge tone={getQuickBooksBillStatusTone(selectedStatement.quickBooksBill.status)}>
+                    {selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.statusLabel}
+                  </StatusBadge>
+                  {selectedStatement.quickBooksBill.canPost ? (
+                    <Button
+                      disabled={postingQuickBooksBillId.length > 0 || hasManualLineItemChanges}
+                      onClick={() => void handlePostStatementToQuickBooks(selectedStatement)}
+                      size="sm"
+                      type="button"
+                    >
+                      {postingQuickBooksBillId === selectedStatement.id ? "Posting..." : "Post to QuickBooks"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="office-form-helper">
+                {selectedStatement.quickBooksBill.status === "posted"
+                  ? `QuickBooks bill ${selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.billId} was posted as unpaid.`
+                  : selectedStatement.quickBooksBill.canPost
+                    ? "This action creates Accounts Payable only in the mapped QuickBooks company; Feifei still checks and pays the bill manually."
+                    : "The button appears after the agent confirms the statement inside Acre."}
+              </p>
+              {selectedStatement.quickBooksBill.postedAtLabel ? (
+                <p className="office-form-helper">Posted: {selectedStatement.quickBooksBill.postedAtLabel}</p>
+              ) : null}
+              {selectedStatement.quickBooksBill.syncError ? (
+                <p className="office-inline-error">{selectedStatement.quickBooksBill.syncError}</p>
+              ) : null}
+              {quickBooksPostError ? <p className="office-inline-error">{quickBooksPostError}</p> : null}
             </div>
 
             <div className="office-accounting-candidate-block">

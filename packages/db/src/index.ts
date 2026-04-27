@@ -340,8 +340,11 @@ export {
 } from "./agent-1099-tracker";
 export {
   createAgentPayoutStatement,
+  getAgentPayoutStatementQuickBooksBillDraft,
   getOfficeAgentPayoutStatementDetail,
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
+  markAgentPayoutStatementQuickBooksBillFailed,
+  markAgentPayoutStatementQuickBooksBillPosted,
   respondToAgentPayoutStatement,
   sendAgentPayoutStatementToAgent,
   updateAgentPayoutStatementReviewStatus,
@@ -793,11 +796,17 @@ export type {
 } from "./accounting";
 export type {
   CreateAgentPayoutStatementInput,
+  AgentPayoutStatementQuickBooksBillDraft,
+  AgentPayoutStatementQuickBooksBillDraftLine,
+  GetAgentPayoutStatementQuickBooksBillDraftInput,
   GetOfficeAgentPayoutStatementDetailInput,
   GetOfficeAgentPayoutStatementsWorkspaceInput,
+  MarkAgentPayoutStatementQuickBooksBillFailedInput,
+  MarkAgentPayoutStatementQuickBooksBillPostedInput,
   OfficeAgentPayoutStatementCandidateRow,
   OfficeAgentPayoutStatementDetail,
   OfficeAgentPayoutStatementInvoiceOption,
+  OfficeAgentPayoutStatementQuickBooksBillRecord,
   OfficeAgentPayoutStatementLineRecord,
   OfficeAgentPayoutStatementManualLineItemRecord,
   OfficeAgentPayoutStatementMemberOption,

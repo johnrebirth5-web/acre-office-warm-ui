@@ -105,7 +105,7 @@ export function OfficeQuickBooksSettingsClient({
             {submitSuccess ? <p className="office-inline-success">{submitSuccess}</p> : null}
             {!currentSnapshot.settings.clientConfigured ? (
               <p className="office-inline-error">
-                QuickBooks OAuth requires <code>QUICKBOOKS_CLIENT_ID</code> and <code>QUICKBOOKS_CLIENT_SECRET</code>.
+                QuickBooks OAuth requires <code>QUICKBOOKS_CLIENT_ID</code> / <code>QUICKBOOKS_CLIENT_SECRET</code> or the <code>ACRE_QUICKBOOKS_*</code> equivalents.
               </p>
             ) : null}
             {!currentSnapshot.settings.encryptionReady ? (
@@ -194,8 +194,8 @@ export function OfficeQuickBooksSettingsClient({
                 <strong>{currentSnapshot.settings.lastValidationMessage || "—"}</strong>
               </div>
               <div className="office-detail-field office-detail-field-wide">
-                <span>Object sync</span>
-                <strong>Not enabled yet. No invoices, payments, payouts, or ledger rows are pushed automatically in this phase.</strong>
+                <span>Posting scope</span>
+                <strong>Confirmed payout statements can be posted as unpaid QuickBooks bills. General invoice, payment, payout, and ledger sync is not enabled yet.</strong>
               </div>
             </div>
           </div>
