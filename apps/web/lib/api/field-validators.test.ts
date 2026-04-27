@@ -4,6 +4,7 @@ import {
   amountString,
   domainId,
   isoDate,
+  optionalRateString,
   rateString,
   safeEmail,
   safeUrl,
@@ -47,6 +48,15 @@ test("rateString rejects malformed rates", () => {
 
   assert.equal(schema.safeParse("").success, false);
   assert.equal(schema.safeParse("5.12345").success, false);
+  assert.equal(schema.safeParse("5 percent").success, false);
+});
+
+test("optionalRateString accepts empty rates", () => {
+  const schema = optionalRateString();
+
+  assert.equal(schema.safeParse("").success, true);
+  assert.equal(schema.safeParse("0").success, true);
+  assert.equal(schema.safeParse("5.125").success, true);
   assert.equal(schema.safeParse("5 percent").success, false);
 });
 
