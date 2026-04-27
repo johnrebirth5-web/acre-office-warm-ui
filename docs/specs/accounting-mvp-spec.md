@@ -76,7 +76,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - self-service users cannot generate statements; creation stays in admin/accounting workflows
 - QuickBooks payout statement sync now exists:
   - after an agent confirms a payout statement inside Acre, admins can post it to QuickBooks as an unpaid bill
-  - the post requires a saved QuickBooks Vendor ID on the agent profile plus service-level QuickBooks company mapping
+  - the post uses the saved QuickBooks Vendor ID when present; if it is blank, Acre attempts an exact active QuickBooks Vendor DisplayName match using the payout payee name and then the agent display name, saves the matched Vendor ID back to the profile, and stops if the match is missing or ambiguous
   - QuickBooks posting routes by the statement office: `acre-nj-llc -> ACRE NJ LLC`, `acre-ny-realty -> ACRE NY REALTY INC`, and `acre-ny-rental -> Acre NY Rentals LLC`
   - admins can use `/office/settings/quickbooks` to view the Intuit app URLs, launch a per-company OAuth setup, and capture the realm ID / refresh token needed for the server-side mapping
   - successful posts store QuickBooks bill id / doc number on the payout statement and create a local open AP `AccountingTransaction` bill

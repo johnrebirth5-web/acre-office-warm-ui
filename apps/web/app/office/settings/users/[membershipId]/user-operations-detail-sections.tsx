@@ -691,7 +691,7 @@ export function UserOperationsDetailSections({
                 </div>
                 <FormField
                   className="office-detail-field"
-                  helper="Required before a confirmed payout statement can be posted to QuickBooks as an unpaid bill."
+                  helper="Optional when QuickBooks has one active Vendor with the same payee or agent name; saving the ID keeps posting deterministic."
                   label="QuickBooks Vendor ID"
                 >
                   <TextInput

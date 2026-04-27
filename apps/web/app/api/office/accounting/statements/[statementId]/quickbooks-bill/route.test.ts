@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { AgentPayoutStatementQuickBooksBillDraft } from "@acre/db";
 import { NextRequest } from "next/server";
 import { handlePostAccountingStatementQuickBooksBillPost, postQuickBooksBill } from "./route";
 
@@ -32,7 +33,9 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
-function createDraft() {
+function createDraft(
+  overrides: Partial<AgentPayoutStatementQuickBooksBillDraft> = {}
+): AgentPayoutStatementQuickBooksBillDraft {
   return {
     statementId: "statement_1",
     membershipId: "membership_agent",
@@ -54,7 +57,8 @@ function createDraft() {
         description: "Acre payout statement ACRE-STMT-1",
         amountValue: "1250"
       }
-    ]
+    ],
+    ...overrides
   };
 }
 
@@ -96,7 +100,8 @@ test("handlePostAccountingStatementQuickBooksBillPost posts draft and marks the 
         capturedPostDraft = draft as unknown as Record<string, unknown>;
         return {
           billId: "91",
-          docNumber: "ACRE-STMT-1"
+          docNumber: "ACRE-STMT-1",
+          vendorId: "88"
         };
       },
       markAgentPayoutStatementQuickBooksBillPosted: async (input) => {
@@ -236,7 +241,8 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
 
   assert.deepEqual(result, {
     billId: "bill_nj",
-    docNumber: "ACRE-STMT-1"
+    docNumber: "ACRE-STMT-1",
+    vendorId: "88"
   });
   assert.equal(fetchCalls[0]?.url, "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer");
   assert.equal(fetchCalls[0]?.body, "grant_type=refresh_token&refresh_token=refresh_nj");
@@ -253,5 +259,135 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
   };
 
   assert.equal(billPayload.APAccountRef?.value, "ap_nj");
+  assert.equal((billPayload as { VendorRef?: { value?: string } }).VendorRef?.value, "88");
   assert.equal(billPayload.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value, "expense_nj");
+});
+
+test("postQuickBooksBill resolves a missing vendor id from an exact QuickBooks agent display name", async () => {
+  const fetchCalls: Array<{
+    url: string;
+    body: string;
+  }> = [];
+
+  const result = await withQuickBooksEnv(
+    {
+      ACRE_QUICKBOOKS_CLIENT_ID: "client_name_lookup",
+      ACRE_QUICKBOOKS_CLIENT_SECRET: "client_secret",
+      ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: JSON.stringify({
+        "acre-nj-llc": {
+          companyName: "ACRE NJ LLC",
+          realmId: "realm_name_lookup",
+          refreshToken: "refresh_name_lookup",
+          apAccountId: "ap_nj",
+          agentCommissionExpenseAccountId: "expense_nj"
+        }
+      })
+    },
+    async () =>
+      postQuickBooksBill(createDraft({ vendorId: "" }) as never, {
+        fetchImpl: async (input, init) => {
+          fetchCalls.push({
+            url: String(input),
+            body: String(init?.body ?? "")
+          });
+
+          if (fetchCalls.length === 1) {
+            return Response.json({
+              access_token: "access_name_lookup",
+              expires_in: 3600
+            });
+          }
+
+          if (fetchCalls.length === 2) {
+            return Response.json({
+              QueryResponse: {}
+            });
+          }
+
+          if (fetchCalls.length === 3) {
+            return Response.json({
+              QueryResponse: {
+                Vendor: [
+                  {
+                    Id: "vendor_by_name",
+                    DisplayName: "Casey Agent",
+                    Active: true
+                  }
+                ]
+              }
+            });
+          }
+
+          return Response.json({
+            Bill: {
+              Id: "bill_name_lookup",
+              DocNumber: "ACRE-STMT-1"
+            }
+          });
+        }
+      })
+  );
+
+  assert.deepEqual(result, {
+    billId: "bill_name_lookup",
+    docNumber: "ACRE-STMT-1",
+    vendorId: "vendor_by_name"
+  });
+  assert.equal(fetchCalls.length, 4);
+
+  const payeeLookupUrl = new URL(fetchCalls[1]?.url ?? "http://localhost");
+  assert.equal(payeeLookupUrl.pathname, "/v3/company/realm_name_lookup/query");
+  assert.equal(
+    payeeLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where DisplayName = 'Casey Agent LLC'"
+  );
+
+  const agentLookupUrl = new URL(fetchCalls[2]?.url ?? "http://localhost");
+  assert.equal(agentLookupUrl.pathname, "/v3/company/realm_name_lookup/query");
+  assert.equal(
+    agentLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where DisplayName = 'Casey Agent'"
+  );
+
+  const billPayload = JSON.parse(fetchCalls[3]?.body ?? "{}") as {
+    VendorRef?: { value?: string };
+  };
+  assert.equal(billPayload.VendorRef?.value, "vendor_by_name");
+});
+
+test("handlePostAccountingStatementQuickBooksBillPost saves an auto-resolved vendor id after posting", async () => {
+  let capturedProfileInput: Record<string, unknown> | null = null;
+
+  const response = await handlePostAccountingStatementQuickBooksBillPost(
+    createQuickBooksBillRequest(),
+    "statement_1",
+    createAccountingContext(),
+    {
+      getAgentPayoutStatementQuickBooksBillDraft: async () => createDraft({ vendorId: "" }) as never,
+      postQuickBooksBill: async () => ({
+        billId: "91",
+        docNumber: "ACRE-STMT-1",
+        vendorId: "vendor_by_name"
+      }),
+      saveAgentProfile: async (input) => {
+        capturedProfileInput = input as Record<string, unknown>;
+        return { id: "profile_1" } as never;
+      },
+      markAgentPayoutStatementQuickBooksBillPosted: async (input) => {
+        return {
+          statementId: input.statementId,
+          quickBooksBillId: input.quickBooksBillId
+        } as never;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(capturedProfileInput, {
+    organizationId: "org_1",
+    officeId: "office_1",
+    membershipId: "membership_agent",
+    actorMembershipId: "membership_actor",
+    quickBooksVendorId: "vendor_by_name"
+  });
 });

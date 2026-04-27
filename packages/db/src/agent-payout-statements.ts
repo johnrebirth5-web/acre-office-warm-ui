@@ -1319,14 +1319,9 @@ function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayout
     throw new Error("A positive payout statement total is required before posting to QuickBooks.");
   }
 
-  const vendorId = record.membership.agentProfile?.quickBooksVendorId?.trim() ?? "";
-
-  if (!vendorId) {
-    throw new Error("Add a QuickBooks Vendor ID on this agent profile before posting the payout statement.");
-  }
-
   const agentLabel = formatMembershipLabel(record.membership);
   const payeeLabel = record.membership.agentBankInformation?.payeeName?.trim() || agentLabel;
+  const vendorId = record.membership.agentProfile?.quickBooksVendorId?.trim() ?? "";
   const officeLabel = record.office?.name ?? record.organization.name;
   const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(record.lineItems.map((lineItem) => lineItem.invoiceNumber));
   const docNumber = record.quickBooksBillDocNumber?.trim() || buildAgentPayoutStatementQuickBooksDocNumber(record.id);
