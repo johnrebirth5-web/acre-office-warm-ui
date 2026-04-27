@@ -8784,6 +8784,11 @@ a {
   justify-content: flex-end;
 }
 
+.office-quickbooks-office-actions .office-button-disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .office-inline-error {
   display: inline-flex;
   align-items: center;
@@ -8796,6 +8801,23 @@ a {
   border-radius: 14px;
   background: rgba(255, 244, 244, 0.92);
   color: var(--office-danger);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.office-inline-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--office-warning) 30%, #ffffff);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--office-warning-soft) 74%, #ffffff);
+  color: var(--office-warning);
   font-size: 0.86rem;
   font-weight: 600;
   line-height: 1.4;

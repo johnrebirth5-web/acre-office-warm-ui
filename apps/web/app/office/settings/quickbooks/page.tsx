@@ -11,12 +11,51 @@ import {
 import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 
-function resolveConnectionTone(isReady: boolean) {
-  return isReady ? "success" : "warning";
+type QuickBooksConnectionStatus = ReturnType<typeof parseQuickBooksOfficeConnectionStatuses> extends Map<
+  string,
+  infer TValue
+>
+  ? TValue
+  : never;
+
+type QuickBooksConnectionState = "ready" | "partial" | "mapped";
+
+function resolveConnectionState(status: QuickBooksConnectionStatus | undefined): QuickBooksConnectionState {
+  if (
+    status?.hasRealmId &&
+    status.hasRefreshToken &&
+    status.hasApAccountId &&
+    status.hasAgentCommissionExpenseAccountId
+  ) {
+    return "ready";
+  }
+
+  if (
+    status?.hasRealmId ||
+    status?.hasRefreshToken ||
+    status?.hasApAccountId ||
+    status?.hasAgentCommissionExpenseAccountId
+  ) {
+    return "partial";
+  }
+
+  return "mapped";
 }
 
-function resolveConnectionLabel(isReady: boolean) {
-  return isReady ? "Mapped" : "Needs config";
+function resolveConnectionTone(state: QuickBooksConnectionState) {
+  if (state === "ready") {
+    return "success";
+  }
+
+  return state === "partial" ? "warning" : "accent";
+}
+
+function resolveConnectionLabel(state: QuickBooksConnectionState) {
+  if (state === "ready") {
+    return "Ready";
+  }
+
+  return state === "partial" ? "Partial config" : "Mapped";
 }
 
 function QuickBooksUrlRow(props: { label: string; value: string }) {
@@ -27,6 +66,7 @@ function QuickBooksUrlRow(props: { label: string; value: string }) {
     </div>
   );
 }
+
 export default async function OfficeSettingsQuickBooksPage() {
   const context = await requireOfficeSession();
 
@@ -37,15 +77,10 @@ export default async function OfficeSettingsQuickBooksPage() {
   const appUrls = getQuickBooksProductionAppUrls();
   const oauthConfig = readQuickBooksOAuthConfig();
   const connectionStatuses = parseQuickBooksOfficeConnectionStatuses();
-  const mappedCount = quickBooksOfficeMappings.filter((mapping) => {
+  const readyConnectionCount = quickBooksOfficeMappings.filter((mapping) => {
     const status = connectionStatuses.get(mapping.officeSlug);
 
-    return Boolean(
-      status?.hasRealmId &&
-        status.hasRefreshToken &&
-        status.hasApAccountId &&
-        status.hasAgentCommissionExpenseAccountId,
-    );
+    return resolveConnectionState(status) === "ready";
   }).length;
 
   return (
@@ -58,9 +93,10 @@ export default async function OfficeSettingsQuickBooksPage() {
             <SummaryChip
               label="OAuth"
               tone={oauthConfig.isConfigured ? "accent" : "default"}
-              value={oauthConfig.isConfigured ? "Credentials present" : "Missing credentials"}
+              value={oauthConfig.isConfigured ? "Production keys present" : "Production keys missing"}
             />
-            <SummaryChip label="Company mappings" tone="accent" value={`${mappedCount}/3`} />
+            <SummaryChip label="Office mapping" tone="accent" value="3/3 mapped" />
+            <SummaryChip label="Posting config" tone="accent" value={`${readyConnectionCount}/3 ready`} />
           </>
         }
         title="QuickBooks"
@@ -107,7 +143,7 @@ export default async function OfficeSettingsQuickBooksPage() {
         </section>
 
         <SectionCard
-          subtitle="Connect each live QuickBooks company once production credentials are available."
+          subtitle="The three Acre offices are mapped to the three live QuickBooks companies. Posting still needs production OAuth and account IDs."
           title="Company mapping"
         >
           {oauthConfig.credentialSource === "legacy" ? (
@@ -118,28 +154,25 @@ export default async function OfficeSettingsQuickBooksPage() {
           ) : null}
 
           {!oauthConfig.isConfigured ? (
-            <p className="office-inline-error">
-              QuickBooks OAuth credentials are not configured on this server.
+            <p className="office-inline-warning">
+              Company mapping is ready. Add QuickBooks production OAuth
+              credentials to this server before using Connect. The sandbox keys
+              cannot connect these live QuickBooks companies.
             </p>
           ) : null}
 
           <div className="office-quickbooks-office-list">
             {quickBooksOfficeMappings.map((mapping) => {
               const status = connectionStatuses.get(mapping.officeSlug);
-              const isReady = Boolean(
-                status?.hasRealmId &&
-                  status.hasRefreshToken &&
-                  status.hasApAccountId &&
-                  status.hasAgentCommissionExpenseAccountId,
-              );
+              const connectionState = resolveConnectionState(status);
 
               return (
                 <article className="office-quickbooks-office-card" key={mapping.officeSlug}>
                   <div className="office-quickbooks-office-copy">
                     <div className="office-quickbooks-office-heading">
                       <strong>{mapping.officeLabel}</strong>
-                      <StatusBadge tone={resolveConnectionTone(isReady)}>
-                        {resolveConnectionLabel(isReady)}
+                      <StatusBadge tone={resolveConnectionTone(connectionState)}>
+                        {resolveConnectionLabel(connectionState)}
                       </StatusBadge>
                     </div>
                     <p>
@@ -150,12 +183,18 @@ export default async function OfficeSettingsQuickBooksPage() {
                   </div>
 
                   <div className="office-quickbooks-office-actions">
-                    <a
-                      className="office-button office-button-secondary office-button-sm"
-                      href={`/api/office/settings/quickbooks/connect?office=${mapping.officeSlug}`}
-                    >
-                      Connect
-                    </a>
+                    {oauthConfig.isConfigured ? (
+                      <a
+                        className="office-button office-button-secondary office-button-sm"
+                        href={`/api/office/settings/quickbooks/connect?office=${mapping.officeSlug}`}
+                      >
+                        Connect
+                      </a>
+                    ) : (
+                      <span className="office-button office-button-secondary office-button-sm office-button-disabled">
+                        Needs production keys
+                      </span>
+                    )}
                   </div>
                 </article>
               );
