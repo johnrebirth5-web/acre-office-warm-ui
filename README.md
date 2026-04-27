@@ -416,6 +416,7 @@
     - `AgentPayoutStatementManualLineItem`
   - 工资单金额来自 `CommissionCalculation` 的 agent rows 加上 statement-level manual adjustments；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
   - 当前工资单生成依据是 transaction field 里的 `invoiceNumber`；这版还没有独立的 “invoice 已收款” 数据模型
+  - 如果 imported transactions 早于批量导入的 agent default split 生效日，先用 `scripts/backdate-commission-settings.ts` dry-run 检查并回调 `MembershipCommissionSetting.effectiveFrom`，再补跑 commission calculation；否则 calculation 会按交易创建时点找不到 split，把 agent payout 算成 `$0`
   - manual adjustment 只允许在已保存 statement detail 中编辑，不会回写 invoice snapshot，也不会改变底层 `CommissionCalculation` status
   - statement detail / PDF 当前不再向 agent-facing payout output 暴露 `Office net`
   - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
@@ -1084,6 +1085,27 @@ npm run import:acre-2026-04 -- run --execute --supplemental-sheet-url='https://d
 详细映射、已知限制和执行说明见：
 
 - [docs/specs/legacy-import-2026-04.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/legacy-import-2026-04.md)
+
+## Commission default split 生效日修复
+
+`CommissionCalculation` 会按 transaction `createdAt` 锁定当时有效的 `MembershipCommissionSetting`。如果一批 imported transactions 在 `2026-04-21` 创建，而 agent default split 在 `2026-04-22` 才生效，即使 agent profile 里已经有 rate，calculation 仍会找不到 split 并把 agent payout 算成 `$0`。
+
+先 dry-run：
+
+```bash
+npx tsx scripts/backdate-commission-settings.ts --organization-slug acre --office-slug acre-ny-realty --dry-run --current-effective-from 2026-04-22
+```
+
+确认 `ready settings` 和 `impacted transactions` 后再写入：
+
+```bash
+npx tsx scripts/backdate-commission-settings.ts --organization-slug acre --office-slug acre-ny-realty --target-effective-from 2026-04-21 --current-effective-from 2026-04-22 --execute
+```
+
+- 默认只扫描 `pending / closed` 且尚无 `CommissionCalculation` 的 transactions
+- `--current-effective-from` 可以限制只回调当前从某一天开始的 setting，避免误改其他历史设置
+- `--execute` 必须显式提供 `--target-effective-from YYYY-MM-DD`
+- 脚本只更新 `MembershipCommissionSetting.effectiveFrom`，不会创建 commission rows；生效日修好后，再执行 commission calculation backfill / UI calculation
 
 如果你当前本地开发直接连的是 `DigitalOcean` 上的数据库，并且希望本地网站尽量一直在线、同时保持 `next dev` 开发态，可以额外开一个终端长期运行：
 
