@@ -13,7 +13,9 @@ function createRequest(body: string, origin = "http://localhost:3105") {
 
 function createContext(manage = true) {
   return {
-    currentMembership: { id: manage ? "membership_actor" : "membership_2", role: manage ? "office_admin" : "agent", permissions: manage ? ["agents:view", "agents:manage"] : [] },
+    currentMembership: manage
+      ? { id: "membership_actor", role: "office_admin", permissions: ["agents:view", "agents:manage"] }
+      : { id: "membership_2", role: "agent", permissions: [] },
     currentOrganization: { id: "org_1" },
     currentOffice: { id: "office_1" }
   } as never;
@@ -26,6 +28,34 @@ test("handleSaveAgentProfilePatch returns 400 validation_error for invalid bankA
     createContext()
   );
   assert.equal(response.status, 400);
+});
+
+test("handleSaveAgentProfilePatch accepts blank bank select values when saving profile basics", async () => {
+  let capturedInput: Record<string, unknown> | null = null;
+  const response = await handleSaveAgentProfilePatch(
+    createRequest(
+      JSON.stringify({
+        customAgentPercent: "50",
+        commissionEffectiveFrom: "2026-04-27",
+        bankTaxIdType: "",
+        bankAccountType: ""
+      })
+    ),
+    "membership_2",
+    createContext(),
+    {
+      saveAgentProfile: async (input) => {
+        capturedInput = input as Record<string, unknown>;
+        return { id: "profile_1" } as never;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capturedInput?.["customAgentPercent"], "50");
+  assert.equal(capturedInput?.["commissionEffectiveFrom"], "2026-04-27");
+  assert.equal(capturedInput?.["bankTaxIdType"], "");
+  assert.equal(capturedInput?.["bankAccountType"], "");
 });
 
 test("handleSaveAgentProfilePatch keeps self-service bank updates scoped to bank fields", async () => {
