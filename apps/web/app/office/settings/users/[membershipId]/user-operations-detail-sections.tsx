@@ -76,6 +76,79 @@ type GoalDraft = {
   notes: string;
 };
 
+function parseDraftPercent(value: string) {
+  const normalized = value.trim().replaceAll(",", "").replace(/\s*%$/, "").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+
+  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
+    return null;
+  }
+
+  return numeric;
+}
+
+function formatDraftPercent(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function buildDraftSplitLabel(agentPercent: number) {
+  const companyPercent = Math.max(0, 100 - agentPercent);
+
+  return `${formatDraftPercent(agentPercent)}/${formatDraftPercent(companyPercent)} split`;
+}
+
+function buildDefaultCommissionSummary(snapshot: OfficeAgentProfileSnapshot, profileState: ProfileState) {
+  const selectedTemplateId = profileState.splitTemplateId.trim();
+  const customAgentPercent = profileState.customAgentPercent.trim();
+  const selectedTemplate = selectedTemplateId
+    ? snapshot.defaultCommission.templateOptions.find((option) => option.id === selectedTemplateId)
+    : null;
+
+  if (selectedTemplate) {
+    const isSavedTemplate = snapshot.defaultCommission.splitTemplateId === selectedTemplate.id;
+
+    return {
+      settingLabel: selectedTemplate.label,
+      sourceLabel:
+        isSavedTemplate && snapshot.defaultCommission.sourceLabel
+          ? snapshot.defaultCommission.sourceLabel
+          : "Template preview"
+    };
+  }
+
+  if (customAgentPercent) {
+    const parsedPercent = parseDraftPercent(customAgentPercent);
+
+    if (parsedPercent === null) {
+      return {
+        settingLabel: "Invalid custom split",
+        sourceLabel: "Enter an agent split between 0 and 100."
+      };
+    }
+
+    const draftLabel = buildDraftSplitLabel(parsedPercent);
+    const isSavedCustom = !selectedTemplateId && draftLabel === snapshot.defaultCommission.settingLabel;
+
+    return {
+      settingLabel: draftLabel,
+      sourceLabel:
+        isSavedCustom && snapshot.defaultCommission.sourceLabel
+          ? snapshot.defaultCommission.sourceLabel
+          : "Custom split preview"
+    };
+  }
+
+  return {
+    settingLabel: snapshot.defaultCommission.settingLabel || snapshot.profile.commissionPlanName || "Not configured",
+    sourceLabel: snapshot.defaultCommission.sourceLabel || "Choose a template or enter a custom split."
+  };
+}
+
 function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
   return {
     displayName: snapshot.profile.displayName,
@@ -300,6 +373,7 @@ export function UserOperationsDetailSections({
       ? "Only Agent / Team Lead accounts can be added to Teams / Junior Teams. Update the account role in Settings > Users first."
       : null;
   const licenseExpirationStatus = getLicenseExpirationStatus(profileState.startDate);
+  const defaultCommissionSummary = buildDefaultCommissionSummary(snapshot, profileState);
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({ ...current, [field]: value }));
@@ -608,10 +682,10 @@ export function UserOperationsDetailSections({
                     value={profileState.customAgentPercent}
                   />
                 </FormField>
-                <div className="office-detail-field">
+                <div aria-live="polite" className="office-detail-field">
                   <span>Current default split</span>
-                  <strong>{snapshot.defaultCommission.settingLabel || snapshot.profile.commissionPlanName || "Not configured"}</strong>
-                  <p>{snapshot.defaultCommission.sourceLabel || "Choose a template or enter a custom split."}</p>
+                  <strong>{defaultCommissionSummary.settingLabel}</strong>
+                  <p>{defaultCommissionSummary.sourceLabel}</p>
                 </div>
                 <FormField className="office-detail-field office-detail-field-wide" label="Bio">
                   <TextareaInput onChange={(event) => setProfileField("bio", event.target.value)} readOnly={!canManageAgents} value={profileState.bio} />
