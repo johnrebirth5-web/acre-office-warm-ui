@@ -10,6 +10,10 @@ import {
   normalizeTransactionFinanceFeeForPersistence,
   overrideTransactionCommission
 } from "./commissions.ts";
+import {
+  buildDefaultTransactionCommissionChain,
+  calculateTransactionFinanceResult
+} from "./commissions/planning.ts";
 import { getOfficeDashboardBusinessSnapshot } from "./dashboard.ts";
 import { createTransaction } from "./transactions.ts";
 
@@ -286,6 +290,239 @@ test("explicit finance fee rate still derives amount from gross commission", () 
   assert.equal(normalized.rate?.toString(), "2");
   assert.equal(normalized.amount?.toString(), "2000");
   assert.equal(normalized.selectedCalculationType, "pre_split");
+});
+
+test("default split chain recalculates stale locked zero percents from the locked source date", async () => {
+  const suffix = randomUUID().slice(0, 8);
+  const sourceDate = new Date("2026-04-21T16:44:09.337Z");
+  const organization = await prisma.organization.create({
+    data: {
+      name: `Commission Chain Test ${suffix}`,
+      slug: `commission-chain-test-${suffix}`
+    }
+  });
+  const office = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Commission Chain Office ${suffix}`,
+      slug: `commission-chain-office-${suffix}`,
+      market: "New York",
+      isPrimary: true
+    }
+  });
+  const trackedUserIds: string[] = [];
+
+  async function createMembership(firstName: string, lastName: string) {
+    const user = await prisma.user.create({
+      data: {
+        email: `${firstName.toLowerCase()}-${suffix}@example.com`,
+        firstName,
+        lastName,
+        timezone: "America/New_York",
+        locale: "en-US",
+        isActive: true
+      }
+    });
+    trackedUserIds.push(user.id);
+
+    return prisma.membership.create({
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        userId: user.id,
+        role: "team_lead",
+        status: "active",
+        title: "team_lead",
+        permissions: Prisma.JsonNull
+      },
+      include: {
+        user: true
+      }
+    });
+  }
+
+  try {
+    const lucas = await createMembership("Lucas", "Ma");
+    const joseph = await createMembership("Joseph", "Zhang");
+    const yue = await createMembership("Yue", "Yu");
+    const yueTeam = await prisma.team.create({
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        name: `Yue Team ${suffix}`,
+        slug: `yue-team-${suffix}`
+      }
+    });
+    const josephTeam = await prisma.team.create({
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        name: `Joseph Team ${suffix}`,
+        slug: `joseph-team-${suffix}`,
+        parentTeamId: yueTeam.id
+      }
+    });
+    const lucasTeam = await prisma.team.create({
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        name: `Lucas Team ${suffix}`,
+        slug: `lucas-team-${suffix}`,
+        parentTeamId: josephTeam.id
+      }
+    });
+
+    await prisma.teamMembership.createMany({
+      data: [
+        {
+          organizationId: organization.id,
+          officeId: office.id,
+          teamId: yueTeam.id,
+          membershipId: yue.id,
+          role: "team_leader"
+        },
+        {
+          organizationId: organization.id,
+          officeId: office.id,
+          teamId: josephTeam.id,
+          membershipId: joseph.id,
+          role: "junior_team_leader"
+        },
+        {
+          organizationId: organization.id,
+          officeId: office.id,
+          teamId: lucasTeam.id,
+          membershipId: lucas.id,
+          role: "junior_team_leader"
+        }
+      ]
+    });
+
+    await prisma.membershipCommissionSetting.createMany({
+      data: [
+        {
+          organizationId: organization.id,
+          officeId: office.id,
+          membershipId: lucas.id,
+          agentPercent: new Prisma.Decimal(55),
+          effectiveFrom: sourceDate
+        },
+        {
+          organizationId: organization.id,
+          officeId: office.id,
+          membershipId: yue.id,
+          agentPercent: new Prisma.Decimal(80),
+          effectiveFrom: sourceDate
+        }
+      ]
+    });
+
+    const staleLockedContext = {
+      version: 2,
+      mode: "default_split_chain",
+      sourceDate: sourceDate.toISOString(),
+      lockedAt: "2026-04-27T20:34:06.622Z",
+      ownerMembershipId: lucas.id,
+      members: [
+        {
+          membershipId: lucas.id,
+          membershipLabel: "Lucas Ma",
+          recipientRole: "Junior Team Leader",
+          recipientRoleValue: "junior_team_leader",
+          agentPercent: "0"
+        },
+        {
+          membershipId: joseph.id,
+          membershipLabel: "Joseph Zhang",
+          recipientRole: "Junior Team Leader",
+          recipientRoleValue: "junior_team_leader",
+          agentPercent: "0"
+        },
+        {
+          membershipId: yue.id,
+          membershipLabel: "Yue Yu",
+          recipientRole: "Team Leader",
+          recipientRoleValue: "team_leader",
+          agentPercent: "0"
+        }
+      ]
+    } satisfies Prisma.JsonObject;
+
+    const chain = await buildDefaultTransactionCommissionChain(prisma, {
+      organizationId: organization.id,
+      officeId: office.id,
+      ownerMembershipId: lucas.id,
+      effectiveAt: sourceDate,
+      transactionCommissionContext: staleLockedContext
+    });
+
+    assert.equal(chain.map((member) => member.membershipLabel).join(" > "), "Lucas Ma > Joseph Zhang > Yue Yu");
+    assert.equal(chain[0]?.agentPercent.toString(), "55");
+    assert.equal(chain[0]?.defaultSplitMissing, false);
+    assert.equal(chain[1]?.agentPercent.toString(), "0");
+    assert.equal(chain[1]?.defaultSplitMissing, true);
+    assert.equal(chain[2]?.agentPercent.toString(), "80");
+    assert.equal(chain[2]?.defaultSplitMissing, false);
+  } finally {
+    await prisma.organization.delete({
+      where: {
+        id: organization.id
+      }
+    });
+    await prisma.user.deleteMany({
+      where: {
+        id: {
+          in: trackedUserIds
+        }
+      }
+    });
+  }
+});
+
+test("commission calculation blocks missing default split rows instead of silently paying zero", () => {
+  const calculated = calculateTransactionFinanceResult({
+    grossCommission: new Prisma.Decimal(10000),
+    fees: [],
+    chain: [
+      {
+        membershipId: "lucas",
+        membershipLabel: "Lucas Ma",
+        recipientRole: "Junior Team Leader",
+        recipientRoleValue: "junior_team_leader",
+        agentPercent: new Prisma.Decimal(55),
+        sourceLabel: "Custom split",
+        defaultSplitMissing: false
+      },
+      {
+        membershipId: "joseph",
+        membershipLabel: "Joseph Zhang",
+        recipientRole: "Junior Team Leader",
+        recipientRoleValue: "junior_team_leader",
+        agentPercent: new Prisma.Decimal(0),
+        sourceLabel: "No default split configured",
+        defaultSplitMissing: true
+      },
+      {
+        membershipId: "yue",
+        membershipLabel: "Yue Yu",
+        recipientRole: "Team Leader",
+        recipientRoleValue: "team_leader",
+        agentPercent: new Prisma.Decimal(80),
+        sourceLabel: "Custom split",
+        defaultSplitMissing: false
+      }
+    ],
+    prerequisites: {
+      clientReferralFormApproved: true,
+      rebateAgreementSigned: true,
+      rebateGoogleFormSubmitted: true,
+      clientReferralReady: true,
+      rebateReady: true
+    }
+  });
+
+  assert.match(calculated.approvalBlockers.join(" "), /Joseph Zhang .*missing a default split/);
+  assert.equal(calculated.stakeholderRows.length, 0);
 });
 
 test("office admin can add a manual membership participant and the participant sees self-service income and statements", async () => {

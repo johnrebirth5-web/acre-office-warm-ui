@@ -29,6 +29,8 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - differential share allocation per level
   - company remainder
   - transaction `createdAt` as the locking date for default split / hierarchy replay
+  - rehydrating old locked zero-percent chain snapshots from the locked source date when historical membership defaults are later corrected
+  - blocking calculation when any owner / upline chain member still has no resolvable default split, instead of silently allocating that member `$0`
 - transaction finance ledger now supports one current row per fee type:
   - `rebate`
   - `client_referral` (user-facing label: `Internal Referral`)

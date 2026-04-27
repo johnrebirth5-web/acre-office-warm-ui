@@ -475,6 +475,7 @@ export type DerivedTransactionCommissionChainMember = {
   recipientRoleValue: string;
   agentPercent: Prisma.Decimal;
   sourceLabel: string;
+  defaultSplitMissing: boolean;
 };
 
 export function parseStoredTransactionCommissionContext(value: Prisma.JsonValue | null | undefined): StoredTransactionCommissionContext | null {
@@ -549,6 +550,36 @@ export function buildStoredTransactionCommissionContext(input: {
       agentPercent: String(member.agentPercent)
     }))
   };
+}
+
+export function storedTransactionCommissionContextMatchesChain(input: {
+  storedContext: StoredTransactionCommissionContext | null;
+  ownerMembershipId: string;
+  members: DerivedTransactionCommissionChainMember[];
+}) {
+  if (!input.storedContext || input.storedContext.ownerMembershipId !== input.ownerMembershipId) {
+    return false;
+  }
+
+  if (input.storedContext.members.length !== input.members.length) {
+    return false;
+  }
+
+  return input.members.every((member, index) => {
+    const storedMember = input.storedContext?.members[index];
+
+    if (!storedMember) {
+      return false;
+    }
+
+    return (
+      storedMember.membershipId === member.membershipId &&
+      storedMember.membershipLabel === member.membershipLabel &&
+      storedMember.recipientRole === member.recipientRole &&
+      storedMember.recipientRoleValue === member.recipientRoleValue &&
+      new Prisma.Decimal(storedMember.agentPercent).eq(member.agentPercent)
+    );
+  });
 }
 
 export function parseStoredTransactionFinanceFeeBreakdown(value: Prisma.JsonValue | null | undefined) {
@@ -711,15 +742,54 @@ export async function buildDefaultTransactionCommissionChain(
 ): Promise<DerivedTransactionCommissionChainMember[]> {
   const storedContext = parseStoredTransactionCommissionContext(input.transactionCommissionContext);
 
+  async function resolveChainMemberSplit(
+    membershipId: string,
+    storedAgentPercent?: Prisma.Decimal | null,
+    effectiveAt: Date = input.effectiveAt
+  ) {
+    await backfillMembershipCommissionSettingsFromLegacy(input.organizationId, input.officeId, [membershipId], tx);
+
+    const setting = await resolveActiveMembershipCommissionSetting(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      membershipId,
+      effectiveAt
+    });
+    const storedPercent = storedAgentPercent ?? null;
+
+    if (setting) {
+      return {
+        agentPercent: setting.agentPercent,
+        sourceLabel: setting.sourceLabel,
+        defaultSplitMissing: false
+      };
+    }
+
+    return {
+      agentPercent: storedPercent ?? new Prisma.Decimal(0),
+      sourceLabel: storedPercent && storedPercent.gt(0) ? "Locked on transaction" : "No default split configured",
+      defaultSplitMissing: !(storedPercent && storedPercent.gt(0))
+    };
+  }
+
   if (storedContext && storedContext.ownerMembershipId === input.ownerMembershipId) {
-    return storedContext.members.map((member) => ({
-      membershipId: member.membershipId,
-      membershipLabel: member.membershipLabel,
-      recipientRole: member.recipientRole,
-      recipientRoleValue: member.recipientRoleValue,
-      agentPercent: new Prisma.Decimal(member.agentPercent),
-      sourceLabel: "Locked on transaction"
-    }));
+    const storedEffectiveAt = new Date(storedContext.sourceDate);
+    const effectiveAt = Number.isNaN(storedEffectiveAt.getTime()) ? input.effectiveAt : storedEffectiveAt;
+    const members: DerivedTransactionCommissionChainMember[] = [];
+
+    for (const member of storedContext.members) {
+      const resolvedSplit = await resolveChainMemberSplit(member.membershipId, new Prisma.Decimal(member.agentPercent), effectiveAt);
+
+      members.push({
+        membershipId: member.membershipId,
+        membershipLabel: member.membershipLabel,
+        recipientRole: member.recipientRole,
+        recipientRoleValue: member.recipientRoleValue,
+        ...resolvedSplit
+      });
+    }
+
+    return members;
   }
 
   const [ownerMembership, teams, teamMemberships] = await Promise.all([
@@ -794,22 +864,14 @@ export async function buildDefaultTransactionCommissionChain(
     recipientRole: string,
     recipientRoleValue: string
   ) {
-    await backfillMembershipCommissionSettingsFromLegacy(input.organizationId, input.officeId, [membershipId], tx);
-
-    const setting = await resolveActiveMembershipCommissionSetting(tx, {
-      organizationId: input.organizationId,
-      officeId: input.officeId,
-      membershipId,
-      effectiveAt: input.effectiveAt
-    });
+    const resolvedSplit = await resolveChainMemberSplit(membershipId);
 
     chain.push({
       membershipId,
       membershipLabel,
       recipientRole,
       recipientRoleValue,
-      agentPercent: setting?.agentPercent ?? new Prisma.Decimal(0),
-      sourceLabel: setting?.sourceLabel ?? "No default split configured"
+      ...resolvedSplit
     });
   }
 
@@ -1282,6 +1344,17 @@ export function calculateTransactionFinanceResult(input: {
     fees: normalizedFees,
     prerequisites: input.prerequisites
   });
+
+  for (const member of input.chain) {
+    if (!member.defaultSplitMissing) {
+      continue;
+    }
+
+    approvalBlockers.push(
+      `${member.membershipLabel} (${member.recipientRole}) is missing a default split. Configure the member default split before calculating commission.`
+    );
+  }
+
   const preSplitTotal = normalizedFees
     .filter((fee) => fee.selectedCalculationType === "pre_split")
     .reduce((sum, fee) => sum.plus(fee.amount), new Prisma.Decimal(0));
