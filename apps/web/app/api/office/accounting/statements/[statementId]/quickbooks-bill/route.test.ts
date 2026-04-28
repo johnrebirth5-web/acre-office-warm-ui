@@ -229,6 +229,20 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
             });
           }
 
+          if (fetchCalls.length === 2) {
+            return Response.json({
+              QueryResponse: {
+                Vendor: [
+                  {
+                    Id: "88",
+                    DisplayName: "Casey Agent LLC",
+                    Active: true
+                  }
+                ]
+              }
+            });
+          }
+
           return Response.json({
             Bill: {
               Id: "bill_nj",
@@ -246,10 +260,17 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
   });
   assert.equal(fetchCalls[0]?.url, "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer");
   assert.equal(fetchCalls[0]?.body, "grant_type=refresh_token&refresh_token=refresh_nj");
-  assert.equal(fetchCalls[1]?.url, "https://quickbooks.api.intuit.com/v3/company/realm_nj/bill?minorversion=75&requestid=acre-qb-bill-statement_1");
+  const savedVendorLookupUrl = new URL(fetchCalls[1]?.url ?? "http://localhost");
+  assert.equal(savedVendorLookupUrl.pathname, "/v3/company/realm_nj/query");
+  assert.equal(
+    savedVendorLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where Id = '88'"
+  );
   assert.equal(fetchCalls[1]?.authorization, "Bearer access_nj");
+  assert.equal(fetchCalls[2]?.url, "https://quickbooks.api.intuit.com/v3/company/realm_nj/bill?minorversion=75&requestid=acre-qb-bill-statement_1");
+  assert.equal(fetchCalls[2]?.authorization, "Bearer access_nj");
 
-  const billPayload = JSON.parse(fetchCalls[1]?.body ?? "{}") as {
+  const billPayload = JSON.parse(fetchCalls[2]?.body ?? "{}") as {
     APAccountRef?: { value?: string };
     Line?: Array<{
       AccountBasedExpenseLineDetail?: {
@@ -306,6 +327,20 @@ test("postQuickBooksBill accepts legacy QuickBooks client credentials", async ()
               });
             }
 
+            if (fetchCalls.length === 2) {
+              return Response.json({
+                QueryResponse: {
+                  Vendor: [
+                    {
+                      Id: "88",
+                      DisplayName: "Casey Agent LLC",
+                      Active: true
+                    }
+                  ]
+                }
+              });
+            }
+
             return Response.json({
               Bill: {
                 Id: "bill_legacy_credentials",
@@ -323,7 +358,7 @@ test("postQuickBooksBill accepts legacy QuickBooks client credentials", async ()
     `Basic ${Buffer.from("legacy_client_id:legacy_client_secret").toString("base64")}`
   );
   assert.equal(
-    fetchCalls[1]?.url,
+    fetchCalls[2]?.url,
     "https://quickbooks.api.intuit.com/v3/company/realm_legacy_credentials/bill?minorversion=75&requestid=acre-qb-bill-legacy-credentials"
   );
 });
@@ -442,6 +477,106 @@ test("postQuickBooksBill resolves a missing vendor id from an exact QuickBooks a
     VendorRef?: { value?: string };
   };
   assert.equal(billPayload.VendorRef?.value, "vendor_by_name");
+});
+
+test("postQuickBooksBill replaces a stale saved vendor id from an exact QuickBooks display name", async () => {
+  const fetchCalls: Array<{
+    url: string;
+    body: string;
+  }> = [];
+
+  const result = await withQuickBooksEnv(
+    {
+      ACRE_QUICKBOOKS_CLIENT_ID: "client_stale_vendor",
+      ACRE_QUICKBOOKS_CLIENT_SECRET: "client_secret",
+      ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: JSON.stringify({
+        "acre-nj-llc": {
+          companyName: "ACRE NJ LLC",
+          realmId: "realm_stale_vendor",
+          refreshToken: "refresh_stale_vendor",
+          apAccountId: "ap_nj",
+          agentCommissionExpenseAccountId: "expense_nj"
+        }
+      })
+    },
+    async () =>
+      postQuickBooksBill(
+        createDraft({
+          agentLabel: "Zilong Peng",
+          payeeLabel: "Zilong Peng",
+          vendorId: "712",
+          requestId: "acre-qb-bill-stale-vendor"
+        }) as never,
+        {
+          fetchImpl: async (input, init) => {
+            fetchCalls.push({
+              url: String(input),
+              body: String(init?.body ?? "")
+            });
+
+            if (fetchCalls.length === 1) {
+              return Response.json({
+                access_token: "access_stale_vendor",
+                expires_in: 3600
+              });
+            }
+
+            if (fetchCalls.length === 2) {
+              return Response.json({
+                QueryResponse: {}
+              });
+            }
+
+            if (fetchCalls.length === 3) {
+              return Response.json({
+                QueryResponse: {
+                  Vendor: [
+                    {
+                      Id: "vendor_zilong",
+                      DisplayName: "Zilong Peng",
+                      Active: true
+                    }
+                  ]
+                }
+              });
+            }
+
+            return Response.json({
+              Bill: {
+                Id: "bill_stale_vendor",
+                DocNumber: "ACRE-STMT-1"
+              }
+            });
+          }
+        }
+      )
+  );
+
+  assert.deepEqual(result, {
+    billId: "bill_stale_vendor",
+    docNumber: "ACRE-STMT-1",
+    vendorId: "vendor_zilong"
+  });
+  assert.equal(fetchCalls.length, 4);
+
+  const staleVendorLookupUrl = new URL(fetchCalls[1]?.url ?? "http://localhost");
+  assert.equal(staleVendorLookupUrl.pathname, "/v3/company/realm_stale_vendor/query");
+  assert.equal(
+    staleVendorLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where Id = '712'"
+  );
+
+  const displayNameLookupUrl = new URL(fetchCalls[2]?.url ?? "http://localhost");
+  assert.equal(displayNameLookupUrl.pathname, "/v3/company/realm_stale_vendor/query");
+  assert.equal(
+    displayNameLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where DisplayName = 'Zilong Peng'"
+  );
+
+  const billPayload = JSON.parse(fetchCalls[3]?.body ?? "{}") as {
+    VendorRef?: { value?: string };
+  };
+  assert.equal(billPayload.VendorRef?.value, "vendor_zilong");
 });
 
 test("postQuickBooksBill creates a QuickBooks vendor when no exact vendor exists", async () => {
@@ -579,5 +714,42 @@ test("handlePostAccountingStatementQuickBooksBillPost saves an auto-resolved ven
     membershipId: "membership_agent",
     actorMembershipId: "membership_actor",
     quickBooksVendorId: "vendor_by_name"
+  });
+});
+
+test("handlePostAccountingStatementQuickBooksBillPost saves a corrected vendor id after posting", async () => {
+  let capturedProfileInput: Record<string, unknown> | null = null;
+
+  const response = await handlePostAccountingStatementQuickBooksBillPost(
+    createQuickBooksBillRequest(),
+    "statement_1",
+    createAccountingContext(),
+    {
+      getAgentPayoutStatementQuickBooksBillDraft: async () => createDraft({ vendorId: "712" }) as never,
+      postQuickBooksBill: async () => ({
+        billId: "91",
+        docNumber: "ACRE-STMT-1",
+        vendorId: "vendor_zilong"
+      }),
+      saveAgentProfile: async (input) => {
+        capturedProfileInput = input as Record<string, unknown>;
+        return { id: "profile_1" } as never;
+      },
+      markAgentPayoutStatementQuickBooksBillPosted: async (input) => {
+        return {
+          statementId: input.statementId,
+          quickBooksBillId: input.quickBooksBillId
+        } as never;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(capturedProfileInput, {
+    organizationId: "org_1",
+    officeId: "office_1",
+    membershipId: "membership_agent",
+    actorMembershipId: "membership_actor",
+    quickBooksVendorId: "vendor_zilong"
   });
 });

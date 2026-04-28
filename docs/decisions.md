@@ -682,7 +682,7 @@ Trade-off：
   - 自动外部出款
 - 当前 `statement_ready / payable / paid` 只是内部状态与可见性，不自动代表外部银行资金已打出
 - `AgentPayoutStatement` 生成时会把被纳入该期工资单的 `calculated / reviewed / statement_ready` agent rows 推进到 `payable`，但 `payable / paid` rows 仍然允许再次生成新的 durable statement snapshot，且不会把 `paid` 状态降回 `payable`
-- 已确认的 `AgentPayoutStatement` 可以由 admin 显式 `Post to QuickBooks`，按 statement 所属 office 映射到对应 QuickBooks company 后生成 unpaid bill，并在 Acre 留下本地 open AP bill；如果 agent profile 未保存 QuickBooks Vendor ID，系统会按 payee / agent 名称精确匹配一个 active QuickBooks Vendor，找不到时用同名创建新的 QuickBooks Vendor，并把 resolved / created Vendor ID 回写到 profile；这个动作不代表付款，出纳仍需在 QuickBooks 里人工检查和付款
+- 已确认的 `AgentPayoutStatement` 可以由 admin 显式 `Post to QuickBooks`，按 statement 所属 office 映射到对应 QuickBooks company 后生成 unpaid bill，并在 Acre 留下本地 open AP bill；系统会先在对应 QuickBooks company 内校验 agent profile 保存的 QuickBooks Vendor ID，缺失或查不到时按 payee / agent 名称精确匹配一个 active QuickBooks Vendor，找不到时用同名创建新的 QuickBooks Vendor，并把 resolved / created Vendor ID 回写到 profile；这个动作不代表付款，出纳仍需在 QuickBooks 里人工检查和付款
 - 当前有效映射范围是 `Acre NJ LLC -> ACRE NJ LLC`、`Acre NY Realty Inc -> ACRE NY REALTY INC`、`Acre NY Rentals LLC -> Acre NY Rentals LLC`；作废的 `Acre Media LLC` 不接入
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
