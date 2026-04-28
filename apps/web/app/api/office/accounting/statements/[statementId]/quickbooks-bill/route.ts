@@ -66,6 +66,11 @@ type QuickBooksVendorQueryResponseBody = {
   Fault?: QuickBooksBillResponseBody["Fault"];
 };
 
+type QuickBooksVendorCreateResponseBody = {
+  Vendor?: QuickBooksVendor;
+  Fault?: QuickBooksBillResponseBody["Fault"];
+};
+
 type QuickBooksCompanyConnection = {
   key: string;
   companyName: string;
@@ -235,7 +240,12 @@ function getQuickBooksMinorVersion() {
 }
 
 function formatQuickBooksFault(
-  body: QuickBooksBillResponseBody | QuickBooksTokenResponseBody | QuickBooksVendorQueryResponseBody | null,
+  body:
+    | QuickBooksBillResponseBody
+    | QuickBooksTokenResponseBody
+    | QuickBooksVendorQueryResponseBody
+    | QuickBooksVendorCreateResponseBody
+    | null,
   fallback: string
 ) {
   if (body && "Fault" in body && body.Fault?.Error?.length) {
@@ -304,7 +314,7 @@ function buildQuickBooksVendorLookupError(draft: AgentPayoutStatementQuickBooksB
     return "Add a QuickBooks Vendor ID on this agent profile before posting the payout statement.";
   }
 
-  return `Add a QuickBooks Vendor ID on this agent profile or create an active QuickBooks Vendor named "${lookupNames.join('" or "')}" before posting the payout statement.`;
+  return `A QuickBooks Vendor could not be resolved or created for "${lookupNames[0]}".`;
 }
 
 async function findQuickBooksVendorIdByDisplayName(input: {
@@ -348,6 +358,36 @@ async function findQuickBooksVendorIdByDisplayName(input: {
   return matches[0]?.Id?.trim() ?? "";
 }
 
+async function createQuickBooksVendorByDisplayName(input: {
+  accessToken: string;
+  connection: QuickBooksCompanyConnection;
+  fetchImpl: typeof fetch;
+  displayName: string;
+}) {
+  const url = new URL(`/v3/company/${input.connection.realmId}/vendor`, getQuickBooksApiBaseUrl());
+  url.searchParams.set("minorversion", getQuickBooksMinorVersion());
+
+  const vendorResponse = await input.fetchImpl(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      DisplayName: input.displayName
+    })
+  });
+  const vendorBody = (await vendorResponse.json().catch(() => null)) as QuickBooksVendorCreateResponseBody | null;
+  const vendorId = vendorBody?.Vendor?.Id?.trim() ?? "";
+
+  if (!vendorResponse.ok || !vendorId) {
+    throw new Error(formatQuickBooksFault(vendorBody, `Failed to create the QuickBooks vendor "${input.displayName}".`));
+  }
+
+  return vendorId;
+}
+
 async function resolveQuickBooksVendorId(input: {
   draft: AgentPayoutStatementQuickBooksBillDraft;
   accessToken: string;
@@ -355,12 +395,13 @@ async function resolveQuickBooksVendorId(input: {
   fetchImpl: typeof fetch;
 }) {
   const savedVendorId = input.draft.vendorId.trim();
+  const lookupNames = getQuickBooksVendorLookupNames(input.draft);
 
   if (savedVendorId) {
     return savedVendorId;
   }
 
-  for (const displayName of getQuickBooksVendorLookupNames(input.draft)) {
+  for (const displayName of lookupNames) {
     const vendorId = await findQuickBooksVendorIdByDisplayName({
       accessToken: input.accessToken,
       connection: input.connection,
@@ -373,7 +414,18 @@ async function resolveQuickBooksVendorId(input: {
     }
   }
 
-  throw new Error(buildQuickBooksVendorLookupError(input.draft));
+  const createDisplayName = lookupNames[0];
+
+  if (!createDisplayName) {
+    throw new Error(buildQuickBooksVendorLookupError(input.draft));
+  }
+
+  return createQuickBooksVendorByDisplayName({
+    accessToken: input.accessToken,
+    connection: input.connection,
+    fetchImpl: input.fetchImpl,
+    displayName: createDisplayName
+  });
 }
 
 function buildQuickBooksBillPayload(

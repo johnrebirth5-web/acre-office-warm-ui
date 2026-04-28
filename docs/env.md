@@ -321,7 +321,7 @@ ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commissio
 - 生产应配置 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON`，按 Acre office slug 分流：
   `acre-nj-llc -> ACRE NJ LLC`、`acre-ny-realty -> ACRE NY REALTY INC`、`acre-ny-rental -> Acre NY Rentals LLC`
 - `Acre Media LLC` 是作废 QuickBooks company，不配置到 Acre 映射中
-- 每个 agent profile 可以保存 `QuickBooks Vendor ID` 作为确定性映射；如果为空，`Post to QuickBooks` 会在对应 QuickBooks company 内按 payout payee name、再按 agent display name 精确匹配一个 active Vendor，并把匹配到的 ID 回写到 profile。找不到或出现歧义时仍会停止
+- 每个 agent profile 可以保存 `QuickBooks Vendor ID` 作为确定性映射；如果为空，`Post to QuickBooks` 会在对应 QuickBooks company 内按 payout payee name、再按 agent display name 精确匹配一个 active Vendor，找不到时用同名创建新的 QuickBooks Vendor，并把匹配到或创建出的 ID 回写到 profile。出现重复 active Vendor 等歧义时仍会停止
 - payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
 - 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
 - QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按对应 company 更新环境值
