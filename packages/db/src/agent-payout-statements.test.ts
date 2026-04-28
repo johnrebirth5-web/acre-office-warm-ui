@@ -7,6 +7,7 @@ import {
   buildAgentPayoutStatementInvoiceOptions,
   createAgentPayoutStatement,
   deriveAgentPayoutStatementPeriodRange,
+  getAgentPayoutStatementQuickBooksBillDraft,
   getAgentPayoutStatementMatchDate,
   getOfficeAgentPayoutStatementDetail,
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
@@ -649,6 +650,39 @@ test("createAgentPayoutStatement includes all selected invoice rows and advances
     assert.equal(postGenerationSnapshot.candidateRows.length, 3);
     assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.statusValue === "payable"));
     assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.isGenerateEligible === true));
+
+    await sendAgentPayoutStatementToAgent({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: result.statementId,
+      actorMembershipId: context.adminMembership.id,
+      message: "Please confirm."
+    });
+    await respondToAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: result.statementId,
+      actorMembershipId: context.agentMembership.id,
+      response: "confirm"
+    });
+    await prisma.ledgerAccount.create({
+      data: {
+        organizationId: context.organization.id,
+        code: "5000",
+        name: "Agent Commission Expense",
+        accountType: "expense",
+        isSystem: true
+      }
+    });
+
+    const quickBooksDraft = await getAgentPayoutStatementQuickBooksBillDraft({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: result.statementId
+    });
+
+    assert.equal(quickBooksDraft?.lineDescription, "INV-100, INV-200");
+    assert.equal(quickBooksDraft?.lines[0]?.description, "INV-100, INV-200");
   } finally {
     await context.cleanup();
   }

@@ -1329,7 +1329,10 @@ function buildAgentPayoutStatementQuickBooksBillDraft(record: Prisma.AgentPayout
   const txnDate = formatDateValue(record.confirmedAt);
   const manualAdjustmentTotal = summarizeStatementManualLineItems(record.manualLineItems);
   const periodLabel = formatPeriodLabel(record.periodStart, record.periodEnd);
-  const lineDescription = `Acre agent payout statement ${docNumber} · ${agentLabel} · ${periodLabel}`;
+  const lineDescription =
+    [...invoiceNumbers]
+      .sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }))
+      .join(", ") || "N/A";
 
   return {
     statementId: record.id,
