@@ -444,6 +444,107 @@ test("postQuickBooksBill resolves a missing vendor id from an exact QuickBooks a
   assert.equal(billPayload.VendorRef?.value, "vendor_by_name");
 });
 
+test("postQuickBooksBill creates a QuickBooks vendor when no exact vendor exists", async () => {
+  const fetchCalls: Array<{
+    url: string;
+    method: string;
+    body: string;
+  }> = [];
+
+  const result = await withQuickBooksEnv(
+    {
+      ACRE_QUICKBOOKS_CLIENT_ID: "client_vendor_create",
+      ACRE_QUICKBOOKS_CLIENT_SECRET: "client_secret",
+      ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: JSON.stringify({
+        "acre-ny-realty": {
+          companyName: "ACRE NY REALTY INC",
+          realmId: "realm_vendor_create",
+          refreshToken: "refresh_vendor_create",
+          apAccountId: "ap_ny",
+          agentCommissionExpenseAccountId: "expense_ny"
+        }
+      })
+    },
+    async () =>
+      postQuickBooksBill(
+        createDraft({
+          officeSlug: "acre-ny-realty",
+          officeLabel: "Acre NY Realty Inc",
+          agentLabel: "Ivy as agent Jin",
+          payeeLabel: "",
+          vendorId: "",
+          requestId: "acre-qb-bill-vendor-create"
+        }) as never,
+        {
+          fetchImpl: async (input, init) => {
+            fetchCalls.push({
+              url: String(input),
+              method: init?.method ?? "GET",
+              body: String(init?.body ?? "")
+            });
+
+            if (fetchCalls.length === 1) {
+              return Response.json({
+                access_token: "access_vendor_create",
+                expires_in: 3600
+              });
+            }
+
+            if (fetchCalls.length === 2) {
+              return Response.json({
+                QueryResponse: {}
+              });
+            }
+
+            if (fetchCalls.length === 3) {
+              return Response.json({
+                Vendor: {
+                  Id: "vendor_created",
+                  DisplayName: "Ivy as agent Jin",
+                  Active: true
+                }
+              });
+            }
+
+            return Response.json({
+              Bill: {
+                Id: "bill_vendor_create",
+                DocNumber: "ACRE-STMT-1"
+              }
+            });
+          }
+        }
+      )
+  );
+
+  assert.deepEqual(result, {
+    billId: "bill_vendor_create",
+    docNumber: "ACRE-STMT-1",
+    vendorId: "vendor_created"
+  });
+  assert.equal(fetchCalls.length, 4);
+
+  const vendorLookupUrl = new URL(fetchCalls[1]?.url ?? "http://localhost");
+  assert.equal(vendorLookupUrl.pathname, "/v3/company/realm_vendor_create/query");
+  assert.equal(
+    vendorLookupUrl.searchParams.get("query"),
+    "select Id, DisplayName, Active from Vendor where DisplayName = 'Ivy as agent Jin'"
+  );
+
+  const vendorCreateUrl = new URL(fetchCalls[2]?.url ?? "http://localhost");
+  assert.equal(vendorCreateUrl.pathname, "/v3/company/realm_vendor_create/vendor");
+  assert.equal(vendorCreateUrl.searchParams.get("minorversion"), "75");
+  assert.equal(fetchCalls[2]?.method, "POST");
+  assert.deepEqual(JSON.parse(fetchCalls[2]?.body ?? "{}"), {
+    DisplayName: "Ivy as agent Jin"
+  });
+
+  const billPayload = JSON.parse(fetchCalls[3]?.body ?? "{}") as {
+    VendorRef?: { value?: string };
+  };
+  assert.equal(billPayload.VendorRef?.value, "vendor_created");
+});
+
 test("handlePostAccountingStatementQuickBooksBillPost saves an auto-resolved vendor id after posting", async () => {
   let capturedProfileInput: Record<string, unknown> | null = null;
 

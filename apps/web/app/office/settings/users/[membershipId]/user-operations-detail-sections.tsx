@@ -691,7 +691,7 @@ export function UserOperationsDetailSections({
                 </div>
                 <FormField
                   className="office-detail-field"
-                  helper="Optional when QuickBooks has one active Vendor with the same payee or agent name; saving the ID keeps posting deterministic."
+                  helper="Optional. Posting uses this ID first; otherwise Acre matches the payee or agent name and creates the Vendor if needed."
                   label="QuickBooks Vendor ID"
                 >
                   <TextInput
