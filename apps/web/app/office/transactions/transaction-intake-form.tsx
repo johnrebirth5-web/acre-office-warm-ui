@@ -323,9 +323,14 @@ export function TransactionIntakeWorkspace({
       }
 
       if (ownerAssignment && nextOwnerFieldInputName) {
-        nextValues[nextOwnerFieldInputName] =
+        const shouldPreserveOwnerDraft =
           preserveDraftStateOnSchemaChange &&
-          typeof current[nextOwnerFieldInputName] === "string"
+          mode === "create" &&
+          ownerAssignment.canSelectDifferentOwner &&
+          typeof current[nextOwnerFieldInputName] === "string";
+
+        nextValues[nextOwnerFieldInputName] =
+          shouldPreserveOwnerDraft
             ? (current[nextOwnerFieldInputName] ?? "")
             : mode === "create" && ownerAssignment.canSelectDifferentOwner
               ? (initialOwnerOption?.label ?? "")
@@ -339,14 +344,18 @@ export function TransactionIntakeWorkspace({
       );
     });
     setOwnerSearchValue((current) =>
-      preserveDraftStateOnSchemaChange
+      preserveDraftStateOnSchemaChange &&
+      mode === "create" &&
+      ownerAssignment?.canSelectDifferentOwner
         ? current
         : mode === "create" && ownerAssignment?.canSelectDifferentOwner
           ? (initialOwnerOption?.label ?? "")
           : (ownerAssignment?.currentOwnerLabel ?? ""),
     );
     setSelectedOwnerMembershipId((current) =>
-      preserveDraftStateOnSchemaChange
+      preserveDraftStateOnSchemaChange &&
+      mode === "create" &&
+      ownerAssignment?.canSelectDifferentOwner
         ? current
         : mode === "create"
           ? ownerAssignment?.canSelectDifferentOwner
@@ -497,7 +506,7 @@ export function TransactionIntakeWorkspace({
         continue;
       }
 
-      if (canSearchOwners && field.inputName === ownerFieldInputName) {
+      if (ownerAssignment && field.inputName === ownerFieldInputName) {
         continue;
       }
 
@@ -510,13 +519,17 @@ export function TransactionIntakeWorkspace({
       }
     }
 
-    if (canSearchOwners && !selectedOwnerMembershipId && ownerFieldInputName) {
+    const hasAssignedOwner = canSearchOwners
+      ? Boolean(selectedOwnerMembershipId)
+      : Boolean(ownerAssignment?.currentOwnerMembershipId);
+
+    if (ownerAssignment && ownerFieldInputName && !hasAssignedOwner) {
       addFieldError(
         ownerFieldInputName,
         "Agent Owner",
         ownerSelectionError,
       );
-    } else if (canSearchOwners && !selectedOwnerMembershipId) {
+    } else if (ownerAssignment && !hasAssignedOwner) {
       summaryLabels.push("Agent Owner");
     }
 
