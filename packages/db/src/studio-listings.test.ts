@@ -16,6 +16,7 @@ import {
   createStudioListingCollection,
   getStudioListingAssetRecord,
   getListingStudioCompanyDashboard,
+  getStudioListingPackDetail,
   getStudioListingPublicCollection,
   getStudioListingPublicPack,
   getStudioListingCollectionDetail,
@@ -347,6 +348,63 @@ test("admin imports are saved personally and published to the company dashboard"
       dashboard.items.find((item) => item.packId === imported.packId)
         ?.companyFeedLabel,
       "Acre Featured",
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("listing imports enrich monthly fees and tax abatement from captured page text", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const imported = await createStudioListingImport({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      sourceSite: StudioListingSourceSite.streeteasy,
+      sourceUrl: `https://streeteasy.com/building/${randomUUID()}`,
+      rawHtml: `
+        <html>
+          <body>
+            <dl>
+              <dt>Common Charges</dt><dd>$1,563/mo</dd>
+              <dt>Taxes</dt><dd>$1,969/mo</dd>
+              <dt>Tax Abatement</dt><dd>421a until 2035</dd>
+            </dl>
+          </body>
+        </html>
+      `,
+      canonicalFields: {
+        title: "Financial Import",
+        streetAddress: "500 West 45th Street #610",
+        city: "New York",
+        state: "NY",
+        postalCode: "10036",
+        listingType: "sale",
+        price: 1595000,
+        priceLabel: "$1,595,000",
+        bedrooms: 2,
+        bathrooms: 2,
+      },
+      assets: [],
+    });
+
+    const detail = await getStudioListingPackDetail({
+      organizationId: context.organization.id,
+      packId: imported.packId,
+    });
+
+    assert.ok(detail);
+    assert.deepEqual(
+      detail?.sourceFacts.filter((fact) =>
+        ["Common charges", "Taxes", "Tax abatement"].includes(fact.label),
+      ),
+      [
+        { label: "Common charges", value: "$1,563/mo" },
+        { label: "Taxes", value: "$1,969/mo" },
+        { label: "Tax abatement", value: "421a until 2035" },
+      ],
     );
   } finally {
     await context.cleanup();

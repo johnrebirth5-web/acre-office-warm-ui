@@ -108,7 +108,7 @@
    - source facts：
      - rooms
      - availability
-     - common charges / HOA / taxes
+     - common charges / HOA / taxes / tax abatement
      - price per foot
      - lease term
      - listed by / broker / property type

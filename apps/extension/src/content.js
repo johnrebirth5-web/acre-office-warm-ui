@@ -812,8 +812,21 @@
 
   function extractLabeledFacts(pageText) {
     const normalizedText = pageText || "";
+    const cleanTaxAbatementLabel = (value) => {
+      const normalized = normalizeWhitespace(value || "");
+      if (!normalized) {
+        return null;
+      }
+      if (/^(?:tax history|property tax|monthly|common charges|taxes?|price|beds?|baths?)\b/i.test(normalized)) {
+        return null;
+      }
+      return trimText(
+        normalized.split(/\b(?:common charges|taxes?|price|beds?|baths?|property details|history|monthly)\b/i)[0] || "",
+      );
+    };
     const commonChargesLabel = findRegexValue(
       [
+        /monthly\s+common charges?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /common charges\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /maintenance\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /hoa(?: fees?)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
@@ -823,11 +836,22 @@
     );
     const taxesLabel = findRegexValue(
       [
+        /monthly\s+(?:property\s+)?tax(?:es)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /property taxes?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /real estate taxes?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /tax(?:es)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
         /taxes?\s*(\$\s*[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
       ],
       normalizedText,
     );
+    const taxAbatementLabel = cleanTaxAbatementLabel(findRegexValue(
+      [
+        /tax abatement\s+(yes|no|none|n\/a|not available|available|[A-Za-z0-9][A-Za-z0-9 ,./()+-]{0,80})/i,
+        /abatement\s+(yes|no|none|n\/a|not available|available|[A-Za-z0-9][A-Za-z0-9 ,./()+-]{0,80})/i,
+        /((?:421a|421-a|yes|no|none|n\/a|not available|available|[A-Za-z0-9][A-Za-z0-9 ,./()+-]{0,80}))\s+tax abatement/i,
+      ],
+      normalizedText,
+    ));
     const pricePerSquareFootLabel = findRegexValue(
       [
         /(\$[0-9,]+(?:\.\d+)?)\s+per\s*(?:ft²|sq\.?\s*ft|sf)/i,
@@ -868,6 +892,7 @@
     return {
       commonChargesLabel,
       taxesLabel,
+      taxAbatementLabel,
       pricePerSquareFootLabel,
       availabilityLabel,
       leaseTermLabel,
@@ -904,6 +929,7 @@
       payload.netEffectiveLabel ? { label: "Net effective", value: payload.netEffectiveLabel } : null,
       payload.commonChargesLabel ? { label: "Common charges", value: payload.commonChargesLabel } : null,
       payload.taxesLabel ? { label: "Taxes", value: payload.taxesLabel } : null,
+      payload.taxAbatementLabel ? { label: "Tax abatement", value: payload.taxAbatementLabel } : null,
     ].filter(Boolean);
   }
 
@@ -1076,6 +1102,7 @@
       sqft,
       commonChargesLabel: labeledFacts.commonChargesLabel,
       taxesLabel: labeledFacts.taxesLabel,
+      taxAbatementLabel: labeledFacts.taxAbatementLabel,
       pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
       availabilityLabel: labeledFacts.availabilityLabel,
       leaseTermLabel: labeledFacts.leaseTermLabel,
@@ -1093,6 +1120,7 @@
         availabilityLabel: labeledFacts.availabilityLabel,
         commonChargesLabel: labeledFacts.commonChargesLabel,
         taxesLabel: labeledFacts.taxesLabel,
+        taxAbatementLabel: labeledFacts.taxAbatementLabel,
         pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
         leaseTermLabel: labeledFacts.leaseTermLabel,
       }),
@@ -1104,6 +1132,7 @@
         netEffectiveLabel: labeledFacts.netEffectiveLabel,
         commonChargesLabel: labeledFacts.commonChargesLabel,
         taxesLabel: labeledFacts.taxesLabel,
+        taxAbatementLabel: labeledFacts.taxAbatementLabel,
       }),
       amenities: amenities.length ? { "Amenities & building": amenities } : [],
       transit,
@@ -1189,6 +1218,7 @@
       sqft: facts.sqft,
       commonChargesLabel: labeledFacts.commonChargesLabel,
       taxesLabel: labeledFacts.taxesLabel,
+      taxAbatementLabel: labeledFacts.taxAbatementLabel,
       pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
       availabilityLabel: labeledFacts.availabilityLabel,
       leaseTermLabel: labeledFacts.leaseTermLabel,
@@ -1205,6 +1235,7 @@
         availabilityLabel: labeledFacts.availabilityLabel,
         commonChargesLabel: labeledFacts.commonChargesLabel,
         taxesLabel: labeledFacts.taxesLabel,
+        taxAbatementLabel: labeledFacts.taxAbatementLabel,
         pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
         leaseTermLabel: labeledFacts.leaseTermLabel,
       }),
@@ -1216,6 +1247,7 @@
         netEffectiveLabel: labeledFacts.netEffectiveLabel,
         commonChargesLabel: labeledFacts.commonChargesLabel,
         taxesLabel: labeledFacts.taxesLabel,
+        taxAbatementLabel: labeledFacts.taxAbatementLabel,
       }),
       amenities: amenities.length ? { "Amenities & features": amenities } : [],
       transit,
@@ -1301,6 +1333,7 @@
           availabilityLabel: sitePayload.availabilityLabel,
           commonChargesLabel: sitePayload.commonChargesLabel,
           taxesLabel: sitePayload.taxesLabel,
+          taxAbatementLabel: sitePayload.taxAbatementLabel,
           pricePerSquareFootLabel: sitePayload.pricePerSquareFootLabel,
           leaseTermLabel: sitePayload.leaseTermLabel,
           netEffectiveLabel: sitePayload.netEffectiveLabel,

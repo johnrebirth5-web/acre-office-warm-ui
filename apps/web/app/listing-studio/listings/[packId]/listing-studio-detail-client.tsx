@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "@acre/ui";
 import { useI18n } from "../../../../lib/i18n/client";
+import { collectListingStudioFinancialHighlights } from "../../listing-studio-financial-highlights";
 import { StudioCollectionPicker } from "../../studio-collection-picker";
 import { ListingStudioMortgageCalculator } from "./listing-studio-mortgage-calculator";
 
@@ -100,6 +101,7 @@ type ListingEditorState = {
   listDate: string;
   commonCharges: string;
   taxes: string;
+  taxAbatement: string;
   description: string;
   amenitySections: EditorAmenitySection[];
 };
@@ -800,6 +802,11 @@ function findSourceFactValue(
   return items.find((item) => matcher.test(item.label))?.value ?? null;
 }
 
+const COMMON_CHARGES_FACT_LABEL_MATCHER = /common charges|hoa|maintenance/i;
+const TAXES_FACT_LABEL_MATCHER =
+  /\btax(?:es)?\b(?!\s+abatement)|property taxes|real estate taxes/i;
+const TAX_ABATEMENT_FACT_LABEL_MATCHER = /tax\s+abatement|abatement/i;
+
 function getHeaderEyebrow(detail: StudioListingDetailSnapshot) {
   return (
     detail.buildingName ??
@@ -840,64 +847,6 @@ function buildMapEmbedUrl(detail: StudioListingDetailSnapshot) {
   }
 
   return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
-}
-
-function collectFinancialHighlights(detail: StudioListingDetailSnapshot) {
-  const candidates = [...detail.facts, ...detail.sourceFacts];
-  const values = new Map<string, string>();
-
-  for (const item of candidates) {
-    const normalizedLabel = item.label.toLowerCase();
-
-    let nextLabel: string | null = null;
-    if (/common charges|hoa|maintenance/.test(normalizedLabel)) {
-      nextLabel = /hoa/.test(normalizedLabel) ? "HOA" : "Common charges";
-    } else if (/tax/.test(normalizedLabel)) {
-      nextLabel = "Taxes";
-    }
-
-    if (!nextLabel) {
-      continue;
-    }
-
-    const key = nextLabel.toLowerCase();
-    if (values.has(key)) {
-      continue;
-    }
-
-    values.set(key, item.value);
-  }
-
-  return [
-    {
-      label: "HOA",
-      value: formatFinancialHighlightValue(
-        values.get("hoa") ?? values.get("common charges") ?? "",
-      ),
-    },
-    {
-      label: "Taxes",
-      value: formatFinancialHighlightValue(values.get("taxes") ?? ""),
-    },
-  ];
-}
-
-function formatFinancialHighlightValue(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "—";
-  }
-
-  if (/\$\s*[\d,.]+.*\/mo/i.test(trimmed)) {
-    return trimmed.replace(/\s+/g, " ").trim();
-  }
-
-  const numericMatch = trimmed.match(/-?[\d,.]+/);
-  if (numericMatch?.[0]) {
-    return `$${numericMatch[0]}/mo`;
-  }
-
-  return trimmed;
 }
 
 function extractTransitDistanceKilometers(value: string) {
@@ -1231,6 +1180,7 @@ function formatListingDetailText(value: string | null | undefined, isZh: boolean
     .replace(/\bSquare Feet\b/gi, "平方英尺")
     .replace(/\bAvailability\b/gi, "可入住时间")
     .replace(/\bCommon charges\b/gi, "管理费")
+    .replace(/\bTax abatement\b/gi, "税收减免")
     .replace(/\bTaxes\b/gi, "房产税")
     .replace(/\bAvailable now\b/gi, "随时可入住")
     .replace(/\bAvailable\b/gi, "可入住")
@@ -1566,9 +1516,11 @@ function buildEditorState(
     commonCharges:
       findSourceFactValue(
         detail.sourceFacts,
-        /common charges|hoa|maintenance/i,
+        COMMON_CHARGES_FACT_LABEL_MATCHER,
       ) ?? "",
-    taxes: findSourceFactValue(detail.sourceFacts, /tax/i) ?? "",
+    taxes: findSourceFactValue(detail.sourceFacts, TAXES_FACT_LABEL_MATCHER) ?? "",
+    taxAbatement:
+      findSourceFactValue(detail.sourceFacts, TAX_ABATEMENT_FACT_LABEL_MATCHER) ?? "",
     description: buildEditorDescription(detail),
     amenitySections: buildAmenityEditorSections(detail.amenities),
   };
@@ -1597,8 +1549,9 @@ function buildEditedSourceFacts(
     /property type/i,
     /year built/i,
     /(list|listed) date/i,
-    /common charges|hoa|maintenance/i,
-    /tax/i,
+    COMMON_CHARGES_FACT_LABEL_MATCHER,
+    TAXES_FACT_LABEL_MATCHER,
+    TAX_ABATEMENT_FACT_LABEL_MATCHER,
   ];
   const preservedFacts = existingFacts.filter(
     (fact) => !editablePatterns.some((matcher) => matcher.test(fact.label)),
@@ -1627,6 +1580,9 @@ function buildEditedSourceFacts(
       : null,
     editorState.taxes
       ? { label: "Taxes (/mo)", value: editorState.taxes.trim() }
+      : null,
+    editorState.taxAbatement
+      ? { label: "Tax abatement", value: editorState.taxAbatement.trim() }
       : null,
   ].filter((entry): entry is { label: string; value: string } =>
     Boolean(entry),
@@ -1738,7 +1694,7 @@ export function ListingStudioDetailClient({
     [detailState],
   );
   const financialHighlights = useMemo(
-    () => collectFinancialHighlights(detailState),
+    () => collectListingStudioFinancialHighlights(detailState),
     [detailState],
   );
   const transitSummary = useMemo(
@@ -3104,6 +3060,16 @@ export function ListingStudioDetailClient({
                           updateEditorField("taxes", event.target.value)
                         }
                         value={editorState.taxes}
+                      />
+                    </label>
+                    <label className="listing-studio-editor-field">
+                      <span>{isZh ? "税收减免" : "Tax Abatement"}</span>
+                      <TextInput
+                        className="listing-studio-editor-input"
+                        onChange={(event) =>
+                          updateEditorField("taxAbatement", event.target.value)
+                        }
+                        value={editorState.taxAbatement}
                       />
                     </label>
                   </div>

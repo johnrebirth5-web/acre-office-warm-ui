@@ -42,7 +42,7 @@
   - 点击后会直接抓取当前页面的标题、地址、价格、facts、缩略图、原始 HTML、结构化字段和图片 URL，并直存到 `Listing Studio`
   - 当前会优先抓取页面中已成功加载的图片，并补充结构化字段中的候选图
   - 当前会额外抓取更多事实层与区块层信息：
-    - `rooms / availability / common charges / HOA / taxes / price per foot / lease term / listed by / broker`
+    - `rooms / availability / common charges / HOA / taxes / tax abatement / price per foot / lease term / listed by / broker`
     - `amenities / transit / floor plans / property history / additional source sections`
 - `Listing Studio` 当前已落地 `v1` 主链路：
   - `/listing-studio/dashboard`
