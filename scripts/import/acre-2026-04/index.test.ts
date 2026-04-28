@@ -46,7 +46,7 @@ async function createSupplementalImportTestContext() {
     prisma.office.create({
       data: {
         organizationId: organization.id,
-        name: "Acre NY Realty",
+        name: "Acre NY Realty Inc",
         slug: "acre-ny-realty",
         market: "New York",
         isPrimary: true,
@@ -64,7 +64,7 @@ async function createSupplementalImportTestContext() {
     prisma.office.create({
       data: {
         organizationId: organization.id,
-        name: "Acre NY Rental",
+        name: "Acre NY Rentals LLC",
         slug: "acre-ny-rental",
         market: "New York",
         isPrimary: false,

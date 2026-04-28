@@ -11,7 +11,7 @@ const sections = [
     title: "Scope",
     body: [
       "This End-User License Agreement applies to Acre Back Office, including the Acre Agent OS and Back Office features used for brokerage operations, transaction workflows, documents, billing, commissions, reporting, and connected accounting workflows.",
-      "Acre Back Office is made available for authorized users of ACRE NY REALTY INC and its approved business users. If you use the application for a company or brokerage, you represent that you are authorized to use it for that organization.",
+      "Acre Back Office is made available for authorized users of Acre NY Realty Inc and its approved business users. If you use the application for a company or brokerage, you represent that you are authorized to use it for that organization.",
     ],
   },
   {
@@ -67,7 +67,7 @@ const sections = [
   {
     title: "Contact",
     body: [
-      "Questions about this agreement can be sent to support@acresystem.us or mailed to ACRE NY REALTY INC, 45-10 Ct Square W, 1st floor, Long Island City, NY 11101.",
+      "Questions about this agreement can be sent to support@acresystem.us or mailed to Acre NY Realty Inc, 45-10 Ct Square W, 1st floor, Long Island City, NY 11101.",
     ],
   },
 ];

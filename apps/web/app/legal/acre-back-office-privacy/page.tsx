@@ -68,7 +68,7 @@ const sections = [
   {
     title: "Contact",
     body: [
-      "Questions about this privacy notice can be sent to support@acresystem.us or mailed to ACRE NY REALTY INC, 45-10 Ct Square W, 1st floor, Long Island City, NY 11101.",
+      "Questions about this privacy notice can be sent to support@acresystem.us or mailed to Acre NY Realty Inc, 45-10 Ct Square W, 1st floor, Long Island City, NY 11101.",
     ],
   },
 ];

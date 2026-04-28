@@ -3677,7 +3677,7 @@ export async function getStudioListingPublicCollection(input: {
     updatedAt: record.updatedAt.toISOString(),
     contact: {
       name: primaryContactRecord?.contactName?.trim() || "Acre Agent",
-      title: primaryContactRecord?.contactTitle?.trim() || "Acre NY Realty",
+      title: primaryContactRecord?.contactTitle?.trim() || "Acre NY Realty Inc",
       phone: primaryContactRecord?.contactPhone?.trim() || "",
       email: primaryContactRecord?.contactEmail?.trim() || "",
     },

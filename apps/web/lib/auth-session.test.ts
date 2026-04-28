@@ -131,14 +131,14 @@ function createMockSessionContext(): SessionMembershipContext {
     },
     currentOffice: {
       id: "office-1",
-      name: "Acre NY Realty",
+      name: "Acre NY Realty Inc",
       slug: "acre-ny",
       market: "NYC",
     },
     accessibleOffices: [
       {
         id: "office-1",
-        name: "Acre NY Realty",
+        name: "Acre NY Realty Inc",
         slug: "acre-ny",
         market: "NYC",
       },

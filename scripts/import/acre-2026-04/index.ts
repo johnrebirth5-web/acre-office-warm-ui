@@ -262,13 +262,13 @@ const userFileConfigs: OfficeFileConfig[] = [
   },
   {
     officeSlug: "acre-ny-realty",
-    officeLabel: "Acre NY Realty",
+    officeLabel: "Acre NY Realty Inc",
     fileName: "ACRE_NY_REALTY_INC_active_agents (1).csv",
     kind: "users",
   },
   {
     officeSlug: "acre-ny-rental",
-    officeLabel: "Acre NY Rental",
+    officeLabel: "Acre NY Rentals LLC",
     fileName: "ACRE_NY_RENTALS_LLC_active_agents.csv",
     kind: "users",
   },
@@ -282,13 +282,13 @@ const transactionFileConfigs: OfficeFileConfig[] = [
   },
   {
     officeSlug: "acre-ny-realty",
-    officeLabel: "Acre NY Realty",
+    officeLabel: "Acre NY Realty Inc",
     fileName: "acre ny realty report - 2026-04-16T112134.861.csv",
     kind: "transactions",
   },
   {
     officeSlug: "acre-ny-rental",
-    officeLabel: "Acre NY Rental",
+    officeLabel: "Acre NY Rentals LLC",
     fileName: "acre ny rental report - 2026-04-16T112243.446.csv",
     kind: "transactions",
   },
