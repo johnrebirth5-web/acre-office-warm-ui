@@ -22372,6 +22372,25 @@ body,
   gap: 4px;
 }
 
+.listing-studio-share-financial-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.listing-studio-share-financial-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: rgba(249, 242, 232, 0.95);
+  color: #a45a08;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .listing-studio-share-hero-media {
   overflow: hidden;
   min-height: 420px;

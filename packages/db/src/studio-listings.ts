@@ -941,6 +941,196 @@ function normalizeLabeledValues(value: unknown): StudioLabeledValue[] {
     .filter((entry): entry is StudioLabeledValue => Boolean(entry));
 }
 
+const FINANCIAL_MONEY_VALUE_PATTERN =
+  String.raw`\$\s*[0-9][0-9,]*(?:\.\d+)?(?:\s*(?:\/|per\s+)\s*(?:mo|month|yr|year))?`;
+const TAX_ABATEMENT_VALUE_PATTERN =
+  String.raw`(?:yes|no|none|n\/a|not available|available|[A-Za-z0-9][A-Za-z0-9 ,./()+-]{0,80})`;
+const COMMON_CHARGES_LABEL_PATTERN =
+  String.raw`(?:monthly\s+)?(?:common charges?|maintenance|hoa(?: fees?)?)`;
+const TAXES_LABEL_PATTERN =
+  String.raw`(?:(?:monthly\s+)?(?:property\s+|real estate\s+)?tax(?:es)?)`;
+const TAX_ABATEMENT_LABEL_PATTERN = String.raw`(?:tax abatement|abatement)`;
+
+function normalizeExtractedFactValue(value: string | null | undefined) {
+  const normalized = trimString(value)?.replace(/\s+/g, " ").replace(/\s*\/\s*/g, "/");
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.replace(/[.;,]$/, "").trim() || null;
+}
+
+function normalizeTaxAbatementValue(value: string | null | undefined) {
+  const normalized = normalizeExtractedFactValue(value);
+  if (!normalized) {
+    return null;
+  }
+  if (/^(?:tax history|property tax|monthly|common charges|taxes?|price|beds?|baths?)\b/i.test(normalized)) {
+    return null;
+  }
+
+  return (
+    trimString(
+      normalized.split(
+        /\b(?:common charges|taxes?|price|beds?|baths?|property details|history|monthly)\b/i,
+      )[0],
+    ) ?? null
+  );
+}
+
+function stripHtmlToSearchableText(value: string) {
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:div|p|li|tr|td|th|dt|dd|section|article|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#36;/g, "$")
+    .replace(/&dollar;/gi, "$");
+}
+
+function extractFinancialFactFromText(input: {
+  text: string;
+  labelPattern: string;
+  valuePattern: string;
+}) {
+  const lines = stripHtmlToSearchableText(input.text)
+    .split(/[\n\r]+|[•·|]/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 2500);
+  const sameLinePattern = new RegExp(
+    `${input.labelPattern}\\s*(?:[:\\-–—]?\\s*)(${input.valuePattern})`,
+    "i",
+  );
+  const valueBeforeLabelPattern = new RegExp(
+    `(${input.valuePattern})\\s*(?:[:\\-–—]?\\s*)${input.labelPattern}`,
+    "i",
+  );
+  const labelOnlyPattern = new RegExp(`^${input.labelPattern}\\s*:?$`, "i");
+  const valueOnlyPattern = new RegExp(`^${input.valuePattern}$`, "i");
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const isLabelOnlyLine = labelOnlyPattern.test(line);
+    const sameLineMatch = line.match(sameLinePattern);
+    const valueBeforeLabelMatch = isLabelOnlyLine ? null : line.match(valueBeforeLabelPattern);
+    const value =
+      normalizeExtractedFactValue(sameLineMatch?.[1]) ??
+      normalizeExtractedFactValue(valueBeforeLabelMatch?.[1]);
+
+    if (value) {
+      return value;
+    }
+
+    if (isLabelOnlyLine) {
+      for (const candidate of lines.slice(index + 1, index + 4)) {
+        const nextValue = normalizeExtractedFactValue(candidate.match(valueOnlyPattern)?.[0]);
+        if (nextValue) {
+          return nextValue;
+        }
+      }
+    }
+  }
+
+  const normalizedText = lines.join(" ");
+  return normalizeExtractedFactValue(normalizedText.match(sameLinePattern)?.[1]);
+}
+
+function findExistingFactValue(
+  facts: StudioLabeledValue[],
+  matcher: (label: string) => boolean,
+) {
+  return facts.find((fact) => matcher(fact.label))?.value ?? null;
+}
+
+function upsertSourceFact(
+  facts: StudioLabeledValue[],
+  nextFact: StudioLabeledValue,
+  matcher: (label: string) => boolean,
+) {
+  const index = facts.findIndex((fact) => matcher(fact.label));
+  if (index === -1) {
+    return [...facts, nextFact];
+  }
+
+  return facts.map((fact, factIndex) => (factIndex === index ? nextFact : fact));
+}
+
+function enrichCanonicalFieldsWithFinancialFacts(input: CreateStudioListingImportInput) {
+  const fields = { ...(input.canonicalFields ?? {}) };
+  let sourceFacts = normalizeLabeledValues(fields.sourceFacts);
+  const searchableText = [input.rawHtml, JSON.stringify(input.rawMetaJson ?? "")]
+    .filter(Boolean)
+    .join("\n");
+  const commonChargesValue =
+    trimString(fields.commonChargesLabel) ??
+    findExistingFactValue(sourceFacts, (label) => /common charges?|hoa|maintenance/i.test(label)) ??
+    extractFinancialFactFromText({
+      text: searchableText,
+      labelPattern: COMMON_CHARGES_LABEL_PATTERN,
+      valuePattern: FINANCIAL_MONEY_VALUE_PATTERN,
+    });
+  const taxesValue =
+    trimString(fields.taxesLabel) ??
+    findExistingFactValue(
+      sourceFacts,
+      (label) => /\btax(?:es)?\b(?!\s+abatement)|property taxes|real estate taxes/i.test(label),
+    ) ??
+    extractFinancialFactFromText({
+      text: searchableText,
+      labelPattern: TAXES_LABEL_PATTERN,
+      valuePattern: FINANCIAL_MONEY_VALUE_PATTERN,
+    });
+  const taxAbatementValue =
+    normalizeTaxAbatementValue(trimString(fields.taxAbatementLabel)) ??
+    normalizeTaxAbatementValue(
+      findExistingFactValue(sourceFacts, (label) => /tax\s+abatement|abatement/i.test(label)),
+    ) ??
+    normalizeTaxAbatementValue(
+      extractFinancialFactFromText({
+        text: searchableText,
+        labelPattern: TAX_ABATEMENT_LABEL_PATTERN,
+        valuePattern: TAX_ABATEMENT_VALUE_PATTERN,
+      }),
+    );
+
+  if (commonChargesValue) {
+    fields.commonChargesLabel = commonChargesValue;
+    sourceFacts = upsertSourceFact(
+      sourceFacts,
+      { label: "Common charges", value: commonChargesValue },
+      (label) => /common charges?|hoa|maintenance/i.test(label),
+    );
+  }
+
+  if (taxesValue) {
+    fields.taxesLabel = taxesValue;
+    sourceFacts = upsertSourceFact(
+      sourceFacts,
+      { label: "Taxes", value: taxesValue },
+      (label) => /\btax(?:es)?\b(?!\s+abatement)|property taxes|real estate taxes/i.test(label),
+    );
+  }
+
+  if (taxAbatementValue) {
+    fields.taxAbatementLabel = taxAbatementValue;
+    sourceFacts = upsertSourceFact(
+      sourceFacts,
+      { label: "Tax abatement", value: taxAbatementValue },
+      (label) => /tax\s+abatement|abatement/i.test(label),
+    );
+  }
+
+  if (sourceFacts.length) {
+    fields.sourceFacts = sourceFacts;
+  }
+
+  return fields;
+}
+
 function readCanonicalFieldFromRawParsed(
   rawParsedJson: Prisma.JsonValue | null,
   key: string,
@@ -994,7 +1184,7 @@ function buildHeroFacts(data: {
 }
 
 function normalizeStudioListingData(input: CreateStudioListingImportInput): NormalizedStudioListingData {
-  const fields = input.canonicalFields ?? {};
+  const fields = enrichCanonicalFieldsWithFinancialFacts(input);
   const title =
     trimString(fields.title) ??
     trimString(fields.headline) ??
@@ -1068,7 +1258,7 @@ function normalizeStudioListingData(input: CreateStudioListingImportInput): Norm
     propertyHistory:
       fields.propertyHistory === undefined ? Prisma.JsonNull : toInputJsonValue(fields.propertyHistory),
     rawParsedJson: toInputJsonValue({
-      canonicalFields: input.canonicalFields,
+      canonicalFields: fields,
       rawMetaJson: input.rawMetaJson ?? null,
     }),
     latitude: parseNumberish(fields.latitude),

@@ -8,6 +8,10 @@ import {
   consumePublicTokenRateLimit,
   PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
 } from "../../../../lib/public-token-rate-limit";
+import {
+  collectListingStudioFinancialHighlights,
+  isListingStudioFinancialFactLabel,
+} from "../../../listing-studio/listing-studio-financial-highlights";
 
 type ListingStudioPublicSharePageProps = {
   params: Promise<{ code: string }>;
@@ -45,6 +49,7 @@ function formatPublicListingText(value: string, isZh: boolean) {
     .replace(/\bYear built\b/gi, "建造年份")
     .replace(/\bList date\b/gi, "挂牌日期")
     .replace(/\bCommon charges\b/gi, "管理费")
+    .replace(/\bTax abatement\b/gi, "税收减免")
     .replace(/\bTaxes\b/gi, "房产税")
     .replace(/\bTransit details captured\b/gi, "已采集交通信息")
     .replace(/\bAmenities\b/gi, "设施")
@@ -91,6 +96,11 @@ export default async function ListingStudioPublicSharePage(
     notFound();
   }
 
+  const financialHighlights = collectListingStudioFinancialHighlights(snapshot);
+  const primaryFacts = snapshot.facts.filter(
+    (fact) => !isListingStudioFinancialFactLabel(fact.label),
+  );
+
   return (
     <main className="listing-studio-share-shell">
       <div className="listing-studio-share-page">
@@ -123,6 +133,16 @@ export default async function ListingStudioPublicSharePage(
               <strong>{snapshot.addressLine}</strong>
               {snapshot.locationLine ? <span>{snapshot.locationLine}</span> : null}
             </div>
+            <div
+              className="listing-studio-share-financial-row"
+              aria-label={isZh ? "房源费用" : "Listing fees"}
+            >
+              {financialHighlights.map((item) => (
+                <span className="listing-studio-share-financial-chip" key={item.key}>
+                  {formatPublicListingText(item.label, isZh)} {item.value}
+                </span>
+              ))}
+            </div>
           </div>
           {snapshot.selectedAssets[0] ? (
             <div className="listing-studio-share-hero-media">
@@ -135,7 +155,7 @@ export default async function ListingStudioPublicSharePage(
         </section>
 
         <section className="listing-studio-share-facts">
-          {snapshot.facts.map((fact) => (
+          {primaryFacts.map((fact) => (
             <div className="listing-studio-fact-card" key={fact.label}>
               <span>{formatPublicListingText(fact.label, isZh)}</span>
               <strong>{formatPublicListingText(fact.value, isZh)}</strong>
