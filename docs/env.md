@@ -325,6 +325,7 @@ ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commissio
 - payout statement 必须由 agent 在 Acre 内确认后才会显示 / 允许 `Post to QuickBooks`
 - 成功后 Acre 会记录 QuickBooks bill id / doc number，并创建本地 open `AccountingTransaction` bill 作为 AP 记录
 - QuickBooks refresh token 当前来自服务端环境变量；如果 Intuit OAuth 返回/要求轮换 refresh token，需要按对应 company 更新环境值
+- Docker 本地开发的 `web` 容器会从仓库根目录 `.env` / `.env.local` 透传 `QUICKBOOKS_*` 与 `ACRE_QUICKBOOKS_*` 变量；更新这些值后需要 recreate `web` 容器才能让 `Post to QuickBooks` 读到新的 office mapping
 
 Intuit Developer 生产 app 信息：
 

@@ -263,6 +263,71 @@ test("postQuickBooksBill uses the QuickBooks company mapped to the statement off
   assert.equal(billPayload.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value, "expense_nj");
 });
 
+test("postQuickBooksBill accepts legacy QuickBooks client credentials", async () => {
+  const fetchCalls: Array<{
+    url: string;
+    authorization: string;
+  }> = [];
+
+  await withQuickBooksEnv(
+    {
+      ACRE_QUICKBOOKS_CLIENT_ID: undefined,
+      ACRE_QUICKBOOKS_CLIENT_SECRET: undefined,
+      QUICKBOOKS_CLIENT_ID: "legacy_client_id",
+      QUICKBOOKS_CLIENT_SECRET: "legacy_client_secret",
+      ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON: JSON.stringify({
+        "acre-ny-realty": {
+          companyName: "ACRE NY REALTY INC",
+          realmId: "realm_legacy_credentials",
+          refreshToken: "refresh_legacy_credentials",
+          apAccountId: "ap_legacy_credentials",
+          agentCommissionExpenseAccountId: "expense_legacy_credentials"
+        }
+      })
+    },
+    async () =>
+      postQuickBooksBill(
+        createDraft({
+          officeSlug: "acre-ny-realty",
+          officeLabel: "Acre NY Realty Inc",
+          requestId: "acre-qb-bill-legacy-credentials"
+        }) as never,
+        {
+          fetchImpl: async (input, init) => {
+            fetchCalls.push({
+              url: String(input),
+              authorization: String(init?.headers instanceof Headers ? init.headers.get("Authorization") : (init?.headers as Record<string, string> | undefined)?.Authorization)
+            });
+
+            if (fetchCalls.length === 1) {
+              return Response.json({
+                access_token: "access_legacy_credentials",
+                expires_in: 3600
+              });
+            }
+
+            return Response.json({
+              Bill: {
+                Id: "bill_legacy_credentials",
+                DocNumber: "ACRE-STMT-1"
+              }
+            });
+          }
+        }
+      )
+  );
+
+  assert.equal(fetchCalls[0]?.url, "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer");
+  assert.equal(
+    fetchCalls[0]?.authorization,
+    `Basic ${Buffer.from("legacy_client_id:legacy_client_secret").toString("base64")}`
+  );
+  assert.equal(
+    fetchCalls[1]?.url,
+    "https://quickbooks.api.intuit.com/v3/company/realm_legacy_credentials/bill?minorversion=75&requestid=acre-qb-bill-legacy-credentials"
+  );
+});
+
 test("postQuickBooksBill explains when QuickBooks bill posting is not configured", async () => {
   await assert.rejects(
     () =>

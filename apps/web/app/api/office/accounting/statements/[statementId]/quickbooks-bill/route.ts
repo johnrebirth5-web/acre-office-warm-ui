@@ -101,6 +101,26 @@ function readQuickBooksConnectionField(entry: QuickBooksOfficeConnectionRaw, fie
   return value;
 }
 
+function readRequiredQuickBooksEnvFrom(names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  throw new Error(`QuickBooks is not configured. Missing ${names.join(" or ")}.`);
+}
+
+function readQuickBooksClientId() {
+  return readRequiredQuickBooksEnvFrom(["ACRE_QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_ID"]);
+}
+
+function readQuickBooksClientSecret() {
+  return readRequiredQuickBooksEnvFrom(["ACRE_QUICKBOOKS_CLIENT_SECRET", "QUICKBOOKS_CLIENT_SECRET"]);
+}
+
 function readMappedQuickBooksConnections() {
   const raw = process.env.ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON?.trim();
 
@@ -138,8 +158,8 @@ function readMappedQuickBooksConnections() {
       key: normalizedKey,
       companyName: readOptionalQuickBooksText(entry.companyName) || normalizedKey,
       realmId: readQuickBooksConnectionField(entry, "realmId", `${normalizedKey}.realmId`),
-      clientId: readOptionalQuickBooksText(entry.clientId) || readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_ID"),
-      clientSecret: readOptionalQuickBooksText(entry.clientSecret) || readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_SECRET"),
+      clientId: readOptionalQuickBooksText(entry.clientId) || readQuickBooksClientId(),
+      clientSecret: readOptionalQuickBooksText(entry.clientSecret) || readQuickBooksClientSecret(),
       refreshToken: readQuickBooksConnectionField(entry, "refreshToken", `${normalizedKey}.refreshToken`),
       apAccountId: readQuickBooksConnectionField(entry, "apAccountId", `${normalizedKey}.apAccountId`),
       agentCommissionExpenseAccountId: readQuickBooksConnectionField(
@@ -188,8 +208,8 @@ function resolveQuickBooksCompanyConnection(draft: AgentPayoutStatementQuickBook
     key: "default",
     companyName: process.env.ACRE_QUICKBOOKS_COMPANY_NAME?.trim() || "QuickBooks",
     realmId: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_REALM_ID"),
-    clientId: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_ID"),
-    clientSecret: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_CLIENT_SECRET"),
+    clientId: readQuickBooksClientId(),
+    clientSecret: readQuickBooksClientSecret(),
     refreshToken: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_REFRESH_TOKEN"),
     apAccountId: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_AP_ACCOUNT_ID"),
     agentCommissionExpenseAccountId: readRequiredQuickBooksEnv("ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID")
