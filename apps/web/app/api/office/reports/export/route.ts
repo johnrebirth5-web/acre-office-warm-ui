@@ -3,11 +3,24 @@ import type { NextRequest } from "next/server";
 import { getOfficeTransactionReportExportPayload } from "@acre/db";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
 
+type CsvExportPayload = Awaited<ReturnType<typeof getOfficeTransactionReportExportPayload>>;
+
 function escapeCsvCell(value: string) {
   const normalized = value.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
   const escaped = normalized.replaceAll("\"", "\"\"");
 
   return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+}
+
+export function buildOfficeReportsCsvBody(payload: CsvExportPayload) {
+  return [
+    payload.columns.map((column) => escapeCsvCell(column.label)).join(","),
+    ...payload.rows.map((row) =>
+      payload.columns.map((column) => row[column.key] ?? "")
+        .map((value) => escapeCsvCell(value))
+        .join(",")
+    )
+  ].join("\n");
 }
 
 function readValueParam(searchParams: URLSearchParams, key: string) {
@@ -86,17 +99,7 @@ export async function GET(request: NextRequest) {
     sortDirection: readValueParam(url.searchParams, "sortDirection")
   });
 
-  const headers = payload.columns.map((column) => column.label);
-
-  const csvBody = [
-    headers.join(","),
-    ...payload.rows.map((row) =>
-      payload.columns.map((column) => row[column.key] ?? "")
-        .map((value) => escapeCsvCell(value))
-        .join(",")
-    )
-  ].join("\n");
-
+  const csvBody = buildOfficeReportsCsvBody(payload);
   const todayLabel = new Date().toISOString().slice(0, 10);
 
   return new Response(`\uFEFF${csvBody}`, {
