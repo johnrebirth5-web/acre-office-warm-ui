@@ -358,6 +358,41 @@ async function findQuickBooksVendorIdByDisplayName(input: {
   return matches[0]?.Id?.trim() ?? "";
 }
 
+async function findQuickBooksVendorIdById(input: {
+  accessToken: string;
+  connection: QuickBooksCompanyConnection;
+  fetchImpl: typeof fetch;
+  vendorId: string;
+}) {
+  const vendorId = input.vendorId.trim();
+
+  if (!vendorId) {
+    return "";
+  }
+
+  const url = new URL(`/v3/company/${input.connection.realmId}/query`, getQuickBooksApiBaseUrl());
+  url.searchParams.set("minorversion", getQuickBooksMinorVersion());
+  url.searchParams.set("query", `select Id, DisplayName, Active from Vendor where Id = '${escapeQuickBooksQueryString(vendorId)}'`);
+
+  const vendorResponse = await input.fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${input.accessToken}`
+    }
+  });
+  const vendorBody = (await vendorResponse.json().catch(() => null)) as QuickBooksVendorQueryResponseBody | null;
+
+  if (!vendorResponse.ok) {
+    throw new Error(formatQuickBooksFault(vendorBody, "Failed to validate the saved QuickBooks vendor."));
+  }
+
+  const vendor = (vendorBody?.QueryResponse?.Vendor ?? []).find((entry) => {
+    return entry.Id?.trim() === vendorId && entry.Active !== false;
+  });
+
+  return vendor?.Id?.trim() ?? "";
+}
+
 async function createQuickBooksVendorByDisplayName(input: {
   accessToken: string;
   connection: QuickBooksCompanyConnection;
@@ -388,18 +423,14 @@ async function createQuickBooksVendorByDisplayName(input: {
   return vendorId;
 }
 
-async function resolveQuickBooksVendorId(input: {
+async function resolveQuickBooksVendorIdByName(input: {
   draft: AgentPayoutStatementQuickBooksBillDraft;
   accessToken: string;
   connection: QuickBooksCompanyConnection;
   fetchImpl: typeof fetch;
+  staleVendorId?: string;
 }) {
-  const savedVendorId = input.draft.vendorId.trim();
   const lookupNames = getQuickBooksVendorLookupNames(input.draft);
-
-  if (savedVendorId) {
-    return savedVendorId;
-  }
 
   for (const displayName of lookupNames) {
     const vendorId = await findQuickBooksVendorIdByDisplayName({
@@ -417,6 +448,12 @@ async function resolveQuickBooksVendorId(input: {
   const createDisplayName = lookupNames[0];
 
   if (!createDisplayName) {
+    if (input.staleVendorId) {
+      throw new Error(
+        `Saved QuickBooks Vendor ID "${input.staleVendorId}" was not found in ${input.connection.companyName}. Update the agent profile before posting the payout statement.`
+      );
+    }
+
     throw new Error(buildQuickBooksVendorLookupError(input.draft));
   }
 
@@ -425,6 +462,33 @@ async function resolveQuickBooksVendorId(input: {
     connection: input.connection,
     fetchImpl: input.fetchImpl,
     displayName: createDisplayName
+  });
+}
+
+async function resolveQuickBooksVendorId(input: {
+  draft: AgentPayoutStatementQuickBooksBillDraft;
+  accessToken: string;
+  connection: QuickBooksCompanyConnection;
+  fetchImpl: typeof fetch;
+}) {
+  const savedVendorId = input.draft.vendorId.trim();
+
+  if (savedVendorId) {
+    const vendorId = await findQuickBooksVendorIdById({
+      accessToken: input.accessToken,
+      connection: input.connection,
+      fetchImpl: input.fetchImpl,
+      vendorId: savedVendorId
+    });
+
+    if (vendorId) {
+      return vendorId;
+    }
+  }
+
+  return resolveQuickBooksVendorIdByName({
+    ...input,
+    staleVendorId: savedVendorId
   });
 }
 
@@ -549,13 +613,16 @@ export async function handlePostAccountingStatementQuickBooksBillPost(
     return NextResponse.json({ error: errorMessage }, { status: 502 });
   }
 
-  if (!draft.vendorId.trim() && quickBooksBill.vendorId?.trim()) {
+  const savedVendorId = draft.vendorId.trim();
+  const resolvedVendorId = quickBooksBill.vendorId?.trim() ?? "";
+
+  if (resolvedVendorId && resolvedVendorId !== savedVendorId) {
     await (dependencies.saveAgentProfile ?? saveAgentProfile)({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       membershipId: draft.membershipId,
       actorMembershipId: context.currentMembership.id,
-      quickBooksVendorId: quickBooksBill.vendorId
+      quickBooksVendorId: resolvedVendorId
     }).catch(() => null);
   }
 
