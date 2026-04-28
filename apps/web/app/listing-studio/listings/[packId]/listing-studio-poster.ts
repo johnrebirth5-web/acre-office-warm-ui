@@ -733,7 +733,7 @@ function buildContactSnapshot(
   );
   const companyName = normalizeText(
     agent?.companyName,
-    normalizeText(detail.pack.companyFeedLabel, "Acre NY Realty"),
+    normalizeText(detail.pack.companyFeedLabel, "Acre NY Realty Inc"),
   );
   const initials = name
     .split(/\s+/)

@@ -11,12 +11,12 @@ export const quickBooksOfficeMappings = [
   },
   {
     officeSlug: "acre-ny-realty",
-    officeLabel: "Acre NY Realty",
+    officeLabel: "Acre NY Realty Inc",
     quickBooksCompanyName: "ACRE NY REALTY INC",
   },
   {
     officeSlug: "acre-ny-rental",
-    officeLabel: "Acre NY Rental",
+    officeLabel: "Acre NY Rentals LLC",
     quickBooksCompanyName: "Acre NY Rentals LLC",
   },
 ] as const;

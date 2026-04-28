@@ -106,8 +106,8 @@
   - 当前默认公司模型已经升级为：
     - 一个 `Acre` organization
     - 三个共享同一套代码的 company scope：
-      - `Acre NY Realty`
-      - `Acre NY Rental`
+      - `Acre NY Realty Inc`
+      - `Acre NY Rentals LLC`
       - `Acre NJ LLC`
     - `owner / office_admin / office_manager` 默认可切全部公司
     - 其他用户的 company access 由管理员在 `Settings > Users` 里配置

@@ -325,7 +325,7 @@ async function main() {
       },
       data: {
         slug: "acre-ny-realty",
-        name: "Acre NY Realty",
+        name: "Acre NY Realty Inc",
         market: "New York Sales",
         isPrimary: true,
       },
@@ -341,13 +341,13 @@ async function main() {
         },
       },
       update: {
-        name: "Acre NY Realty",
+        name: "Acre NY Realty Inc",
         market: "New York Sales",
         isPrimary: true,
       },
       create: {
         organizationId: organization.id,
-        name: "Acre NY Realty",
+        name: "Acre NY Realty Inc",
         slug: "acre-ny-realty",
         market: "New York Sales",
         isPrimary: true,
@@ -361,13 +361,13 @@ async function main() {
         },
       },
       update: {
-        name: "Acre NY Rental",
+        name: "Acre NY Rentals LLC",
         market: "New York Rental",
         isPrimary: false,
       },
       create: {
         organizationId: organization.id,
-        name: "Acre NY Rental",
+        name: "Acre NY Rentals LLC",
         slug: "acre-ny-rental",
         market: "New York Rental",
         isPrimary: false,
