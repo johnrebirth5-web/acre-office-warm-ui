@@ -18,6 +18,13 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
+import { getAppBaseUrl } from "../../../../lib/request-origin";
+import {
+  appendOperationalEmailWarning,
+  buildOperationalEmailActorName,
+  captureOperationalEmailWarning,
+  sendAgentTransactionCreatedOperationalEmail,
+} from "../../../../lib/operational-email";
 import {
   parseAllowedString,
   parsePositiveInteger,
@@ -160,7 +167,33 @@ type CreateOfficeTransactionsRouteDependencies = {
   prepareTransactionIntakeSubmission?: typeof prepareTransactionIntakeSubmission;
   createTransaction?: typeof createTransaction;
   linkContactToTransaction?: typeof linkContactToTransaction;
+  sendAgentTransactionCreatedOperationalEmail?: typeof sendAgentTransactionCreatedOperationalEmail;
 };
+
+async function sendAgentCreatedTransactionReminder(input: {
+  request: NextRequest;
+  context: SessionMembershipContext;
+  transaction: Awaited<ReturnType<typeof createTransaction>>;
+  dependencies: CreateOfficeTransactionsRouteDependencies;
+}) {
+  if (input.context.currentMembership.role !== "agent") {
+    return null;
+  }
+
+  const sendReminder =
+    input.dependencies.sendAgentTransactionCreatedOperationalEmail ??
+    sendAgentTransactionCreatedOperationalEmail;
+
+  return captureOperationalEmailWarning("agent transaction created", () =>
+    sendReminder({
+      organizationId: input.context.currentOrganization.id,
+      baseUrl: getAppBaseUrl(input.request),
+      transaction: input.transaction,
+      actorName: buildOperationalEmailActorName(input.context),
+      actorEmail: input.context.currentUser.email,
+    })
+  );
+}
 
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
@@ -499,9 +532,15 @@ export async function handleCreateOfficeTransactionsPost(
               mode: "release",
             }).catch(() => null)
           : null;
+      const emailWarning = await sendAgentCreatedTransactionReminder({
+        request,
+        context,
+        transaction,
+        dependencies,
+      });
 
       return NextResponse.json(
-        {
+        appendOperationalEmailWarning({
           transaction,
           handoff:
             handoffCommitResult.ok
@@ -526,12 +565,19 @@ export async function handleCreateOfficeTransactionsPost(
                         reason: "not_attempted",
                       },
                 },
-        },
+        }, emailWarning),
         { status: 201 },
       );
     }
 
-    return NextResponse.json({ transaction }, { status: 201 });
+    const emailWarning = await sendAgentCreatedTransactionReminder({
+      request,
+      context,
+      transaction,
+      dependencies,
+    });
+
+    return NextResponse.json(appendOperationalEmailWarning({ transaction }, emailWarning), { status: 201 });
   } catch {
     if (handoffDraftId && handoffClaimToken) {
       await (

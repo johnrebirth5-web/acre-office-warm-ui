@@ -347,6 +347,28 @@ export type GetOfficeAgentPayoutStatementDetailInput = {
   statementId: string;
 };
 
+export type AgentPayoutStatementEmailContext = {
+  statementId: string;
+  membershipId: string;
+  agentLabel: string;
+  agentEmail: string;
+  organizationLabel: string;
+  officeLabel: string;
+  periodLabel: string;
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  reviewStatusLabel: string;
+  totalStatementAmountLabel: string;
+  totalStatementAmountValue: string;
+  invoiceNumbers: string[];
+  lineItemCount: number;
+  workspaceHref: string;
+  selfServiceHref: string;
+  quickBooksBillStatus: AgentPayoutStatementQuickBooksBillStatus;
+  quickBooksBillStatusLabel: string;
+  quickBooksBillId: string;
+  quickBooksBillDocNumber: string;
+};
+
 export type AgentPayoutStatementQuickBooksBillDraftLine = {
   description: string;
   amountValue: string;
@@ -1663,6 +1685,67 @@ export async function getOfficeAgentPayoutStatementDetail(
     liveCommissionRateByCalculationId,
     livePostSplitBreakdownByCalculationId
   });
+}
+
+export async function getAgentPayoutStatementEmailContext(
+  input: GetOfficeAgentPayoutStatementDetailInput
+): Promise<AgentPayoutStatementEmailContext | null> {
+  const statement = await prisma.agentPayoutStatement.findFirst({
+    where: {
+      id: input.statementId,
+      organizationId: input.organizationId,
+      ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+    },
+    include: {
+      organization: true,
+      office: true,
+      membership: {
+        include: {
+          user: true
+        }
+      },
+      lineItems: {
+        select: {
+          invoiceNumber: true
+        },
+        orderBy: [{ invoiceNumber: "asc" }, { transactionLabel: "asc" }]
+      }
+    }
+  });
+
+  if (!statement) {
+    return null;
+  }
+
+  const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+    statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+  );
+
+  return {
+    statementId: statement.id,
+    membershipId: statement.membershipId,
+    agentLabel: formatMembershipLabel(statement.membership),
+    agentEmail: statement.membership.user.email,
+    organizationLabel: statement.organization.name,
+    officeLabel: statement.office?.name ?? statement.organization.name,
+    periodLabel: formatPeriodLabel(statement.periodStart, statement.periodEnd),
+    reviewStatus: statement.reviewStatus,
+    reviewStatusLabel: statementReviewStatusLabelMap[statement.reviewStatus],
+    totalStatementAmountLabel: formatCurrency(statement.totalStatementAmount),
+    totalStatementAmountValue: decimalToString(statement.totalStatementAmount),
+    invoiceNumbers,
+    lineItemCount: statement.lineItemCount,
+    workspaceHref: buildAgentPayoutStatementWorkspaceHref({
+      membershipId: statement.membershipId,
+      invoiceNumbers,
+      statementId: statement.id
+    }),
+    selfServiceHref: buildAgentPayoutStatementSelfServiceHref(statement.id),
+    quickBooksBillStatus: statement.quickBooksBillStatus,
+    quickBooksBillStatusLabel: quickBooksBillStatusLabelMap[statement.quickBooksBillStatus],
+    quickBooksBillId: statement.quickBooksBillId?.trim() ?? "",
+    quickBooksBillDocNumber: statement.quickBooksBillDocNumber?.trim() ?? ""
+  };
 }
 
 export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(

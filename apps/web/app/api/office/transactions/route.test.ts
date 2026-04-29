@@ -71,10 +71,36 @@ function createOfficeTransactionsPostRequest(
 
 function createSessionContext() {
   return {
+    currentUser: {
+      email: "admin@example.com",
+      firstName: "Office",
+      lastName: "Admin",
+    },
     currentMembership: {
       id: "membership_1",
       permissions: ["transactions:view", "transactions:create", "transactions:edit"],
       role: "office_admin",
+    },
+    currentOrganization: {
+      id: "org_1",
+    },
+    currentOffice: {
+      id: "office_1",
+    },
+  } as never;
+}
+
+function createAgentSessionContext() {
+  return {
+    currentUser: {
+      email: "agent@example.com",
+      firstName: "Ada",
+      lastName: "Agent",
+    },
+    currentMembership: {
+      id: "membership_agent",
+      permissions: ["transactions:view", "transactions:create"],
+      role: "agent",
     },
     currentOrganization: {
       id: "org_1",
@@ -364,6 +390,92 @@ test("handleCreateOfficeTransactionsPost forwards normalized create payloads", a
     transaction: {
       id: "transaction_1",
       status: "closed",
+    },
+  });
+});
+
+test("handleCreateOfficeTransactionsPost sends finance and agent reminders when an agent creates a transaction", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleCreateOfficeTransactionsPost(
+    createOfficeTransactionsPostRequest(
+      JSON.stringify({
+        transactionType: "Sale",
+        transactionStatus: "closed",
+        representing: "Buyer",
+        address: "88 Agent Way",
+        transactionName: "Agent Created Deal",
+      }),
+    ),
+    createAgentSessionContext(),
+    {
+      getOfficeTransactionIntakeSchema: async () =>
+        ({
+          builtInFields: [],
+          customFields: [],
+        }) as never,
+      getOfficeTransactionOwnerAssignment: async () =>
+        ({
+          canSelectDifferentOwner: false,
+          currentOwnerMembershipId: "membership_agent",
+          options: [],
+        }) as never,
+      prepareTransactionIntakeSubmission: () =>
+        ({
+          transactionType: "Sale",
+          transactionStatus: "closed",
+          representing: "Buyer",
+          address: "88 Agent Way",
+          city: "Queens",
+          state: "NY",
+          zipCode: "11101",
+          transactionName: "Agent Created Deal",
+          askingPrice: "",
+          purchasedPrice: "",
+          price: "",
+          buyerAgreementDate: "",
+          buyerExpirationDate: "",
+          acceptanceDate: "",
+          listingDate: "",
+          listingExpirationDate: "",
+          closingDate: "",
+          moveInDate: "",
+          additionalFields: {},
+        }) as never,
+      createTransaction: async () =>
+        ({
+          id: "transaction_agent_1",
+          title: "Agent Created Deal",
+          address: "88 Agent Way",
+          city: "Queens",
+          state: "NY",
+          status: "Pending",
+          ownerName: "Ada Agent",
+          ownerEmail: "agent@example.com",
+          officeName: "Acre NY Realty",
+        }) as never,
+      sendAgentTransactionCreatedOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      },
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+  assert.equal(capturedEmailInput?.["actorName"], "Ada Agent");
+  assert.equal(capturedEmailInput?.["actorEmail"], "agent@example.com");
+  assert.deepEqual(await readResponseJson(response), {
+    transaction: {
+      id: "transaction_agent_1",
+      title: "Agent Created Deal",
+      address: "88 Agent Way",
+      city: "Queens",
+      state: "NY",
+      status: "Pending",
+      ownerName: "Ada Agent",
+      ownerEmail: "agent@example.com",
+      officeName: "Acre NY Realty",
     },
   });
 });

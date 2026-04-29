@@ -37,6 +37,30 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
+function createStatementEmailContext() {
+  return {
+    statementId: "statement_1",
+    membershipId: "membership_agent",
+    agentLabel: "Ada Agent",
+    agentEmail: "agent@example.com",
+    organizationLabel: "Acre",
+    officeLabel: "Acre NY Realty",
+    periodLabel: "Apr 1, 2026 to Apr 30, 2026",
+    reviewStatus: "awaiting_agent",
+    reviewStatusLabel: "Awaiting agent",
+    totalStatementAmountLabel: "$1,250.00",
+    totalStatementAmountValue: "1250",
+    invoiceNumbers: ["INV-1"],
+    lineItemCount: 1,
+    workspaceHref: "/office/accounting?membershipId=membership_agent&statementId=statement_1",
+    selfServiceHref: "/office/payout-statements/statement_1",
+    quickBooksBillStatus: "not_posted",
+    quickBooksBillStatusLabel: "Not posted",
+    quickBooksBillId: "",
+    quickBooksBillDocNumber: ""
+  } as never;
+}
+
 test("handleSendAccountingStatementPost returns 400 validation_error for non-string message", async () => {
   const response = await handleSendAccountingStatementPost(
     createSendRequest(
@@ -73,10 +97,10 @@ test("handleSendAccountingStatementPost forwards validated send payload", async 
       sendAgentPayoutStatementToAgent: async (input) => {
         capturedInput = input as Record<string, unknown>;
         return {
-          id: "statement_1",
-          status: "awaiting_agent"
+          statementId: "statement_1"
         } as never;
-      }
+      },
+      getAgentPayoutStatementEmailContext: async () => null
     }
   );
 
@@ -89,7 +113,37 @@ test("handleSendAccountingStatementPost forwards validated send payload", async 
     message: "Please review this statement."
   });
   assert.deepEqual(await readJson(response), {
-    id: "statement_1",
-    status: "awaiting_agent"
+    statementId: "statement_1"
   });
+});
+
+test("handleSendAccountingStatementPost emails the agent and finance after sending", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleSendAccountingStatementPost(
+    createSendRequest(
+      JSON.stringify({
+        message: "Please review this statement."
+      })
+    ),
+    "statement_1",
+    createAccountingContext(),
+    {
+      sendAgentPayoutStatementToAgent: async () =>
+        ({
+          statementId: "statement_1"
+        }) as never,
+      getAgentPayoutStatementEmailContext: async (input) => {
+        assert.equal(input.statementId, "statement_1");
+        return createStatementEmailContext();
+      },
+      sendPayoutStatementSentOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
 });

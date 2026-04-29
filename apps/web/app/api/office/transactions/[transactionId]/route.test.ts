@@ -19,6 +19,11 @@ function createOfficeTransactionRequest(
 
 function createSessionContext() {
   return {
+    currentUser: {
+      email: "admin@example.com",
+      firstName: "Office",
+      lastName: "Admin",
+    },
     currentMembership: {
       id: "membership_1",
       permissions: ["transactions.manage"],
@@ -30,6 +35,22 @@ function createSessionContext() {
     currentOffice: {
       id: "office_1",
     },
+  } as never;
+}
+
+function createTransactionDetail(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "transaction_1",
+    title: "Primary residence",
+    address: "123 Main St",
+    city: "Queens",
+    state: "NY",
+    status: "Pending",
+    statusValue: "pending",
+    ownerName: "Ada Agent",
+    ownerEmail: "agent@example.com",
+    officeName: "Acre NY Realty",
+    ...overrides,
   } as never;
 }
 
@@ -70,6 +91,7 @@ test("handleUpdateOfficeTransactionPatch forwards normalized status updates and 
     "transaction_1",
     createSessionContext(),
     {
+      getTransactionById: async () => null,
       updateTransactionStatus: async (input) => {
         capturedInput = input as Record<string, unknown>;
         return null;
@@ -87,6 +109,79 @@ test("handleUpdateOfficeTransactionPatch forwards normalized status updates and 
   assert.deepEqual(await readJson(notFoundResponse), {
     error: "Transaction not found.",
   });
+});
+
+test("handleUpdateOfficeTransactionPatch sends a reminder when a transaction first closes", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleUpdateOfficeTransactionPatch(
+    createOfficeTransactionRequest(
+      JSON.stringify({
+        status: "Closed",
+      }),
+    ),
+    "transaction_1",
+    createSessionContext(),
+    {
+      getTransactionById: async () => createTransactionDetail({ status: "Pending", statusValue: "pending" }),
+      updateTransactionStatus: async () =>
+        createTransactionDetail({
+          status: "Closed",
+          statusValue: "closed",
+        }),
+      sendTransactionClosedOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+  assert.equal(capturedEmailInput?.["actorName"], "Office Admin");
+  assert.equal(capturedEmailInput?.["actorEmail"], "admin@example.com");
+  assert.deepEqual(await readJson(response), {
+    transaction: {
+      id: "transaction_1",
+      title: "Primary residence",
+      address: "123 Main St",
+      city: "Queens",
+      state: "NY",
+      status: "Closed",
+      statusValue: "closed",
+      ownerName: "Ada Agent",
+      ownerEmail: "agent@example.com",
+      officeName: "Acre NY Realty",
+    },
+  });
+});
+
+test("handleUpdateOfficeTransactionPatch does not resend when an already closed transaction is saved", async () => {
+  let sendCount = 0;
+
+  const response = await handleUpdateOfficeTransactionPatch(
+    createOfficeTransactionRequest(
+      JSON.stringify({
+        status: "Closed",
+      }),
+    ),
+    "transaction_1",
+    createSessionContext(),
+    {
+      getTransactionById: async () => createTransactionDetail({ status: "Closed", statusValue: "closed" }),
+      updateTransactionStatus: async () =>
+        createTransactionDetail({
+          status: "Closed",
+          statusValue: "closed",
+        }),
+      sendTransactionClosedOperationalEmail: async () => {
+        sendCount += 1;
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(sendCount, 0);
 });
 
 test("handleDeleteOfficeTransactionDelete returns 404 when the transaction cannot be removed", async () => {

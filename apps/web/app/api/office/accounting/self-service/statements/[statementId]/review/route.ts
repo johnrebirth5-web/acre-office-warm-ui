@@ -1,10 +1,17 @@
 import {
+  getAgentPayoutStatementEmailContext,
   respondToAgentPayoutStatement,
   type SessionMembershipContext
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../../lib/auth-session";
+import {
+  appendOperationalEmailWarning,
+  captureOperationalEmailWarning,
+  sendPayoutStatementReviewOperationalEmail
+} from "../../../../../../../../lib/operational-email";
+import { getAppBaseUrl } from "../../../../../../../../lib/request-origin";
 import { reviewAgentPayoutStatementBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -16,6 +23,8 @@ type RouteContext = {
 type StatementSelfServiceReviewRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
   respondToAgentPayoutStatement?: typeof respondToAgentPayoutStatement;
+  getAgentPayoutStatementEmailContext?: typeof getAgentPayoutStatementEmailContext;
+  sendPayoutStatementReviewOperationalEmail?: typeof sendPayoutStatementReviewOperationalEmail;
 };
 
 export async function handleReviewAccountingStatementPost(
@@ -40,6 +49,7 @@ export async function handleReviewAccountingStatementPost(
   const body = parsedBody.data;
 
   try {
+    const response = body.response === "request_revision" ? "request_revision" : "confirm";
     const result = await (
       dependencies.respondToAgentPayoutStatement ?? respondToAgentPayoutStatement
     )({
@@ -47,7 +57,7 @@ export async function handleReviewAccountingStatementPost(
       officeId: context.currentOffice?.id ?? null,
       statementId,
       actorMembershipId: context.currentMembership.id,
-      response: body.response === "request_revision" ? "request_revision" : "confirm",
+      response,
       message: body.message ?? ""
     });
 
@@ -55,7 +65,29 @@ export async function handleReviewAccountingStatementPost(
       return NextResponse.json({ error: "Statement not found." }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    const emailWarning = await captureOperationalEmailWarning("payout statement review", async () => {
+      const statement = await (
+        dependencies.getAgentPayoutStatementEmailContext ?? getAgentPayoutStatementEmailContext
+      )({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null,
+        statementId
+      });
+
+      if (!statement) {
+        return;
+      }
+
+      await (dependencies.sendPayoutStatementReviewOperationalEmail ?? sendPayoutStatementReviewOperationalEmail)({
+        organizationId: context.currentOrganization.id,
+        baseUrl: getAppBaseUrl(request),
+        statement,
+        response,
+        message: body.message ?? ""
+      });
+    });
+
+    return NextResponse.json(appendOperationalEmailWarning(result as Record<string, unknown>, emailWarning));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to submit the payout statement review." },

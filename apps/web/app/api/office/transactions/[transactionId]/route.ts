@@ -10,6 +10,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteStoredFile } from "../../../../../lib/document-storage";
 import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import {
+  appendOperationalEmailWarning,
+  buildOperationalEmailActorName,
+  captureOperationalEmailWarning,
+  sendTransactionClosedOperationalEmail,
+} from "../../../../../lib/operational-email";
+import { getAppBaseUrl } from "../../../../../lib/request-origin";
 import { updateOfficeTransactionBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -46,9 +53,11 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
 type OfficeTransactionRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
+  getTransactionById?: typeof getTransactionById;
   updateTransactionStatus?: typeof updateTransactionStatus;
   deleteTransaction?: typeof deleteTransaction;
   deleteStoredFile?: typeof deleteStoredFile;
+  sendTransactionClosedOperationalEmail?: typeof sendTransactionClosedOperationalEmail;
 };
 
 export async function handleUpdateOfficeTransactionPatch(
@@ -68,6 +77,16 @@ export async function handleUpdateOfficeTransactionPatch(
     return parsedBody.response;
   }
 
+  const shouldCheckClosedReminder = parsedBody.data.status === "Closed";
+  const previousTransaction = shouldCheckClosedReminder
+    ? await (dependencies.getTransactionById ?? getTransactionById)({
+        organizationId: context.currentOrganization.id,
+        viewerMembershipId: context.currentMembership.id,
+        transactionId,
+        officeId: context.currentOffice?.id ?? null
+      })
+    : null;
+
   const transaction = await (
     dependencies.updateTransactionStatus ?? updateTransactionStatus
   )({
@@ -81,7 +100,22 @@ export async function handleUpdateOfficeTransactionPatch(
     return NextResponse.json({ error: "Transaction not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ transaction });
+  const emailWarning =
+    shouldCheckClosedReminder &&
+    previousTransaction?.statusValue !== "closed" &&
+    transaction.statusValue === "closed"
+      ? await captureOperationalEmailWarning("transaction closed", () =>
+          (dependencies.sendTransactionClosedOperationalEmail ?? sendTransactionClosedOperationalEmail)({
+            organizationId: context.currentOrganization.id,
+            baseUrl: getAppBaseUrl(request),
+            transaction,
+            actorName: buildOperationalEmailActorName(context),
+            actorEmail: context.currentUser.email,
+          })
+        )
+      : null;
+
+  return NextResponse.json(appendOperationalEmailWarning({ transaction }, emailWarning));
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {

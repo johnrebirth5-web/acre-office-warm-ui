@@ -62,6 +62,30 @@ function createDraft(
   };
 }
 
+function createStatementEmailContext() {
+  return {
+    statementId: "statement_1",
+    membershipId: "membership_agent",
+    agentLabel: "Casey Agent",
+    agentEmail: "casey@example.com",
+    organizationLabel: "Acre",
+    officeLabel: "Acre NJ LLC",
+    periodLabel: "Apr 1, 2026 to Apr 30, 2026",
+    reviewStatus: "confirmed",
+    reviewStatusLabel: "Confirmed",
+    totalStatementAmountLabel: "$1,250.00",
+    totalStatementAmountValue: "1250",
+    invoiceNumbers: ["INV-1"],
+    lineItemCount: 1,
+    workspaceHref: "/office/accounting?membershipId=membership_agent&statementId=statement_1",
+    selfServiceHref: "/office/payout-statements/statement_1",
+    quickBooksBillStatus: "posted",
+    quickBooksBillStatusLabel: "Posted",
+    quickBooksBillId: "91",
+    quickBooksBillDocNumber: "ACRE-STMT-1"
+  } as never;
+}
+
 function withQuickBooksEnv<T>(values: Record<string, string | undefined>, callback: () => Promise<T>) {
   const previousValues = new Map<string, string | undefined>();
 
@@ -89,6 +113,7 @@ function withQuickBooksEnv<T>(values: Record<string, string | undefined>, callba
 test("handlePostAccountingStatementQuickBooksBillPost posts draft and marks the statement posted", async () => {
   let capturedPostDraft: Record<string, unknown> | null = null;
   let capturedPostedInput: Record<string, unknown> | null = null;
+  let capturedEmailInput: Record<string, unknown> | null = null;
 
   const response = await handlePostAccountingStatementQuickBooksBillPost(
     createQuickBooksBillRequest(),
@@ -110,6 +135,10 @@ test("handlePostAccountingStatementQuickBooksBillPost posts draft and marks the 
           statementId: input.statementId,
           quickBooksBillId: input.quickBooksBillId
         } as never;
+      },
+      getAgentPayoutStatementEmailContext: async () => createStatementEmailContext(),
+      sendPayoutStatementQuickBooksPostedOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
       }
     }
   );
@@ -129,6 +158,8 @@ test("handlePostAccountingStatementQuickBooksBillPost posts draft and marks the 
     statementId: "statement_1",
     quickBooksBillId: "91"
   });
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
 });
 
 test("handlePostAccountingStatementQuickBooksBillPost records a failed QuickBooks post", async () => {
@@ -703,7 +734,8 @@ test("handlePostAccountingStatementQuickBooksBillPost saves an auto-resolved ven
           statementId: input.statementId,
           quickBooksBillId: input.quickBooksBillId
         } as never;
-      }
+      },
+      getAgentPayoutStatementEmailContext: async () => null
     }
   );
 
@@ -740,7 +772,8 @@ test("handlePostAccountingStatementQuickBooksBillPost saves a corrected vendor i
           statementId: input.statementId,
           quickBooksBillId: input.quickBooksBillId
         } as never;
-      }
+      },
+      getAgentPayoutStatementEmailContext: async () => null
     }
   );
 

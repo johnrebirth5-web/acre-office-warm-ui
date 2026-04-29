@@ -40,6 +40,31 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
+function createStatementEmailContext(overrides: Record<string, unknown> = {}) {
+  return {
+    statementId: "statement_1",
+    membershipId: "membership_actor",
+    agentLabel: "Ada Agent",
+    agentEmail: "agent@example.com",
+    organizationLabel: "Acre",
+    officeLabel: "Acre NY Realty",
+    periodLabel: "Apr 1, 2026 to Apr 30, 2026",
+    reviewStatus: "confirmed",
+    reviewStatusLabel: "Confirmed",
+    totalStatementAmountLabel: "$1,250.00",
+    totalStatementAmountValue: "1250",
+    invoiceNumbers: ["INV-1"],
+    lineItemCount: 1,
+    workspaceHref: "/office/accounting?membershipId=membership_actor&statementId=statement_1",
+    selfServiceHref: "/office/payout-statements/statement_1",
+    quickBooksBillStatus: "not_posted",
+    quickBooksBillStatusLabel: "Not posted",
+    quickBooksBillId: "",
+    quickBooksBillDocNumber: "",
+    ...overrides
+  } as never;
+}
+
 test("handleReviewAccountingStatementPost returns 400 validation_error for unsupported response", async () => {
   const response = await handleReviewAccountingStatementPost(
     createReviewRequest(
@@ -76,10 +101,11 @@ test("handleReviewAccountingStatementPost defaults missing response to confirm",
       respondToAgentPayoutStatement: async (input) => {
         capturedInput = input as Record<string, unknown>;
         return {
-          id: "statement_1",
+          statementId: "statement_1",
           reviewStatus: "confirmed"
         } as never;
-      }
+      },
+      getAgentPayoutStatementEmailContext: async () => null
     }
   );
 
@@ -93,7 +119,71 @@ test("handleReviewAccountingStatementPost defaults missing response to confirm",
     message: "Looks good."
   });
   assert.deepEqual(await readJson(response), {
-    id: "statement_1",
+    statementId: "statement_1",
     reviewStatus: "confirmed"
   });
+});
+
+test("handleReviewAccountingStatementPost sends confirmation review emails", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleReviewAccountingStatementPost(
+    createReviewRequest(
+      JSON.stringify({
+        response: "confirm",
+        message: "Looks good."
+      })
+    ),
+    "statement_1",
+    createAccountingContext(),
+    {
+      respondToAgentPayoutStatement: async () =>
+        ({
+          statementId: "statement_1",
+          reviewStatus: "confirmed"
+        }) as never,
+      getAgentPayoutStatementEmailContext: async () => createStatementEmailContext(),
+      sendPayoutStatementReviewOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capturedEmailInput?.["response"], "confirm");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+});
+
+test("handleReviewAccountingStatementPost sends revision request review emails", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleReviewAccountingStatementPost(
+    createReviewRequest(
+      JSON.stringify({
+        response: "request_revision",
+        message: "Please update the split."
+      })
+    ),
+    "statement_1",
+    createAccountingContext(),
+    {
+      respondToAgentPayoutStatement: async () =>
+        ({
+          statementId: "statement_1",
+          reviewStatus: "revision_requested"
+        }) as never,
+      getAgentPayoutStatementEmailContext: async () =>
+        createStatementEmailContext({
+          reviewStatus: "revision_requested",
+          reviewStatusLabel: "Revision requested"
+        }),
+      sendPayoutStatementReviewOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capturedEmailInput?.["response"], "request_revision");
+  assert.equal(capturedEmailInput?.["message"], "Please update the split.");
 });

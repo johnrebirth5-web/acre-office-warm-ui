@@ -1,13 +1,25 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
-import { createAgentPayoutStatement, type SessionMembershipContext } from "@acre/db";
+import {
+  createAgentPayoutStatement,
+  getAgentPayoutStatementEmailContext,
+  type SessionMembershipContext
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import {
+  appendOperationalEmailWarning,
+  captureOperationalEmailWarning,
+  sendPayoutStatementGeneratedOperationalEmail
+} from "../../../../../lib/operational-email";
+import { getAppBaseUrl } from "../../../../../lib/request-origin";
 import { createAgentPayoutStatementBodySchema } from "./route.schema";
 
 type AccountingStatementsRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
   createAgentPayoutStatement?: typeof createAgentPayoutStatement;
+  getAgentPayoutStatementEmailContext?: typeof getAgentPayoutStatementEmailContext;
+  sendPayoutStatementGeneratedOperationalEmail?: typeof sendPayoutStatementGeneratedOperationalEmail;
 };
 
 export async function handleCreateAccountingStatementPost(
@@ -39,8 +51,28 @@ export async function handleCreateAccountingStatementPost(
       commissionCalculationIds: body.commissionCalculationIds ?? [],
       actorMembershipId: context.currentMembership.id
     });
+    const statementId = result.statementId;
+    const emailWarning = statementId
+      ? await captureOperationalEmailWarning("payout statement generated", async () => {
+          const statement = await (dependencies.getAgentPayoutStatementEmailContext ?? getAgentPayoutStatementEmailContext)({
+            organizationId: context.currentOrganization.id,
+            officeId: context.currentOffice?.id ?? null,
+            statementId
+          });
 
-    return NextResponse.json(result, { status: 201 });
+          if (!statement) {
+            return;
+          }
+
+          await (dependencies.sendPayoutStatementGeneratedOperationalEmail ?? sendPayoutStatementGeneratedOperationalEmail)({
+            organizationId: context.currentOrganization.id,
+            baseUrl: getAppBaseUrl(request),
+            statement
+          });
+        })
+      : null;
+
+    return NextResponse.json(appendOperationalEmailWarning(result, emailWarning), { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to generate the agent payout statement." },
