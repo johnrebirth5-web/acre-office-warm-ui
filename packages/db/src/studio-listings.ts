@@ -2490,6 +2490,38 @@ export async function publishStudioListingCollection(input: {
   };
 }
 
+export async function getStudioListingPackCollectionShare(input: {
+  packId: string;
+}) {
+  const record = await prisma.studioListingCollection.findFirst({
+    where: {
+      shareEnabled: true,
+      shareCode: {
+        not: null,
+      },
+      items: {
+        some: {
+          packId: input.packId,
+        },
+      },
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      shareCode: true,
+    },
+  });
+
+  const shareCode = trimString(record?.shareCode);
+
+  return record && shareCode
+    ? {
+        collectionId: record.id,
+        shareCode,
+      }
+    : null;
+}
+
 export async function createStudioListingCollection(input: {
   organizationId: string;
   officeId?: string | null;

@@ -1,4 +1,7 @@
-import { getStudioListingPackDetail } from "@acre/db";
+import {
+  getStudioListingPackCollectionShare,
+  getStudioListingPackDetail,
+} from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../../lib/auth-session";
 import { ListingStudioDetailClient } from "./listing-studio-detail-client";
@@ -10,8 +13,14 @@ type ListingStudioDetailPageProps = {
 export default async function ListingStudioDetailPage(
   props: ListingStudioDetailPageProps,
 ) {
-  const context = await requireSessionContext();
   const { packId } = await props.params;
+  const collectionShare = await getStudioListingPackCollectionShare({ packId });
+
+  if (collectionShare) {
+    redirect(`/share/collections/${collectionShare.shareCode}`);
+  }
+
+  const context = await requireSessionContext();
   const detail = await getStudioListingPackDetail({
     organizationId: context.currentOrganization.id,
     packId,

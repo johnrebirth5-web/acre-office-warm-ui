@@ -139,6 +139,7 @@ export {
   getStudioListingAssetRecord,
   getStudioListingCollectionDetail,
   getStudioListingImportStatus,
+  getStudioListingPackCollectionShare,
   getStudioListingPackDetail,
   getStudioListingPublicCollection,
   getStudioListingPublicPack,

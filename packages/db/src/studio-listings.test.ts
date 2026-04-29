@@ -17,6 +17,7 @@ import {
   getStudioListingAssetRecord,
   getListingStudioCompanyDashboard,
   getStudioListingPackDetail,
+  getStudioListingPackCollectionShare,
   getStudioListingPublicCollection,
   getStudioListingPublicPack,
   getStudioListingCollectionDetail,
@@ -712,6 +713,56 @@ test("publishing a collection mints a high-entropy share code", async () => {
     assert.equal(shares.items[0]?.id, collection?.id);
     assert.equal(shares.items[0]?.shareCount, 1);
     assert.equal(shares.items[0]?.viewCount, 0);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("pack collection share lookup returns the active public collection", async () => {
+  const context = await createStudioListingsTestContext();
+
+  try {
+    const pack = await context.createPack({
+      membershipId: context.ownerMembership.id,
+      title: "Client Ready Share",
+      streetAddress: "45-10 Court Square West",
+    });
+
+    const draftCollection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      name: "Draft Collection",
+      initialPackId: pack.packId,
+    });
+    assert.ok(draftCollection);
+
+    assert.equal(
+      await getStudioListingPackCollectionShare({ packId: pack.packId }),
+      null,
+    );
+
+    const liveCollection = await createStudioListingCollection({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.ownerMembership.id,
+      name: "Live Collection",
+      initialPackId: pack.packId,
+    });
+    const published = await publishStudioListingCollection({
+      organizationId: context.organization.id,
+      collectionId: liveCollection?.id ?? "",
+      membershipId: context.ownerMembership.id,
+    });
+
+    const share = await getStudioListingPackCollectionShare({
+      packId: pack.packId,
+    });
+
+    assert.deepEqual(share, {
+      collectionId: liveCollection?.id,
+      shareCode: published?.shareCode,
+    });
   } finally {
     await context.cleanup();
   }
