@@ -6998,6 +6998,22 @@ a {
   font-weight: 700;
 }
 
+.office-code-block {
+  margin: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: var(--office-surface-muted);
+  color: var(--office-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  padding: 14px 16px;
+}
+
 .office-detail-field-wide {
   grid-column: 1 / -1;
 }

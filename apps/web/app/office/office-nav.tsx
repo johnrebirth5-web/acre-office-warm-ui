@@ -32,6 +32,7 @@ import {
 } from "../_components/workspace-nav";
 import { CompanySwitcher } from "../_components/company-switcher";
 import { useI18n } from "../../lib/i18n/client";
+import { canAccessAdminGpt } from "../../lib/admin-gpt/access";
 
 function canViewUnifiedUsers(subject: PermissionSubject) {
   return canViewOfficeUsers(subject) || canViewOfficeAgents(subject);
@@ -171,6 +172,11 @@ function getNavGroups(
           label: t((messages) => messages.officeNav.items.fields),
           href: "/office/settings/fields",
           isVisible: canViewOfficeFields,
+        },
+        {
+          label: t((messages) => messages.officeNav.items.adminAssistant),
+          href: "/office/admin-assistant",
+          isVisible: canAccessAdminGpt,
         },
         {
           label: t((messages) => messages.officeNav.items.commissionPlans),

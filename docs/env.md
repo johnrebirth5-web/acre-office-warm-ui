@@ -1129,8 +1129,110 @@ ACRE_SECURE_COOKIES=false
 
 ## 当前可选但按需启用的环境变量
 
+- `NEXT_PUBLIC_ACRE_ADMIN_GPT_URL`
+- `ACRE_ADMIN_GPT_OAUTH_CLIENT_ID`
+- `ACRE_ADMIN_GPT_OAUTH_CLIENT_SECRET`
+- `ACRE_ADMIN_GPT_OAUTH_SIGNING_SECRET`
+- `ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS`
 - `OPENAI_API_KEY`
 - `OPENAI_INTAKE_ASSIST_MODEL`
+
+### `NEXT_PUBLIC_ACRE_ADMIN_GPT_URL`
+
+用途：
+
+- 控制 `/office/admin-assistant` 的 `Open Acre Admin GPT` 外部入口
+- 指向 ChatGPT 中配置好的自定义 GPT 分享 / 打开 URL
+
+是否必填：
+
+- 非必填
+- 未设置时页面仍可打开，但按钮会显示 GPT URL 尚未配置
+
+示例格式：
+
+```env
+NEXT_PUBLIC_ACRE_ADMIN_GPT_URL="https://chatgpt.com/g/g-your-acre-admin-help"
+```
+
+### `ACRE_ADMIN_GPT_OAUTH_CLIENT_ID`
+
+用途：
+
+- ChatGPT GPT Actions 连接 Acre Admin Help Action 时使用的 OAuth client id
+- 必须与 GPT Builder 中填写的 client id 一致
+
+是否必填：
+
+- 生产必填
+- 本地开发未设置时会使用开发 fallback，不能用于共享环境
+
+示例格式：
+
+```env
+ACRE_ADMIN_GPT_OAUTH_CLIENT_ID="acre-admin-gpt"
+```
+
+### `ACRE_ADMIN_GPT_OAUTH_CLIENT_SECRET`
+
+用途：
+
+- ChatGPT GPT Actions 交换 Acre Admin GPT OAuth authorization code 时使用的 client secret
+- 只应配置在服务器环境和 GPT Builder Action authentication 配置中，不要提交到仓库
+
+是否必填：
+
+- 生产必填
+- 本地开发未设置时会使用开发 fallback，不能用于共享环境
+
+示例格式：
+
+```env
+ACRE_ADMIN_GPT_OAUTH_CLIENT_SECRET="<generated-client-secret>"
+```
+
+### `ACRE_ADMIN_GPT_OAUTH_SIGNING_SECRET`
+
+用途：
+
+- 对 Acre Admin GPT 的短期 OAuth code / access token 做 HMAC 签名
+- 当前实现不持久化 OAuth code 或 access token，因此这个 secret 是无状态验签边界
+
+是否必填：
+
+- 非必填
+- 未设置时回退使用 `ACRE_SESSION_SECRET`
+- 生产建议设置独立强随机值，避免和浏览器 session secret 绑定轮换
+
+示例格式：
+
+```env
+ACRE_ADMIN_GPT_OAUTH_SIGNING_SECRET="<generated-signing-secret>"
+```
+
+### `ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS`
+
+用途：
+
+- 限制 Acre Admin GPT OAuth authorize endpoint 可以回跳的 ChatGPT callback host
+- 多个 host 用英文逗号分隔
+
+是否必填：
+
+- 非必填
+- 未设置时默认允许 `chat.openai.com` 和 `chatgpt.com`
+
+示例格式：
+
+```env
+ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS="chat.openai.com,chatgpt.com"
+```
+
+补充说明：
+
+- `/api/admin-gpt/*` 是只读 GPT Action 服务，只返回管理员上下文、功能说明、feature availability 和 bug-triage 建议
+- 这些端点不保存完整聊天、不保存图片、不保存模型回答，也不暴露代码修改、数据库修改、部署、删除数据或凭证处理能力
+- 管理员应在 ChatGPT 自定义 GPT 里拖拽截图；Acre Action 只接收 GPT 对截图的文字摘要和可见报错文本
 
 补充说明：
 
