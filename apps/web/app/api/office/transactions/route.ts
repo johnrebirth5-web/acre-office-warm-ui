@@ -174,9 +174,13 @@ async function sendAgentCreatedTransactionReminder(input: {
   request: NextRequest;
   context: SessionMembershipContext;
   transaction: Awaited<ReturnType<typeof createTransaction>>;
+  ownerRole: string | null;
   dependencies: CreateOfficeTransactionsRouteDependencies;
 }) {
-  if (input.context.currentMembership.role !== "agent") {
+  const actorIsAgent = input.context.currentMembership.role === "agent";
+  const ownerIsAgent = input.ownerRole === "agent";
+
+  if (!actorIsAgent && !ownerIsAgent) {
     return null;
   }
 
@@ -191,6 +195,7 @@ async function sendAgentCreatedTransactionReminder(input: {
       transaction: input.transaction,
       actorName: buildOperationalEmailActorName(input.context),
       actorEmail: input.context.currentUser.email,
+      sendActorConfirmation: actorIsAgent,
     })
   );
 }
@@ -408,6 +413,7 @@ export async function handleCreateOfficeTransactionsPost(
         ? body.ownerMembershipId.trim()
         : "";
     let ownerMembershipId = context.currentMembership.id;
+    let ownerRole: string | null = context.currentMembership.role;
     let transactionStatus = "pending";
 
     if (ownerAssignment.canSelectDifferentOwner) {
@@ -423,6 +429,7 @@ export async function handleCreateOfficeTransactionsPost(
       }
 
       ownerMembershipId = selectedOwner.id;
+      ownerRole = selectedOwner.roleValue;
     } else if (
       requestedOwnerMembershipId &&
       requestedOwnerMembershipId !== context.currentMembership.id
@@ -536,6 +543,7 @@ export async function handleCreateOfficeTransactionsPost(
         request,
         context,
         transaction,
+        ownerRole,
         dependencies,
       });
 
@@ -574,6 +582,7 @@ export async function handleCreateOfficeTransactionsPost(
       request,
       context,
       transaction,
+      ownerRole,
       dependencies,
     });
 

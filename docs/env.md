@@ -265,7 +265,7 @@ ACRE_BASE_URL="https://acresystem.us"
 
 用途：
 
-- 接收 Back Office operational email reminders，例如 agent 创建 transaction、transaction closed、payout statement 生成 / 发送 / agent 回复、以及 payout statement post 到 QuickBooks unpaid bill
+- 接收 Back Office operational email reminders，例如 agent-owned transaction 创建、transaction closed、payout statement 生成 / 发送 / agent 回复、以及 payout statement post 到 QuickBooks unpaid bill
 - 当前由 `apps/web/lib/operational-email.ts` 读取
 
 是否必填：

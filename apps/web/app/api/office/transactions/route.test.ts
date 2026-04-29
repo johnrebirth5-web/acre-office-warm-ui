@@ -465,11 +465,112 @@ test("handleCreateOfficeTransactionsPost sends finance and agent reminders when 
   assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
   assert.equal(capturedEmailInput?.["actorName"], "Ada Agent");
   assert.equal(capturedEmailInput?.["actorEmail"], "agent@example.com");
+  assert.equal(capturedEmailInput?.["sendActorConfirmation"], true);
   assert.deepEqual(await readResponseJson(response), {
     transaction: {
       id: "transaction_agent_1",
       title: "Agent Created Deal",
       address: "88 Agent Way",
+      city: "Queens",
+      state: "NY",
+      status: "Pending",
+      ownerName: "Ada Agent",
+      ownerEmail: "agent@example.com",
+      officeName: "Acre NY Realty",
+    },
+  });
+});
+
+test("handleCreateOfficeTransactionsPost sends finance reminder when an admin creates for an agent owner", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+  let capturedCreateInput: Record<string, unknown> | null = null;
+
+  const response = await handleCreateOfficeTransactionsPost(
+    createOfficeTransactionsPostRequest(
+      JSON.stringify({
+        transactionType: "Sale",
+        transactionStatus: "pending",
+        representing: "Buyer",
+        address: "22 Admin Way",
+        transactionName: "Admin Created Agent Deal",
+        ownerMembershipId: "membership_agent",
+      }),
+    ),
+    createSessionContext(),
+    {
+      getOfficeTransactionIntakeSchema: async () =>
+        ({
+          builtInFields: [],
+          customFields: [],
+        }) as never,
+      getOfficeTransactionOwnerAssignment: async () =>
+        ({
+          canSelectDifferentOwner: true,
+          currentOwnerMembershipId: "membership_1",
+          currentOwnerLabel: "Office Admin",
+          options: [
+            {
+              id: "membership_agent",
+              label: "Ada Agent",
+              roleLabel: "Agent",
+              roleValue: "agent",
+            },
+          ],
+        }) as never,
+      prepareTransactionIntakeSubmission: () =>
+        ({
+          transactionType: "Sale",
+          transactionStatus: "pending",
+          representing: "Buyer",
+          address: "22 Admin Way",
+          city: "Queens",
+          state: "NY",
+          zipCode: "11101",
+          transactionName: "Admin Created Agent Deal",
+          askingPrice: "",
+          purchasedPrice: "",
+          price: "",
+          buyerAgreementDate: "",
+          buyerExpirationDate: "",
+          acceptanceDate: "",
+          listingDate: "",
+          listingExpirationDate: "",
+          closingDate: "",
+          moveInDate: "",
+          additionalFields: {},
+        }) as never,
+      createTransaction: async (input) => {
+        capturedCreateInput = input as unknown as Record<string, unknown>;
+
+        return {
+          id: "transaction_admin_agent_1",
+          title: "Admin Created Agent Deal",
+          address: "22 Admin Way",
+          city: "Queens",
+          state: "NY",
+          status: "Pending",
+          ownerName: "Ada Agent",
+          ownerEmail: "agent@example.com",
+          officeName: "Acre NY Realty",
+        } as never;
+      },
+      sendAgentTransactionCreatedOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      },
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(capturedCreateInput?.["ownerMembershipId"], "membership_agent");
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["actorName"], "Office Admin");
+  assert.equal(capturedEmailInput?.["actorEmail"], "admin@example.com");
+  assert.equal(capturedEmailInput?.["sendActorConfirmation"], false);
+  assert.deepEqual(await readResponseJson(response), {
+    transaction: {
+      id: "transaction_admin_agent_1",
+      title: "Admin Created Agent Deal",
+      address: "22 Admin Way",
       city: "Queens",
       state: "NY",
       status: "Pending",

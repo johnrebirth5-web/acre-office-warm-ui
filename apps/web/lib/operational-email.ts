@@ -75,6 +75,7 @@ type TransactionEmailInput = {
   organizationId: string;
   baseUrl: string;
   financeEmail?: string | null;
+  sendActorConfirmation?: boolean;
   transaction: Pick<
     OfficeTransactionDetail,
     "id" | "title" | "address" | "city" | "state" | "status" | "ownerName" | "ownerEmail" | "officeName"
@@ -434,22 +435,24 @@ export async function sendAgentTransactionCreatedOperationalEmail(
     dependencies.email
   );
 
-  await sendOperationalEmail(
-    {
-      organizationId: input.organizationId,
-      to: [input.actorEmail],
-      subject: `Transaction created in Acre: ${transactionLabel}`,
-      heading: "Your transaction was created",
-      bodyLines: [
-        `Acre recorded your new transaction.`,
-        `Transaction: ${transactionLabel}`,
-        `Status: ${input.transaction.status}`,
-        `Finance also received a reminder at ${financeEmail}.`
-      ],
-      action
-    },
-    dependencies.email
-  );
+  if (input.sendActorConfirmation ?? true) {
+    await sendOperationalEmail(
+      {
+        organizationId: input.organizationId,
+        to: [input.actorEmail],
+        subject: `Transaction created in Acre: ${transactionLabel}`,
+        heading: "Your transaction was created",
+        bodyLines: [
+          `Acre recorded your new transaction.`,
+          `Transaction: ${transactionLabel}`,
+          `Status: ${input.transaction.status}`,
+          `Finance also received a reminder at ${financeEmail}.`
+        ],
+        action
+      },
+      dependencies.email
+    );
+  }
 }
 
 export async function sendTransactionClosedOperationalEmail(
