@@ -11,7 +11,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - the statement workspace now sources selectable payees from `active` or `invited` memberships that either:
   - have eligible direct `commissionCalculation` rows
   - or already have saved payout statements
-- imported transaction batches whose `createdAt` predates imported agent default split settings can be preflighted and corrected with `scripts/backdate-commission-settings.ts`; this keeps commission calculation from falling back to `$0` agent payouts when rates exist but their `effectiveFrom` is too late
+- imported transaction batches whose `createdAt` predates imported agent default split settings can be preflighted and corrected with `scripts/backdate-commission-settings.ts`; this scans stored owner / upline split-chain members and keeps commission calculation from falling back to `$0` agent payouts when rates exist but their `effectiveFrom` is too late
 - legacy/imported transaction batches can be preflighted through `scripts/backfill-commission-calculations.ts`, which defaults to dry-run, reports blockers before creating `CommissionCalculation` rows, and requires explicit `--execute` plus an actor membership before any write
 - admin-managed accounting must not require the member to activate/login first; invited memberships remain operationally usable
 - selectable payees are no longer limited to `agent / team_lead`; manual override participants can also appear if they are `active` or `invited` memberships with direct payout rows

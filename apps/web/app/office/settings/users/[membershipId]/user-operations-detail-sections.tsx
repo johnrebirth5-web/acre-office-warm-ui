@@ -684,6 +684,14 @@ export function UserOperationsDetailSections({
                     value={profileState.customAgentPercent}
                   />
                 </FormField>
+                <FormField className="office-detail-field" label="Split effective from">
+                  <TextInput
+                    onChange={(event) => setProfileField("commissionEffectiveFrom", event.target.value)}
+                    readOnly={!canManageAgents}
+                    type="date"
+                    value={profileState.commissionEffectiveFrom}
+                  />
+                </FormField>
                 <div aria-live="polite" className="office-detail-field">
                   <span>Current default split</span>
                   <strong>{defaultCommissionSummary.settingLabel}</strong>
