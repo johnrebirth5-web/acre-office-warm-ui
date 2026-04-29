@@ -142,7 +142,7 @@ export function buildAdminGptContextResponse(context: SessionMembershipContext) 
   return {
     assistantName: "Acre Admin Help",
     privacy:
-      "Acre does not persist GPT chat history, uploaded screenshots, or model answers through this Action service.",
+      "Acre does not persist full assistant chat history, uploaded screenshots, or model answers through this help service.",
     scopeBoundary: ADMIN_GPT_SCOPE_BOUNDARY,
     currentAdmin: {
       membershipId: context.currentMembership.id,

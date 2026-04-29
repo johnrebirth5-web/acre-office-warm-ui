@@ -103,8 +103,8 @@ function buildGatewayErrorResponse(error: unknown) {
   if (error instanceof AdminAssistantGatewayUnavailableError) {
     return buildNoStoreJson(
       {
-        error: "Codex OAuth 暂时不可用，请确认服务器上的 acre 用户已经完成 Codex OAuth 登录。",
-        errorCode: "codex_oauth_unavailable",
+        error: "管理员助手暂时不可用，请稍后重试或联系系统管理员。",
+        errorCode: "assistant_unavailable",
       },
       503,
     );

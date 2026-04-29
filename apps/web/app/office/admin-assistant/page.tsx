@@ -24,7 +24,7 @@ export default async function OfficeAdminAssistantPage() {
         actions={
           <PageHeaderSummary>
             <SummaryChip label="Access" value="Admin only" />
-            <SummaryChip label="Mode" value="Codex OAuth" />
+            <SummaryChip label="Mode" value="Internal assistant" />
             <SummaryChip label="Storage" value="No Acre chat log" />
           </PageHeaderSummary>
         }
@@ -34,8 +34,8 @@ export default async function OfficeAdminAssistantPage() {
 
       <ListPageStack>
         <SectionCard
-          subtitle="Ask Acre usage, feature availability, screenshot, and testing questions through the protected Codex OAuth runner."
-          title="Acre Admin GPT Chat"
+          subtitle="Ask Acre usage, feature availability, screenshot, and testing questions through the internal assistant."
+          title="Acre Admin Assistant Chat"
         >
           <AdminAssistantChatClient />
         </SectionCard>

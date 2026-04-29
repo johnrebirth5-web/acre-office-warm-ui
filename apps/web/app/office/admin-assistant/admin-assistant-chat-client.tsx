@@ -229,12 +229,12 @@ export function AdminAssistantChatClient() {
             className={`office-admin-gpt-message office-admin-gpt-message-${message.role}`}
             key={message.id}
           >
-            <span>{message.role === "user" ? "You" : "Acre Admin GPT"}</span>
+            <span>{message.role === "user" ? "You" : "Acre Admin Assistant"}</span>
             <p>{message.content}</p>
           </article>
         ))}
         {isSending ? (
-          <div className="office-admin-gpt-typing">正在通过 Codex OAuth 思考...</div>
+          <div className="office-admin-gpt-typing">Acre 管理员助手正在思考...</div>
         ) : null}
       </div>
 
