@@ -34,7 +34,7 @@ export default async function OfficeAdminAssistantPage() {
 
       <ListPageStack>
         <SectionCard
-          subtitle="Ask Acre usage, feature availability, screenshot, and testing questions through the protected Codex gateway."
+          subtitle="Ask Acre usage, feature availability, screenshot, and testing questions through the protected Codex OAuth runner."
           title="Acre Admin GPT Chat"
         >
           <AdminAssistantChatClient />

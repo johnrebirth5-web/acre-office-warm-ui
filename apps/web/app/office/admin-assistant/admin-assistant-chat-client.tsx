@@ -234,7 +234,7 @@ export function AdminAssistantChatClient() {
           </article>
         ))}
         {isSending ? (
-          <div className="office-admin-gpt-typing">正在通过 Codex OAuth 网关思考...</div>
+          <div className="office-admin-gpt-typing">正在通过 Codex OAuth 思考...</div>
         ) : null}
       </div>
 

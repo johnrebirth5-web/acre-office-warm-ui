@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
 import test from "node:test";
 import type { SessionMembershipContext } from "@acre/db";
 import {
@@ -10,7 +11,7 @@ import {
   callSerializedOpenClawAdminAssistant,
   extractOpenClawGatewayReply,
   normalizeAdminAssistantInput,
-  type AdminAssistantGatewayRequest,
+  type AdminAssistantCodexExecRunner,
 } from "./codex-gateway";
 
 const adminContext = {
@@ -98,21 +99,31 @@ test("normalizeAdminAssistantInput rejects non-image and oversized screenshot pa
   );
 });
 
-test("callOpenClawAdminAssistant sends a Codex gateway agent request with image attachments", async () => {
-  const capturedParams: Record<string, unknown>[] = [];
-  const gatewayRequest: AdminAssistantGatewayRequest = async (method, params, options) => {
-    capturedParams.push(params);
-    assert.equal(method, "agent");
-    assert.equal(options.expectFinal, true);
+test("callOpenClawAdminAssistant sends a read-only Codex CLI request with image attachments", async () => {
+  const captured: Array<{ args: string[]; command: string; input: string }> = [];
+  const codexExec: AdminAssistantCodexExecRunner = async (command, args, options) => {
+    captured.push({ args, command, input: options.input });
+    assert.equal(command, "codex");
+    assert.ok(args.includes("--ask-for-approval"));
+    assert.ok(args.includes("never"));
+    assert.ok(args.includes("--sandbox"));
+    assert.ok(args.includes("read-only"));
+    assert.ok(args.includes("exec"));
+    assert.ok(args.includes("--ephemeral"));
+    assert.ok(args.includes("--image"));
     assert.equal(typeof options.timeoutMs, "number");
+    assert.match(options.input, /Mandatory refusal rules/);
+    assert.match(options.input, /Administrator question/);
+
+    const outputIndex = args.indexOf("-o");
+    assert.ok(outputIndex >= 0);
+    const outputPath = args[outputIndex + 1];
+    assert.ok(outputPath);
+    await writeFile(outputPath, "去 Transactions 页面点 New transaction。");
 
     return {
-      payloads: [
-        {
-          text: "去 Transactions 页面点 New transaction。",
-        },
-      ],
-      status: "ok",
+      stderr: "",
+      stdout: "ignored when output file is present",
     };
   };
 
@@ -129,16 +140,12 @@ test("callOpenClawAdminAssistant sends a Codex gateway agent request with image 
       message: "我要登单在哪？",
     },
     adminContext,
-    { gatewayRequest },
+    { codexExec },
   );
 
+  assert.equal(result.provider, "codex-cli-oauth");
   assert.equal(result.reply, "去 Transactions 页面点 New transaction。");
-  const params = capturedParams[0];
-  assert.ok(params);
-  assert.equal(params.agentId, "acre-admin-help");
-  assert.equal(params.deliver, false);
-  assert.equal(Array.isArray(params.attachments), true);
-  assert.match(String(params.extraSystemPrompt), /Do not provide code changes/);
+  assert.equal(captured.length, 1);
 });
 
 test("extractOpenClawGatewayReply supports nested gateway payload shapes", () => {
@@ -160,18 +167,19 @@ test("extractOpenClawGatewayReply supports nested gateway payload shapes", () =>
 test("callSerializedOpenClawAdminAssistant rejects overlapping gateway calls", async () => {
   __resetAdminAssistantGatewayLockForTest();
   const releaseRef: { current?: () => void } = {};
-  const gatewayRequest: AdminAssistantGatewayRequest = async () => {
+  const codexExec: AdminAssistantCodexExecRunner = async (_command, args) => {
     await new Promise<void>((resolve) => {
       releaseRef.current = resolve;
     });
 
+    const outputIndex = args.indexOf("-o");
+    const outputPath = args[outputIndex + 1];
+    assert.ok(outputPath);
+    await writeFile(outputPath, "done");
+
     return {
-      payloads: [
-        {
-          text: "done",
-        },
-      ],
-      status: "ok",
+      stderr: "",
+      stdout: "",
     };
   };
 
@@ -180,8 +188,12 @@ test("callSerializedOpenClawAdminAssistant rejects overlapping gateway calls", a
       message: "第一条",
     },
     adminContext,
-    { gatewayRequest },
+    { codexExec },
   );
+
+  for (let attempt = 0; attempt < 20 && typeof releaseRef.current !== "function"; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
 
   await assert.rejects(
     () =>
@@ -190,7 +202,7 @@ test("callSerializedOpenClawAdminAssistant rejects overlapping gateway calls", a
           message: "第二条",
         },
         adminContext,
-        { gatewayRequest },
+        { codexExec },
       ),
     AdminAssistantGatewayBusyError,
   );

@@ -1,4 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { spawn } from "node:child_process";
 import type { SessionMembershipContext } from "@acre/db";
 import {
   ADMIN_GPT_SCOPE_BOUNDARY,
@@ -26,21 +30,29 @@ export type AdminAssistantChatInput = {
 };
 
 export type AdminAssistantGatewayResult = {
-  provider: "openclaw-codex-gateway";
+  provider: "codex-cli-oauth";
   reply: string;
 };
 
-export type AdminAssistantGatewayRequest = (
-  method: string,
-  params: Record<string, unknown>,
+export type AdminAssistantCodexExecResult = {
+  stderr: string;
+  stdout: string;
+};
+
+export type AdminAssistantCodexExecRunner = (
+  command: string,
+  args: string[],
   options: {
-    expectFinal?: boolean;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    input: string;
+    maxBufferBytes: number;
     timeoutMs: number;
   },
-) => Promise<unknown>;
+) => Promise<AdminAssistantCodexExecResult>;
 
 export type AdminAssistantGatewayDependencies = {
-  gatewayRequest?: AdminAssistantGatewayRequest;
+  codexExec?: AdminAssistantCodexExecRunner;
 };
 
 export class AdminAssistantInputRejectedError extends Error {
@@ -58,20 +70,20 @@ export class AdminAssistantGatewayBusyError extends Error {
 }
 
 export class AdminAssistantGatewayUnavailableError extends Error {
-  constructor(message = "The Codex gateway is not available.") {
+  constructor(message = "The Codex OAuth runner is not available.") {
     super(message);
     this.name = "AdminAssistantGatewayUnavailableError";
   }
 }
 
-const DEFAULT_AGENT_ID = "acre-admin-help";
-const DEFAULT_GATEWAY_URL = "ws://127.0.0.1:18789";
 const DEFAULT_MAX_HISTORY_MESSAGES = 8;
 const DEFAULT_MAX_IMAGE_BYTES = 1024 * 1024;
 const DEFAULT_MAX_IMAGES = 3;
 const DEFAULT_MAX_MESSAGE_CHARS = 4000;
 const DEFAULT_MAX_TOTAL_IMAGE_BYTES = 2 * 1024 * 1024;
 const DEFAULT_TIMEOUT_SECONDS = 90;
+const DEFAULT_CODEX_MODEL = "gpt-5.5";
+const DEFAULT_MAX_EXEC_OUTPUT_BYTES = 512 * 1024;
 const MAX_ATTACHMENT_NAME_CHARS = 120;
 const MAX_CURRENT_PATH_CHARS = 300;
 const MAX_HISTORY_MESSAGE_CHARS = 1600;
@@ -92,6 +104,10 @@ function getPositiveIntegerEnv(name: string, fallback: number) {
 
 function getAdminAssistantLimits() {
   return {
+    maxExecOutputBytes: getPositiveIntegerEnv(
+      "ACRE_ADMIN_CODEX_MAX_EXEC_OUTPUT_BYTES",
+      DEFAULT_MAX_EXEC_OUTPUT_BYTES,
+    ),
     maxHistoryMessages: DEFAULT_MAX_HISTORY_MESSAGES,
     maxImageBytes: getPositiveIntegerEnv(
       "ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES",
@@ -110,6 +126,14 @@ function getAdminAssistantLimits() {
       "ACRE_ADMIN_CODEX_TIMEOUT_SECONDS",
       DEFAULT_TIMEOUT_SECONDS,
     ),
+  };
+}
+
+function getCodexCliConfig() {
+  return {
+    bin: process.env.ACRE_ADMIN_CODEX_BIN?.trim() || "codex",
+    model: process.env.ACRE_ADMIN_CODEX_MODEL?.trim() || DEFAULT_CODEX_MODEL,
+    workdir: resolve(process.env.ACRE_ADMIN_CODEX_WORKDIR?.trim() || process.cwd()),
   };
 }
 
@@ -138,7 +162,10 @@ function normalizeAttachmentName(value: string | undefined, index: number) {
     return `screenshot-${index + 1}`;
   }
 
-  return clampText(normalized.replace(/[^\w.\- ()]/g, ""), MAX_ATTACHMENT_NAME_CHARS);
+  return clampText(
+    normalized.replace(/[^\w.\- ()]/g, ""),
+    MAX_ATTACHMENT_NAME_CHARS,
+  );
 }
 
 function stripDataUrlPrefix(value: string, fallbackMimeType: string) {
@@ -237,7 +264,7 @@ export function normalizeAdminAssistantInput(input: AdminAssistantChatInput) {
       fileName,
       mimeType,
       sizeBytes: imageBytes,
-      type: "image",
+      type: "image" as const,
     };
   });
 
@@ -320,7 +347,7 @@ export function buildAcreAdminAssistantSystemPrompt(
     "",
     "Mandatory refusal rules:",
     "- Refuse code editing, code generation for this repository, database changes, SQL, migrations, production deploys, credentials, permission bypasses, destructive data operations, and unrelated conversations.",
-    "- Do not ask the user to run commands or change server files from chat.",
+    "- Do not run shell commands, do not inspect server files, and do not ask the user to run commands or change server files from chat.",
     "- Do not reveal or infer customer, transaction, finance, or credential details that are not visible in the user's question or screenshot.",
     "- When evidence is weak, say you are not sure and give the page, permission, reproduction steps, expected result, actual result, visible error text, and screenshot-summary template for the programmer.",
     "",
@@ -328,6 +355,7 @@ export function buildAcreAdminAssistantSystemPrompt(
     "- Prefer Chinese when the administrator writes Chinese; otherwise answer in the user's language.",
     "- Be practical and concise. Explain where to click, what a page does, whether a feature exists, and how to tell operation issue vs permission/configuration/likely bug.",
     "- Never claim a feature exists unless the curated Acre facts below say available or partial.",
+    "- Return only the final assistant answer text.",
     "",
     "Current admin context:",
     `- Role: ${context.currentMembership.role}`,
@@ -359,6 +387,19 @@ export function buildAcreAdminAssistantUserMessage(
   ].join("\n");
 }
 
+function buildCodexExecPrompt(
+  input: ReturnType<typeof normalizeAdminAssistantInput>,
+  context: SessionMembershipContext,
+) {
+  return [
+    "SYSTEM / NON-NEGOTIABLE INSTRUCTIONS",
+    buildAcreAdminAssistantSystemPrompt(input, context),
+    "",
+    "USER REQUEST",
+    buildAcreAdminAssistantUserMessage(input),
+  ].join("\n");
+}
+
 function sanitizeSessionId(value: string | undefined) {
   const normalized = normalizeWhitespace(value);
 
@@ -371,11 +412,6 @@ function sanitizeSessionId(value: string | undefined) {
 
 function stableShortHash(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 16);
-}
-
-function buildGatewaySessionId(inputSessionId: string, context: SessionMembershipContext) {
-  const prefix = process.env.ACRE_ADMIN_CODEX_SESSION_PREFIX?.trim() || "acre-admin-help";
-  return `${prefix}-${stableShortHash(context.currentMembership.id)}-${inputSessionId}`;
 }
 
 function readString(value: unknown) {
@@ -437,239 +473,189 @@ export function extractOpenClawGatewayReply(payload: unknown): string | null {
   return null;
 }
 
-function getGatewayConfig() {
-  return {
-    agentId: process.env.ACRE_ADMIN_CODEX_AGENT_ID?.trim() || DEFAULT_AGENT_ID,
-    gatewayPassword: process.env.ACRE_ADMIN_CODEX_GATEWAY_PASSWORD?.trim() || undefined,
-    gatewayToken: process.env.ACRE_ADMIN_CODEX_GATEWAY_TOKEN?.trim() || undefined,
-    gatewayUrl: process.env.ACRE_ADMIN_CODEX_GATEWAY_URL?.trim() || DEFAULT_GATEWAY_URL,
-    thinking: process.env.ACRE_ADMIN_CODEX_THINKING?.trim() || "low",
-  };
+function imageExtensionForMimeType(mimeType: string) {
+  switch (mimeType.toLowerCase()) {
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "png";
+  }
 }
 
-function messageDataToString(data: unknown): Promise<string> {
-  if (typeof data === "string") {
-    return Promise.resolve(data);
+async function writeImageAttachments(
+  tempDir: string,
+  input: ReturnType<typeof normalizeAdminAssistantInput>,
+) {
+  const paths: string[] = [];
+
+  for (const [index, attachment] of input.attachments.entries()) {
+    const extension = imageExtensionForMimeType(attachment.mimeType);
+    const path = join(tempDir, `screenshot-${index + 1}.${extension}`);
+
+    await writeFile(path, Buffer.from(attachment.content, "base64"));
+    paths.push(path);
   }
 
-  if (data instanceof ArrayBuffer) {
-    return Promise.resolve(Buffer.from(data).toString("utf8"));
+  return paths;
+}
+
+function stripAnsi(value: string) {
+  return value.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+function extractCodexCliReply(stdout: string, outputFileText: string) {
+  const fromFile = outputFileText.trim();
+
+  if (fromFile) {
+    return fromFile;
   }
 
-  if (ArrayBuffer.isView(data)) {
-    return Promise.resolve(
-      Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8"),
+  const cleaned = stripAnsi(stdout)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("OpenAI Codex"))
+    .filter((line) => !line.startsWith("Thinking"))
+    .join("\n")
+    .trim();
+
+  return cleaned || null;
+}
+
+function buildCodexExecArgs(input: {
+  imagePaths: string[];
+  outputPath: string;
+}) {
+  const config = getCodexCliConfig();
+  const args = [
+    "--ask-for-approval",
+    "never",
+    "--sandbox",
+    "read-only",
+    "exec",
+    "--ephemeral",
+    "--color",
+    "never",
+    "-m",
+    config.model,
+    "-C",
+    config.workdir,
+    "--skip-git-repo-check",
+    "-o",
+    input.outputPath,
+  ];
+
+  for (const imagePath of input.imagePaths) {
+    args.push("--image", imagePath);
+  }
+
+  args.push("-");
+  return args;
+}
+
+function normalizeCodexExecFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/not logged in|401 unauthorized|missing bearer|api key|authentication/i.test(message)) {
+    return new AdminAssistantGatewayUnavailableError(
+      "Codex OAuth is not configured for the Acre service user. Run codex login --device-auth as the service user, then retry.",
     );
   }
 
-  if (typeof Blob !== "undefined" && data instanceof Blob) {
-    return data.text();
-  }
-
-  return Promise.resolve(String(data ?? ""));
+  return new AdminAssistantGatewayUnavailableError(
+    `Codex OAuth runner failed: ${clampText(message, 300)}`,
+  );
 }
 
-function createGatewayRequestFrame(method: string, params: Record<string, unknown>) {
-  return {
-    id: randomUUID(),
-    method,
-    params,
-    type: "req",
-  };
-}
-
-export async function callOpenClawGateway(
-  method: string,
-  params: Record<string, unknown>,
+export async function runCodexExec(
+  command: string,
+  args: string[],
   options: {
-    expectFinal?: boolean;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    input: string;
+    maxBufferBytes: number;
     timeoutMs: number;
   },
 ) {
-  if (typeof WebSocket === "undefined") {
-    throw new AdminAssistantGatewayUnavailableError(
-      "The runtime does not provide WebSocket support for the Codex gateway.",
-    );
-  }
-
-  const config = getGatewayConfig();
-
-  return new Promise<unknown>((resolve, reject) => {
+  return new Promise<AdminAssistantCodexExecResult>((resolvePromise, rejectPromise) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
     let settled = false;
-    let connected = false;
-    const pending = new Map<
-      string,
-      {
-        expectFinal: boolean;
-        reject: (error: Error) => void;
-        resolve: (value: unknown) => void;
-      }
-    >();
     const timeout = setTimeout(() => {
-      finishWithError(
-        new AdminAssistantGatewayUnavailableError("The Codex gateway request timed out."),
-      );
+      if (!settled) {
+        settled = true;
+        child.kill("SIGTERM");
+        rejectPromise(new Error("Codex exec timed out."));
+      }
     }, Math.max(1000, options.timeoutMs));
-    const ws = new WebSocket(config.gatewayUrl);
 
-    function cleanup() {
+    function appendOutput(current: string, chunk: Buffer) {
+      const next = current + chunk.toString("utf8");
+
+      if (Buffer.byteLength(next, "utf8") > options.maxBufferBytes) {
+        if (!settled) {
+          settled = true;
+          child.kill("SIGTERM");
+          clearTimeout(timeout);
+          rejectPromise(new Error("Codex exec produced too much output."));
+        }
+
+        return current;
+      }
+
+      return next;
+    }
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout = appendOutput(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr = appendOutput(stderr, chunk);
+    });
+    child.on("error", (error) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        rejectPromise(error);
+      }
+    });
+    child.on("exit", (code, signal) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
       clearTimeout(timeout);
 
-      try {
-        ws.close();
-      } catch {
-        // The socket may already be closing. Nothing else to do.
-      }
-    }
-
-    function finishWithValue(value: unknown) {
-      if (settled) {
+      if (signal) {
+        rejectPromise(new Error(`Codex exec exited with signal ${signal}. ${stderr}`));
         return;
       }
 
-      settled = true;
-      cleanup();
-      resolve(value);
-    }
-
-    function finishWithError(error: Error) {
-      if (settled) {
+      if ((code ?? 0) !== 0) {
+        rejectPromise(new Error(`Codex exec exited with code ${code ?? 0}. ${stderr || stdout}`));
         return;
       }
 
-      settled = true;
-      cleanup();
-      reject(error);
-    }
-
-    function sendRequest(
-      requestMethod: string,
-      requestParams: Record<string, unknown>,
-      requestOptions: { expectFinal?: boolean } = {},
-    ) {
-      const frame = createGatewayRequestFrame(requestMethod, requestParams);
-
-      pending.set(frame.id, {
-        expectFinal: requestOptions.expectFinal === true,
-        reject: finishWithError,
-        resolve: requestMethod === "connect" ? () => {
-          connected = true;
-          sendRequest(method, params, { expectFinal: options.expectFinal });
-        } : finishWithValue,
-      });
-
-      ws.send(JSON.stringify(frame));
-    }
-
-    ws.addEventListener("error", () => {
-      finishWithError(
-        new AdminAssistantGatewayUnavailableError("Unable to reach the Codex gateway."),
-      );
+      resolvePromise({ stderr, stdout });
     });
 
-    ws.addEventListener("close", () => {
-      if (!settled && !connected) {
-        finishWithError(
-          new AdminAssistantGatewayUnavailableError("The Codex gateway closed before connecting."),
-        );
-      }
-    });
-
-    ws.addEventListener("message", (event) => {
-      void messageDataToString(event.data)
-        .then((raw) => {
-          let parsed: unknown;
-
-          try {
-            parsed = JSON.parse(raw);
-          } catch {
-            return;
-          }
-
-          if (!parsed || typeof parsed !== "object") {
-            return;
-          }
-
-          const frame = parsed as Record<string, unknown>;
-
-          if (frame.type === "event" && frame.event === "connect.challenge") {
-            const payload = frame.payload as Record<string, unknown> | undefined;
-            const nonce = readString(payload?.nonce);
-
-            if (!nonce) {
-              finishWithError(
-                new AdminAssistantGatewayUnavailableError("The Codex gateway challenge was invalid."),
-              );
-              return;
-            }
-
-            sendRequest("connect", {
-              auth:
-                config.gatewayToken || config.gatewayPassword
-                  ? {
-                      password: config.gatewayPassword,
-                      token: config.gatewayToken,
-                    }
-                  : undefined,
-              caps: [],
-              client: {
-                id: "gateway-client",
-                mode: "backend",
-                platform: process.platform,
-                version: "acre-admin-assistant",
-              },
-              maxProtocol: 3,
-              minProtocol: 3,
-              role: "operator",
-              scopes: ["operator.write"],
-            });
-            return;
-          }
-
-          if (frame.type !== "res") {
-            return;
-          }
-
-          const id = readString(frame.id);
-
-          if (!id) {
-            return;
-          }
-
-          const request = pending.get(id);
-
-          if (!request) {
-            return;
-          }
-
-          const payload = frame.payload as Record<string, unknown> | undefined;
-
-          if (request.expectFinal && frame.ok === true && payload?.status === "accepted") {
-            return;
-          }
-
-          pending.delete(id);
-
-          if (frame.ok === true) {
-            request.resolve(frame.payload);
-            return;
-          }
-
-          const error = frame.error as Record<string, unknown> | undefined;
-          request.reject(
-            new AdminAssistantGatewayUnavailableError(
-              readString(error?.message) ?? "The Codex gateway rejected the request.",
-            ),
-          );
-        })
-        .catch((error) => {
-          finishWithError(
-            error instanceof Error
-              ? error
-              : new AdminAssistantGatewayUnavailableError(String(error)),
-          );
-        });
-    });
+    child.stdin.end(options.input);
   });
 }
 
@@ -679,44 +665,64 @@ export async function callOpenClawAdminAssistant(
   dependencies: AdminAssistantGatewayDependencies = {},
 ): Promise<AdminAssistantGatewayResult> {
   const normalized = normalizeAdminAssistantInput(input);
-  const config = getGatewayConfig();
+  const config = getCodexCliConfig();
   const limits = getAdminAssistantLimits();
   const timeoutMs = Math.max(10_000, (limits.timeoutSeconds + 30) * 1000);
-  const payload = await (dependencies.gatewayRequest ?? callOpenClawGateway)(
-    "agent",
-    {
-      agentId: config.agentId,
-      attachments: normalized.attachments.map((attachment) => ({
-        content: attachment.content,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        type: "image",
-      })),
-      deliver: false,
-      extraSystemPrompt: buildAcreAdminAssistantSystemPrompt(normalized, context),
-      idempotencyKey: randomUUID(),
-      message: buildAcreAdminAssistantUserMessage(normalized),
-      sessionId: buildGatewaySessionId(normalized.sessionId, context),
-      thinking: config.thinking,
-      timeout: limits.timeoutSeconds,
-    },
-    {
-      expectFinal: true,
-      timeoutMs,
-    },
-  );
-  const reply = extractOpenClawGatewayReply(payload);
+  const tempDir = await mkdtemp(join(tmpdir(), "acre-admin-codex-"));
+  const sessionHash = stableShortHash(`${context.currentMembership.id}:${normalized.sessionId}`);
 
-  if (!reply) {
-    throw new AdminAssistantGatewayUnavailableError(
-      "The Codex gateway finished without a readable assistant reply.",
-    );
+  try {
+    const imagePaths = await writeImageAttachments(tempDir, normalized);
+    const outputPath = join(tempDir, `reply-${sessionHash}.txt`);
+    const args = buildCodexExecArgs({
+      imagePaths,
+      outputPath,
+    });
+    const prompt = buildCodexExecPrompt(normalized, context);
+
+    const result = await (dependencies.codexExec ?? runCodexExec)(
+      config.bin,
+      args,
+      {
+        cwd: config.workdir,
+        env: {
+          ...process.env,
+          NO_COLOR: "1",
+        },
+        input: prompt,
+        maxBufferBytes: limits.maxExecOutputBytes,
+        timeoutMs,
+      },
+    ).catch((error) => {
+      throw normalizeCodexExecFailure(error);
+    });
+    const combinedOutput = `${result.stderr}\n${result.stdout}`;
+
+    if (/not logged in|401 unauthorized|missing bearer|api key|authentication/i.test(combinedOutput)) {
+      throw new AdminAssistantGatewayUnavailableError(
+        "Codex OAuth is not configured for the Acre service user. Run codex login --device-auth as the service user, then retry.",
+      );
+    }
+
+    const outputFileText = await readFile(outputPath, "utf8").catch(() => "");
+    const reply = extractCodexCliReply(result.stdout, outputFileText);
+
+    if (!reply) {
+      throw new AdminAssistantGatewayUnavailableError(
+        "Codex OAuth runner finished without a readable assistant reply.",
+      );
+    }
+
+    return {
+      provider: "codex-cli-oauth",
+      reply,
+    };
+  } finally {
+    await rm(tempDir, {
+      force: true,
+      recursive: true,
+    }).catch(() => undefined);
   }
-
-  return {
-    provider: "openclaw-codex-gateway",
-    reply,
-  };
 }
 
 export async function callSerializedOpenClawAdminAssistant(

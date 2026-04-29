@@ -1134,15 +1134,14 @@ ACRE_SECURE_COOKIES=false
 - `ACRE_ADMIN_GPT_OAUTH_CLIENT_SECRET`
 - `ACRE_ADMIN_GPT_OAUTH_SIGNING_SECRET`
 - `ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS`
-- `ACRE_ADMIN_CODEX_GATEWAY_URL`
-- `ACRE_ADMIN_CODEX_GATEWAY_TOKEN`
-- `ACRE_ADMIN_CODEX_GATEWAY_PASSWORD`
-- `ACRE_ADMIN_CODEX_AGENT_ID`
-- `ACRE_ADMIN_CODEX_THINKING`
+- `ACRE_ADMIN_CODEX_BIN`
+- `ACRE_ADMIN_CODEX_MODEL`
+- `ACRE_ADMIN_CODEX_WORKDIR`
 - `ACRE_ADMIN_CODEX_TIMEOUT_SECONDS`
 - `ACRE_ADMIN_CODEX_MAX_IMAGES`
 - `ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES`
 - `ACRE_ADMIN_CODEX_MAX_TOTAL_IMAGE_BYTES`
+- `ACRE_ADMIN_CODEX_MAX_EXEC_OUTPUT_BYTES`
 - `OPENAI_API_KEY`
 - `OPENAI_INTAKE_ASSIST_MODEL`
 
@@ -1151,7 +1150,7 @@ ACRE_SECURE_COOKIES=false
 用途：
 
 - 旧的外部 ChatGPT 自定义 GPT 入口配置
-- 当前 `/office/admin-assistant` 默认使用站内聊天框 + OpenClaw/Codex Gateway，不再依赖这个 URL
+- 当前 `/office/admin-assistant` 默认使用站内聊天框 + 服务器本机 Codex CLI OAuth，不再依赖这个 URL
 
 是否必填：
 
@@ -1240,71 +1239,16 @@ ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS="chat.openai.com,chatgpt.com"
 补充说明：
 
 - `/api/admin-gpt/context`、`lookup`、`triage`、OAuth、OpenAPI schema 仍是只读 GPT Action 服务，可作为外部 GPT fallback 使用
-- 新的站内聊天使用 `/api/admin-gpt/chat`，由 Acre 做管理员 session、CSRF、限流和图片大小校验，然后调用服务器本机 OpenClaw/Codex Gateway
-- Acre 不写入完整聊天、图片、模型回答到数据库；OpenClaw/Codex 自身的运行日志或 session transcript 属于网关运行环境，应按服务器运维策略单独管理
-- 不要复制本机 Codex Desktop 登录 token / session 到生产；生产服务器应使用自己的 OpenClaw/Codex OAuth 登录和专用 `acre-admin-help` agent
+- 新的站内聊天使用 `/api/admin-gpt/chat`，由 Acre 做管理员 session、CSRF、限流和图片大小校验，然后调用服务器本机 `codex exec`
+- Acre 不写入完整聊天、图片、模型回答到数据库；Codex CLI 自身的运行日志或 OAuth session 属于服务器运行环境，应按服务器运维策略单独管理
+- 不要复制本机 Codex Desktop 登录 token / session 到生产；生产服务器应使用 app service user 自己的 `codex login --device-auth` OAuth 登录
 
-### `ACRE_ADMIN_CODEX_GATEWAY_URL`
-
-用途：
-
-- `/api/admin-gpt/chat` 连接 OpenClaw/Codex Gateway 的 WebSocket URL
-- 默认值是本机 loopback `ws://127.0.0.1:18789`
-
-是否必填：
-
-- 非必填
-- 生产建议显式设置，且远程网关必须使用 `wss://` 或 SSH/Tailscale loopback tunnel
-
-示例格式：
-
-```env
-ACRE_ADMIN_CODEX_GATEWAY_URL="ws://127.0.0.1:18789"
-```
-
-### `ACRE_ADMIN_CODEX_GATEWAY_TOKEN` / `ACRE_ADMIN_CODEX_GATEWAY_PASSWORD`
+### `ACRE_ADMIN_CODEX_BIN`
 
 用途：
 
-- `/api/admin-gpt/chat` 连接受保护 OpenClaw Gateway 时使用的 gateway token 或 password
-- 这是 OpenClaw Gateway 认证，不是 OpenAI API key
-
-是否必填：
-
-- 取决于服务器 OpenClaw Gateway 是否启用了认证
-- 生产建议启用 gateway 认证并只把 gateway 绑定在 loopback / tunnel 后面
-
-示例格式：
-
-```env
-ACRE_ADMIN_CODEX_GATEWAY_TOKEN="<gateway-token>"
-ACRE_ADMIN_CODEX_GATEWAY_PASSWORD="<gateway-password>"
-```
-
-### `ACRE_ADMIN_CODEX_AGENT_ID`
-
-用途：
-
-- 指定站内管理员助手调用的 OpenClaw agent
-- 默认值是 `acre-admin-help`
-- 生产应配置专用 agent，并在 OpenClaw 侧关闭或限制代码写入、数据库、部署、shell 等工具能力
-
-是否必填：
-
-- 非必填，但生产建议显式设置
-
-示例格式：
-
-```env
-ACRE_ADMIN_CODEX_AGENT_ID="acre-admin-help"
-```
-
-### `ACRE_ADMIN_CODEX_THINKING`
-
-用途：
-
-- 传给 OpenClaw/Codex agent 的 thinking level
-- 默认 `low`，减少延迟和资源占用
+- `/api/admin-gpt/chat` 调用的 Codex CLI 可执行文件
+- 默认值是 `codex`
 
 是否必填：
 
@@ -1313,14 +1257,49 @@ ACRE_ADMIN_CODEX_AGENT_ID="acre-admin-help"
 示例格式：
 
 ```env
-ACRE_ADMIN_CODEX_THINKING="low"
+ACRE_ADMIN_CODEX_BIN="codex"
+```
+
+### `ACRE_ADMIN_CODEX_MODEL`
+
+用途：
+
+- `/api/admin-gpt/chat` 调用 `codex exec -m` 时使用的模型
+- 默认值是 `gpt-5.5`
+
+是否必填：
+
+- 非必填
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_MODEL="gpt-5.5"
+```
+
+### `ACRE_ADMIN_CODEX_WORKDIR`
+
+用途：
+
+- `codex exec` 的工作目录
+- 生产默认随 Next.js service 工作目录运行，建议显式设置为 `/opt/acre-ui-rebuild/app`
+- Codex 使用 `--sandbox read-only`、`--ask-for-approval never`、`--ephemeral`，管理员助手不应写代码、改数据库或部署
+
+是否必填：
+
+- 非必填
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_WORKDIR="/opt/acre-ui-rebuild/app"
 ```
 
 ### `ACRE_ADMIN_CODEX_TIMEOUT_SECONDS`
 
 用途：
 
-- 单次管理员助手回答的 Codex agent 超时时间
+- 单次管理员助手回答的 Codex CLI 超时时间
 - 默认 `90`
 
 是否必填：
@@ -1343,7 +1322,7 @@ ACRE_ADMIN_CODEX_TIMEOUT_SECONDS="90"
 是否必填：
 
 - 非必填
-- 生产建议保持小尺寸，避免 Codex Gateway 占用过多内存
+- 生产建议保持小尺寸，避免 Codex CLI 进程处理过大的图片
 
 示例格式：
 
@@ -1351,6 +1330,23 @@ ACRE_ADMIN_CODEX_TIMEOUT_SECONDS="90"
 ACRE_ADMIN_CODEX_MAX_IMAGES="3"
 ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES="1048576"
 ACRE_ADMIN_CODEX_MAX_TOTAL_IMAGE_BYTES="2097152"
+```
+
+### `ACRE_ADMIN_CODEX_MAX_EXEC_OUTPUT_BYTES`
+
+用途：
+
+- 限制 `codex exec` stdout/stderr 捕获大小
+- 默认 `524288`
+
+是否必填：
+
+- 非必填
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_MAX_EXEC_OUTPUT_BYTES="524288"
 ```
 
 补充说明：

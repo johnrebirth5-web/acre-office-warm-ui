@@ -81,7 +81,7 @@ test("handleAdminAssistantChatPost returns the Codex gateway reply for admins", 
         assert.equal(input.attachments?.[0]?.fileName, "screen.png");
 
         return {
-          provider: "openclaw-codex-gateway",
+          provider: "codex-cli-oauth",
           reply: "去 Transactions 页面创建新交易。",
         };
       },
@@ -94,7 +94,7 @@ test("handleAdminAssistantChatPost returns the Codex gateway reply for admins", 
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(capturedMessage, "我要在哪里登单？");
   assert.deepEqual(await readJson(response), {
-    provider: "openclaw-codex-gateway",
+    provider: "codex-cli-oauth",
     reply: "去 Transactions 页面创建新交易。",
     status: "ok",
   });

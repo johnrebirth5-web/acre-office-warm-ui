@@ -103,8 +103,8 @@ function buildGatewayErrorResponse(error: unknown) {
   if (error instanceof AdminAssistantGatewayUnavailableError) {
     return buildNoStoreJson(
       {
-        error: "Codex OAuth 网关暂时不可用，请确认服务器上的 OpenClaw/Codex 登录和 gateway 已启动。",
-        errorCode: "codex_gateway_unavailable",
+        error: "Codex OAuth 暂时不可用，请确认服务器上的 acre 用户已经完成 Codex OAuth 登录。",
+        errorCode: "codex_oauth_unavailable",
       },
       503,
     );
