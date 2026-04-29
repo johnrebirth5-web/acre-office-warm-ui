@@ -1018,6 +1018,69 @@ test("listTransactions returns an empty summary when no transactions match", asy
   }
 });
 
+test("pipeline sales volume falls back to legacy sales volume when imported price is zero", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const owner = await context.createMembership("agent", "legacy-volume-owner");
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const closingDate = `${currentMonthKey}-15`;
+
+    await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: owner.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "closed",
+      representing: "buyer",
+      address: "350 E 18th St",
+      city: "New York",
+      state: "NY",
+      zipCode: "10003",
+      transactionName: "Legacy Imported Closed Deal",
+      askingPrice: "1925000",
+      price: "0",
+      closingDate,
+      grossCommission: "74680.91",
+      officeNet: "22404.27",
+      agentNet: "52276.64",
+      additionalFields: {
+        legacySalesVolume: "1,925,000",
+        legacyProratedSalesVolume: "1,925,000"
+      }
+    });
+
+    const officePipeline = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      metricMode: "office_sales_volume",
+      view: "history",
+      historyMonth: currentMonthKey
+    });
+    const agentPipeline = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: owner.membership.id,
+      officeId: context.office.id,
+      metricMode: "my_sales_volume",
+      view: "history",
+      historyMonth: currentMonthKey
+    });
+
+    assert.equal(officePipeline.rows.length, 1);
+    assert.equal(officePipeline.rows[0]?.amountLabel, "$1,925,000");
+    assert.equal(officePipeline.summary.totalMetricLabel, "$1,925,000");
+    assert.equal(officePipeline.currentMonthHistory?.metricLabel, "$1,925,000");
+    assert.equal(agentPipeline.rows.length, 1);
+    assert.equal(agentPipeline.rows[0]?.amountLabel, "$1,925,000");
+    assert.equal(agentPipeline.summary.totalMetricLabel, "$1,925,000");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("commission participants can see shared transactions and their scoped income without workspace access", async () => {
   const context = await createTransactionsTestContext();
 
