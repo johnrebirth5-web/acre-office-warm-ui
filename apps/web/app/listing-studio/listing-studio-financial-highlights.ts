@@ -46,7 +46,7 @@ export function isListingStudioFinancialFactLabel(label: string) {
 function formatMonthlyHighlightValue(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "-";
+    return "—";
   }
 
   if (/\$\s*[\d,.]+.*\/\s*(?:mo|month)/i.test(trimmed)) {
@@ -63,7 +63,7 @@ function formatMonthlyHighlightValue(value: string) {
 
 function formatTextHighlightValue(value: string) {
   const trimmed = value.trim().replace(/\s+/g, " ");
-  return trimmed || "-";
+  return trimmed || "—";
 }
 
 export function collectListingStudioFinancialHighlights(

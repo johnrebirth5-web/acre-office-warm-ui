@@ -277,6 +277,7 @@ export type StudioListingPublicCollectionSnapshot = {
     agentNote: string;
     descriptionText: string | null;
     facts: Array<{ label: string; value: string }>;
+    sourceFacts: Array<{ label: string; value: string }>;
     amenities: Array<{ title: string; items: string[] }>;
     buildingName: string | null;
     selectedAssets: Array<{
@@ -3853,6 +3854,7 @@ export async function getStudioListingPublicCollection(input: {
         agentNote: detail.pack.agentNote,
         descriptionText: detail.descriptionText,
         facts: detail.facts,
+        sourceFacts: detail.sourceFacts,
         amenities: detail.amenities,
         buildingName: detail.buildingName,
         selectedAssets: selectedAssets.length ? selectedAssets : fallbackAssets,

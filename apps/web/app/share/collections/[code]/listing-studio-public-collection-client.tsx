@@ -3,6 +3,7 @@
 import type { StudioListingPublicCollectionSnapshot } from "@acre/db";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../../lib/i18n/client";
+import { collectListingStudioFinancialHighlights } from "../../../listing-studio/listing-studio-financial-highlights";
 import { ListingStudioPublicCollectionMap } from "./listing-studio-public-collection-map";
 
 type PublicCollectionSnapshot = StudioListingPublicCollectionSnapshot;
@@ -47,6 +48,9 @@ function formatFactLabel(value: string, isZh: boolean) {
     .replace(/\bBaths?\b/gi, "卫浴")
     .replace(/\bSq\.?\s?Ft\.?\b/gi, "平方英尺")
     .replace(/\bSquare Feet\b/gi, "平方英尺")
+    .replace(/\bCommon Charges\b/gi, "管理费")
+    .replace(/\bTax Abatement\b/gi, "税收减免")
+    .replace(/\bTaxes\b/gi, "房产税")
     .replace(/\bFor sale\b/gi, "出售")
     .replace(/\bRental\b/gi, "出租")
     .replace(/\bActive\b/gi, "在售")
@@ -151,6 +155,10 @@ function ListingStudioCollectionDetailView(props: {
   const sqft = getFactValue(listing, [/sqft|square/i], 2, isZh);
   const amenities = getAmenities(listing);
   const listingTypeLabel = formatListingTypeLabel(listing.listingType, isZh);
+  const financialHighlights = useMemo(
+    () => collectListingStudioFinancialHighlights(listing),
+    [listing],
+  );
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -244,6 +252,18 @@ function ListingStudioCollectionDetailView(props: {
             <strong>{sqft}</strong>
             <span>{isZh ? "面积" : "Sq Ft"}</span>
           </div>
+        </section>
+
+        <section
+          aria-label={isZh ? "房源费用" : "Listing fees"}
+          className="listing-studio-collection-share-detail-finance"
+        >
+          {financialHighlights.map((item) => (
+            <div key={item.key}>
+              <span>{formatFactLabel(item.label, isZh)}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
         </section>
 
         {listing.descriptionText ? (
