@@ -1134,6 +1134,15 @@ ACRE_SECURE_COOKIES=false
 - `ACRE_ADMIN_GPT_OAUTH_CLIENT_SECRET`
 - `ACRE_ADMIN_GPT_OAUTH_SIGNING_SECRET`
 - `ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS`
+- `ACRE_ADMIN_CODEX_GATEWAY_URL`
+- `ACRE_ADMIN_CODEX_GATEWAY_TOKEN`
+- `ACRE_ADMIN_CODEX_GATEWAY_PASSWORD`
+- `ACRE_ADMIN_CODEX_AGENT_ID`
+- `ACRE_ADMIN_CODEX_THINKING`
+- `ACRE_ADMIN_CODEX_TIMEOUT_SECONDS`
+- `ACRE_ADMIN_CODEX_MAX_IMAGES`
+- `ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES`
+- `ACRE_ADMIN_CODEX_MAX_TOTAL_IMAGE_BYTES`
 - `OPENAI_API_KEY`
 - `OPENAI_INTAKE_ASSIST_MODEL`
 
@@ -1141,13 +1150,13 @@ ACRE_SECURE_COOKIES=false
 
 用途：
 
-- 控制 `/office/admin-assistant` 的 `Open Acre Admin GPT` 外部入口
-- 指向 ChatGPT 中配置好的自定义 GPT 分享 / 打开 URL
+- 旧的外部 ChatGPT 自定义 GPT 入口配置
+- 当前 `/office/admin-assistant` 默认使用站内聊天框 + OpenClaw/Codex Gateway，不再依赖这个 URL
 
 是否必填：
 
 - 非必填
-- 未设置时页面仍可打开，但按钮会显示 GPT URL 尚未配置
+- 当前站内聊天实现不需要设置
 
 示例格式：
 
@@ -1230,9 +1239,119 @@ ACRE_ADMIN_GPT_ALLOWED_REDIRECT_HOSTS="chat.openai.com,chatgpt.com"
 
 补充说明：
 
-- `/api/admin-gpt/*` 是只读 GPT Action 服务，只返回管理员上下文、功能说明、feature availability 和 bug-triage 建议
-- 这些端点不保存完整聊天、不保存图片、不保存模型回答，也不暴露代码修改、数据库修改、部署、删除数据或凭证处理能力
-- 管理员应在 ChatGPT 自定义 GPT 里拖拽截图；Acre Action 只接收 GPT 对截图的文字摘要和可见报错文本
+- `/api/admin-gpt/context`、`lookup`、`triage`、OAuth、OpenAPI schema 仍是只读 GPT Action 服务，可作为外部 GPT fallback 使用
+- 新的站内聊天使用 `/api/admin-gpt/chat`，由 Acre 做管理员 session、CSRF、限流和图片大小校验，然后调用服务器本机 OpenClaw/Codex Gateway
+- Acre 不写入完整聊天、图片、模型回答到数据库；OpenClaw/Codex 自身的运行日志或 session transcript 属于网关运行环境，应按服务器运维策略单独管理
+- 不要复制本机 Codex Desktop 登录 token / session 到生产；生产服务器应使用自己的 OpenClaw/Codex OAuth 登录和专用 `acre-admin-help` agent
+
+### `ACRE_ADMIN_CODEX_GATEWAY_URL`
+
+用途：
+
+- `/api/admin-gpt/chat` 连接 OpenClaw/Codex Gateway 的 WebSocket URL
+- 默认值是本机 loopback `ws://127.0.0.1:18789`
+
+是否必填：
+
+- 非必填
+- 生产建议显式设置，且远程网关必须使用 `wss://` 或 SSH/Tailscale loopback tunnel
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_GATEWAY_URL="ws://127.0.0.1:18789"
+```
+
+### `ACRE_ADMIN_CODEX_GATEWAY_TOKEN` / `ACRE_ADMIN_CODEX_GATEWAY_PASSWORD`
+
+用途：
+
+- `/api/admin-gpt/chat` 连接受保护 OpenClaw Gateway 时使用的 gateway token 或 password
+- 这是 OpenClaw Gateway 认证，不是 OpenAI API key
+
+是否必填：
+
+- 取决于服务器 OpenClaw Gateway 是否启用了认证
+- 生产建议启用 gateway 认证并只把 gateway 绑定在 loopback / tunnel 后面
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_GATEWAY_TOKEN="<gateway-token>"
+ACRE_ADMIN_CODEX_GATEWAY_PASSWORD="<gateway-password>"
+```
+
+### `ACRE_ADMIN_CODEX_AGENT_ID`
+
+用途：
+
+- 指定站内管理员助手调用的 OpenClaw agent
+- 默认值是 `acre-admin-help`
+- 生产应配置专用 agent，并在 OpenClaw 侧关闭或限制代码写入、数据库、部署、shell 等工具能力
+
+是否必填：
+
+- 非必填，但生产建议显式设置
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_AGENT_ID="acre-admin-help"
+```
+
+### `ACRE_ADMIN_CODEX_THINKING`
+
+用途：
+
+- 传给 OpenClaw/Codex agent 的 thinking level
+- 默认 `low`，减少延迟和资源占用
+
+是否必填：
+
+- 非必填
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_THINKING="low"
+```
+
+### `ACRE_ADMIN_CODEX_TIMEOUT_SECONDS`
+
+用途：
+
+- 单次管理员助手回答的 Codex agent 超时时间
+- 默认 `90`
+
+是否必填：
+
+- 非必填
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_TIMEOUT_SECONDS="90"
+```
+
+### `ACRE_ADMIN_CODEX_MAX_IMAGES` / `ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES` / `ACRE_ADMIN_CODEX_MAX_TOTAL_IMAGE_BYTES`
+
+用途：
+
+- 限制站内聊天一次最多上传多少张截图、单张大小、总大小
+- 默认分别是 `3`、`1048576`、`2097152`
+
+是否必填：
+
+- 非必填
+- 生产建议保持小尺寸，避免 Codex Gateway 占用过多内存
+
+示例格式：
+
+```env
+ACRE_ADMIN_CODEX_MAX_IMAGES="3"
+ACRE_ADMIN_CODEX_MAX_IMAGE_BYTES="1048576"
+ACRE_ADMIN_CODEX_MAX_TOTAL_IMAGE_BYTES="2097152"
+```
 
 补充说明：
 
