@@ -4,6 +4,7 @@ import {
   buildAbsoluteAppUrl,
   normalizeOperationalEmailRecipients,
   resolveFinanceNotificationEmail,
+  sendAgentTransactionCreatedOperationalEmail,
   sendOperationalEmail
 } from "./operational-email";
 
@@ -118,4 +119,52 @@ test("sendOperationalEmail falls back to SMTP when Resend is not configured", as
   assert.equal(result.deliveredCount, 1);
   assert.deepEqual(capturedSmtpInput?.["to"], ["agent@example.com"]);
   assert.equal(capturedSmtpInput?.["from"], "\"Acre Ops\" <ops@acresystem.us>");
+});
+
+test("sendAgentTransactionCreatedOperationalEmail can skip actor confirmation", async () => {
+  const sentSubjects: string[] = [];
+
+  await sendAgentTransactionCreatedOperationalEmail(
+    {
+      organizationId: "org_1",
+      baseUrl: "https://acresystem.us",
+      sendActorConfirmation: false,
+      transaction: {
+        id: "transaction_1",
+        title: "Agent-owned deal",
+        address: "",
+        city: "",
+        state: "",
+        status: "Pending",
+        ownerName: "Ada Agent",
+        ownerEmail: "agent@example.com",
+        officeName: "Acre NY Realty"
+      },
+      actorName: "Office Admin",
+      actorEmail: "admin@example.com"
+    },
+    {
+      email: {
+        env: {
+          ACRE_RESEND_API_KEY: "resend_key",
+          ACRE_FINANCE_NOTIFICATION_EMAIL: "finance@example.com"
+        } as unknown as NodeJS.ProcessEnv,
+        getOfficeEmailDeliverySettingsSnapshot: async () =>
+          ({
+            settings: {
+              source: "database",
+              isEnabled: true,
+              fromEmail: "ops@acresystem.us",
+              fromName: "Acre Ops",
+              replyTo: ""
+            }
+          }) as never,
+        sendResendEmail: async (input) => {
+          sentSubjects.push(input.subject);
+        }
+      }
+    }
+  );
+
+  assert.deepEqual(sentSubjects, ["New agent transaction created: Agent-owned deal"]);
 });
