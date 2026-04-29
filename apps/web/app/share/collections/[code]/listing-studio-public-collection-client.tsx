@@ -48,9 +48,6 @@ function formatFactLabel(value: string, isZh: boolean) {
     .replace(/\bBaths?\b/gi, "卫浴")
     .replace(/\bSq\.?\s?Ft\.?\b/gi, "平方英尺")
     .replace(/\bSquare Feet\b/gi, "平方英尺")
-    .replace(/\bCommon Charges\b/gi, "管理费")
-    .replace(/\bTax Abatement\b/gi, "税收减免")
-    .replace(/\bTaxes\b/gi, "房产税")
     .replace(/\bFor sale\b/gi, "出售")
     .replace(/\bRental\b/gi, "出租")
     .replace(/\bActive\b/gi, "在售")
@@ -68,6 +65,26 @@ function formatStatusLabel(
   }
 
   return formatFactLabel(value, isZh);
+}
+
+function formatFinanceLabel(label: string, isZh: boolean) {
+  if (!isZh) {
+    return label;
+  }
+
+  if (label === "Common Charges") {
+    return "公共管理费";
+  }
+
+  if (label === "Taxes") {
+    return "房产税";
+  }
+
+  if (label === "Tax Abatement") {
+    return "税务减免";
+  }
+
+  return label;
 }
 
 function getFacts(line: string, isZh: boolean) {
@@ -155,10 +172,10 @@ function ListingStudioCollectionDetailView(props: {
   const sqft = getFactValue(listing, [/sqft|square/i], 2, isZh);
   const amenities = getAmenities(listing);
   const listingTypeLabel = formatListingTypeLabel(listing.listingType, isZh);
-  const financialHighlights = useMemo(
-    () => collectListingStudioFinancialHighlights(listing),
-    [listing],
-  );
+  const financeHighlights = collectListingStudioFinancialHighlights({
+    facts: listing.facts,
+    sourceFacts: listing.sourceFacts,
+  });
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -255,12 +272,12 @@ function ListingStudioCollectionDetailView(props: {
         </section>
 
         <section
-          aria-label={isZh ? "房源费用" : "Listing fees"}
+          aria-label={isZh ? "房源费用" : "Listing financial details"}
           className="listing-studio-collection-share-detail-finance"
         >
-          {financialHighlights.map((item) => (
+          {financeHighlights.map((item) => (
             <div key={item.key}>
-              <span>{formatFactLabel(item.label, isZh)}</span>
+              <span>{formatFinanceLabel(item.label, isZh)}</span>
               <strong>{item.value}</strong>
             </div>
           ))}

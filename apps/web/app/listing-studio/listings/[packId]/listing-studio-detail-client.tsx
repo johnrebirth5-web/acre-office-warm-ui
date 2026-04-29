@@ -2503,18 +2503,14 @@ export function ListingStudioDetailClient({
                   ) : null}
 
                   {financialHighlights.length ? (
-                    <div
-                      aria-label={isZh ? "房源费用" : "Listing fees"}
-                      className="listing-studio-view-finance-row"
-                    >
+                    <div className="listing-studio-view-chip-row">
                       {financialHighlights.map((item) => (
-                        <div
-                          className={`listing-studio-view-finance-card is-${item.key}`}
-                          key={item.key}
+                        <span
+                          className="listing-studio-view-chip"
+                          key={item.label}
                         >
-                          <span>{formatListingDetailText(item.label, isZh)}</span>
-                          <strong>{item.value}</strong>
-                        </div>
+                          {formatListingDetailText(item.label, isZh)} {item.value}
+                        </span>
                       ))}
                     </div>
                   ) : null}

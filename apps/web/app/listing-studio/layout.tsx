@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { canAccessListingStudio } from "@acre/auth";
+import { getStudioListingPackCollectionShare } from "@acre/db";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../lib/auth-session";
 import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
 import { FrontOfficeAccessNotice } from "../agent/_components/front-office-access-notice";
@@ -10,6 +13,22 @@ export default async function ListingStudioLayout({
 }: {
   children: ReactNode;
 }) {
+  const headerStore = await headers();
+  const currentPath = headerStore.get("x-acre-current-path") ?? "";
+  const listingDetailMatch = currentPath.match(
+    /^\/listing-studio\/listings\/([^/?#]+)(?:[?#].*)?$/,
+  );
+
+  if (listingDetailMatch) {
+    const collectionShare = await getStudioListingPackCollectionShare({
+      packId: decodeURIComponent(listingDetailMatch[1] ?? ""),
+    });
+
+    if (collectionShare) {
+      redirect(`/share/collections/${collectionShare.shareCode}`);
+    }
+  }
+
   const context = await requireSessionContext();
   const canViewStudio = canAccessListingStudio(context.currentMembership);
 
