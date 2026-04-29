@@ -341,6 +341,7 @@ export {
 } from "./agent-1099-tracker";
 export {
   createAgentPayoutStatement,
+  getAgentPayoutStatementEmailContext,
   getAgentPayoutStatementQuickBooksBillDraft,
   getOfficeAgentPayoutStatementDetail,
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
@@ -797,6 +798,7 @@ export type {
 } from "./accounting";
 export type {
   CreateAgentPayoutStatementInput,
+  AgentPayoutStatementEmailContext,
   AgentPayoutStatementQuickBooksBillDraft,
   AgentPayoutStatementQuickBooksBillDraftLine,
   GetAgentPayoutStatementQuickBooksBillDraftInput,

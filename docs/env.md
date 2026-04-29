@@ -261,6 +261,28 @@ ACRE_BASE_URL="https://acresystem.us"
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
 
+### `ACRE_FINANCE_NOTIFICATION_EMAIL`
+
+用途：
+
+- 接收 Back Office operational email reminders，例如 agent 创建 transaction、transaction closed、payout statement 生成 / 发送 / agent 回复、以及 payout statement post 到 QuickBooks unpaid bill
+- 当前由 `apps/web/lib/operational-email.ts` 读取
+
+是否必填：
+
+- 非必填
+- 缺失时默认使用 `pay@acreny.us`
+
+示例格式：
+
+```env
+ACRE_FINANCE_NOTIFICATION_EMAIL="pay@acreny.us"
+```
+
+缺失后的影响：
+
+- 财务提醒仍会发送到默认邮箱 `pay@acreny.us`
+
 ### QuickBooks Online unpaid bill sync
 
 用途：

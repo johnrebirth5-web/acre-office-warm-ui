@@ -1,5 +1,6 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
 import {
+  getAgentPayoutStatementEmailContext,
   getAgentPayoutStatementQuickBooksBillDraft,
   markAgentPayoutStatementQuickBooksBillFailed,
   markAgentPayoutStatementQuickBooksBillPosted,
@@ -9,6 +10,12 @@ import {
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import {
+  appendOperationalEmailWarning,
+  captureOperationalEmailWarning,
+  sendPayoutStatementQuickBooksPostedOperationalEmail
+} from "../../../../../../../lib/operational-email";
+import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
 
 type RouteContext = {
   params: Promise<{
@@ -22,6 +29,8 @@ type QuickBooksBillRouteDependencies = {
   markAgentPayoutStatementQuickBooksBillPosted?: typeof markAgentPayoutStatementQuickBooksBillPosted;
   postQuickBooksBill?: typeof postQuickBooksBill;
   saveAgentProfile?: typeof saveAgentProfile;
+  getAgentPayoutStatementEmailContext?: typeof getAgentPayoutStatementEmailContext;
+  sendPayoutStatementQuickBooksPostedOperationalEmail?: typeof sendPayoutStatementQuickBooksPostedOperationalEmail;
 };
 
 type QuickBooksBillPostResult = {
@@ -564,7 +573,7 @@ export async function postQuickBooksBill(
 }
 
 export async function handlePostAccountingStatementQuickBooksBillPost(
-  _request: NextRequest,
+  request: NextRequest,
   statementId: string,
   context: SessionMembershipContext,
   dependencies: QuickBooksBillRouteDependencies = {}
@@ -644,7 +653,30 @@ export async function handlePostAccountingStatementQuickBooksBillPost(
       return NextResponse.json({ error: "Statement not found." }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    const emailWarning = await captureOperationalEmailWarning("payout statement QuickBooks bill posted", async () => {
+      const statement = await (
+        dependencies.getAgentPayoutStatementEmailContext ?? getAgentPayoutStatementEmailContext
+      )({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null,
+        statementId
+      });
+
+      if (!statement) {
+        return;
+      }
+
+      await (
+        dependencies.sendPayoutStatementQuickBooksPostedOperationalEmail ??
+        sendPayoutStatementQuickBooksPostedOperationalEmail
+      )({
+        organizationId: context.currentOrganization.id,
+        baseUrl: getAppBaseUrl(request),
+        statement
+      });
+    });
+
+    return NextResponse.json(appendOperationalEmailWarning(result as Record<string, unknown>, emailWarning));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "QuickBooks bill was created, but Acre failed to record the posted state." },

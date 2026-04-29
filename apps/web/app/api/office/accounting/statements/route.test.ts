@@ -37,6 +37,30 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
+function createStatementEmailContext() {
+  return {
+    statementId: "statement_1",
+    membershipId: "membership_target",
+    agentLabel: "Ada Agent",
+    agentEmail: "agent@example.com",
+    organizationLabel: "Acre",
+    officeLabel: "Acre NY Realty",
+    periodLabel: "Apr 1, 2026 to Apr 30, 2026",
+    reviewStatus: "draft",
+    reviewStatusLabel: "Draft",
+    totalStatementAmountLabel: "$1,250.00",
+    totalStatementAmountValue: "1250",
+    invoiceNumbers: ["INV-1", "INV-2"],
+    lineItemCount: 2,
+    workspaceHref: "/office/accounting?membershipId=membership_target&statementId=statement_1",
+    selfServiceHref: "/office/payout-statements/statement_1",
+    quickBooksBillStatus: "not_posted",
+    quickBooksBillStatusLabel: "Not posted",
+    quickBooksBillId: "",
+    quickBooksBillDocNumber: ""
+  } as never;
+}
+
 test("handleCreateAccountingStatementPost returns 400 validation_error when membershipId is blank", async () => {
   const response = await handleCreateAccountingStatementPost(
     createStatementsRequest(
@@ -73,9 +97,10 @@ test("handleCreateAccountingStatementPost forwards normalized create payloads", 
       createAgentPayoutStatement: async (input) => {
         capturedInput = input as Record<string, unknown>;
         return {
-          id: "statement_1"
-        } as never;
-      }
+          statementId: "statement_1"
+        };
+      },
+      getAgentPayoutStatementEmailContext: async () => null
     }
   );
 
@@ -89,6 +114,40 @@ test("handleCreateAccountingStatementPost forwards normalized create payloads", 
     actorMembershipId: "membership_actor"
   });
   assert.deepEqual(await readJson(response), {
-    id: "statement_1"
+    statementId: "statement_1"
+  });
+});
+
+test("handleCreateAccountingStatementPost sends finance a generated statement reminder", async () => {
+  let capturedEmailInput: Record<string, unknown> | null = null;
+
+  const response = await handleCreateAccountingStatementPost(
+    createStatementsRequest(
+      JSON.stringify({
+        membershipId: "membership_target",
+        invoiceNumbers: ["INV-1"],
+        commissionCalculationIds: []
+      })
+    ),
+    createAccountingContext(),
+    {
+      createAgentPayoutStatement: async () => ({
+        statementId: "statement_1"
+      }),
+      getAgentPayoutStatementEmailContext: async (input) => {
+        assert.equal(input.statementId, "statement_1");
+        return createStatementEmailContext();
+      },
+      sendPayoutStatementGeneratedOperationalEmail: async (input) => {
+        capturedEmailInput = input as unknown as Record<string, unknown>;
+      }
+    }
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(capturedEmailInput?.["organizationId"], "org_1");
+  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+  assert.deepEqual(await readJson(response), {
+    statementId: "statement_1"
   });
 });

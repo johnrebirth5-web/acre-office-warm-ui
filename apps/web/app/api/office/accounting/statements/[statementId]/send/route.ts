@@ -1,11 +1,18 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
 import {
+  getAgentPayoutStatementEmailContext,
   sendAgentPayoutStatementToAgent,
   type SessionMembershipContext
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
+import {
+  appendOperationalEmailWarning,
+  captureOperationalEmailWarning,
+  sendPayoutStatementSentOperationalEmail
+} from "../../../../../../../lib/operational-email";
+import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
 import { sendAgentPayoutStatementBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -17,6 +24,8 @@ type RouteContext = {
 type StatementSendRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
   sendAgentPayoutStatementToAgent?: typeof sendAgentPayoutStatementToAgent;
+  getAgentPayoutStatementEmailContext?: typeof getAgentPayoutStatementEmailContext;
+  sendPayoutStatementSentOperationalEmail?: typeof sendPayoutStatementSentOperationalEmail;
 };
 
 export async function handleSendAccountingStatementPost(
@@ -55,7 +64,27 @@ export async function handleSendAccountingStatementPost(
       return NextResponse.json({ error: "Statement not found." }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    const emailWarning = await captureOperationalEmailWarning("payout statement sent", async () => {
+      const statement = await (
+        dependencies.getAgentPayoutStatementEmailContext ?? getAgentPayoutStatementEmailContext
+      )({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null,
+        statementId
+      });
+
+      if (!statement) {
+        return;
+      }
+
+      await (dependencies.sendPayoutStatementSentOperationalEmail ?? sendPayoutStatementSentOperationalEmail)({
+        organizationId: context.currentOrganization.id,
+        baseUrl: getAppBaseUrl(request),
+        statement
+      });
+    });
+
+    return NextResponse.json(appendOperationalEmailWarning(result as Record<string, unknown>, emailWarning));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to send the payout statement to the agent." },
