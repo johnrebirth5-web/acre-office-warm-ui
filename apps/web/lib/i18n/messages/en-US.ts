@@ -153,6 +153,7 @@ export const enUSMessages = {
       teams: "Teams",
       checklists: "Checklists",
       fields: "Fields",
+      adminAssistant: "Admin Assistant",
       commissionPlans: "Commission plans",
       mail: "Mail",
       notifications: "Notifications",

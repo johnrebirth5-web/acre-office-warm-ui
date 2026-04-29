@@ -311,6 +311,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current maturity:
   - `MVP`
 - Current notable behavior:
+  - `/office/admin-assistant` is now an `owner / office_admin` + `ai:use` entry page for the external `Acre Admin GPT` setup. The actual chat, screenshot upload, and image review stay in ChatGPT; Acre exposes only read-only OAuth-protected Actions for admin context, curated feature lookup, and bug triage.
   - `Users` is now the unified member workspace under `Settings`, combining internal account administration with the former agent roster / profile operational views.
   - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, admin unlock / reissue actions, and the member operational roster view.
   - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
@@ -321,6 +322,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, per-field deletion protection, hidden-field restore, and transaction-only required contact roles.
   - transaction search layouts now depend on the same transaction field visibility rules, so hidden or archived transaction fields no longer remain selectable in `/office/transactions`
 - Follow-up work:
+  - keep expanding the curated Admin GPT knowledge catalog as modules mature, without exposing write operations or business-record payloads
   - richer multi-office access controls
   - stronger template application behavior
   - broader settings coverage

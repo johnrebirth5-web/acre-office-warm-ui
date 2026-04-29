@@ -152,6 +152,7 @@ export const zhCNMessages = {
       teams: "团队",
       checklists: "清单",
       fields: "字段",
+      adminAssistant: "管理员助手",
       commissionPlans: "佣金计划",
       mail: "站内信",
       notifications: "通知",
