@@ -148,11 +148,11 @@ function IconTrash() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <path
-        d="M9 4.75h6m-8 3h10m-8.5 0 .55 9.2a1 1 0 0 0 1 .94h3.9a1 1 0 0 0 1-.94l.55-9.2M10 11.25v4.5m4-4.5v4.5"
+        d="M9 4.25h6m-9.25 3h12.5m-10.9 0 .78 11.15a1.45 1.45 0 0 0 1.45 1.35h4.84a1.45 1.45 0 0 0 1.45-1.35l.78-11.15M10.25 10.75v5.8m3.5-5.8v5.8"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.8"
+        strokeWidth="2.05"
       />
     </svg>
   );
