@@ -119,6 +119,7 @@ type PipelineWorkspaceTransaction = {
   zipCode: string;
   purchasedPrice: Prisma.Decimal | null;
   price: Prisma.Decimal | null;
+  additionalFields: Prisma.JsonValue | null;
   grossCommission: Prisma.Decimal | null;
   officeNet: Prisma.Decimal | null;
   agentNet: Prisma.Decimal | null;
@@ -146,6 +147,7 @@ type PipelineMetricTransaction = Pick<
   | "createdAt"
   | "purchasedPrice"
   | "price"
+  | "additionalFields"
   | "grossCommission"
   | "officeNet"
   | "agentNet"
@@ -196,6 +198,7 @@ function buildPipelineMetricTransactionSelect(membershipIds: string[]) {
     createdAt: true,
     purchasedPrice: true,
     price: true,
+    additionalFields: true,
     grossCommission: true,
     officeNet: true,
     agentNet: true,
@@ -217,6 +220,7 @@ function buildPipelineRowTransactionSelect(membershipIds: string[]) {
     zipCode: true,
     purchasedPrice: true,
     price: true,
+    additionalFields: true,
     grossCommission: true,
     officeNet: true,
     agentNet: true,
@@ -410,14 +414,61 @@ function isMyMetricMode(metricMode: OfficePipelineMetricMode) {
   return metricMode === "my_net_income" || metricMode === "my_gross_commission" || metricMode === "my_sales_volume";
 }
 
-function getPurchasedPriceValue(transaction: Pick<PipelineWorkspaceTransaction, "purchasedPrice" | "price">) {
-  return Number(transaction.purchasedPrice ?? transaction.price ?? 0);
+function parsePipelineNumber(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const normalized = value.replaceAll(",", "").replace(/\$/g, "").trim();
+
+  if (!normalized) {
+    return 0;
+  }
+
+  const numeric = Number(normalized);
+
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function getLegacySalesVolumeValue(additionalFields: Prisma.JsonValue | null | undefined) {
+  if (!additionalFields || typeof additionalFields !== "object" || Array.isArray(additionalFields)) {
+    return 0;
+  }
+
+  return parsePipelineNumber((additionalFields as Record<string, unknown>).legacySalesVolume);
+}
+
+function getPurchasedPriceValue(transaction: Pick<PipelineWorkspaceTransaction, "purchasedPrice" | "price" | "additionalFields">) {
+  const purchasedPrice = Number(transaction.purchasedPrice ?? 0);
+
+  if (Number.isFinite(purchasedPrice) && purchasedPrice > 0) {
+    return purchasedPrice;
+  }
+
+  const price = Number(transaction.price ?? 0);
+
+  if (Number.isFinite(price) && price > 0) {
+    return price;
+  }
+
+  return getLegacySalesVolumeValue(transaction.additionalFields);
 }
 
 function getTransactionMetricValue(
   transaction: Pick<
     PipelineWorkspaceTransaction,
-    "purchasedPrice" | "price" | "grossCommission" | "officeNet" | "agentNet" | "ownerMembershipId" | "commissionCalculations"
+    | "purchasedPrice"
+    | "price"
+    | "additionalFields"
+    | "grossCommission"
+    | "officeNet"
+    | "agentNet"
+    | "ownerMembershipId"
+    | "commissionCalculations"
   >,
   metricMode: OfficePipelineMetricMode,
   membershipIds: string[]

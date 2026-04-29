@@ -20,6 +20,7 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
   - office gross
   - my net income
   - my sales volume
+- sales volume uses the normalized purchased price first, then falls back to the legacy imported `legacySalesVolume` value when an older imported record stored `0` in the normalized price fields
 - office-level metrics are visible only to `owner` and `office_admin`
 - personal `my_*` metrics stay self-scoped even when the viewer has team visibility elsewhere:
   - `team leader` sees only deals where they are directly involved when a `my_*` metric is selected
