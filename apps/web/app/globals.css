@@ -7000,9 +7000,9 @@ a {
 
 .office-admin-gpt-chatbox {
   display: flex;
-  min-height: min(620px, calc(100vh - 360px));
+  min-height: min(720px, calc(100vh - 290px));
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   border: 1px solid var(--office-border);
   border-radius: var(--office-radius-lg);
   background:
@@ -7011,13 +7011,19 @@ a {
   padding: 18px;
 }
 
+.office-admin-gpt-chatbox.is-dragging {
+  border-color: #7da2df;
+  box-shadow: 0 0 0 3px rgba(87, 128, 194, 0.14);
+}
+
 .office-admin-gpt-thread {
   display: flex;
   flex: 1;
-  min-height: 420px;
+  min-height: 500px;
   flex-direction: column;
   gap: 14px;
-  justify-content: flex-end;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .office-admin-gpt-message {
@@ -7044,6 +7050,7 @@ a {
   color: var(--office-text);
   font-size: 0.96rem;
   line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .office-admin-gpt-message-user {
@@ -7055,40 +7062,149 @@ a {
   align-self: flex-start;
 }
 
+.office-admin-gpt-typing,
+.office-admin-gpt-error {
+  border-radius: var(--office-radius-sm);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+
+.office-admin-gpt-typing {
+  align-self: flex-start;
+  background: #eef4f0;
+  color: #2f694a;
+}
+
+.office-admin-gpt-error {
+  border: 1px solid #f1c7c7;
+  background: #fff4f4;
+  color: #9a2c2c;
+}
+
 .office-admin-gpt-composer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 12px;
   border: 1px solid var(--office-border-strong);
   border-radius: var(--office-radius-md);
   background: var(--office-surface);
   padding: 14px 16px;
 }
 
-.office-admin-gpt-composer span {
+.office-admin-gpt-textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border: 0;
+  color: var(--office-text);
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+}
+
+.office-admin-gpt-textarea::placeholder {
   color: var(--office-text-muted);
-  font-size: 0.94rem;
-  line-height: 1.4;
+}
+
+.office-admin-gpt-textarea:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.office-admin-gpt-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.office-admin-gpt-drop-hint {
+  flex: 1;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+}
+
+.office-admin-gpt-file-input {
+  display: none;
+}
+
+.office-admin-gpt-attachment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.office-admin-gpt-attachment {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 48px minmax(0, 1fr) 28px;
+  gap: 10px;
+  max-width: 360px;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-sm);
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.office-admin-gpt-attachment img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.office-admin-gpt-attachment strong,
+.office-admin-gpt-attachment span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-admin-gpt-attachment strong {
+  color: var(--office-text);
+  font-size: 0.82rem;
+}
+
+.office-admin-gpt-attachment span {
+  color: var(--office-text-muted);
+  font-size: 0.74rem;
+}
+
+.office-admin-gpt-attachment button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--office-border);
+  border-radius: 999px;
+  background: var(--office-surface);
+  color: var(--office-text-muted);
+  cursor: pointer;
+  font-weight: 800;
+  line-height: 1;
 }
 
 @media (max-width: 760px) {
   .office-admin-gpt-chatbox {
-    min-height: 560px;
+    min-height: 640px;
     padding: 14px;
   }
 
   .office-admin-gpt-thread {
-    min-height: 360px;
+    min-height: 420px;
   }
 
   .office-admin-gpt-message {
     max-width: 100%;
   }
 
-  .office-admin-gpt-composer {
+  .office-admin-gpt-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .office-admin-gpt-drop-hint {
+    flex: unset;
   }
 }
 
