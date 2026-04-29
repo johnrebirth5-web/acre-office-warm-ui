@@ -55,6 +55,8 @@ type SettingCandidate = {
   impactedTransactionCount: number;
   earliestTransactionCreatedAt: string;
   latestTransactionCreatedAt: string;
+  earliestEffectiveAt: string;
+  latestEffectiveAt: string;
   sampleTransactions: string[];
   action: "ready" | "updated" | "skip";
   blockers: string[];
@@ -64,9 +66,30 @@ type SettingCandidate = {
 type SkippedTransaction = {
   transactionId: string;
   transactionLabel: string;
-  ownerLabel: string;
+  memberLabel: string;
   createdAt: string;
+  effectiveAt: string;
   reason: string;
+};
+
+type StoredCommissionContextMember = {
+  membershipId: string;
+  membershipLabel: string;
+  recipientRole: string;
+};
+
+type StoredCommissionContext = {
+  ownerMembershipId: string;
+  sourceDate: string;
+  members: StoredCommissionContextMember[];
+};
+
+type ImpactedCommissionSubject = {
+  transaction: TransactionSubject;
+  membershipId: string;
+  membershipLabel: string;
+  recipientRole: string;
+  effectiveAt: Date;
 };
 
 type Report = {
@@ -76,7 +99,7 @@ type Report = {
   transactionStatusesLabel: string;
   targetEffectiveFrom: string;
   scannedTransactions: number;
-  alreadyCoveredTransactions: number;
+  alreadyCoveredCommissionSubjects: number;
   candidateSettings: SettingCandidate[];
   skippedTransactions: SkippedTransaction[];
   summary: {
@@ -269,6 +292,7 @@ function printUsage() {
       "  --transaction-id <id>                Scan one transaction id. Can be repeated.",
       "  --transaction-ids <id,id>            Scan multiple transaction ids.",
       "  --include-existing-calculations      Include transactions that already have commission rows.",
+      "                                      Stored split-chain members are scanned when commissionContext exists.",
       "  --current-effective-from YYYY-MM-DD  Only update settings currently starting on this date.",
       "  --limit <n>                          Limit scanned transactions.",
       "",
@@ -395,6 +419,81 @@ function buildMembershipLabel(membership: TransactionSubject["ownerMembership"])
   return `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseStoredCommissionContext(value: Prisma.JsonValue | null | undefined): StoredCommissionContext | null {
+  if (!isRecord(value) || typeof value.ownerMembershipId !== "string" || !Array.isArray(value.members)) {
+    return null;
+  }
+
+  const members = value.members
+    .filter(isRecord)
+    .map((member) => ({
+      membershipId: typeof member.membershipId === "string" ? member.membershipId.trim() : "",
+      membershipLabel: typeof member.membershipLabel === "string" ? member.membershipLabel.trim() : "",
+      recipientRole: typeof member.recipientRole === "string" ? member.recipientRole.trim() : "Agent"
+    }))
+    .filter((member) => member.membershipId);
+
+  if (members.length === 0) {
+    return null;
+  }
+
+  return {
+    ownerMembershipId: value.ownerMembershipId,
+    sourceDate: typeof value.sourceDate === "string" ? value.sourceDate : "",
+    members
+  };
+}
+
+function parseEffectiveAt(value: string, fallback: Date) {
+  const parsed = value ? new Date(value) : null;
+
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : fallback;
+}
+
+function buildCommissionSubjects(transaction: TransactionSubject): ImpactedCommissionSubject[] {
+  const context = parseStoredCommissionContext(transaction.commissionContext);
+
+  if (context && context.ownerMembershipId === transaction.ownerMembershipId) {
+    const effectiveAt = parseEffectiveAt(context.sourceDate, transaction.createdAt);
+    const seenMembershipIds = new Set<string>();
+
+    return context.members
+      .filter((member) => {
+        if (seenMembershipIds.has(member.membershipId)) {
+          return false;
+        }
+
+        seenMembershipIds.add(member.membershipId);
+        return true;
+      })
+      .map((member) => ({
+        transaction,
+        membershipId: member.membershipId,
+        membershipLabel: member.membershipLabel || member.membershipId,
+        recipientRole: member.recipientRole || "Agent",
+        effectiveAt
+      }));
+  }
+
+  if (!transaction.ownerMembershipId) {
+    return [];
+  }
+
+  return [
+    {
+      transaction,
+      membershipId: transaction.ownerMembershipId,
+      membershipLabel: buildMembershipLabel(transaction.ownerMembership),
+      recipientRole: "Owner",
+      effectiveAt: transaction.createdAt
+    }
+  ];
+}
+
 function settingMatchesOffice(setting: Pick<MembershipCommissionSetting, "officeId">, officeId: string) {
   return setting.officeId === officeId || setting.officeId === null;
 }
@@ -424,7 +523,7 @@ function addCount(target: Record<string, number>, key: string) {
 
 function buildCandidateForSetting(input: {
   setting: MembershipCommissionSetting;
-  transactions: TransactionSubject[];
+  subjects: ImpactedCommissionSubject[];
   targetEffectiveFrom: Date;
   currentEffectiveFrom?: Date;
   exactScopeSettings: MembershipCommissionSetting[];
@@ -432,11 +531,11 @@ function buildCandidateForSetting(input: {
 }): SettingCandidate {
   const blockers: string[] = [];
   const warnings: string[] = [];
-  const sortedTransactions = [...input.transactions].sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
-  const earliestTransaction = sortedTransactions[0];
-  const latestTransaction = sortedTransactions[sortedTransactions.length - 1] ?? earliestTransaction;
+  const sortedSubjects = [...input.subjects].sort((left, right) => left.effectiveAt.getTime() - right.effectiveAt.getTime());
+  const earliestSubject = sortedSubjects[0];
+  const latestSubject = sortedSubjects[sortedSubjects.length - 1] ?? earliestSubject;
 
-  if (!earliestTransaction || !latestTransaction) {
+  if (!earliestSubject || !latestSubject) {
     blockers.push("No impacted transactions were found for this setting.");
   }
 
@@ -448,8 +547,8 @@ function buildCandidateForSetting(input: {
     blockers.push("Target effectiveFrom is not earlier than the current setting start date.");
   }
 
-  if (earliestTransaction && input.targetEffectiveFrom > earliestTransaction.createdAt) {
-    blockers.push("Target effectiveFrom is later than at least one impacted transaction createdAt.");
+  if (earliestSubject && input.targetEffectiveFrom > earliestSubject.effectiveAt) {
+    blockers.push("Target effectiveFrom is later than at least one impacted transaction source date.");
   }
 
   if (input.setting.effectiveTo && input.targetEffectiveFrom > input.setting.effectiveTo) {
@@ -464,8 +563,11 @@ function buildCandidateForSetting(input: {
     blockers.push(`Another same-scope setting is already active on ${formatDate(input.targetEffectiveFrom)}.`);
   }
 
-  const sampleTransactions = sortedTransactions.slice(0, 5).map((transaction) => buildTransactionLabel(transaction));
-  const membershipLabel = buildMembershipLabel(earliestTransaction?.ownerMembership ?? null);
+  const sampleTransactions = sortedSubjects.slice(0, 5).map((subject) => {
+    const roleSuffix = subject.recipientRole ? ` · ${subject.recipientRole}` : "";
+    return `${buildTransactionLabel(subject.transaction)}${roleSuffix}`;
+  });
+  const membershipLabel = earliestSubject?.membershipLabel ?? input.setting.membershipId;
 
   return {
     settingId: input.setting.id,
@@ -475,9 +577,11 @@ function buildCandidateForSetting(input: {
     currentEffectiveFrom: formatDate(input.setting.effectiveFrom),
     targetEffectiveFrom: formatDate(input.targetEffectiveFrom),
     agentPercent: String(input.setting.agentPercent),
-    impactedTransactionCount: input.transactions.length,
-    earliestTransactionCreatedAt: earliestTransaction ? formatDateTime(earliestTransaction.createdAt) : "",
-    latestTransactionCreatedAt: latestTransaction ? formatDateTime(latestTransaction.createdAt) : "",
+    impactedTransactionCount: input.subjects.length,
+    earliestTransactionCreatedAt: earliestSubject ? formatDateTime(earliestSubject.transaction.createdAt) : "",
+    latestTransactionCreatedAt: latestSubject ? formatDateTime(latestSubject.transaction.createdAt) : "",
+    earliestEffectiveAt: earliestSubject ? formatDateTime(earliestSubject.effectiveAt) : "",
+    latestEffectiveAt: latestSubject ? formatDateTime(latestSubject.effectiveAt) : "",
     sampleTransactions,
     action: blockers.length > 0 ? "skip" : "ready",
     blockers,
@@ -514,13 +618,14 @@ async function runBackdate(options: CliOptions): Promise<Report> {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     ...(options.limit ? { take: options.limit } : {})
   });
-  const ownerMembershipIds = Array.from(new Set(transactions.map((transaction) => transaction.ownerMembershipId).filter(Boolean))) as string[];
-  const settings = ownerMembershipIds.length
+  const commissionSubjects = transactions.flatMap(buildCommissionSubjects);
+  const subjectMembershipIds = Array.from(new Set(commissionSubjects.map((subject) => subject.membershipId)));
+  const settings = subjectMembershipIds.length
     ? await prisma.membershipCommissionSetting.findMany({
         where: {
           organizationId: organization.id,
           membershipId: {
-            in: ownerMembershipIds
+            in: subjectMembershipIds
           },
           OR: [{ officeId: office.id }, { officeId: null }]
         },
@@ -535,62 +640,50 @@ async function runBackdate(options: CliOptions): Promise<Report> {
     settingsByMembershipId.set(setting.membershipId, current);
   }
 
-  let alreadyCoveredTransactions = 0;
+  let alreadyCoveredCommissionSubjects = 0;
   const skippedTransactions: SkippedTransaction[] = [];
-  const impactedTransactionsBySettingId = new Map<string, TransactionSubject[]>();
+  const impactedSubjectsBySettingId = new Map<string, ImpactedCommissionSubject[]>();
   const settingById = new Map(settings.map((setting) => [setting.id, setting]));
 
-  for (const transaction of transactions) {
-    const ownerMembershipId = transaction.ownerMembershipId;
-
-    if (!ownerMembershipId) {
-      skippedTransactions.push({
-        transactionId: transaction.id,
-        transactionLabel: buildTransactionLabel(transaction),
-        ownerLabel: "Unassigned",
-        createdAt: formatDateTime(transaction.createdAt),
-        reason: "Missing transaction owner membership."
-      });
-      continue;
-    }
-
-    const ownerSettings = (settingsByMembershipId.get(ownerMembershipId) ?? []).filter((setting) =>
+  for (const subject of commissionSubjects) {
+    const subjectSettings = (settingsByMembershipId.get(subject.membershipId) ?? []).filter((setting) =>
       settingMatchesOffice(setting, office.id)
     );
-    const activeAtCreated = ownerSettings.find((setting) => isSettingActiveAt(setting, transaction.createdAt));
+    const activeAtSourceDate = subjectSettings.find((setting) => isSettingActiveAt(setting, subject.effectiveAt));
 
-    if (activeAtCreated) {
-      alreadyCoveredTransactions += 1;
+    if (activeAtSourceDate) {
+      alreadyCoveredCommissionSubjects += 1;
       continue;
     }
 
-    const futureSetting = ownerSettings
-      .filter((setting) => setting.effectiveFrom > transaction.createdAt)
+    const futureSetting = subjectSettings
+      .filter((setting) => setting.effectiveFrom > subject.effectiveAt)
       .sort((left, right) => sortFutureSettings(left, right, office.id))[0];
 
     if (!futureSetting) {
       skippedTransactions.push({
-        transactionId: transaction.id,
-        transactionLabel: buildTransactionLabel(transaction),
-        ownerLabel: buildMembershipLabel(transaction.ownerMembership),
-        createdAt: formatDateTime(transaction.createdAt),
-        reason: "No current or future commission setting was found for the transaction owner."
+        transactionId: subject.transaction.id,
+        transactionLabel: buildTransactionLabel(subject.transaction),
+        memberLabel: `${subject.membershipLabel} (${subject.recipientRole})`,
+        createdAt: formatDateTime(subject.transaction.createdAt),
+        effectiveAt: formatDateTime(subject.effectiveAt),
+        reason: "No current or future commission setting was found for this split-chain member."
       });
       continue;
     }
 
-    const impactedTransactions = impactedTransactionsBySettingId.get(futureSetting.id) ?? [];
-    impactedTransactions.push(transaction);
-    impactedTransactionsBySettingId.set(futureSetting.id, impactedTransactions);
+    const impactedSubjects = impactedSubjectsBySettingId.get(futureSetting.id) ?? [];
+    impactedSubjects.push(subject);
+    impactedSubjectsBySettingId.set(futureSetting.id, impactedSubjects);
   }
 
-  const earliestImpactedCreatedAt = Array.from(impactedTransactionsBySettingId.values())
+  const earliestImpactedEffectiveAt = Array.from(impactedSubjectsBySettingId.values())
     .flat()
-    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime())[0]?.createdAt;
+    .sort((left, right) => left.effectiveAt.getTime() - right.effectiveAt.getTime())[0]?.effectiveAt;
   const targetEffectiveFrom =
-    options.targetEffectiveFrom ?? (earliestImpactedCreatedAt ? startOfUtcDay(earliestImpactedCreatedAt) : startOfUtcDay(new Date()));
-  const candidateSettings = Array.from(impactedTransactionsBySettingId.entries())
-    .map(([settingId, impactedTransactions]) => {
+    options.targetEffectiveFrom ?? (earliestImpactedEffectiveAt ? startOfUtcDay(earliestImpactedEffectiveAt) : startOfUtcDay(new Date()));
+  const candidateSettings = Array.from(impactedSubjectsBySettingId.entries())
+    .map(([settingId, impactedSubjects]) => {
       const setting = settingById.get(settingId);
 
       if (!setting) {
@@ -599,7 +692,7 @@ async function runBackdate(options: CliOptions): Promise<Report> {
 
       return buildCandidateForSetting({
         setting,
-        transactions: impactedTransactions,
+        subjects: impactedSubjects,
         targetEffectiveFrom,
         currentEffectiveFrom: options.currentEffectiveFrom,
         exactScopeSettings: (settingsByMembershipId.get(setting.membershipId) ?? []).filter(
@@ -656,7 +749,7 @@ async function runBackdate(options: CliOptions): Promise<Report> {
           : options.statuses.join(","),
     targetEffectiveFrom: formatDate(targetEffectiveFrom),
     scannedTransactions: transactions.length,
-    alreadyCoveredTransactions,
+    alreadyCoveredCommissionSubjects,
     candidateSettings,
     skippedTransactions,
     summary: {
@@ -688,7 +781,7 @@ function renderCandidate(candidate: SettingCandidate) {
 }
 
 function renderSkippedTransaction(skippedTransaction: SkippedTransaction) {
-  return `  ${skippedTransaction.transactionLabel} (${skippedTransaction.ownerLabel}, ${skippedTransaction.createdAt}) reason=${skippedTransaction.reason}`;
+  return `  ${skippedTransaction.transactionLabel} (${skippedTransaction.memberLabel}, source=${skippedTransaction.effectiveAt}) reason=${skippedTransaction.reason}`;
 }
 
 function renderReport(report: Report) {
@@ -703,13 +796,13 @@ function renderReport(report: Report) {
     `Transaction status scope: ${report.transactionStatusesLabel}`,
     `Target effectiveFrom: ${report.targetEffectiveFrom}`,
     `Transactions scanned: ${report.scannedTransactions}`,
-    `Transactions already covered by an active setting: ${report.alreadyCoveredTransactions}`,
+    `Split-chain members already covered by an active setting: ${report.alreadyCoveredCommissionSubjects}`,
     "",
     "Summary:",
     `  ready settings: ${report.summary.readySettings}`,
     `  updated settings: ${report.summary.updatedSettings}`,
     `  blocked settings: ${report.summary.blockedSettings}`,
-    `  impacted transactions: ${report.summary.impactedTransactions}`,
+    `  impacted split-chain members: ${report.summary.impactedTransactions}`,
     `  skipped transactions: ${report.summary.skippedTransactions}`,
     "",
     "Setting blockers:",
