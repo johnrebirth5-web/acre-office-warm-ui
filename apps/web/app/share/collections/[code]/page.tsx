@@ -19,6 +19,8 @@ export default async function ListingStudioPublicCollectionPage(
   const searchParams = (await props.searchParams) ?? {};
   const viewerFingerprint =
     typeof searchParams.viewer === "string" ? searchParams.viewer : null;
+  const initialListingPackId =
+    typeof searchParams.listing === "string" ? searchParams.listing : null;
   const headerStore = await headers();
   const rateLimitDecision = await consumePublicTokenRateLimit({
     scope: "public/listing-studio/collections/read",
@@ -45,5 +47,10 @@ export default async function ListingStudioPublicCollectionPage(
     notFound();
   }
 
-  return <ListingStudioPublicCollectionClient snapshot={snapshot} />;
+  return (
+    <ListingStudioPublicCollectionClient
+      initialListingPackId={initialListingPackId}
+      snapshot={snapshot}
+    />
+  );
 }

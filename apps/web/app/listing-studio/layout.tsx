@@ -20,12 +20,17 @@ export default async function ListingStudioLayout({
   );
 
   if (listingDetailMatch) {
+    const packId = decodeURIComponent(listingDetailMatch[1] ?? "");
     const collectionShare = await getStudioListingPackCollectionShare({
-      packId: decodeURIComponent(listingDetailMatch[1] ?? ""),
+      packId,
     });
 
     if (collectionShare) {
-      redirect(`/share/collections/${collectionShare.shareCode}`);
+      redirect(
+        `/share/collections/${collectionShare.shareCode}?listing=${encodeURIComponent(
+          packId,
+        )}`,
+      );
     }
   }
 
