@@ -17,7 +17,11 @@ export default async function ListingStudioDetailPage(
   const collectionShare = await getStudioListingPackCollectionShare({ packId });
 
   if (collectionShare) {
-    redirect(`/share/collections/${collectionShare.shareCode}`);
+    redirect(
+      `/share/collections/${collectionShare.shareCode}?listing=${encodeURIComponent(
+        packId,
+      )}`,
+    );
   }
 
   const context = await requireSessionContext();

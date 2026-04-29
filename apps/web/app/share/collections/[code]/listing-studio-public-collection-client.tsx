@@ -339,12 +339,20 @@ function ListingStudioCollectionDetailView(props: {
 }
 
 export function ListingStudioPublicCollectionClient(props: {
+  initialListingPackId?: string | null;
   snapshot: PublicCollectionSnapshot;
 }) {
-  const { snapshot } = props;
+  const { initialListingPackId, snapshot } = props;
   const { locale } = useI18n();
   const isZh = locale === "zh-CN";
-  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const initialSelectedPackId =
+    initialListingPackId &&
+    snapshot.listings.some((listing) => listing.packId === initialListingPackId)
+      ? initialListingPackId
+      : null;
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(
+    initialSelectedPackId,
+  );
   const [emailCopyStatus, setEmailCopyStatus] = useState<string | null>(null);
   const emailCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedListing =
@@ -389,13 +397,23 @@ export function ListingStudioPublicCollectionClient(props: {
     };
   }, []);
 
+  useEffect(() => {
+    setSelectedPackId(initialSelectedPackId);
+  }, [initialSelectedPackId]);
+
   function openListing(packId: string) {
     setSelectedPackId(packId);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("listing", packId);
+    window.history.replaceState(null, "", nextUrl.toString());
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeListing() {
     setSelectedPackId(null);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("listing");
+    window.history.replaceState(null, "", nextUrl.toString());
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
