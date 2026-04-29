@@ -7,6 +7,11 @@ import { requireSessionContext } from "../../lib/auth-session";
 import { WorkspaceSessionStatus } from "../_components/workspace-session-status";
 import { FrontOfficeAccessNotice } from "../agent/_components/front-office-access-notice";
 import { AgentNav } from "../agent/agent-nav";
+import {
+  buildListingStudioCollectionShareListingHref,
+  getListingStudioShareReturnSourceFromPath,
+  getListingStudioShareReturnSourceFromReferrer,
+} from "./listing-studio-share-return";
 
 export default async function ListingStudioLayout({
   children,
@@ -21,15 +26,22 @@ export default async function ListingStudioLayout({
 
   if (listingDetailMatch) {
     const packId = decodeURIComponent(listingDetailMatch[1] ?? "");
+    const returnSource =
+      getListingStudioShareReturnSourceFromPath(currentPath) ??
+      getListingStudioShareReturnSourceFromReferrer(
+        headerStore.get("referer"),
+      );
     const collectionShare = await getStudioListingPackCollectionShare({
       packId,
     });
 
     if (collectionShare) {
       redirect(
-        `/share/collections/${collectionShare.shareCode}?listing=${encodeURIComponent(
+        buildListingStudioCollectionShareListingHref({
           packId,
-        )}`,
+          returnSource,
+          shareCode: collectionShare.shareCode,
+        }),
       );
     }
   }

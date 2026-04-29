@@ -4,23 +4,34 @@ import {
 } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../../lib/auth-session";
+import {
+  buildListingStudioCollectionShareListingHref,
+  normalizeListingStudioShareReturnSource,
+} from "../../listing-studio-share-return";
 import { ListingStudioDetailClient } from "./listing-studio-detail-client";
 
 type ListingStudioDetailPageProps = {
   params: Promise<{ packId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function ListingStudioDetailPage(
   props: ListingStudioDetailPageProps,
 ) {
   const { packId } = await props.params;
+  const searchParams = (await props.searchParams) ?? {};
+  const returnSource = normalizeListingStudioShareReturnSource(
+    typeof searchParams.from === "string" ? searchParams.from : null,
+  );
   const collectionShare = await getStudioListingPackCollectionShare({ packId });
 
   if (collectionShare) {
     redirect(
-      `/share/collections/${collectionShare.shareCode}?listing=${encodeURIComponent(
+      buildListingStudioCollectionShareListingHref({
         packId,
-      )}`,
+        returnSource,
+        shareCode: collectionShare.shareCode,
+      }),
     );
   }
 
