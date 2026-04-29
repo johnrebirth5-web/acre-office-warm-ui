@@ -330,17 +330,17 @@ export const ADMIN_GPT_FEATURE_CATALOG: AdminGptFeatureCatalogEntry[] = [
     status: "not_available",
     audience: "Acre administrators",
     summary:
-      "The admin GPT help connection is read-only. It must not change code, delete data, run migrations, deploy production, or bypass permissions.",
+      "The admin assistant is read-only. It must not change code, delete data, run migrations, deploy production, or bypass permissions.",
     howToUse: [
       "For code, database, or deployment changes, prepare a programmer handoff with page, steps, expected result, actual result, screenshots, and business impact.",
     ],
-    requiredAccess: "Not available through the admin GPT.",
+    requiredAccess: "Not available through the admin assistant.",
     limitations: [
-      "No write operations are exposed through the GPT Action service.",
-      "Secrets and credentials should never be pasted into ChatGPT or support tickets.",
+      "No write operations are exposed through the assistant.",
+      "Secrets and credentials should never be pasted into chat or support tickets.",
     ],
     bugSignals: [
-      "The GPT asks for credentials, proposes SQL, or claims it changed production. Treat that as out of scope.",
+      "The assistant asks for credentials, proposes SQL, or claims it changed production. Treat that as out of scope.",
     ],
     keywords: ["code", "database", "sql", "delete", "deploy", "migration", "代码", "数据库", "删除", "部署"],
   },
