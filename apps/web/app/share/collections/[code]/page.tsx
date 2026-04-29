@@ -5,6 +5,7 @@ import {
   consumePublicTokenRateLimit,
   PUBLIC_LISTING_STUDIO_SHARE_READ_RATE_LIMIT_OPTIONS,
 } from "../../../../lib/public-token-rate-limit";
+import { normalizeListingStudioShareReturnSource } from "../../../listing-studio/listing-studio-share-return";
 import { ListingStudioPublicCollectionClient } from "./listing-studio-public-collection-client";
 
 type ListingStudioPublicCollectionPageProps = {
@@ -21,6 +22,9 @@ export default async function ListingStudioPublicCollectionPage(
     typeof searchParams.viewer === "string" ? searchParams.viewer : null;
   const initialListingPackId =
     typeof searchParams.listing === "string" ? searchParams.listing : null;
+  const initialListingReturnSource = normalizeListingStudioShareReturnSource(
+    typeof searchParams.from === "string" ? searchParams.from : null,
+  );
   const headerStore = await headers();
   const rateLimitDecision = await consumePublicTokenRateLimit({
     scope: "public/listing-studio/collections/read",
@@ -50,6 +54,7 @@ export default async function ListingStudioPublicCollectionPage(
   return (
     <ListingStudioPublicCollectionClient
       initialListingPackId={initialListingPackId}
+      initialListingReturnSource={initialListingReturnSource}
       snapshot={snapshot}
     />
   );

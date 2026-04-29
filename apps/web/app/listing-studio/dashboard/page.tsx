@@ -57,6 +57,7 @@ export default async function ListingStudioDashboardPage() {
               snapshot.items.map((item) => (
                 <ListingStudioCard
                   canManageCompanyFeed={canManageCompanyFeed}
+                  detailReturnSource="dashboard"
                   item={item}
                   key={item.packId}
                   mode="dashboard"

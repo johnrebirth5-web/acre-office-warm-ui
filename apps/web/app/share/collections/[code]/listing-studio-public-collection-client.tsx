@@ -4,6 +4,7 @@ import type { StudioListingPublicCollectionSnapshot } from "@acre/db";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../../lib/i18n/client";
 import { collectListingStudioFinancialHighlights } from "../../../listing-studio/listing-studio-financial-highlights";
+import type { ListingStudioShareReturnSource } from "../../../listing-studio/listing-studio-share-return";
 import { ListingStudioPublicCollectionMap } from "./listing-studio-public-collection-map";
 
 type PublicCollectionSnapshot = StudioListingPublicCollectionSnapshot;
@@ -87,6 +88,27 @@ function formatFinanceLabel(label: string, isZh: boolean) {
   return label;
 }
 
+function formatBackLabel(
+  returnSource: ListingStudioShareReturnSource | null,
+  isZh: boolean,
+) {
+  if (returnSource === "dashboard") {
+    return isZh ? "返回 Dashboard" : "Back to Dashboard";
+  }
+
+  if (returnSource === "listings") {
+    return isZh ? "返回房源列表" : "Back to Listings";
+  }
+
+  return isZh ? "返回清单" : "Back to Collection";
+}
+
+function getReturnSourceHref(returnSource: ListingStudioShareReturnSource) {
+  return returnSource === "dashboard"
+    ? "/listing-studio/dashboard"
+    : "/listing-studio/listings";
+}
+
 function getFacts(line: string, isZh: boolean) {
   return line
     .split(" · ")
@@ -157,9 +179,10 @@ function ListingStudioCollectionDetailView(props: {
   listing: PublicCollectionListing;
   onCopyEmail: () => void;
   onBack: () => void;
+  returnSource: ListingStudioShareReturnSource | null;
   isZh: boolean;
 }) {
-  const { isZh, listing, onBack, onCopyEmail, snapshot } = props;
+  const { isZh, listing, onBack, onCopyEmail, returnSource, snapshot } = props;
   const galleryAssetIds = useMemo(() => getGalleryAssetIds(listing), [listing]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const currentAssetId = galleryAssetIds[currentImageIndex] ?? null;
@@ -186,7 +209,7 @@ function ListingStudioCollectionDetailView(props: {
       <header className="listing-studio-collection-share-detail-header">
         <button type="button" onClick={onBack}>
           <span aria-hidden="true">{"<"}</span>
-          {isZh ? "返回清单" : "Back to Collection"}
+          {formatBackLabel(returnSource, isZh)}
         </button>
         <strong>ACRE</strong>
       </header>
@@ -340,9 +363,14 @@ function ListingStudioCollectionDetailView(props: {
 
 export function ListingStudioPublicCollectionClient(props: {
   initialListingPackId?: string | null;
+  initialListingReturnSource?: ListingStudioShareReturnSource | null;
   snapshot: PublicCollectionSnapshot;
 }) {
-  const { initialListingPackId, snapshot } = props;
+  const {
+    initialListingPackId,
+    initialListingReturnSource = null,
+    snapshot,
+  } = props;
   const { locale } = useI18n();
   const isZh = locale === "zh-CN";
   const initialSelectedPackId =
@@ -358,7 +386,10 @@ export function ListingStudioPublicCollectionClient(props: {
   const selectedListing =
     snapshot.listings.find((listing) => listing.packId === selectedPackId) ??
     null;
-  const heroImageSrc = buildAssetSrc(snapshot.listings[0]?.heroAssetId ?? null, snapshot.code);
+  const heroImageSrc = buildAssetSrc(
+    snapshot.listings[0]?.heroAssetId ?? null,
+    snapshot.code,
+  );
   const contactPhoneHref = snapshot.contact.phone
     ? `tel:${snapshot.contact.phone}`
     : null;
@@ -410,6 +441,11 @@ export function ListingStudioPublicCollectionClient(props: {
   }
 
   function closeListing() {
+    if (initialListingReturnSource) {
+      window.location.assign(getReturnSourceHref(initialListingReturnSource));
+      return;
+    }
+
     setSelectedPackId(null);
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.delete("listing");
@@ -426,6 +462,7 @@ export function ListingStudioPublicCollectionClient(props: {
             listing={selectedListing}
             onCopyEmail={handleCopyEmail}
             onBack={closeListing}
+            returnSource={initialListingReturnSource}
             snapshot={snapshot}
           />
           {emailCopyStatus ? (

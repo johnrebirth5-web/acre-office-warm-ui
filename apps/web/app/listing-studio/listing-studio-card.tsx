@@ -9,6 +9,7 @@ import type {
   StudioListingListItem,
 } from "@acre/db";
 import { useI18n } from "../../lib/i18n/client";
+import type { ListingStudioShareReturnSource } from "./listing-studio-share-return";
 import { StudioCollectionPicker } from "./studio-collection-picker";
 
 type ListingStudioCardMode = "personal" | "dashboard";
@@ -36,6 +37,7 @@ type ListingStudioCardProps = {
   collectionPickerButtonLabel?: string;
   showDeleteAction?: boolean;
   deleteActionMode?: ListingStudioDeleteActionMode;
+  detailReturnSource?: ListingStudioShareReturnSource | null;
   canManageCompanyFeed?: boolean;
   onRemoveFromCollection?: ((packId: string) => Promise<void> | void) | null;
   removeFromCollectionLabel?: string;
@@ -165,6 +167,7 @@ export function ListingStudioCard({
   collectionPickerButtonLabel = "Add to collection",
   showDeleteAction = false,
   deleteActionMode = "delete_listing",
+  detailReturnSource = null,
   canManageCompanyFeed = false,
   onRemoveFromCollection = null,
   removeFromCollectionLabel = "Remove from collection",
@@ -175,6 +178,9 @@ export function ListingStudioCard({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const listingTypeLabel = getListingTypeLabel(item.listingType, isZh);
+  const detailHref = detailReturnSource
+    ? `/listing-studio/listings/${item.packId}?from=${detailReturnSource}`
+    : `/listing-studio/listings/${item.packId}`;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -468,7 +474,7 @@ export function ListingStudioCard({
 
         <Link
           className="listing-studio-card-link"
-          href={`/listing-studio/listings/${item.packId}`}
+          href={detailHref}
         >
           <div className="listing-studio-card-media">
             {listingTypeLabel || companyFeedMediaBadgeLabel ? (

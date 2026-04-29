@@ -236,6 +236,7 @@ export default async function ListingStudioListingsPage(
                         ? "remove_from_my_listings"
                         : "delete_listing"
                     }
+                    detailReturnSource="listings"
                     item={item}
                     key={item.packId}
                     showCollectionPicker
