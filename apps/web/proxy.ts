@@ -6,6 +6,7 @@ const API_CSRF_EXEMPT_PATHS = new Set([
   "/api/listing-studio/extension/connect/start",
   "/api/listing-studio/imports",
 ]);
+const CURRENT_PATH_HEADER = "x-acre-current-path";
 
 type ApiCsrfRequestLike = Pick<NextRequest, "method" | "headers" | "nextUrl">;
 
@@ -57,9 +58,31 @@ export function validateApiCsrf(request: ApiCsrfRequestLike) {
 }
 
 export function proxy(request: NextRequest) {
-  return validateApiCsrf(request) ?? NextResponse.next();
+  const csrfFailure = validateApiCsrf(request);
+
+  if (csrfFailure) {
+    return csrfFailure;
+  }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    CURRENT_PATH_HEADER,
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+  );
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/api/:path*",
+    "/agent/:path*",
+    "/change-password",
+    "/listing-studio/:path*",
+    "/office/:path*",
+  ],
 };

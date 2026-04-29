@@ -3,11 +3,12 @@ import { getDefaultAppPath, isOfficeRole, summarizeAccess } from "@acre/auth";
 import { ensureBootstrapAdminAccount, getSessionMembershipContext, type SessionMembershipContext } from "@acre/db";
 import type { NextRequest } from "next/server";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecrets, shouldUseSecureCookies } from "./auth-session-config";
 
 const SESSION_COOKIE_NAME = "acre_local_session";
+const LOGIN_NEXT_PATH_HEADER = "x-acre-current-path";
 
 type SessionPayload = {
   membershipId: string;
@@ -191,6 +192,58 @@ function isPasswordChangeBlocked(context: SessionMembershipContext | null, optio
   return Boolean(context?.currentCredential?.mustChangePassword) && !options?.allowPasswordChangeRequired;
 }
 
+export function sanitizeLoginNextPath(value: string | null | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//")) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed, "https://acre.local");
+    const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+
+    if (
+      normalized === "/login" ||
+      normalized.startsWith("/login?") ||
+      normalized.startsWith("/api/")
+    ) {
+      return null;
+    }
+
+    return normalized;
+  } catch {
+    return null;
+  }
+}
+
+export function buildLoginPagePath(input?: {
+  error?: string | null;
+  nextPath?: string | null;
+}) {
+  const params = new URLSearchParams();
+  const nextPath = sanitizeLoginNextPath(input?.nextPath);
+
+  if (input?.error) {
+    params.set("error", input.error);
+  }
+
+  if (nextPath) {
+    params.set("next", nextPath);
+  }
+
+  const query = params.toString();
+  return query ? `/login?${query}` : "/login";
+}
+
+async function buildMissingSessionRedirectPath() {
+  const headerStore = await headers();
+
+  return buildLoginPagePath({
+    nextPath: headerStore.get(LOGIN_NEXT_PATH_HEADER),
+  });
+}
+
 export async function ensureBootstrapAdminSessionAccount() {
   await ensureBootstrapAdminAccount();
 }
@@ -222,7 +275,7 @@ export async function requireSessionContext(options?: SessionContextOptions): Pr
   });
 
   if (!context) {
-    redirect("/login");
+    redirect(await buildMissingSessionRedirectPath());
   }
 
   if (isPasswordChangeBlocked(context, options)) {

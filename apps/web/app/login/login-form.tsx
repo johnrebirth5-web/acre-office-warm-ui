@@ -6,9 +6,10 @@ import { useI18n } from "../../lib/i18n/client";
 
 type LoginFormProps = {
   errorMessage: string;
+  nextPath?: string | null;
 };
 
-export function LoginForm({ errorMessage }: LoginFormProps) {
+export function LoginForm({ errorMessage, nextPath }: LoginFormProps) {
   const { t } = useI18n();
   const [workEmail, setWorkEmail] = useState("");
   const [workPassword, setWorkPassword] = useState("");
@@ -28,6 +29,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
 
   return (
     <form action="/api/auth/login" autoComplete={manualEntryEnabled ? "on" : "off"} className="auth-form" method="post">
+      {nextPath ? <input name="next" type="hidden" value={nextPath} /> : null}
       <label className="auth-field">
         <span>{t((messages) => messages.auth.workEmail)}</span>
         <input

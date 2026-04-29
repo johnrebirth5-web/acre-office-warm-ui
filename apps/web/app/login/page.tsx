@@ -1,5 +1,9 @@
 import { getDefaultAppPath } from "@acre/auth";
-import { getCurrentSessionContext, mustChangePassword } from "../../lib/auth-session";
+import {
+  getCurrentSessionContext,
+  mustChangePassword,
+  sanitizeLoginNextPath,
+} from "../../lib/auth-session";
 import { getServerI18n } from "../../lib/i18n/server";
 import { redirect } from "next/navigation";
 import { LocaleSwitcher } from "../_components/locale-switcher";
@@ -8,6 +12,7 @@ import { LoginForm } from "./login-form";
 type LoginPageProps = {
   searchParams?: Promise<{
     error?: string;
+    next?: string;
   }>;
 };
 
@@ -21,6 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   const params = searchParams ? await searchParams : undefined;
+  const nextPath = sanitizeLoginNextPath(params?.next);
   const { t } = await getServerI18n();
   const errorMessage =
     params?.error === "locked"
@@ -42,7 +48,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <p>{t((messages) => messages.auth.loginDescription)}</p>
           </div>
 
-          <LoginForm errorMessage={errorMessage} />
+          <LoginForm errorMessage={errorMessage} nextPath={nextPath} />
         </section>
       </section>
     </main>

@@ -3,9 +3,11 @@ import { authenticatePasswordUser } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import {
   createSessionCookieValueWithOfficeSelection,
+  buildLoginPagePath,
   getSessionCookieName,
   getSessionCookieSettings,
   mustChangePassword,
+  sanitizeLoginNextPath,
 } from "../../../../lib/auth-session";
 import { isSameOriginRequest } from "../../../../lib/csrf";
 import {
@@ -33,8 +35,15 @@ const DEFAULT_LOGIN_RATE_LIMIT_OPTIONS = {
   windowMs: 15 * 60 * 1000
 };
 
-function buildLoginRedirect(requestOrigin: string, error: string) {
-  return NextResponse.redirect(new URL(`/login?error=${error}`, requestOrigin), 303);
+function buildLoginRedirect(
+  requestOrigin: string,
+  error: string | null,
+  nextPath?: string | null,
+) {
+  return NextResponse.redirect(
+    new URL(buildLoginPagePath({ error, nextPath }), requestOrigin),
+    303,
+  );
 }
 
 function getLoginRateLimitKey(request: NextRequest, email: string) {
@@ -49,6 +58,7 @@ export async function handleLoginPost(request: NextRequest, dependencies: LoginR
   return (dependencies.withApiGuard ?? withApiGuard)<{
     email: string;
     password: string;
+    nextPath: string | null;
     requestOrigin: string;
   }>(
     request,
@@ -58,16 +68,25 @@ export async function handleLoginPost(request: NextRequest, dependencies: LoginR
       const result = await authenticate(prepared.email, prepared.password);
 
       if (result.status === "locked") {
-        return buildLoginRedirect(prepared.requestOrigin, "locked");
+        return buildLoginRedirect(
+          prepared.requestOrigin,
+          "locked",
+          prepared.nextPath,
+        );
       }
 
       if (result.status !== "success") {
-        return buildLoginRedirect(prepared.requestOrigin, "invalid_credentials");
+        return buildLoginRedirect(
+          prepared.requestOrigin,
+          "invalid_credentials",
+          prepared.nextPath,
+        );
       }
 
       const redirectPath = mustChangePassword(result.context)
         ? "/change-password"
-        : getDefaultAppPath(result.context.currentMembership);
+        : (prepared.nextPath ??
+          getDefaultAppPath(result.context.currentMembership));
       const response = NextResponse.redirect(
         new URL(redirectPath, prepared.requestOrigin),
         303,
@@ -105,6 +124,7 @@ export async function handleLoginPost(request: NextRequest, dependencies: LoginR
           password: String(
             formData.get("workPassword") ?? formData.get("password") ?? "",
           ),
+          nextPath: sanitizeLoginNextPath(String(formData.get("next") ?? "")),
           requestOrigin: (dependencies.getRequestOrigin ?? getRequestOrigin)(
             guardedRequest,
           ),
@@ -124,4 +144,14 @@ export async function handleLoginPost(request: NextRequest, dependencies: LoginR
 
 export async function POST(request: NextRequest) {
   return handleLoginPost(request);
+}
+
+export async function GET(request: NextRequest) {
+  const requestOrigin = getRequestOrigin(request);
+  const nextPath = sanitizeLoginNextPath(request.nextUrl.searchParams.get("next"));
+
+  return NextResponse.redirect(
+    new URL(buildLoginPagePath({ nextPath }), requestOrigin),
+    303,
+  );
 }
