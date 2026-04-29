@@ -5,10 +5,12 @@ import type { SessionMembershipContext } from "@acre/db";
 import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config.ts";
 import {
   createRequestSessionContextResolver,
+  buildLoginPagePath,
   createSessionCookieValue,
   createSessionCookieValueWithOfficeSelection,
   decodeSessionCookieValue,
   getSessionCookieName,
+  sanitizeLoginNextPath,
 } from "./auth-session.ts";
 
 function withEnv(
@@ -235,6 +237,33 @@ test("session cookies keep the expected internal-account defaults", () => {
     assert.equal(options.maxAge, 60 * 60 * 24 * 30);
     assert.equal(options.path, "/");
   });
+});
+
+test("login next paths only allow internal non-api destinations", () => {
+  assert.equal(
+    sanitizeLoginNextPath("/listing-studio/listings/pack_123?tab=photos"),
+    "/listing-studio/listings/pack_123?tab=photos",
+  );
+  assert.equal(sanitizeLoginNextPath("https://evil.example/office"), null);
+  assert.equal(sanitizeLoginNextPath("//evil.example/office"), null);
+  assert.equal(sanitizeLoginNextPath("/api/auth/login"), null);
+  assert.equal(sanitizeLoginNextPath("/login?next=/office"), null);
+});
+
+test("login page paths preserve safe next destinations with errors", () => {
+  assert.equal(
+    buildLoginPagePath({
+      error: "invalid_credentials",
+      nextPath: "/listing-studio/listings/pack_123",
+    }),
+    "/login?error=invalid_credentials&next=%2Flisting-studio%2Flistings%2Fpack_123",
+  );
+  assert.equal(
+    buildLoginPagePath({
+      nextPath: "/api/auth/login",
+    }),
+    "/login",
+  );
 });
 
 test("session decoding rejects cookies older than the configured max age", () => {

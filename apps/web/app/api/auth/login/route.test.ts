@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
 import { getSessionCookieName } from "../../../../lib/auth-session";
-import { handleLoginPost } from "./route";
+import { GET, handleLoginPost } from "./route";
 
 function createLoginRequest(formData: FormData, origin = "http://localhost:3105") {
   return new NextRequest(`${origin}/api/auth/login`, {
@@ -105,4 +105,98 @@ test("handleLoginPost preserves the successful redirect flow after csrf and rate
 
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, new RegExp(getSessionCookieName()));
+});
+
+test("handleLoginPost redirects to a safe requested next path after success", async () => {
+  const formData = new FormData();
+  formData.set("email", "agent@example.com");
+  formData.set("password", "correct-password");
+  formData.set("next", "/listing-studio/listings/pack_123");
+
+  const response = await handleLoginPost(createLoginRequest(formData), {
+    csrf: () => true,
+    rateLimit: () => ({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 60_000,
+      retryAfterSeconds: 60,
+    }),
+    authenticatePasswordUser: async () =>
+      ({
+        status: "success",
+        context: {
+          currentMembership: {
+            id: "membership_1",
+            role: "office_admin",
+            permissions: [],
+          },
+          currentCredential: {
+            mustChangePassword: false,
+          },
+          currentUser: {
+            email: "agent@example.com",
+            firstName: "Acre",
+            lastName: "Agent",
+            locale: "en-US",
+          },
+          currentOffice: {
+            id: "office_1",
+          },
+        },
+      }) as never,
+  });
+
+  assert.equal(response.status, 303);
+  assert.equal(
+    response.headers.get("location"),
+    "http://localhost:3105/listing-studio/listings/pack_123",
+  );
+});
+
+test("handleLoginPost preserves safe next path after invalid credentials", async () => {
+  const formData = new FormData();
+  formData.set("email", "agent@example.com");
+  formData.set("password", "bad-password");
+  formData.set("next", "/listing-studio/listings/pack_123");
+
+  const response = await handleLoginPost(createLoginRequest(formData), {
+    csrf: () => true,
+    rateLimit: () => ({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 60_000,
+      retryAfterSeconds: 60,
+    }),
+    authenticatePasswordUser: async () =>
+      ({
+        status: "invalid_credentials",
+      }) as never,
+  });
+
+  assert.equal(response.status, 303);
+  assert.equal(
+    response.headers.get("location"),
+    "http://localhost:3105/login?error=invalid_credentials&next=%2Flisting-studio%2Flistings%2Fpack_123",
+  );
+});
+
+test("GET /api/auth/login redirects to the login page instead of 405", async () => {
+  const response = await GET(
+    new NextRequest(
+      "http://localhost:3105/api/auth/login?next=/listing-studio/listings/pack_123",
+      {
+        headers: {
+          host: "localhost:3105",
+        },
+      },
+    ),
+  );
+
+  assert.equal(response.status, 303);
+  assert.equal(
+    response.headers.get("location"),
+    "http://localhost:3105/login?next=%2Flisting-studio%2Flistings%2Fpack_123",
+  );
 });
