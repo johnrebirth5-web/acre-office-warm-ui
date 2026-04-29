@@ -6998,20 +6998,98 @@ a {
   font-weight: 700;
 }
 
-.office-code-block {
-  margin: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  white-space: pre-wrap;
+.office-admin-gpt-chatbox {
+  display: flex;
+  min-height: min(620px, calc(100vh - 360px));
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(247, 249, 252, 0.94)),
+    var(--office-surface);
+  padding: 18px;
+}
+
+.office-admin-gpt-thread {
+  display: flex;
+  flex: 1;
+  min-height: 420px;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: flex-end;
+}
+
+.office-admin-gpt-message {
+  max-width: min(720px, 88%);
   border: 1px solid var(--office-border);
   border-radius: var(--office-radius-md);
-  background: var(--office-surface-muted);
-  color: var(--office-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-  font-size: 0.82rem;
-  line-height: 1.55;
+  background: var(--office-surface);
+  box-shadow: var(--office-shadow-soft);
   padding: 14px 16px;
+}
+
+.office-admin-gpt-message span {
+  display: block;
+  color: var(--office-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.office-admin-gpt-message p {
+  margin: 0;
+  color: var(--office-text);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.office-admin-gpt-message-user {
+  align-self: flex-end;
+  background: #eaf2ff;
+}
+
+.office-admin-gpt-message-assistant {
+  align-self: flex-start;
+}
+
+.office-admin-gpt-composer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--office-border-strong);
+  border-radius: var(--office-radius-md);
+  background: var(--office-surface);
+  padding: 14px 16px;
+}
+
+.office-admin-gpt-composer span {
+  color: var(--office-text-muted);
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .office-admin-gpt-chatbox {
+    min-height: 560px;
+    padding: 14px;
+  }
+
+  .office-admin-gpt-thread {
+    min-height: 360px;
+  }
+
+  .office-admin-gpt-message {
+    max-width: 100%;
+  }
+
+  .office-admin-gpt-composer {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .office-detail-field-wide {
