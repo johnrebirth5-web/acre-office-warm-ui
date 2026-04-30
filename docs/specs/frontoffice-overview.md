@@ -209,15 +209,17 @@ Later AI and commercialization:
 
 ### Dashboard
 
-Should aggregate:
+Should be action-first rather than a broad module summary page.
 
-- today's tasks
-- follow-up reminders
-- recent client activity
-- quick create lead entry
-- recent send / click summary
-- activity and notice cards
-- `Front Office` / `Back Office` switch
+Current dashboard contract:
+
+- the first screen is driven by `dailyActions`
+- `Next Actions` uses concrete client / appointment / listing rows with one primary action and limited secondary actions
+- summary chips stay capped to execution pressure: due follow-up, today schedule, hot signals, and needs handoff
+- Quick Capture opens as a drawer / mobile modal and only writes `Name`, `Budget`, `Target Area`, and `Follow-up Status` as structured lead fields; other extracted content belongs in `Note`
+- complete CRM, AI, listing, resources, and activity surfaces stay behind focused links instead of rendering as full dashboard sections
+- manager-only team pressure links to `/agent/notifications?activityView=team_cleanup`
+- formal transaction, accounting, signature, and archival work still hand off to `Back Office`
 
 ### CRM
 

@@ -14,6 +14,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import {
   buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiAcceptedActionBreakdownWindows,
@@ -120,18 +121,121 @@ export type FrontOfficeDashboardSummary = {
   aiSuggestionCount: number;
 };
 
-export type FrontOfficeDashboardActionQueueItem = {
+export type FrontOfficeDashboardDailyActionKind =
+  | "overdue_follow_up"
+  | "follow_up_due"
+  | "appointment_confirmation"
+  | "appointment_today"
+  | "appointment_reschedule"
+  | "external_touch_due"
+  | "listing_warm_signal"
+  | "listing_send_risk"
+  | "lease_window"
+  | "back_office_handoff"
+  | "duplicate_review"
+  | "ai_suggested_touch"
+  | "team_cleanup";
+
+export const frontOfficeDashboardDailyActionKinds = [
+  "overdue_follow_up",
+  "follow_up_due",
+  "appointment_confirmation",
+  "appointment_today",
+  "appointment_reschedule",
+  "external_touch_due",
+  "listing_warm_signal",
+  "listing_send_risk",
+  "lease_window",
+  "back_office_handoff",
+  "duplicate_review",
+  "ai_suggested_touch",
+  "team_cleanup",
+] as const satisfies FrontOfficeDashboardDailyActionKind[];
+
+export type FrontOfficeDashboardActionKind =
+  | FrontOfficeDashboardDailyActionKind
+  | "quick_capture";
+
+export const frontOfficeDashboardActionKinds = [
+  ...frontOfficeDashboardDailyActionKinds,
+  "quick_capture",
+] as const satisfies FrontOfficeDashboardActionKind[];
+
+export type FrontOfficeDashboardActionEventType =
+  | "action_rendered"
+  | "primary_clicked"
+  | "secondary_clicked"
+  | "mark_followed_up"
+  | "snooze"
+  | "create_follow_up"
+  | "appointment_writeback"
+  | "bridge_opened"
+  | "handoff_opened"
+  | "lead_created"
+  | "quick_capture_opened";
+
+export const frontOfficeDashboardActionEventTypes = [
+  "action_rendered",
+  "primary_clicked",
+  "secondary_clicked",
+  "mark_followed_up",
+  "snooze",
+  "create_follow_up",
+  "appointment_writeback",
+  "bridge_opened",
+  "handoff_opened",
+  "lead_created",
+  "quick_capture_opened",
+] as const satisfies FrontOfficeDashboardActionEventType[];
+
+export type FrontOfficeDashboardDailyActionCommandType =
+  | "mark_followed_up"
+  | "snooze"
+  | "create_follow_up"
+  | "appointment_writeback"
+  | "appointment_bridge"
+  | "download_ics"
+  | "open_href"
+  | "track_only";
+
+export type FrontOfficeDashboardDailyActionCommand = {
   id: string;
   label: string;
-  count: number;
+  type: FrontOfficeDashboardDailyActionCommandType;
+  href: string | null;
+  opensInNewTab: boolean;
+  clientId: string | null;
+  appointmentId: string | null;
+  listingId: string | null;
+  payload: {
+    externalStatus?: FrontOfficeAppointmentExternalWorkflowStatus;
+    bridgeAction?: "google_calendar" | "outlook_calendar" | "email_brief";
+    followUpTitle?: string;
+    followUpDueAt?: string;
+    sourceSurface?: "dashboard_queue";
+    completionEventType?: FrontOfficeDashboardActionEventType;
+    aiAcceptedAction?: {
+      sourceSurface: "dashboard_queue";
+      suggestionKind: FrontOfficeAiFollowUpKind;
+      suggestionLabel: string;
+      actionTitle?: string | null;
+    };
+  };
+};
+
+export type FrontOfficeDashboardDailyActionItem = {
+  id: string;
+  kind: FrontOfficeDashboardDailyActionKind;
+  priority: number;
   tone: FrontOfficeDashboardTone;
-  description: string;
-  helper: string;
-  sequenceLabel: string;
+  title: string;
   whyNowLabel: string;
-  nextStepLabel: string;
-  href: string;
-  actionLabel: string;
+  contextLabel: string;
+  clientId: string | null;
+  appointmentId: string | null;
+  listingId: string | null;
+  primaryAction: FrontOfficeDashboardDailyActionCommand;
+  secondaryActions: FrontOfficeDashboardDailyActionCommand[];
 };
 
 export type FrontOfficeDashboardStageMetric = {
@@ -303,27 +407,6 @@ type FrontOfficeDashboardLeadershipEngagementItem =
     _sortAt: Date;
   };
 
-function buildFrontOfficeDashboardActionSequenceLabel(
-  actionId: FrontOfficeDashboardActionQueueItem["id"],
-) {
-  switch (actionId) {
-    case "leadership":
-      return "Clear leadership pressure first";
-    case "follow-up":
-      return "Then work the next-touch clock";
-    case "commitments":
-      return "Keep calendar commitments in order";
-    case "lease-reminders":
-      return "Protect lease timing before it slips";
-    case "content":
-      return "Rescue the send-risk trail";
-    case "handoff":
-      return "Move formal work to Back Office";
-    default:
-      return "Keep the command deck in sequence";
-  }
-}
-
 function buildFrontOfficeDashboardAiSequenceLabel(
   suggestionKind: FrontOfficeDashboardAiQueueItem["suggestionKind"],
 ) {
@@ -440,7 +523,7 @@ type FrontOfficeDashboardAiCandidateItem = Omit<
 
 export type FrontOfficeDashboardSnapshot = {
   summary: FrontOfficeDashboardSummary;
-  actionQueue: FrontOfficeDashboardActionQueueItem[];
+  dailyActions: FrontOfficeDashboardDailyActionItem[];
   pipeline: {
     stageMetrics: FrontOfficeDashboardStageMetric[];
     recentClients: FrontOfficeDashboardClientItem[];
@@ -612,6 +695,7 @@ type GetFrontOfficeDashboardSnapshotInput = {
   viewerRole: UserRole;
   officeId?: string | null;
   timeZone?: string | null;
+  canUseAi?: boolean;
 };
 
 const openFollowUpStatuses: TaskStatus[] = [
@@ -1005,19 +1089,167 @@ function formatEventVisibilityLabel(
   return "Invite only";
 }
 
-type FrontOfficeClientWorkbenchView =
-  | "all"
-  | "follow_first"
-  | "anchor_now"
-  | "viewing_lane"
-  | "boundary_review"
-  | "duplicate_review";
+function buildDailyActionCommand(input: {
+  id: string;
+  label: string;
+  type: FrontOfficeDashboardDailyActionCommandType;
+  href?: string | null;
+  opensInNewTab?: boolean;
+  clientId?: string | null;
+  appointmentId?: string | null;
+  listingId?: string | null;
+  payload?: FrontOfficeDashboardDailyActionCommand["payload"];
+}): FrontOfficeDashboardDailyActionCommand {
+  return {
+    id: input.id,
+    label: input.label,
+    type: input.type,
+    href: input.href ?? null,
+    opensInNewTab: input.opensInNewTab ?? false,
+    clientId: input.clientId ?? null,
+    appointmentId: input.appointmentId ?? null,
+    listingId: input.listingId ?? null,
+    payload: input.payload ?? {},
+  };
+}
 
-function buildClientWorkbenchHref(
-  clientView: FrontOfficeClientWorkbenchView,
-  hash?: string,
-) {
-  return `/agent/clients?clientView=${clientView}${hash ? `#${hash}` : ""}`;
+function buildClientContextLabel(input: {
+  stage?: string | null;
+  followUpStatus?: string | null;
+  preferredAreas?: string[] | null;
+  budgetMax?: Prisma.Decimal | number | null;
+}) {
+  return [
+    input.followUpStatus
+      ? input.followUpStatus
+          .split("_")
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(" ")
+      : input.stage?.trim() || null,
+    input.preferredAreas?.length ? input.preferredAreas.slice(0, 2).join(", ") : null,
+    formatCurrency(input.budgetMax),
+  ]
+    .filter((value) => value && value !== "—")
+    .join(" · ");
+}
+
+function buildDailyActionClientCommands(input: {
+  clientId: string;
+  clientName: string;
+  followUpTitle: string;
+  clientHref: string;
+  listingId?: string | null;
+  listingHref?: string | null;
+}) {
+  return {
+    markFollowedUp: buildDailyActionCommand({
+      id: "mark-followed-up",
+      label: "Mark followed up",
+      type: "mark_followed_up",
+      clientId: input.clientId,
+    }),
+    snooze: buildDailyActionCommand({
+      id: "snooze",
+      label: "Snooze",
+      type: "snooze",
+      clientId: input.clientId,
+    }),
+    createFollowUp: buildDailyActionCommand({
+      id: "create-follow-up",
+      label: "Create follow-up",
+      type: "create_follow_up",
+      clientId: input.clientId,
+      listingId: input.listingId ?? null,
+      payload: {
+        followUpTitle: input.followUpTitle,
+        sourceSurface: "dashboard_queue",
+      },
+    }),
+    openClient: buildDailyActionCommand({
+      id: "open-client",
+      label: "Open client",
+      type: "open_href",
+      href: input.clientHref,
+      clientId: input.clientId,
+    }),
+    openListing: input.listingHref
+      ? buildDailyActionCommand({
+          id: "open-listing",
+          label: "Open listing",
+          type: "open_href",
+          href: input.listingHref,
+          clientId: input.clientId,
+          listingId: input.listingId ?? null,
+        })
+      : null,
+  };
+}
+
+function buildAppointmentBridgeCommands(input: {
+  appointmentId: string;
+  clientId?: string | null;
+  listingId?: string | null;
+  calendarHref: string;
+}) {
+  return [
+    buildDailyActionCommand({
+      id: "open-google-draft",
+      label: "Open Google draft",
+      type: "appointment_bridge",
+      href: `/api/agent/appointments/${input.appointmentId}/bridge?action=google_calendar`,
+      appointmentId: input.appointmentId,
+      clientId: input.clientId ?? null,
+      listingId: input.listingId ?? null,
+      opensInNewTab: true,
+      payload: {
+        bridgeAction: "google_calendar",
+      },
+    }),
+    buildDailyActionCommand({
+      id: "open-outlook-draft",
+      label: "Open Outlook draft",
+      type: "appointment_bridge",
+      href: `/api/agent/appointments/${input.appointmentId}/bridge?action=outlook_calendar`,
+      appointmentId: input.appointmentId,
+      clientId: input.clientId ?? null,
+      listingId: input.listingId ?? null,
+      opensInNewTab: true,
+      payload: {
+        bridgeAction: "outlook_calendar",
+      },
+    }),
+    buildDailyActionCommand({
+      id: "download-ics",
+      label: "Download ICS",
+      type: "download_ics",
+      href: `/api/agent/appointments/${input.appointmentId}/ics`,
+      appointmentId: input.appointmentId,
+      clientId: input.clientId ?? null,
+      listingId: input.listingId ?? null,
+    }),
+    buildDailyActionCommand({
+      id: "open-email-brief",
+      label: "Open email brief",
+      type: "appointment_bridge",
+      href: `/api/agent/appointments/${input.appointmentId}/bridge?action=email_brief`,
+      appointmentId: input.appointmentId,
+      clientId: input.clientId ?? null,
+      listingId: input.listingId ?? null,
+      opensInNewTab: true,
+      payload: {
+        bridgeAction: "email_brief",
+      },
+    }),
+    buildDailyActionCommand({
+      id: "open-calendar",
+      label: "Open calendar",
+      type: "open_href",
+      href: input.calendarHref,
+      appointmentId: input.appointmentId,
+      clientId: input.clientId ?? null,
+      listingId: input.listingId ?? null,
+    }),
+  ];
 }
 
 function formatAppointmentTypeLabel(type: AppointmentType) {
@@ -1222,6 +1454,11 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getMonth(),
     now.getDate() - 3,
   );
+  const twoDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 2,
+  );
   const sevenDaysAgo = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -1360,7 +1597,6 @@ export async function getFrontOfficeDashboardSnapshot(
     dueFollowUpClients,
     dueLeaseReminderClients,
     overdueLeaseReminderCount,
-    openFollowUpTaskCount,
     overdueFollowUpTaskCount,
     staleClientCount,
     stageGroups,
@@ -1398,12 +1634,16 @@ export async function getFrontOfficeDashboardSnapshot(
         },
       },
       orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
-      take: 3,
+      take: 8,
       select: {
         id: true,
         fullName: true,
         source: true,
         stage: true,
+        budgetMax: true,
+        preferredAreas: true,
+        followUpStatus: true,
+        followUpReminderMode: true,
         nextFollowUpAt: true,
         leaseReminderAt: true,
         lastContactAt: true,
@@ -1430,15 +1670,6 @@ export async function getFrontOfficeDashboardSnapshot(
         ...clientWhere,
         leaseReminderAt: {
           lt: startOfToday,
-        },
-      },
-    }),
-    prisma.followUpTask.count({
-      where: {
-        organizationId: input.organizationId,
-        assigneeMemberId: input.viewerMembershipId,
-        status: {
-          in: [...openFollowUpStatuses],
         },
       },
     }),
@@ -1632,6 +1863,7 @@ export async function getFrontOfficeDashboardSnapshot(
         },
         listing: {
           select: {
+            id: true,
             title: true,
           },
         },
@@ -1707,7 +1939,7 @@ export async function getFrontOfficeDashboardSnapshot(
     prisma.frontOfficeSendRecord.findMany({
       where: sendRecordWhere,
       orderBy: [{ sentAt: "desc" }],
-      take: 4,
+      take: 12,
       select: {
         id: true,
         channel: true,
@@ -1721,10 +1953,12 @@ export async function getFrontOfficeDashboardSnapshot(
           select: {
             id: true,
             fullName: true,
+            lastContactAt: true,
           },
         },
         listing: {
           select: {
+            id: true,
             title: true,
           },
         },
@@ -1785,6 +2019,7 @@ export async function getFrontOfficeDashboardSnapshot(
         },
         listing: {
           select: {
+            id: true,
             title: true,
           },
         },
@@ -3228,250 +3463,429 @@ export async function getFrontOfficeDashboardSnapshot(
     leadershipOverdueTaskCount +
     leadershipStaleClientCount +
     leadershipEngagementRiskCount;
-  const leadingFollowUpClient = dueFollowUpClients[0] ?? null;
-  const followUpPressureCount = Math.max(
-    dueFollowUpCount,
-    overdueFollowUpTaskCount,
-  );
-  const followUpAction =
-    followUpPressureCount === 1 && leadingFollowUpClient
-      ? {
-          href: buildClientWorkbenchHref("anchor_now"),
-          actionLabel: "Anchor now",
-        }
-      : {
-          href: buildClientWorkbenchHref("follow_first"),
-          actionLabel: "Open follow-first queue",
-        };
-  const leadingCommitmentItem = commitmentItems[0] ?? null;
-  const leadingLeaseReminderItem = leaseReminderItems[0] ?? null;
-  const leadingSendRecord = recentSendRecords[0] ?? null;
-  const leadingBackOfficeItem = backOfficeItems[0] ?? null;
   const leadingLeadershipItem = leadershipWorkbenchItems[0] ?? null;
   const leadershipNotificationsHref = leadingLeadershipItem
     ? `/agent/notifications?activityView=team_cleanup&teamCleanupFilter=${leadingLeadershipItem.kindKey}#team-cleanup-pressure`
     : "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
-  const sendSignalCount =
-    recentSendRecords.length > 0
-      ? recentSendRecords.length
-      : activeListingCount;
-  const leadingSendListingLabel =
-    leadingSendRecord?.listing?.title?.trim() || "tracked send trail";
-  const sendSignalTone: FrontOfficeDashboardTone = leadingSendRecord
-    ? leadingSendRecord.openCount <= 0 &&
-      leadingSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
-      ? "warning"
-      : leadingSendRecord.openCount > 1
-        ? "success"
-        : "accent"
-    : activeListingCount > 0
-      ? "success"
-      : "neutral";
-  const sendSignalDescription = leadingSendRecord
-    ? leadingSendRecord.openCount <= 0 &&
-      leadingSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
-      ? `${leadingSendRecord.client.fullName} still has no tracked open on ${leadingSendListingLabel}. Rescue this thread before you add fresh noise.`
-      : leadingSendRecord.openCount > 0
-        ? `${leadingSendRecord.client.fullName} already engaged with ${leadingSendListingLabel}. Turn that signal into a real next step while it is still warm.`
-        : `${leadingSendRecord.client.fullName} already has tracked send history in motion. Keep the next send and follow-through explicit.`
-    : activeListingCount > 0
-      ? `${activeListingCount} active or hot listing(s) are ready for tracked outreach. Start a send only when the target client and channel are clear.`
-      : "No active listing inventory is currently available in this scope.";
-  const sendSignalHelper = leadingSendRecord
-    ? [
-        `${formatFrontOfficeSendChannelLabel(leadingSendRecord.channel)} · ${formatDateTimeLabel(
-          leadingSendRecord.sentAt,
-          { timeZone: input.timeZone ?? null },
-        )}`,
-        buildFrontOfficeSendEngagementLabel(leadingSendRecord.openCount),
-        "Acre records the trail only after you choose to send.",
-      ].join(" · ")
-    : shareAggregate._count._all > 0
-      ? `${shareAggregate._count._all} tracked link(s) already exist in this scope. Acre still does not auto-send anything.`
-      : "Tracked sending is ready as soon as you create the first share link.";
-  const actionQueueBase: FrontOfficeDashboardActionQueueItem[] = [
-    {
-      id: "follow-up",
-      label: "Follow-up pressure",
-      count: followUpPressureCount,
-      tone: followUpPressureCount > 0 ? "warning" : "neutral",
-      description:
-        leadingFollowUpClient && dueFollowUpCount > 0
-          ? `${leadingFollowUpClient.fullName} is the clearest next touch. ${dueFollowUpCount} client touch(es) are due today or already late, so start in the shared clock and then reopen the dossier.`
-          : overdueFollowUpTaskCount > 0
-            ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue even though no fresh client touch is due today.`
-            : "No same-day client touch or overdue shared follow-up task is waiting right now.",
-      helper:
-        overdueFollowUpTaskCount > 0
-          ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total. Start there, then anchor the top dossier.`
-          : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock. Use that clock to pick the next grounded dossier.`,
-      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("follow-up"),
-      whyNowLabel:
-        leadingFollowUpClient && dueFollowUpCount > 0
-          ? `${leadingFollowUpClient.fullName} is due first, so the follow-first queue should be the next stop before you reopen the dossier.`
-          : overdueFollowUpTaskCount > 0
-            ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue.`
-            : "The shared follow-up clock is clear for now.",
-      nextStepLabel:
-        followUpPressureCount === 1 && leadingFollowUpClient
-          ? "Anchor now and work the top dossier."
-          : "Open the follow-first queue, then anchor the next dossier.",
-      href: followUpAction.href,
-      actionLabel: followUpAction.actionLabel,
-    },
-    {
-      id: "commitments",
-      label: "Today commitments",
-      count: todayCommitmentCount,
-      tone: todayCommitmentCount > 0 ? "accent" : "neutral",
-      description:
-        leadingCommitmentItem && todayCommitmentCount > 0
-          ? `${leadingCommitmentItem.title} is the next time-bound promise on your desk. Prep it before the start window slips, then save the follow-up checkpoint.`
-          : commitmentItems.length > 0
-            ? `No commitment lands today, but ${commitmentItems.length} appointment or office item(s) are already on deck.`
-            : "No Front Office appointments or shared office commitments are currently scheduled.",
-      helper: leadingCommitmentItem
-        ? `${leadingCommitmentItem.startsAtLabel} · ${leadingCommitmentItem.contextLabel} · External calendar and email remain explicit bridge actions, not hidden sync.`
-        : "The live FO calendar stays action-first. Google, Outlook, ICS, and email are still explicit jump-outs, not two-way sync.",
-      sequenceLabel:
-        buildFrontOfficeDashboardActionSequenceLabel("commitments"),
-      whyNowLabel: leadingCommitmentItem
-        ? leadingCommitmentItem.id.startsWith("event-")
-          ? `${leadingCommitmentItem.title} is already on the office calendar.`
-          : `${leadingCommitmentItem.title} is already on the calendar and should be prepped before the start window.`
-        : "The nearest commitment is already visible on the calendar.",
-      nextStepLabel: leadingCommitmentItem
-        ? leadingCommitmentItem.id.startsWith("appointment-")
-          ? "Open the appointment writeback and record the next touch."
-          : leadingCommitmentItem.actionLabel
-        : "Open the calendar and confirm prep.",
-      href: leadingCommitmentItem?.href ?? "/agent/calendar",
-      actionLabel: leadingCommitmentItem?.actionLabel ?? "Open calendar",
-    },
-    {
-      id: "lease-reminders",
-      label: "Lease timing",
-      count: dueLeaseReminderCount,
-      tone:
-        overdueLeaseReminderCount > 0
-          ? "danger"
-          : dueLeaseReminderCount > 0
-            ? "warning"
-            : "neutral",
-      description: leadingLeaseReminderItem
-        ? `${leadingLeaseReminderItem.clientName} is already inside a renewal or move-planning window. Keep the next touch explicit before the record goes quiet, then reopen the dossier with the timing lane in view.`
-        : "No lease-date reminder is due soon right now.",
-      helper:
-        overdueLeaseReminderCount > 0
-          ? `${overdueLeaseReminderCount} lease reminder(s) are already overdue. Use the lease lane to rescue the timing before it becomes a scramble.`
-          : leadingLeaseReminderItem
-            ? `${leadingLeaseReminderItem.statusLabel} · ${leadingLeaseReminderItem.detailLabel}`
-            : "Lease timing stays visible here before renewal, remarketing, or move planning becomes a fire drill.",
-      sequenceLabel:
-        buildFrontOfficeDashboardActionSequenceLabel("lease-reminders"),
-      whyNowLabel: leadingLeaseReminderItem
-        ? `${leadingLeaseReminderItem.clientName} needs lease timing attention now.`
-        : "No lease timing pressure is visible right now.",
-      nextStepLabel: leadingLeaseReminderItem
-        ? "Open the client dossier, confirm the next timing touch, and keep the lease lane explicit."
-        : "Open the lease lane and sort the next reminder.",
-      href:
-        dueLeaseReminderCount === 1 && leadingLeaseReminderItem
-          ? leadingLeaseReminderItem.href
-          : buildClientWorkbenchHref("viewing_lane"),
-      actionLabel:
-        dueLeaseReminderCount === 1 && leadingLeaseReminderItem
-          ? "Open client dossier"
-          : "Open lease lane",
-    },
-    {
-      id: "content",
-      label: "Send-risk follow-through",
-      count: sendSignalCount,
-      tone: sendSignalTone,
-      description: sendSignalDescription,
-      helper: sendSignalHelper,
-      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("content"),
-      whyNowLabel: leadingSendRecord
-        ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch. Open the dossier before sending again.`
-        : "Tracked sending is ready once the target client and channel are clear.",
-      nextStepLabel: leadingSendRecord
-        ? "Open the client next-step rail and choose the next tracked send or reply."
-        : "Open the send-risk workbench and start a tracked send.",
-      href: leadingSendRecord
-        ? `/agent/clients/${leadingSendRecord.client.id}#front-office-client-next-step-rail`
-        : "/listing-studio/listings",
-      actionLabel: leadingSendRecord
-        ? "Open next-step rail"
-        : "Open Listing Studio",
-    },
-    {
-      id: "handoff",
-      label: "Formal handoff",
-      count: needsBackOfficeCount,
-      tone: needsBackOfficeCount > 0 ? "warning" : "neutral",
-      description: leadingBackOfficeItem
-        ? `${leadingBackOfficeItem.title} is the clearest FO -> BO boundary move right now. Confirm package, timing, and expectations before opening the formal workspace.`
-        : "Nothing needs formal transaction, signature, or auditable Back Office workflow right now.",
-      helper: leadingBackOfficeItem
-        ? `${leadingBackOfficeItem.contextLabel} · ${leadingBackOfficeItem.description}`
-        : "Front Office can tee up the work, but the official record still starts in Back Office.",
-      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("handoff"),
-      whyNowLabel: leadingBackOfficeItem
-        ? `${leadingBackOfficeItem.title} is ready for formal ownership outside Front Office.`
-        : "No formal handoff is waiting right now.",
-      nextStepLabel: leadingBackOfficeItem
-        ? `Open Back Office and complete ${leadingBackOfficeItem.contextLabel.toLowerCase()}.`
-        : "Review the formal handoff queue.",
-      href: leadingBackOfficeItem?.href ?? "/office/transactions",
-      actionLabel:
-        leadingBackOfficeItem?.actionLabel ?? "Review formal handoff",
-    },
-  ];
-  const actionQueue: FrontOfficeDashboardActionQueueItem[] =
-    leadershipScope.visible
-      ? [
-          {
-            id: "leadership",
-            label:
-              input.viewerRole === "team_lead"
-                ? "Team cleanup"
-                : "Office cleanup",
-            count: leadershipPressureCount,
-            tone: leadershipPressureCount > 0 ? "danger" : "neutral",
-            description: leadingLeadershipItem
-              ? `${leadingLeadershipItem.title} is the first rescue pass in this command deck. Review visible cleanup pressure in the Front Office command deck before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
-              : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
-            helper: leadingLeadershipItem
-              ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office and work the command deck first.`
-              : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
-            sequenceLabel:
-              buildFrontOfficeDashboardActionSequenceLabel("leadership"),
-            whyNowLabel: leadingLeadershipItem
-              ? leadingLeadershipItem.whyNowLabel
-              : "Leadership cleanup is clear for now.",
-            nextStepLabel: leadingLeadershipItem
-              ? "Open the cleanup lane and continue the rescue pass."
-              : "Open the cleanup lane and scan the next pressure point.",
-            href: leadershipNotificationsHref,
-            actionLabel:
-              input.viewerRole === "team_lead"
-                ? "Open team command deck"
-                : "Open office command deck",
-          },
-          ...actionQueueBase,
-        ]
-      : actionQueueBase;
+  const dailyActions: FrontOfficeDashboardDailyActionItem[] = [];
+  const addDailyAction = (action: FrontOfficeDashboardDailyActionItem | null) => {
+    if (action) {
+      dailyActions.push(action);
+    }
+  };
+
+  for (const client of dueFollowUpClients) {
+    const isOverdue =
+      client.nextFollowUpAt !== null &&
+      client.nextFollowUpAt.getTime() < startOfToday.getTime();
+    const clientHref = `/agent/clients/${client.id}#front-office-client-follow-up-rail`;
+    const clientCommands = buildDailyActionClientCommands({
+      clientId: client.id,
+      clientName: client.fullName,
+      followUpTitle: `Follow up with ${client.fullName}`,
+      clientHref,
+    });
+
+    addDailyAction({
+      id: `${isOverdue ? "overdue-follow-up" : "follow-up-due"}-${client.id}`,
+      kind: isOverdue ? "overdue_follow_up" : "follow_up_due",
+      priority: isOverdue ? 10 : 50,
+      tone: isOverdue ? "danger" : "warning",
+      title: `Follow up with ${client.fullName}`,
+      whyNowLabel: isOverdue
+        ? `${formatRelativeDueLabel(client.nextFollowUpAt, now)}.`
+        : "Next touch is due today.",
+      contextLabel:
+        buildClientContextLabel({
+          stage: client.stage,
+          followUpStatus: client.followUpStatus,
+          preferredAreas: client.preferredAreas,
+          budgetMax: client.budgetMax,
+        }) || client.source,
+      clientId: client.id,
+      appointmentId: null,
+      listingId: null,
+      primaryAction: clientCommands.markFollowedUp,
+      secondaryActions: [
+        clientCommands.snooze,
+        clientCommands.createFollowUp,
+        clientCommands.openClient,
+      ],
+    });
+  }
+
+  for (const appointment of upcomingAppointments) {
+    const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+      metadata: appointment.metadata,
+      timeZone: input.timeZone ?? null,
+    });
+    const isToday =
+      appointment.startsAt >= startOfToday &&
+      appointment.startsAt < startOfTomorrow;
+    const isExternalTouchDue = Boolean(
+      externalWorkflow.nextActionAt &&
+        externalWorkflow.nextActionAt.getTime() <= now.getTime(),
+    );
+    const baseHref = appointment.client?.id
+      ? `/agent/calendar?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+      : `/agent/calendar?appointmentId=${appointment.id}`;
+    const calendarView = resolveDashboardAppointmentCalendarView({
+      externalStatusValue: externalWorkflow.value,
+      nextActionAt: externalWorkflow.nextActionAt,
+      isExternalTouchDue,
+    });
+    const calendarHref = calendarView
+      ? `${baseHref}&calendarView=${calendarView}`
+      : baseHref;
+    const bridgeCommands = buildAppointmentBridgeCommands({
+      appointmentId: appointment.id,
+      clientId: appointment.client?.id ?? null,
+      listingId: appointment.listing?.id ?? null,
+      calendarHref,
+    });
+    const appointmentContext = [
+      formatDateTimeLabel(appointment.startsAt, {
+        timeZone: input.timeZone ?? null,
+      }),
+      appointment.client?.fullName ?? appointment.listing?.title ?? null,
+      appointment.location?.trim() || appointment.meetingUrl?.trim() || null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const writeback = (
+      id: string,
+      label: string,
+      externalStatus: FrontOfficeAppointmentExternalWorkflowStatus,
+    ) =>
+      buildDailyActionCommand({
+        id,
+        label,
+        type: "appointment_writeback",
+        appointmentId: appointment.id,
+        clientId: appointment.client?.id ?? null,
+        listingId: appointment.listing?.id ?? null,
+        payload: {
+          externalStatus,
+        },
+      });
+
+    if (externalWorkflow.value === "reschedule_requested") {
+      addDailyAction({
+        id: `appointment-reschedule-${appointment.id}`,
+        kind: "appointment_reschedule",
+        priority: 30,
+        tone: "warning",
+        title: `Resolve reschedule for ${appointment.title}`,
+        whyNowLabel: "A reschedule request is waiting for an Acre checkpoint.",
+        contextLabel: appointmentContext,
+        clientId: appointment.client?.id ?? null,
+        appointmentId: appointment.id,
+        listingId: appointment.listing?.id ?? null,
+        primaryAction: writeback(
+          "set-next-touch",
+          "Set next touch",
+          "needs_follow_up",
+        ),
+        secondaryActions: [
+          writeback("awaiting-confirmation", "Awaiting confirmation", "confirmation_pending"),
+          ...bridgeCommands,
+        ],
+      });
+    } else if (isExternalTouchDue) {
+      addDailyAction({
+        id: `external-touch-due-${appointment.id}`,
+        kind: "external_touch_due",
+        priority: 30,
+        tone: "danger",
+        title: `External touch due for ${appointment.title}`,
+        whyNowLabel:
+          externalWorkflow.nextActionAtLabel ||
+          "The promised external follow-up checkpoint is due.",
+        contextLabel: appointmentContext,
+        clientId: appointment.client?.id ?? null,
+        appointmentId: appointment.id,
+        listingId: appointment.listing?.id ?? null,
+        primaryAction: writeback(
+          "needs-follow-up",
+          "Needs follow-up",
+          "needs_follow_up",
+        ),
+        secondaryActions: [
+          writeback("confirmed", "Confirm", "confirmed"),
+          ...bridgeCommands,
+        ],
+      });
+    } else if (isToday && externalWorkflow.value !== "confirmed") {
+      addDailyAction({
+        id: `appointment-confirmation-${appointment.id}`,
+        kind: "appointment_confirmation",
+        priority: 20,
+        tone: "accent",
+        title: `Confirm ${appointment.title}`,
+        whyNowLabel: "This appointment lands today and is not externally confirmed.",
+        contextLabel: appointmentContext,
+        clientId: appointment.client?.id ?? null,
+        appointmentId: appointment.id,
+        listingId: appointment.listing?.id ?? null,
+        primaryAction: writeback("confirmed", "Confirm", "confirmed"),
+        secondaryActions: [
+          writeback(
+            "awaiting-confirmation",
+            "Awaiting confirmation",
+            "confirmation_pending",
+          ),
+          writeback(
+            "reschedule-requested",
+            "Reschedule requested",
+            "reschedule_requested",
+          ),
+          ...bridgeCommands,
+        ],
+      });
+    } else if (isToday) {
+      addDailyAction({
+        id: `appointment-today-${appointment.id}`,
+        kind: "appointment_today",
+        priority: 25,
+        tone: "accent",
+        title: `Prepare ${appointment.title}`,
+        whyNowLabel: "This appointment is on today's schedule.",
+        contextLabel: appointmentContext,
+        clientId: appointment.client?.id ?? null,
+        appointmentId: appointment.id,
+        listingId: appointment.listing?.id ?? null,
+        primaryAction: bridgeCommands[4] ?? buildDailyActionCommand({
+          id: "open-calendar",
+          label: "Open calendar",
+          type: "open_href",
+          href: calendarHref,
+          appointmentId: appointment.id,
+        }),
+        secondaryActions: bridgeCommands.slice(0, 4),
+      });
+    }
+  }
+
+  for (const record of recentSendRecords) {
+    const listingTitle =
+      record.listing?.title?.trim() || "Front Office material";
+    const listingHref = record.listing?.id
+      ? `/listing-studio/listings?listingId=${encodeURIComponent(record.listing.id)}`
+      : "/listing-studio/listings";
+    const hasWarmSignal = record.openCount > 0;
+    const hasQuietSend =
+      record.openCount <= 0 && record.sentAt.getTime() <= threeDaysAgo.getTime();
+    const openedWithoutFollowUp = Boolean(
+      record.lastOpenedAt &&
+        record.lastOpenedAt.getTime() <= twoDaysAgo.getTime() &&
+        (!record.client.lastContactAt ||
+          record.client.lastContactAt.getTime() < record.lastOpenedAt.getTime()),
+    );
+
+    if (!hasWarmSignal && !hasQuietSend && !openedWithoutFollowUp) {
+      continue;
+    }
+
+    const clientCommands = buildDailyActionClientCommands({
+      clientId: record.client.id,
+      clientName: record.client.fullName,
+      followUpTitle: `Follow up on ${listingTitle}`,
+      clientHref: `/agent/clients/${record.client.id}#front-office-client-next-step-rail`,
+      listingId: record.listing?.id ?? null,
+      listingHref,
+    });
+    const isRisk = hasQuietSend || openedWithoutFollowUp;
+
+    addDailyAction({
+      id: `${isRisk ? "listing-send-risk" : "listing-warm-signal"}-${record.id}`,
+      kind: isRisk ? "listing_send_risk" : "listing_warm_signal",
+      priority: hasWarmSignal && record.openCount > 1 ? 35 : isRisk ? 40 : 35,
+      tone: hasWarmSignal ? "success" : "warning",
+      title: hasWarmSignal
+        ? `${record.client.fullName} opened ${listingTitle}`
+        : `${record.client.fullName} has a quiet listing send`,
+      whyNowLabel: hasWarmSignal
+        ? `${buildFrontOfficeSendEngagementLabel(record.openCount)}${
+            record.lastOpenedAt
+              ? ` · Last opened ${formatDateTimeLabel(record.lastOpenedAt, {
+                  timeZone: input.timeZone ?? null,
+                })}`
+              : ""
+          }.`
+        : `Sent ${formatDateTimeLabel(record.sentAt, {
+            timeZone: input.timeZone ?? null,
+          })} with no tracked open.`,
+      contextLabel: [
+        listingTitle,
+        formatFrontOfficeSendChannelLabel(record.channel),
+        formatSendRecordStageLabel(record.clientStageLabel),
+      ].join(" · "),
+      clientId: record.client.id,
+      appointmentId: null,
+      listingId: record.listing?.id ?? null,
+      primaryAction: clientCommands.createFollowUp,
+      secondaryActions: [
+        clientCommands.openClient,
+        ...(clientCommands.openListing ? [clientCommands.openListing] : []),
+      ],
+    });
+  }
+
+  for (const reminder of leaseReminderItems) {
+    if (reminder.statusLabel === "Scheduled") {
+      continue;
+    }
+
+    addDailyAction({
+      id: `lease-window-${reminder.id}`,
+      kind: "lease_window",
+      priority: reminder.statusLabel === "Overdue" ? 60 : 65,
+      tone: reminder.tone,
+      title: `Protect ${reminder.clientName}'s lease window`,
+      whyNowLabel: reminder.detailLabel,
+      contextLabel: reminder.reminderLabel,
+      clientId: reminder.id,
+      appointmentId: null,
+      listingId: null,
+      primaryAction: buildDailyActionCommand({
+        id: "open-client",
+        label: reminder.actionLabel,
+        type: "open_href",
+        href: reminder.href,
+        clientId: reminder.id,
+      }),
+      secondaryActions: [],
+    });
+  }
+
+  for (const item of backOfficeItems) {
+    addDailyAction({
+      id: `back-office-handoff-${item.id}`,
+      kind: "back_office_handoff",
+      priority: 70,
+      tone: item.tone,
+      title: item.title,
+      whyNowLabel: item.description,
+      contextLabel: item.contextLabel,
+      clientId: null,
+      appointmentId: null,
+      listingId: null,
+      primaryAction: buildDailyActionCommand({
+        id: "open-handoff",
+        label: item.actionLabel,
+        type: "open_href",
+        href: item.href,
+        payload: {
+          completionEventType: "handoff_opened",
+        },
+      }),
+      secondaryActions: [],
+    });
+  }
+
+  if (input.canUseAi !== false) {
+    for (const item of aiQueueItems.slice(0, 2)) {
+      addDailyAction({
+        id: `ai-suggested-touch-${item.id}`,
+        kind: "ai_suggested_touch",
+        priority: 90,
+        tone: item.tone,
+        title: `${item.clientName}: ${item.statusLabel}`,
+        whyNowLabel: item.whyNowLabel,
+        contextLabel: item.contextLabel,
+        clientId: item.clientId,
+        appointmentId: null,
+        listingId: null,
+        primaryAction: item.allowsDirectFollowUpCreation
+          ? buildDailyActionCommand({
+              id: "create-follow-up",
+              label: item.primaryActionLabel,
+              type: "create_follow_up",
+              clientId: item.clientId,
+              payload: {
+                followUpTitle: item.followUpTitle,
+                followUpDueAt: item.followUpDueAt,
+                sourceSurface: "dashboard_queue",
+                aiAcceptedAction: {
+                  sourceSurface: "dashboard_queue",
+                  suggestionKind: item.suggestionKind,
+                  suggestionLabel: item.statusLabel,
+                  actionTitle: item.followUpTitle,
+                },
+              },
+            })
+          : buildDailyActionCommand({
+              id: "open-client",
+              label: item.primaryActionLabel,
+              type: "open_href",
+              href: item.primaryActionHref,
+              clientId: item.clientId,
+              opensInNewTab: item.primaryActionOpensInNewTab,
+            }),
+        secondaryActions: [
+          buildDailyActionCommand({
+            id: "open-client",
+            label: "Open client",
+            type: "open_href",
+            href: item.openDossierHref,
+            clientId: item.clientId,
+          }),
+        ],
+      });
+    }
+  }
+
+  if (leadershipScope.visible && leadershipPressureCount > 0) {
+    addDailyAction({
+      id: "team-cleanup",
+      kind: "team_cleanup",
+      priority: 100,
+      tone: "danger",
+      title:
+        input.viewerRole === "team_lead"
+          ? "Review team pressure"
+          : "Review office pressure",
+      whyNowLabel: leadingLeadershipItem
+        ? leadingLeadershipItem.whyNowLabel
+        : `${leadershipPressureCount} cleanup signal(s) need review.`,
+      contextLabel: leadershipScope.scopeLabel,
+      clientId: null,
+      appointmentId: null,
+      listingId: null,
+      primaryAction: buildDailyActionCommand({
+        id: "open-team-cleanup",
+        label: "Open team cleanup",
+        type: "open_href",
+        href: leadershipNotificationsHref,
+      }),
+      secondaryActions: [],
+    });
+  }
+
+  const dedupedDailyActions = new Map<
+    string,
+    FrontOfficeDashboardDailyActionItem
+  >();
+
+  for (const action of dailyActions.sort(
+    (left, right) => left.priority - right.priority || left.title.localeCompare(right.title),
+  )) {
+    const dedupeKey = action.clientId
+      ? `client:${action.clientId}`
+      : action.appointmentId
+        ? `appointment:${action.appointmentId}`
+        : action.id;
+
+    if (!dedupedDailyActions.has(dedupeKey)) {
+      dedupedDailyActions.set(dedupeKey, action);
+    }
+  }
+
+  const rankedDailyActions = [...dedupedDailyActions.values()].slice(0, 12);
 
   return {
     summary: {
-      todayActionCount:
-        dueFollowUpCount +
-        dueLeaseReminderCount +
-        todayCommitmentCount +
-        needsBackOfficeCount +
-        leadershipPressureCount +
-        aiSuggestionCount,
+      todayActionCount: rankedDailyActions.length,
       followUpDueCount: dueFollowUpCount,
       leaseReminderCount: dueLeaseReminderCount,
       overdueTaskCount: overdueFollowUpTaskCount,
@@ -3479,9 +3893,9 @@ export async function getFrontOfficeDashboardSnapshot(
       todayCommitmentCount,
       needsBackOfficeCount,
       leadershipPressureCount,
-      aiSuggestionCount,
+      aiSuggestionCount: input.canUseAi === false ? 0 : aiSuggestionCount,
     },
-    actionQueue,
+    dailyActions: rankedDailyActions,
     pipeline: {
       stageMetrics: stageGroups
         .sort(
@@ -3617,8 +4031,8 @@ export async function getFrontOfficeDashboardSnapshot(
       items: leaseReminderItems,
     },
     aiQueue: {
-      suggestionCount: aiSuggestionCount,
-      items: aiQueueItems,
+      suggestionCount: input.canUseAi === false ? 0 : aiSuggestionCount,
+      items: input.canUseAi === false ? [] : aiQueueItems,
     },
     aiStrategy,
     aiAcceptedActions: {
@@ -3648,4 +4062,54 @@ export async function getFrontOfficeDashboardSnapshot(
       activityCenterItems: leadershipWorkbenchItems,
     },
   };
+}
+
+export async function recordFrontOfficeDashboardActionEvent(input: {
+  organizationId: string;
+  membershipId: string;
+  actionKind: FrontOfficeDashboardActionKind;
+  eventType: FrontOfficeDashboardActionEventType;
+  clientId?: string | null;
+  appointmentId?: string | null;
+  listingId?: string | null;
+}) {
+  const entityId =
+    input.clientId ??
+    input.appointmentId ??
+    input.listingId ??
+    `${input.actionKind}:${input.eventType}`;
+  const action =
+    input.eventType === "action_rendered"
+      ? activityLogActions.frontOfficeDashboardActionRendered
+      : input.eventType === "primary_clicked"
+        ? activityLogActions.frontOfficeDashboardPrimaryClicked
+        : input.eventType === "secondary_clicked"
+          ? activityLogActions.frontOfficeDashboardSecondaryClicked
+          : input.eventType === "quick_capture_opened"
+            ? activityLogActions.frontOfficeDashboardQuickCaptureOpened
+            : activityLogActions.frontOfficeDashboardActionCompleted;
+
+  await recordActivityLogEvent(prisma, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "front_office_dashboard_action",
+    entityId,
+    action,
+    payload: {
+      objectLabel: "Front Office dashboard action",
+      contextHref: "/agent/dashboard",
+      sourceSurface: "agent_dashboard",
+      actionKind: input.actionKind,
+      eventType: input.eventType,
+      details: [
+        `Action kind: ${input.actionKind}`,
+        `Event: ${input.eventType}`,
+        ...(input.clientId ? [`Client: ${input.clientId}`] : []),
+        ...(input.appointmentId
+          ? [`Appointment: ${input.appointmentId}`]
+          : []),
+        ...(input.listingId ? [`Listing: ${input.listingId}`] : []),
+      ],
+    },
+  });
 }

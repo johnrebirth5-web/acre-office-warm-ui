@@ -367,7 +367,13 @@ export {
   updateAgentRecurringChargeRule,
 } from "./agent-billing";
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
-export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
+export {
+  frontOfficeDashboardActionKinds,
+  frontOfficeDashboardActionEventTypes,
+  frontOfficeDashboardDailyActionKinds,
+  getFrontOfficeDashboardSnapshot,
+  recordFrontOfficeDashboardActionEvent,
+} from "./front-office-dashboard";
 export {
   buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiAcceptedActionBreakdownWindows,
@@ -1014,11 +1020,16 @@ export type {
   OfficeDashboardStatusMetric,
 } from "./dashboard";
 export type {
-  FrontOfficeDashboardActionQueueItem,
+  FrontOfficeDashboardActionKind,
+  FrontOfficeDashboardActionEventType,
   FrontOfficeDashboardAiQueueItem,
   FrontOfficeDashboardBackOfficeItem,
   FrontOfficeDashboardClientItem,
   FrontOfficeDashboardCommitmentItem,
+  FrontOfficeDashboardDailyActionCommand,
+  FrontOfficeDashboardDailyActionCommandType,
+  FrontOfficeDashboardDailyActionItem,
+  FrontOfficeDashboardDailyActionKind,
   FrontOfficeDashboardListingItem,
   FrontOfficeDashboardNoticeItem,
   FrontOfficeDashboardResourceItem,

@@ -159,7 +159,10 @@ async function createFrontOfficeDashboardTestContext() {
       clientId: string;
       senderMembershipId: string;
       sentAt: Date;
+      listingId?: string | null;
       openCount?: number;
+      firstOpenedAt?: Date | null;
+      lastOpenedAt?: Date | null;
     }) {
       return prisma.frontOfficeSendRecord.create({
         data: {
@@ -167,10 +170,33 @@ async function createFrontOfficeDashboardTestContext() {
           officeId: office.id,
           senderMembershipId: input.senderMembershipId,
           clientId: input.clientId,
+          listingId: input.listingId ?? null,
           channel: FrontOfficeSendChannel.email,
           sentAt: input.sentAt,
+          firstOpenedAt: input.firstOpenedAt ?? null,
+          lastOpenedAt: input.lastOpenedAt ?? null,
           openCount: input.openCount ?? 0,
           clientStageLabel: "Warm Lead",
+        },
+      });
+    },
+    async createListing(input: {
+      title: string;
+      slug: string;
+      ownerMembershipId?: string | null;
+    }) {
+      return prisma.listing.create({
+        data: {
+          organizationId: organization.id,
+          officeId: office.id,
+          ownerMembershipId: input.ownerMembershipId ?? agentMembership.id,
+          title: input.title,
+          slug: `${input.slug}-${suffix}`,
+          status: "active",
+          price: "750000",
+          city: "Queens",
+          neighborhood: "LIC",
+          seoKeywords: [],
         },
       });
     },
@@ -365,26 +391,19 @@ test("dashboard surfaces the leadership command deck for office admins", async (
     assert.equal(snapshot.leadershipQueue.staleClientCount, 1);
     assert.equal(snapshot.leadershipQueue.engagementRiskCount, 1);
     assert.equal(snapshot.summary.leadershipPressureCount, 3);
-    assert.equal(snapshot.actionQueue[0]?.label, "Office cleanup");
+    const teamCleanupAction = snapshot.dailyActions.find(
+      (action) => action.kind === "team_cleanup",
+    );
+    assert.equal(teamCleanupAction?.title, "Review office pressure");
     assert.equal(
-      snapshot.actionQueue[0]?.sequenceLabel,
-      "Clear leadership pressure first",
+      teamCleanupAction?.primaryAction.href,
+      "/agent/notifications?activityView=team_cleanup&teamCleanupFilter=overdue_task#team-cleanup-pressure",
     );
-    assert.equal(
-      snapshot.actionQueue[1]?.sequenceLabel,
-      "Then work the next-touch clock",
-    );
-    assert.equal(
-      snapshot.actionQueue[0]?.actionLabel,
-      "Open office command deck",
-    );
-    assert.match(
-      snapshot.actionQueue[0]?.description ?? "",
-      /first rescue pass in this command deck/,
-    );
-    assert.match(
-      snapshot.actionQueue[0]?.helper ?? "",
-      /work the command deck first/,
+    assert.ok(
+      snapshot.dailyActions.every(
+        (action, index, actions) =>
+          index === 0 || actions[index - 1]!.priority <= action.priority,
+      ),
     );
     assert.equal(snapshot.aiQueue.items.length > 0, true);
     assert.equal(
@@ -405,6 +424,211 @@ test("dashboard surfaces the leadership command deck for office admins", async (
     );
     assert.ok(snapshot.leadershipQueue.items.length > 0);
     assert.ok(snapshot.leadershipQueue.activityCenterItems.length > 0);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard daily actions rank appointments before same-client follow-up", async () => {
+  const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
+
+  try {
+    const sharedClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Appointment Priority Client",
+        email: "appointment-priority@example.com",
+        phone: "2125550101",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        budgetMax: "6500",
+        preferredAreas: ["LIC"],
+        nextFollowUpAt: new Date(now + 30 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+    const overdueClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Overdue Daily Action Client",
+        email: "overdue-daily-action@example.com",
+        phone: "2125550102",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: ["Astoria"],
+        nextFollowUpAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+
+    await prisma.appointment.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        ownerMembershipId: context.agentMembership.id,
+        clientId: sharedClient.id,
+        title: "Same client showing",
+        type: AppointmentType.showing,
+        startsAt: new Date(now + 60 * 60 * 1000),
+        status: AppointmentStatus.scheduled,
+      },
+    });
+
+    const snapshot = await getFrontOfficeDashboardSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.agentMembership.id,
+      viewerRole: "agent",
+      officeId: context.office.id,
+      timeZone: "America/New_York",
+    });
+    const sharedClientActions = snapshot.dailyActions.filter(
+      (action) => action.clientId === sharedClient.id,
+    );
+
+    assert.equal(sharedClientActions.length, 1);
+    assert.equal(sharedClientActions[0]?.kind, "appointment_confirmation");
+    assert.equal(snapshot.dailyActions[0]?.clientId, overdueClient.id);
+    assert.equal(snapshot.dailyActions[0]?.kind, "overdue_follow_up");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard daily actions surface listing warm signal and quiet send risk", async () => {
+  const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
+
+  try {
+    const listing = await context.createListing({
+      title: "LIC Waterfront Test Listing",
+      slug: "lic-waterfront-test-listing",
+    });
+    const warmClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Warm Listing Client",
+        email: "warm-listing@example.com",
+        phone: "2125550103",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+    const quietClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Quiet Listing Client",
+        email: "quiet-listing@example.com",
+        phone: "2125550104",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+
+    await context.createSendRecord({
+      clientId: warmClient.id,
+      senderMembershipId: context.agentMembership.id,
+      listingId: listing.id,
+      sentAt: new Date(now - 24 * 60 * 60 * 1000),
+      firstOpenedAt: new Date(now - 18 * 60 * 60 * 1000),
+      lastOpenedAt: new Date(now - 2 * 60 * 60 * 1000),
+      openCount: 3,
+    });
+    await context.createSendRecord({
+      clientId: quietClient.id,
+      senderMembershipId: context.agentMembership.id,
+      listingId: listing.id,
+      sentAt: new Date(now - 4 * 24 * 60 * 60 * 1000),
+      openCount: 0,
+    });
+
+    const snapshot = await getFrontOfficeDashboardSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.agentMembership.id,
+      viewerRole: "agent",
+      officeId: context.office.id,
+      timeZone: "America/New_York",
+    });
+
+    assert.ok(
+      snapshot.dailyActions.some(
+        (action) =>
+          action.kind === "listing_warm_signal" &&
+          action.clientId === warmClient.id,
+      ),
+    );
+    assert.ok(
+      snapshot.dailyActions.some(
+        (action) =>
+          action.kind === "listing_send_risk" &&
+          action.clientId === quietClient.id,
+      ),
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard hides AI daily actions when ai use is not granted", async () => {
+  const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
+
+  try {
+    const client = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "AI Hidden Client",
+        email: "ai-hidden@example.com",
+        phone: "2125550105",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        lastContactAt: new Date(now - 6 * 24 * 60 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+
+    await prisma.appointment.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        ownerMembershipId: context.agentMembership.id,
+        clientId: client.id,
+        title: "AI hidden appointment",
+        type: AppointmentType.showing,
+        startsAt: new Date(now + 2 * 24 * 60 * 60 * 1000),
+        status: AppointmentStatus.scheduled,
+      },
+    });
+
+    const snapshot = await getFrontOfficeDashboardSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.agentMembership.id,
+      viewerRole: "agent",
+      officeId: context.office.id,
+      timeZone: "America/New_York",
+      canUseAi: false,
+    });
+
+    assert.equal(snapshot.aiQueue.suggestionCount, 0);
+    assert.equal(snapshot.aiQueue.items.length, 0);
+    assert.equal(
+      snapshot.dailyActions.some(
+        (action) => action.kind === "ai_suggested_touch",
+      ),
+      false,
+    );
   } finally {
     await context.cleanup();
   }

@@ -36,6 +36,7 @@ type FrontOfficeLeadIntakeCardProps = {
   title?: string;
   subtitle?: string;
   density?: "default" | "compact";
+  dashboardCompact?: boolean;
   sourceSurface: "dashboard" | "clients";
   initialDuplicatePreviewCandidates?: FrontOfficeLeadDuplicatePreviewCandidate[];
   hydrateDuplicatePreviewCandidates?: boolean;
@@ -91,6 +92,20 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   sourceMode: "text" | "image" | "hybrid";
   aiExtraction?: FrontOfficeLeadIntakeAiExtraction | null;
 };
+
+async function trackDashboardLeadCreated() {
+  await fetch("/api/agent/dashboard/actions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      actionKind: "quick_capture",
+      eventType: "lead_created",
+      sourceSurface: "agent_dashboard",
+    }),
+  }).catch(() => undefined);
+}
 
 const followUpStatusOptions = [
   {
@@ -228,6 +243,7 @@ export function FrontOfficeLeadIntakeCard(
   props: FrontOfficeLeadIntakeCardProps,
 ) {
   const density = props.density ?? "default";
+  const dashboardCompact = props.dashboardCompact ?? false;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [formState, setFormState] = useState<LeadFormState>(buildEmptyFormState);
@@ -369,7 +385,9 @@ export function FrontOfficeLeadIntakeCard(
     const nextName = assistResult.draft.fullName?.trim() || "";
     const nextSource = assistResult.draft.source?.trim() || "";
     const nextWechatDisplayName =
-      nextSource.toLowerCase().includes("wechat") && nextName ? nextName : "";
+      !dashboardCompact && nextSource.toLowerCase().includes("wechat") && nextName
+        ? nextName
+        : "";
 
     setFormState((current) => ({
       ...current,
@@ -400,7 +418,9 @@ export function FrontOfficeLeadIntakeCard(
         },
         body: JSON.stringify({
           fullName: formState.fullName,
-          wechatDisplayName: formState.wechatDisplayName,
+          ...(dashboardCompact
+            ? {}
+            : { wechatDisplayName: formState.wechatDisplayName }),
           budgetMax: formState.budgetMax,
           preferredAreas: formState.preferredAreas,
           followUpStatus: formState.followUpStatus,
@@ -418,6 +438,10 @@ export function FrontOfficeLeadIntakeCard(
         return;
       }
 
+      if (props.sourceSurface === "dashboard") {
+        await trackDashboardLeadCreated();
+      }
+
       resetForm();
       resetAssist();
       router.refresh();
@@ -431,7 +455,9 @@ export function FrontOfficeLeadIntakeCard(
 
   return (
     <SectionCard
-      className={`office-list-card ${density === "compact" ? "is-compact" : ""}`}
+      className={`office-list-card front-office-lead-intake-card ${
+        density === "compact" ? "is-compact" : ""
+      } ${dashboardCompact ? "is-dashboard-compact" : ""}`}
       subtitle={
         props.subtitle ??
         "Capture the next live lead without opening a heavier backend form."
@@ -441,8 +467,12 @@ export function FrontOfficeLeadIntakeCard(
       <form className="front-office-calendar-form" onSubmit={handleSubmit}>
         <SectionCard
           className="office-list-card"
-          subtitle="Paste a short transcript or upload one screenshot. AI will only keep the four structured fields and move everything else into Note."
-          title="AI capture"
+          subtitle={
+            dashboardCompact
+              ? "Paste chat text or upload one screenshot. Acre keeps only Name, Budget, Target Area, and Follow-up Status as structured fields; everything else goes into Note."
+              : "Paste a short transcript or upload one screenshot. AI will only keep the four structured fields and move everything else into Note."
+          }
+          title={dashboardCompact ? "Paste chat or screenshot" : "AI capture"}
         >
           <div className="office-form-grid">
             <FormField
@@ -588,16 +618,18 @@ export function FrontOfficeLeadIntakeCard(
             />
           </FormField>
 
-          <FormField helper={fieldErrors.wechatDisplayName} label="WeChat name">
-            <TextInput
-              aria-invalid={Boolean(fieldErrors.wechatDisplayName)}
-              onChange={(event) => {
-                updateField("wechatDisplayName", event.target.value);
-              }}
-              placeholder="Optional"
-              value={formState.wechatDisplayName}
-            />
-          </FormField>
+          {!dashboardCompact ? (
+            <FormField helper={fieldErrors.wechatDisplayName} label="WeChat name">
+              <TextInput
+                aria-invalid={Boolean(fieldErrors.wechatDisplayName)}
+                onChange={(event) => {
+                  updateField("wechatDisplayName", event.target.value);
+                }}
+                placeholder="Optional"
+                value={formState.wechatDisplayName}
+              />
+            </FormField>
+          ) : null}
 
           <FormField helper={fieldErrors.budgetMax} label="Budget">
             <TextInput

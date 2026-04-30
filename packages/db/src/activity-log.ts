@@ -132,6 +132,16 @@ export const activityLogActions = {
   frontOfficeResourceProgressLogged: "front_office.resource_progress_logged",
   frontOfficeResourceOpened: "front_office.resource_opened",
   frontOfficeVendorClicked: "front_office.vendor_clicked",
+  frontOfficeDashboardActionRendered:
+    "front_office.dashboard_action_rendered",
+  frontOfficeDashboardPrimaryClicked:
+    "front_office.dashboard_primary_clicked",
+  frontOfficeDashboardSecondaryClicked:
+    "front_office.dashboard_secondary_clicked",
+  frontOfficeDashboardQuickCaptureOpened:
+    "front_office.dashboard_quick_capture_opened",
+  frontOfficeDashboardActionCompleted:
+    "front_office.dashboard_action_completed",
   contactCreated: "contact.created",
   contactUpdated: "contact.updated",
   activityCommentAdded: "activity.comment_added",
@@ -219,6 +229,7 @@ export type ActivityLogEntityType =
   | "transaction_task"
   | "follow_up_task"
   | "front_office_cleanup_digest"
+  | "front_office_dashboard_action"
   | "activity_comment"
   | "session"
   | "library_folder"
@@ -267,6 +278,9 @@ export type ActivityLogPayload = {
   commentBody?: string;
   contextHref?: string;
   actionSource?: string;
+  sourceSurface?: string;
+  actionKind?: string;
+  eventType?: string;
   workflowReason?: string;
   completed?: boolean;
   progressPercent?: number;
@@ -562,6 +576,16 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
     "Front Office resource progress logged",
   "front_office.resource_opened": "Front Office resource opened",
   "front_office.vendor_clicked": "Front Office vendor clicked",
+  "front_office.dashboard_action_rendered":
+    "Front Office dashboard action rendered",
+  "front_office.dashboard_primary_clicked":
+    "Front Office dashboard primary action clicked",
+  "front_office.dashboard_secondary_clicked":
+    "Front Office dashboard secondary action clicked",
+  "front_office.dashboard_quick_capture_opened":
+    "Front Office dashboard quick capture opened",
+  "front_office.dashboard_action_completed":
+    "Front Office dashboard action completed",
   "contact.created": "Contact created",
   "contact.updated": "Contact updated",
   "activity.comment_added": "Comment added",
@@ -1720,6 +1744,16 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return getFrontOfficeResourceOpenSummary(payload);
     case activityLogActions.frontOfficeVendorClicked:
       return getFrontOfficeVendorClickSummary(payload);
+    case activityLogActions.frontOfficeDashboardActionRendered:
+      return "saw a Front Office dashboard action";
+    case activityLogActions.frontOfficeDashboardPrimaryClicked:
+      return "clicked a dashboard primary action";
+    case activityLogActions.frontOfficeDashboardSecondaryClicked:
+      return "clicked a dashboard secondary action";
+    case activityLogActions.frontOfficeDashboardQuickCaptureOpened:
+      return "opened dashboard quick capture";
+    case activityLogActions.frontOfficeDashboardActionCompleted:
+      return "completed a dashboard action";
     case activityLogActions.contactCreated:
       return "created a contact";
     case activityLogActions.contactUpdated:
