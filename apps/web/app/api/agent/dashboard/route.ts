@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       viewerRole: context.currentMembership.role,
       officeId: context.currentOffice?.id ?? null,
       timeZone: context.currentUser.timezone,
+      canUseAi: can(context.currentMembership, "ai:use"),
     }),
   });
 }
