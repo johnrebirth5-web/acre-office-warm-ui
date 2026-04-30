@@ -166,11 +166,11 @@ export function parseProjectSigningTokenPayload(token: string): ProjectSigningTo
   }
 }
 
-function isProjectSigningAdmin(role: UserRole) {
+export function isProjectSigningAdmin(role: UserRole) {
   return role === "owner" || role === "office_admin";
 }
 
-function isProjectSigningManager(context: ProjectSigningActorContext) {
+export function isProjectSigningManager(context: ProjectSigningActorContext) {
   return (
     context.viewerRole === "team_lead" ||
     context.viewerRole === "office_manager" ||
@@ -205,7 +205,7 @@ function buildAnchorAddress(input: {
   };
 }
 
-function sanitizeArchiveSinkEmails(values: string[]) {
+export function sanitizeArchiveSinkEmails(values: string[]) {
   return [
     ...new Set(
       values
