@@ -1040,6 +1040,16 @@ export async function resolveProjectHandoffToken(rawToken: string) {
       },
       documents: {
         orderBy: [{ sortOrder: "asc" }],
+        include: {
+          signatureRequest: {
+            include: {
+              fields: {
+                orderBy: [{ sortOrder: "asc" }],
+              },
+              recipients: true,
+            },
+          },
+        },
       },
     },
   });
@@ -1160,6 +1170,16 @@ export async function resolveProjectRemoteSigningToken(rawToken: string) {
           project: true,
           documents: {
             orderBy: [{ sortOrder: "asc" }],
+            include: {
+              signatureRequest: {
+                include: {
+                  fields: {
+                    orderBy: [{ sortOrder: "asc" }],
+                  },
+                  recipients: true,
+                },
+              },
+            },
           },
         },
       },
