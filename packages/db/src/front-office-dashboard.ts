@@ -50,6 +50,7 @@ import {
   buildTeamMembershipHierarchyMap,
   isLeaderTeamMembershipRole,
 } from "./team-hierarchy";
+import { getVisibleFrontOfficeDuplicatePairs } from "./front-office-workspaces/clients";
 
 export type FrontOfficeDashboardTone =
   | "neutral"
@@ -2280,6 +2281,13 @@ export async function getFrontOfficeDashboardSnapshot(
         })
       : Promise.resolve([]),
   ]);
+  const duplicatePairs = await getVisibleFrontOfficeDuplicatePairs({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    now,
+    timeZone: input.timeZone,
+  });
   const aiLearningActions = recentAiAcceptedActions.map((action) => ({
     clientId: action.client.id,
     suggestionKind: action.suggestionKind,
@@ -3780,6 +3788,45 @@ export async function getFrontOfficeDashboardSnapshot(
         },
       }),
       secondaryActions: [],
+    });
+  }
+
+  const topDuplicatePair = duplicatePairs[0] ?? null;
+  if (topDuplicatePair) {
+    addDailyAction({
+      id: `duplicate-review-${topDuplicatePair.id}`,
+      kind: "duplicate_review",
+      priority: 80,
+      tone: "warning",
+      title: `Review duplicate: ${topDuplicatePair.recommendedClient.fullName} / ${topDuplicatePair.duplicateClient.fullName}`,
+      whyNowLabel: topDuplicatePair.rationaleLabel,
+      contextLabel: topDuplicatePair.matchReasons.join(" · "),
+      clientId: topDuplicatePair.recommendedClient.id,
+      appointmentId: null,
+      listingId: null,
+      primaryAction: buildDailyActionCommand({
+        id: "open-duplicate-review",
+        label: "Open duplicate review",
+        type: "open_href",
+        href: "/agent/clients?clientView=duplicate_review#duplicate-review",
+        clientId: topDuplicatePair.recommendedClient.id,
+      }),
+      secondaryActions: [
+        buildDailyActionCommand({
+          id: "open-keep-client",
+          label: "Open keep record",
+          type: "open_href",
+          href: topDuplicatePair.recommendedClient.href,
+          clientId: topDuplicatePair.recommendedClient.id,
+        }),
+        buildDailyActionCommand({
+          id: "open-duplicate-client",
+          label: "Open duplicate",
+          type: "open_href",
+          href: topDuplicatePair.duplicateClient.href,
+          clientId: topDuplicatePair.duplicateClient.id,
+        }),
+      ],
     });
   }
 

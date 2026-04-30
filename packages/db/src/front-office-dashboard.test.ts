@@ -579,6 +579,70 @@ test("dashboard daily actions surface listing warm signal and quiet send risk", 
   }
 });
 
+test("dashboard daily actions surface duplicate review from visible client pairs", async () => {
+  const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
+
+  try {
+    const keepClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Duplicate Keep Client",
+        email: "duplicate-review@example.com",
+        phone: "2125550106",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: ["LIC"],
+        lastContactAt: new Date(now - 24 * 60 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+    const duplicateClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Duplicate Merge Client",
+        email: "duplicate-review@example.com",
+        phone: "2125550106",
+        source: "Dashboard regression",
+        stage: "New Lead",
+        intent: "Buyer",
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+
+    const snapshot = await getFrontOfficeDashboardSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.agentMembership.id,
+      viewerRole: "agent",
+      officeId: context.office.id,
+      timeZone: "America/New_York",
+      canUseAi: false,
+    });
+    const duplicateAction = snapshot.dailyActions.find(
+      (action) => action.kind === "duplicate_review",
+    );
+
+    assert.equal(duplicateAction?.priority, 80);
+    assert.equal(
+      duplicateAction?.primaryAction.href,
+      "/agent/clients?clientView=duplicate_review#duplicate-review",
+    );
+    assert.match(duplicateAction?.contextLabel ?? "", /Same email/);
+    assert.match(duplicateAction?.contextLabel ?? "", /Same phone/);
+    assert.equal(
+      [keepClient.id, duplicateClient.id].includes(
+        duplicateAction?.clientId ?? "",
+      ),
+      true,
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("dashboard hides AI daily actions when ai use is not granted", async () => {
   const context = await createFrontOfficeDashboardTestContext();
   const now = Date.now();
