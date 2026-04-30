@@ -3,10 +3,17 @@ import test from "node:test";
 import { ProjectSigningJobType } from "@prisma/client";
 import {
   buildProjectSignatureJobIdempotencyKey,
+  canCreateProjectSigning,
+  canManageProjectSigning,
+  canViewProjectSigning,
   createHashMismatchAuditDetails,
   createProjectSigningToken,
   hashProjectSigningToken,
+  isProjectSigningAdmin,
+  isProjectSigningManager,
   parseProjectSigningTokenPayload,
+  sanitizeArchiveSinkEmails,
+  type ProjectSigningActorContext,
 } from "./project-signing.ts";
 
 test("project signing tokens carry recipient id and token version", () => {
@@ -74,4 +81,92 @@ test("hash mismatch audit details keep artifact hash as the comparison contract"
   assert.equal(details.actual, "downloaded-hash");
   assert.equal(details.source, "signature_artifact");
   assert.match(details.eventId, /^[0-9a-f-]{36}$/i);
+});
+
+test("project signing role tier helpers map roles to admin or manager scopes", () => {
+  assert.equal(isProjectSigningAdmin("owner"), true);
+  assert.equal(isProjectSigningAdmin("office_admin"), true);
+  assert.equal(isProjectSigningAdmin("team_lead"), false);
+  assert.equal(isProjectSigningAdmin("office_manager"), false);
+  assert.equal(isProjectSigningAdmin("agent"), false);
+
+  function makeContext(overrides: Partial<ProjectSigningActorContext> = {}): ProjectSigningActorContext {
+    return {
+      organizationId: "org-1",
+      officeId: null,
+      viewerMembershipId: "membership-1",
+      viewerRole: "agent",
+      viewerPermissions: [],
+      ...overrides,
+    };
+  }
+
+  assert.equal(isProjectSigningManager(makeContext({ viewerRole: "team_lead" })), true);
+  assert.equal(isProjectSigningManager(makeContext({ viewerRole: "office_manager" })), true);
+  assert.equal(
+    isProjectSigningManager(makeContext({ viewerRole: "agent", viewerPermissions: ["project_signing:manage"] })),
+    true,
+  );
+  assert.equal(
+    isProjectSigningManager(makeContext({ viewerRole: "agent", viewerPermissions: ["project_signing:archive_manage"] })),
+    true,
+  );
+  assert.equal(isProjectSigningManager(makeContext({ viewerRole: "agent" })), false);
+  assert.equal(isProjectSigningManager(makeContext({ viewerRole: "owner" })), false);
+});
+
+test("project signing permission helpers gate view, create, and manage by role", () => {
+  assert.equal(canViewProjectSigning({ role: "owner" }), true);
+  assert.equal(canViewProjectSigning({ role: "office_admin" }), true);
+  assert.equal(canViewProjectSigning({ role: "agent" }), true);
+  assert.equal(canViewProjectSigning({ role: "team_lead" }), true);
+
+  assert.equal(canCreateProjectSigning({ role: "owner" }), true);
+  assert.equal(canCreateProjectSigning({ role: "agent" }), true);
+
+  assert.equal(canManageProjectSigning({ role: "owner" }), true);
+  assert.equal(canManageProjectSigning({ role: "office_admin" }), true);
+  assert.equal(canManageProjectSigning({ role: "team_lead" }), true);
+  assert.equal(canManageProjectSigning({ role: "agent" }), false);
+  assert.equal(
+    canManageProjectSigning({
+      role: "agent",
+      permissions: ["documents:view", "signatures:view", "project_signing:view", "project_signing:manage"],
+    }),
+    true,
+  );
+  assert.equal(
+    canManageProjectSigning({
+      role: "agent",
+      permissions: ["documents:view", "signatures:view", "signatures:manage"],
+    }),
+    true,
+  );
+});
+
+test("sanitizeArchiveSinkEmails deduplicates, lowercases, and drops empty values", () => {
+  assert.deepEqual(
+    sanitizeArchiveSinkEmails([
+      "Archive@Example.com",
+      " archive@example.com ",
+      "another@example.com",
+      "",
+      "  ",
+      "ARCHIVE@example.com",
+    ]),
+    ["archive@example.com", "another@example.com"],
+  );
+
+  assert.deepEqual(sanitizeArchiveSinkEmails([]), []);
+  assert.deepEqual(sanitizeArchiveSinkEmails(["", "   "]), []);
+});
+
+test("project signing token payload version is what callers compare against recipient tokenVersion on resend", () => {
+  // Token issued when recipient.tokenVersion = 3
+  const oldToken = createProjectSigningToken({ recipientId: "recipient-1", version: 3 });
+  // After resend, recipient.tokenVersion is bumped to 4; the old raw token still encodes 3
+  const parsed = parseProjectSigningTokenPayload(oldToken.rawToken);
+  assert.deepEqual(parsed, { recipientId: "recipient-1", version: 3 });
+  // Contract: caller rejects when parsed.version !== recipient.tokenVersion
+  assert.notEqual(parsed?.version, 4);
 });
