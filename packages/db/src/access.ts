@@ -225,67 +225,90 @@ export function buildMembershipVisibilityWhere(scope: OfficeDataScope): Prisma.M
   };
 }
 
+export function excludeSystemAnchors(): Prisma.TransactionWhereInput {
+  return {
+    isSystemArchiveAnchor: false,
+    status: {
+      not: "system_anchor"
+    }
+  };
+}
+
 export function buildTransactionVisibilityWhere(scope: OfficeDataScope): Prisma.TransactionWhereInput {
+  const anchorFilter = excludeSystemAnchors();
+
   if (scope.visibleMembershipIds === null) {
-    return {};
+    return anchorFilter;
   }
 
   const visibleMembershipIds = scope.visibleMembershipIds.length > 0 ? scope.visibleMembershipIds : [scope.viewerMembershipId];
 
   return {
-    OR: [
+    AND: [
+      anchorFilter,
       {
-        ownerMembershipId: {
-          in: visibleMembershipIds
-        }
-      },
-      {
-        membershipLinks: {
-          some: {
-            membershipId: {
+        OR: [
+          {
+            ownerMembershipId: {
               in: visibleMembershipIds
-            },
-            role: {
-              notIn: [...managedTransactionParticipantRoles]
+            }
+          },
+          {
+            membershipLinks: {
+              some: {
+                membershipId: {
+                  in: visibleMembershipIds
+                },
+                role: {
+                  notIn: [...managedTransactionParticipantRoles]
+                }
+              }
             }
           }
-        }
+        ]
       }
     ]
   };
 }
 
 export function buildTransactionPortfolioVisibilityWhere(scope: OfficeDataScope): Prisma.TransactionWhereInput {
+  const anchorFilter = excludeSystemAnchors();
+
   if (scope.visibleMembershipIds === null) {
-    return {};
+    return anchorFilter;
   }
 
   const visibleMembershipIds = scope.visibleMembershipIds.length > 0 ? scope.visibleMembershipIds : [scope.viewerMembershipId];
 
   return {
-    OR: [
+    AND: [
+      anchorFilter,
       {
-        ownerMembershipId: {
-          in: visibleMembershipIds
-        }
-      },
-      {
-        membershipLinks: {
-          some: {
-            membershipId: {
+        OR: [
+          {
+            ownerMembershipId: {
               in: visibleMembershipIds
             }
-          }
-        }
-      },
-      {
-        commissionCalculations: {
-          some: {
-            membershipId: {
-              in: visibleMembershipIds
+          },
+          {
+            membershipLinks: {
+              some: {
+                membershipId: {
+                  in: visibleMembershipIds
+                }
+              }
+            }
+          },
+          {
+            commissionCalculations: {
+              some: {
+                membershipId: {
+                  in: visibleMembershipIds
+                }
+              }
             }
           }
-        }
+        ]
       }
     ]
   };

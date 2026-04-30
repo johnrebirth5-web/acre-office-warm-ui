@@ -117,6 +117,7 @@ function resolveDriveFolderId(
   config: Awaited<ReturnType<typeof resolveOrganizationSignatureDriveConfig>>,
   job: NonNullable<Awaited<ReturnType<typeof getSignatureDriveSyncJob>>>
 ) {
+  const templateCategory = job.templateCategory === "project_sales" ? "transaction" : job.templateCategory;
   const mappingKey:
     | "transaction"
     | "generic"
@@ -124,7 +125,7 @@ function resolveDriveFolderId(
     | "finance"
     | "admin"
     | null =
-    (job.templateCategory || null) ??
+    (templateCategory || null) ??
     (job.contextType === "membership"
       ? "hr"
       : job.contextType === "finance_request"

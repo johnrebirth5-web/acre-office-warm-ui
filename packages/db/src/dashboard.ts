@@ -117,7 +117,8 @@ const statusFromDb: Record<TransactionStatus, OfficeDashboardStatusMetric["statu
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "Cancelled"
 };
 
 function formatCurrency(value: number) {

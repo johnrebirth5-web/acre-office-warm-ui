@@ -23,6 +23,9 @@ export function AgentNav({
   const { t } = useI18n();
   const canViewDashboard = permissions.includes("dashboard:view");
   const canViewClients = permissions.includes("clients:view");
+  const canViewProjects =
+    permissions.includes("project_signing:view") ||
+    permissions.includes("signatures:view");
   const canViewStudio = permissions.includes("listing_studio:view");
   const canViewResources = permissions.includes("resources:view");
   const canViewActivity =
@@ -72,6 +75,16 @@ export function AgentNav({
                 t((messages) => messages.agentNav.items.clients),
               ),
           badgeText: canViewClients ? undefined : restrictedBadge,
+        },
+        {
+          href: "/agent/projects",
+          label: t((messages) => messages.agentNav.items.projects),
+          accessWarning: canViewProjects
+            ? undefined
+            : buildAccessWarning(
+                t((messages) => messages.agentNav.items.projects),
+              ),
+          badgeText: canViewProjects ? undefined : restrictedBadge,
         },
         {
           href: "/agent/calendar",

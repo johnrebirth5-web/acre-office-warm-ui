@@ -783,7 +783,17 @@ export const signatureAuditEventLabelMap: Record<SignatureAuditEventType, string
   signature_submitted: "Signature submitted",
   pdf_finalized: "Signed PDF finalized",
   request_expired: "Request expired",
-  request_canceled: "Request canceled"
+  request_canceled: "Request canceled",
+  session_created: "Session created",
+  session_completed: "Session completed",
+  archive_resent: "Archive resent",
+  handoff_started: "Handoff started",
+  handoff_exited: "Handoff exited",
+  handoff_token_expired: "Handoff token expired",
+  remote_otp_sent: "Remote OTP sent",
+  remote_otp_verified: "Remote OTP verified",
+  remote_otp_failed: "Remote OTP failed",
+  hash_mismatch: "Hash mismatch"
 };
 
 
@@ -814,7 +824,8 @@ export const transactionStatusLabelMap: Record<TransactionStatus, string> = {
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "System Anchor"
 };
 
 

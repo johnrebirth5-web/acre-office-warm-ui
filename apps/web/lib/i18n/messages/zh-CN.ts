@@ -185,6 +185,7 @@ export const zhCNMessages = {
       studioListings: "我的房源",
       studioCollections: "客户清单",
       studioShares: "分享记录",
+      projects: "项目签署",
       activity: "动态",
       resources: "资源",
       training: "培训",

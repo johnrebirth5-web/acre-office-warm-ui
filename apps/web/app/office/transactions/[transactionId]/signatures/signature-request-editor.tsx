@@ -45,11 +45,13 @@ type SignatureRecipientDraft = {
   sortOrder: number;
 };
 
+type SignatureTemplateCategoryKey = "transaction" | "hr" | "finance" | "admin" | "project_sales";
+
 type TemplateDraftState = {
   templateId: string;
   name: string;
   description: string;
-  category: "transaction" | "hr" | "finance" | "admin";
+  category: SignatureTemplateCategoryKey;
 };
 
 type SignatureEditorStep = "recipients" | "fields";
@@ -1163,6 +1165,7 @@ export function SignatureRequestEditor({
                     <option value="hr">HR</option>
                     <option value="finance">Finance</option>
                     <option value="admin">Admin</option>
+                    <option value="project_sales">Project sales</option>
                   </SelectInput>
                 </FormField>
                 <FormField className="office-form-grid-span-4" label="Template description">

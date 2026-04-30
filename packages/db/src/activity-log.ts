@@ -108,6 +108,12 @@ export const activityLogActions = {
   signatureUpdated: "signature_request.updated",
   signatureCompleted: "signature_request.completed",
   signatureDeclined: "signature_request.declined",
+  projectSigningProjectCreated: "project_signing.project_created",
+  projectSigningArchiveSinkChanged:
+    "project_signing.archive_sink_changed",
+  projectSigningSessionCreated: "project_signing.session_created",
+  projectSigningHandoffStarted: "project_signing.handoff_started",
+  projectSigningSessionCompleted: "project_signing.session_completed",
   incomingUpdateReceived: "incoming_update.received",
   incomingUpdateAccepted: "incoming_update.accepted",
   incomingUpdateRejected: "incoming_update.rejected",
@@ -237,6 +243,8 @@ export type ActivityLogEntityType =
   | "transaction_document"
   | "transaction_form"
   | "signature_request"
+  | "sales_project"
+  | "project_signing_session"
   | "incoming_update"
   | "resource"
   | "vendor"
@@ -267,6 +275,7 @@ export type ActivityLogChange = {
 };
 
 export type ActivityLogPayload = {
+  source?: string;
   officeId?: string | null;
   objectLabel?: string;
   transactionId?: string;
@@ -284,6 +293,14 @@ export type ActivityLogPayload = {
   workflowReason?: string;
   completed?: boolean;
   progressPercent?: number;
+  projectId?: string;
+  projectName?: string;
+  sessionId?: string;
+  actorMembershipId?: string;
+  before?: unknown;
+  after?: unknown;
+  added?: unknown;
+  removed?: unknown;
   details?: string[];
   changes?: ActivityLogChange[];
 };
@@ -552,6 +569,11 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "signature_request.updated": "Signature request updated",
   "signature_request.completed": "Signature completed",
   "signature_request.declined": "Signature declined",
+  "project_signing.project_created": "Sales project created",
+  "project_signing.archive_sink_changed": "Archive recipients changed",
+  "project_signing.session_created": "Project signing session created",
+  "project_signing.handoff_started": "Project handoff started",
+  "project_signing.session_completed": "Project signing session completed",
   "incoming_update.received": "Incoming update received",
   "incoming_update.accepted": "Incoming update accepted",
   "incoming_update.rejected": "Incoming update rejected",
@@ -771,6 +793,11 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.signatureUpdated ||
       action === activityLogActions.signatureCompleted ||
       action === activityLogActions.signatureDeclined ||
+      action === activityLogActions.projectSigningProjectCreated ||
+      action === activityLogActions.projectSigningArchiveSinkChanged ||
+      action === activityLogActions.projectSigningSessionCreated ||
+      action === activityLogActions.projectSigningHandoffStarted ||
+      action === activityLogActions.projectSigningSessionCompleted ||
       action === activityLogActions.incomingUpdateReceived ||
       action === activityLogActions.incomingUpdateAccepted ||
       action === activityLogActions.incomingUpdateRejected,
@@ -1077,6 +1104,8 @@ function mapEntityTypeToObjectType(
     case "transaction_document":
     case "transaction_form":
     case "signature_request":
+    case "sales_project":
+    case "project_signing_session":
     case "incoming_update":
       return "document";
     case "transaction_task":
@@ -1668,6 +1697,16 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "completed a signature request";
     case activityLogActions.signatureDeclined:
       return "recorded a declined signature request";
+    case activityLogActions.projectSigningProjectCreated:
+      return "created a Front Office signing project";
+    case activityLogActions.projectSigningArchiveSinkChanged:
+      return "changed project archive recipients";
+    case activityLogActions.projectSigningSessionCreated:
+      return "created a project signing session";
+    case activityLogActions.projectSigningHandoffStarted:
+      return "started an in-person project signing handoff";
+    case activityLogActions.projectSigningSessionCompleted:
+      return "completed a project signing session";
     case activityLogActions.incomingUpdateReceived:
       return "received an incoming update";
     case activityLogActions.incomingUpdateAccepted:

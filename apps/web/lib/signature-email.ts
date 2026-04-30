@@ -26,6 +26,16 @@ type SignatureCompletionEmailInput = {
   signedPdfBytes: Uint8Array;
 };
 
+type SignatureDownloadLinkEmailInput = {
+  organizationId: string;
+  to: string;
+  documentTitle: string;
+  recipientName?: string | null;
+  downloadLink: string;
+  expiresAt?: Date | string | null;
+  replyTo?: string | null;
+};
+
 type SmtpConfig = {
   host: string;
   port: number;
@@ -213,6 +223,55 @@ The finalized signed PDF is attached to this email.
 `;
 }
 
+function formatDownloadExpiry(expiresAt: Date | string | null | undefined) {
+  if (!expiresAt) {
+    return null;
+  }
+
+  return expiresAt instanceof Date ? expiresAt.toISOString() : expiresAt;
+}
+
+function buildSignatureDownloadLinkEmailHtml(input: SignatureDownloadLinkEmailInput) {
+  const safeDocumentTitle = escapeHtml(input.documentTitle);
+  const safeRecipientName = escapeHtml(input.recipientName?.trim() || "there");
+  const safeDownloadLink = escapeHtml(input.downloadLink);
+  const expiryLine = formatDownloadExpiry(input.expiresAt);
+
+  return `
+    <div style="background:#f4f6fb;padding:32px 16px;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe3f0;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,0.08);">
+        <div style="padding:28px 32px;border-bottom:1px solid #e5edf7;background:#f8fafc;">
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Acre Signed Document</p>
+          <h1 style="margin:0;font-size:28px;line-height:1.2;">${safeDocumentTitle}</h1>
+        </div>
+        <div style="padding:28px 32px;display:grid;gap:16px;">
+          <p style="margin:0;font-size:15px;line-height:1.7;">Hi ${safeRecipientName}, your signed document is ready. Use the secure link below to download the PDF.</p>
+          ${expiryLine ? `<p style="margin:0;color:#6b7280;">This link expires on ${escapeHtml(expiryLine)}.</p>` : ""}
+          <div>
+            <a href="${safeDownloadLink}" style="display:inline-block;padding:14px 24px;border-radius:999px;background:#0f172a;color:#ffffff;text-decoration:none;font-weight:600;">
+              Download signed PDF
+            </a>
+          </div>
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">If the button does not work, copy and paste this link into your browser:</p>
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#1d4ed8;word-break:break-all;">${safeDownloadLink}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildSignatureDownloadLinkEmailText(input: SignatureDownloadLinkEmailInput) {
+  const expiryLine = formatDownloadExpiry(input.expiresAt);
+
+  return `Your signed document is ready.
+
+Document: ${input.documentTitle}
+${expiryLine ? `Link expires on: ${expiryLine}\n` : ""}
+Download signed PDF:
+${input.downloadLink}
+`;
+}
+
 async function getSignatureMailer(config: SmtpConfig) {
   const resolvedHost = await resolvePreferredSmtpHost(config.host);
   const transportKey = `${buildTransportKey(config)}:${resolvedHost}`;
@@ -388,6 +447,47 @@ export async function sendSignatureCompletionEmail(input: SignatureCompletionEma
         contentType: "application/pdf"
       }
     ]
+  });
+
+  return true;
+}
+
+export async function sendSignatureDownloadLinkEmail(input: SignatureDownloadLinkEmailInput) {
+  const context = await resolveSignatureMailerContext(input.organizationId);
+  const recipient = input.to.trim();
+
+  if (!recipient) {
+    return false;
+  }
+
+  const senderProfile = resolveMailSenderProfile(context);
+  const from = formatFromAddress(senderProfile.fromName, senderProfile.fromEmail);
+  const replyTo = resolveMailReplyTo(input.replyTo, senderProfile.defaultReplyTo);
+
+  if (context.provider === "resend") {
+    const { error } = await context.client.emails.send({
+      from,
+      to: recipient,
+      subject: `Signed document ready: ${input.documentTitle}`,
+      html: buildSignatureDownloadLinkEmailHtml(input),
+      text: buildSignatureDownloadLinkEmailText(input),
+      replyTo
+    });
+
+    if (error) {
+      throw new Error(error.message || "Signed document email could not be sent.");
+    }
+
+    return true;
+  }
+
+  await context.transport.sendMail({
+    from,
+    to: recipient,
+    subject: `Signed document ready: ${input.documentTitle}`,
+    html: buildSignatureDownloadLinkEmailHtml(input),
+    text: buildSignatureDownloadLinkEmailText(input),
+    replyTo
   });
 
   return true;
