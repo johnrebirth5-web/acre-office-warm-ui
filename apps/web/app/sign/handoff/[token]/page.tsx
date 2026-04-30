@@ -7,6 +7,29 @@ type PageProps = {
   }>;
 };
 
+function buildSigningFieldsForRecipient(
+  session: NonNullable<Awaited<ReturnType<typeof resolveProjectHandoffToken>>>,
+  sessionRecipient: NonNullable<Awaited<ReturnType<typeof resolveProjectHandoffToken>>>["recipients"][number],
+) {
+  return session.documents.flatMap((document) => {
+    const matchingSignatureRecipients = document.signatureRequest.recipients.filter(
+      (recipient) =>
+        (sessionRecipient.normalizedEmail && recipient.email.toLowerCase() === sessionRecipient.normalizedEmail) ||
+        (sessionRecipient.membershipId && recipient.membershipId === sessionRecipient.membershipId),
+    );
+    const assignedRecipientIds = new Set(matchingSignatureRecipients.map((recipient) => recipient.id));
+
+    return document.signatureRequest.fields
+      .filter((field) => field.assignedRecipientId && assignedRecipientIds.has(field.assignedRecipientId))
+      .map((field) => ({
+        id: field.id,
+        fieldType: field.fieldType,
+        label: field.label,
+        documentTitle: document.title,
+      }));
+  });
+}
+
 export default async function ProjectHandoffSigningPage({ params }: PageProps) {
   const { token } = await params;
   const session = await resolveProjectHandoffToken(token);
@@ -30,9 +53,9 @@ export default async function ProjectHandoffSigningPage({ params }: PageProps) {
         name: recipient.name,
         status: recipient.status,
         routingStep: recipient.routingStep,
+        signingFields: buildSigningFieldsForRecipient(session, recipient),
       }))}
       token={token}
     />
   );
 }
-
