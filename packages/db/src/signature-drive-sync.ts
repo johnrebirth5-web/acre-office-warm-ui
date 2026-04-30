@@ -23,7 +23,7 @@ export type SignatureDriveSyncJob = {
   transactionId: string;
   contextType: string;
   contextLabel: string | null;
-  templateCategory: "hr" | "finance" | "admin" | "transaction" | "" | null;
+  templateCategory: "hr" | "finance" | "admin" | "transaction" | "project_sales" | "" | null;
   artifacts: SignatureDriveSyncArtifactJob[];
 };
 

@@ -15,7 +15,8 @@ type FrontOfficeFeatureKey =
   | "calendar"
   | "studio"
   | "activity"
-  | "resources";
+  | "resources"
+  | "projects";
 
 type FrontOfficeAccessNoticeProps = {
   featureKey: FrontOfficeFeatureKey;
@@ -47,6 +48,8 @@ function getFeatureLabel(
       return t((messages) => messages.agentNav.items.activity);
     case "resources":
       return t((messages) => messages.agentNav.items.resources);
+    case "projects":
+      return t((messages) => messages.agentNav.items.projects);
   }
 }
 

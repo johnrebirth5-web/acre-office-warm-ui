@@ -542,7 +542,8 @@ const reportStatusLabelMap: Record<TransactionStatus, OfficeReportStatus> = {
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "Cancelled"
 };
 
 const reportStatusSortOrder: Record<TransactionStatus, number> = {
@@ -550,7 +551,8 @@ const reportStatusSortOrder: Record<TransactionStatus, number> = {
   active: 1,
   pending: 2,
   closed: 3,
-  cancelled: 4
+  cancelled: 4,
+  system_anchor: 99
 };
 
 const defaultReportsPage = 1;

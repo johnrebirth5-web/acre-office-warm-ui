@@ -277,6 +277,7 @@ enum TransactionStatus {
   pending
   closed
   cancelled
+  system_anchor
 }
 
 enum TransactionRepresenting {
@@ -399,6 +400,7 @@ enum SignatureTemplateCategory {
   finance
   admin
   transaction
+  project_sales
 }
 
 enum SignatureContextType {
@@ -407,6 +409,7 @@ enum SignatureContextType {
   finance_request
   admin_request
   generic
+  project
 }
 
 enum SignatureArtifactKind {
@@ -430,6 +433,68 @@ enum SignatureAuditEventType {
   pdf_finalized
   request_expired
   request_canceled
+  session_created
+  session_completed
+  archive_resent
+  handoff_started
+  handoff_exited
+  handoff_token_expired
+  remote_otp_sent
+  remote_otp_verified
+  remote_otp_failed
+  hash_mismatch
+}
+
+enum SalesProjectStatus {
+  active
+  archived
+}
+
+enum ProjectSigningSessionMode {
+  in_person
+  remote
+}
+
+enum ProjectSigningSessionStatus {
+  draft
+  awaiting_signers
+  partially_signed
+  completed
+  declined
+  voided
+  expired
+}
+
+enum ProjectSigningJobType {
+  finalize_pdf
+  send_completion_email
+  drive_sync
+}
+
+enum ProjectSigningJobStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum ProjectDocumentDistributionRecipientKind {
+  signer
+  responsible_agent
+  archive_sink
+  cc
+}
+
+enum ProjectDocumentDistributionMode {
+  secure_link
+  attachment
+}
+
+enum ProjectDocumentDistributionStatus {
+  queued
+  sending
+  sent
+  failed
 }
 
 enum IncomingUpdateStatus {
@@ -786,6 +851,14 @@ model Organization {
   studioListingShareEvents              StudioListingShareEvent[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
+  salesProjects                         SalesProject[]
+  salesProjectDocuments                 SalesProjectDocument[]
+  projectSigningSessions                ProjectSigningSession[]
+  projectSigningSessionRecipients       ProjectSigningSessionRecipient[]
+  projectSigningSessionDocuments        ProjectSigningSessionDocument[]
+  projectSignatureJobs                  ProjectSignatureJob[]
+  projectDocumentDistributions          ProjectDocumentDistribution[]
+  projectDocumentDownloadTokens         ProjectDocumentDownloadToken[]
 }
 
 model Office {
@@ -873,6 +946,14 @@ model Office {
   studioListingCollections              StudioListingCollection[]
   studioListingExtensionTokens          StudioListingExtensionToken[]
   studioListingExtensionChallenges      StudioListingExtensionChallenge[]
+  salesProjects                         SalesProject[]
+  salesProjectDocuments                 SalesProjectDocument[]
+  projectSigningSessions                ProjectSigningSession[]
+  projectSigningSessionRecipients       ProjectSigningSessionRecipient[]
+  projectSigningSessionDocuments        ProjectSigningSessionDocument[]
+  projectSignatureJobs                  ProjectSignatureJob[]
+  projectDocumentDistributions          ProjectDocumentDistribution[]
+  projectDocumentDownloadTokens         ProjectDocumentDownloadToken[]
 
   @@unique([organizationId, slug])
 }
@@ -999,6 +1080,12 @@ model Membership {
   studioListingCollectionShareEventsCreated     StudioListingCollectionShareEvent[]     @relation("StudioListingCollectionShareEventCreatedBy")
   studioListingExtensionTokens                 StudioListingExtensionToken[]          @relation("StudioListingExtensionTokenMembership")
   approvedStudioListingExtensionChallenges     StudioListingExtensionChallenge[]      @relation("StudioListingExtensionChallengeApprovedBy")
+  defaultResponsibleSalesProjects              SalesProject[]                         @relation("SalesProjectDefaultResponsible")
+  createdSalesProjects                         SalesProject[]                         @relation("SalesProjectCreatedBy")
+  responsibleSalesProjectDocuments             SalesProjectDocument[]                 @relation("SalesProjectDocumentResponsible")
+  responsibleProjectSigningSessions            ProjectSigningSession[]                @relation("ProjectSigningSessionResponsible")
+  createdProjectSigningSessions                ProjectSigningSession[]                @relation("ProjectSigningSessionCreatedBy")
+  projectSigningSessionRecipients              ProjectSigningSessionRecipient[]       @relation("ProjectSigningSessionRecipientMembership")
 
   @@unique([organizationId, userId])
 }
@@ -1300,6 +1387,7 @@ model Transaction {
   additionalFields               Json?
   createdAt                      DateTime                               @default(now())
   updatedAt                      DateTime                               @updatedAt
+  isSystemArchiveAnchor          Boolean                                @default(false)
   organization                   Organization                           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                         Office?                                @relation(fields: [officeId], references: [id], onDelete: SetNull)
   ownerMembership                Membership?                            @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
@@ -1322,6 +1410,7 @@ model Transaction {
   financeFees                    TransactionFinanceFee[]
   financeCalculationVersions     TransactionFinanceCalculationVersion[]
   membershipLinks                TransactionMembershipLink[]
+  salesProjectAnchor             SalesProject?                          @relation("SalesProjectSignatureAnchor")
 
   @@index([organizationId, status])
   @@index([organizationId, officeId])
@@ -1329,6 +1418,8 @@ model Transaction {
   @@index([organizationId, officeId, closingDate])
   @@index([organizationId, ownerMembershipId])
   @@index([organizationId, primaryClientId])
+  @@index([organizationId, isSystemArchiveAnchor])
+  @@index([organizationId, officeId, isSystemArchiveAnchor])
 }
 
 model Listing {
@@ -2330,6 +2421,10 @@ model SignatureTemplate {
   emailBody             String?
   senderDisplayName     String?
   senderReplyTo         String?
+  pdfStorageKey         String?
+  pdfFileName           String?
+  pdfByteSize           Int?
+  pdfContentType        String?
   createdByMembershipId String?
   createdAt             DateTime                     @default(now())
   updatedAt             DateTime                     @updatedAt
@@ -2339,6 +2434,8 @@ model SignatureTemplate {
   recipients            SignatureTemplateRecipient[]
   fields                SignatureTemplateField[]
   signatureRequests     SignatureRequest[]
+  projectSessionDocuments ProjectSigningSessionDocument[]
+  salesProjectDocuments SalesProjectDocument[]
 
   @@index([organizationId, officeId, category, isActive])
 }
@@ -2452,6 +2549,8 @@ model SignatureRequest {
   artifacts               SignatureArtifact[]
   fields                  SignatureField[]
   auditEntries            SignatureAuditEntry[]
+  projectSessionDocument  ProjectSigningSessionDocument?
+  salesProjectDocuments   SalesProjectDocument[]
 
   @@index([organizationId, transactionId, status])
   @@index([organizationId, officeId])
@@ -2546,6 +2645,7 @@ model SignatureArtifact {
   fileSizeBytes         Int
   storageKey            String
   storageUrl            String?
+  contentSha256         String?
   driveSyncStatus       SignatureDriveSyncStatus @default(not_configured)
   driveSyncError        String?
   driveSyncedAt         DateTime?
@@ -2561,9 +2661,15 @@ model SignatureArtifact {
   offer                 Offer?                   @relation(fields: [offerId], references: [id], onDelete: SetNull)
   signatureRequest      SignatureRequest         @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
   transactionDocument   TransactionDocument?     @relation(fields: [transactionDocumentId], references: [id], onDelete: SetNull)
+  projectSessionDocuments ProjectSigningSessionDocument[]
+  salesProjectDocuments SalesProjectDocument[]
+  projectSignatureJobs  ProjectSignatureJob[]
+  projectDocumentDistributions ProjectDocumentDistribution[]
+  projectDocumentDownloadTokens ProjectDocumentDownloadToken[]
 
   @@index([organizationId, signatureRequestId, kind])
   @@index([organizationId, driveSyncStatus])
+  @@index([organizationId, contentSha256])
 }
 
 model SignatureAuditEntry {
@@ -2579,6 +2685,316 @@ model SignatureAuditEntry {
 
   @@index([signatureRequestId, createdAt])
   @@index([actorMembershipId])
+}
+
+model SalesProject {
+  id                             String                    @id @default(cuid())
+  organizationId                 String
+  officeId                       String?
+  signatureAnchorTransactionId   String                    @unique
+  code                           String
+  name                           String
+  status                         SalesProjectStatus        @default(active)
+  address                        String?
+  city                           String?
+  state                          String?
+  zipCode                        String?
+  description                    String?
+  archiveSinkEmails              String[]
+  defaultResponsibleMembershipId String?
+  createdByMembershipId          String?
+  createdAt                      DateTime                  @default(now())
+  updatedAt                      DateTime                  @updatedAt
+  organization                   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                         Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  signatureAnchorTransaction     Transaction               @relation("SalesProjectSignatureAnchor", fields: [signatureAnchorTransactionId], references: [id], onDelete: Cascade)
+  defaultResponsibleMembership   Membership?               @relation("SalesProjectDefaultResponsible", fields: [defaultResponsibleMembershipId], references: [id], onDelete: SetNull)
+  createdByMembership            Membership?               @relation("SalesProjectCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+  sessions                       ProjectSigningSession[]
+  sessionDocuments               ProjectSigningSessionDocument[]
+  documents                      SalesProjectDocument[]
+  jobs                           ProjectSignatureJob[]
+  distributions                  ProjectDocumentDistribution[]
+
+  @@unique([organizationId, officeId, code])
+  @@unique([organizationId, signatureAnchorTransactionId])
+  @@index([organizationId, officeId, status])
+  @@index([organizationId, defaultResponsibleMembershipId])
+  @@index([organizationId, createdByMembershipId])
+}
+
+model SalesProjectDocument {
+  id                      String                         @id @default(cuid())
+  organizationId          String
+  officeId                String?
+  projectId               String
+  sessionId               String?
+  sessionDocumentId       String?                        @unique
+  signatureRequestId      String?
+  signatureArtifactId     String?
+  templateId              String?
+  responsibleMembershipId String?
+  buyerName               String?
+  buyerEmail              String?
+  title                   String
+  documentType            String
+  fileName                String
+  mimeType                String
+  fileSizeBytes           Int
+  storageKey              String
+  contentSha256           String?
+  source                  String                         @default("signature_output")
+  signedAt                DateTime?
+  archivedAt              DateTime                       @default(now())
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
+  organization            Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                  Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  project                 SalesProject                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  session                 ProjectSigningSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  sessionDocument         ProjectSigningSessionDocument? @relation(fields: [sessionDocumentId], references: [id], onDelete: SetNull)
+  signatureRequest        SignatureRequest?              @relation(fields: [signatureRequestId], references: [id], onDelete: SetNull)
+  signatureArtifact       SignatureArtifact?             @relation(fields: [signatureArtifactId], references: [id], onDelete: SetNull)
+  template                SignatureTemplate?             @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  responsibleMembership   Membership?                    @relation("SalesProjectDocumentResponsible", fields: [responsibleMembershipId], references: [id], onDelete: SetNull)
+  downloadTokens          ProjectDocumentDownloadToken[]
+
+  @@unique([organizationId, sessionDocumentId])
+  @@unique([organizationId, signatureArtifactId])
+  @@index([organizationId, projectId, archivedAt])
+  @@index([organizationId, projectId, documentType])
+  @@index([organizationId, buyerEmail])
+  @@index([organizationId, contentSha256])
+  @@index([organizationId, responsibleMembershipId])
+}
+
+model ProjectSigningSession {
+  id                            String                         @id @default(cuid())
+  organizationId                String
+  officeId                      String?
+  projectId                     String
+  mode                          ProjectSigningSessionMode      @default(remote)
+  status                        ProjectSigningSessionStatus    @default(draft)
+  buyerName                     String?
+  buyerEmail                    String?
+  buyerPhone                    String?
+  responsibleMembershipId       String?
+  createdByMembershipId         String
+  expiresAt                     DateTime?
+  startedAt                     DateTime?
+  completedAt                   DateTime?
+  declinedAt                    DateTime?
+  voidedAt                      DateTime?
+  expiredAt                     DateTime?
+  declineReason                 String?
+  voidReason                    String?
+  handoffTokenHash              String?                        @unique
+  handoffTokenExpiresAt         DateTime?
+  handoffPinHash                String?
+  handoffPinFailedAttempts      Int                            @default(0)
+  handoffLockedUntil            DateTime?
+  handoffStartedAt              DateTime?
+  handoffExitedAt               DateTime?
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  organization                  Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                        Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  project                       SalesProject                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  responsibleMembership         Membership?                    @relation("ProjectSigningSessionResponsible", fields: [responsibleMembershipId], references: [id], onDelete: SetNull)
+  createdByMembership           Membership                     @relation("ProjectSigningSessionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  recipients                    ProjectSigningSessionRecipient[]
+  documents                     ProjectSigningSessionDocument[]
+  archivedDocuments             SalesProjectDocument[]
+  jobs                          ProjectSignatureJob[]
+  distributions                 ProjectDocumentDistribution[]
+
+  @@index([organizationId, officeId, projectId, status])
+  @@index([organizationId, responsibleMembershipId, createdAt])
+  @@index([organizationId, createdByMembershipId, createdAt])
+  @@index([organizationId, status, expiresAt])
+}
+
+model ProjectSigningSessionRecipient {
+  id                    String                   @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  sessionId             String
+  membershipId          String?
+  role                  SignatureRecipientRole
+  name                  String
+  email                 String?
+  normalizedEmail       String?
+  phone                 String?
+  recipientRole         String
+  routingStep           Int                      @default(1)
+  sortOrder             Int                      @default(0)
+  status                SignatureRecipientStatus @default(draft)
+  remoteTokenHash       String?                  @unique
+  remoteTokenIssuedAt   DateTime?
+  remoteTokenExpiresAt  DateTime?
+  remoteTokenRevokedAt  DateTime?
+  tokenVersion          Int                      @default(0)
+  otpHash               String?
+  otpExpiresAt          DateTime?
+  otpFailedAttempts     Int                      @default(0)
+  otpLockedUntil        DateTime?
+  otpVerifiedAt         DateTime?
+  lastViewedAt          DateTime?
+  actedAt               DateTime?
+  declinedAt            DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                  @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  session               ProjectSigningSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  membership            Membership?              @relation("ProjectSigningSessionRecipientMembership", fields: [membershipId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, normalizedEmail])
+  @@index([organizationId, sessionId, routingStep, sortOrder])
+  @@index([organizationId, email])
+  @@index([organizationId, membershipId])
+}
+
+model ProjectSigningSessionDocument {
+  id                         String                         @id @default(cuid())
+  organizationId             String
+  officeId                   String?
+  projectId                  String
+  sessionId                  String
+  templateId                 String
+  signatureRequestId         String                         @unique
+  sortOrder                  Int                            @default(0)
+  title                      String
+  documentType               String
+  status                     SignatureRequestStatus         @default(draft)
+  snapshotTemplateName       String
+  snapshotTemplateVersion    Int
+  snapshotPdfStorageKey      String
+  snapshotPdfFileName        String
+  snapshotPdfByteSize        Int
+  snapshotPdfContentType     String
+  snapshotFieldsJson         Json
+  snapshotRecipientsJson     Json
+  snapshotEmailSubject       String?
+  snapshotEmailBody          String?
+  signedArtifactId           String?
+  signedArtifactStorageKey   String?
+  signedArtifactSha256       String?
+  finalizedAt                DateTime?
+  finalizationStatus         ProjectSigningJobStatus?
+  finalizationError          String?
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  organization               Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                     Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  project                    SalesProject                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  session                    ProjectSigningSession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  template                   SignatureTemplate              @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  signatureRequest           SignatureRequest               @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  signedArtifact             SignatureArtifact?             @relation(fields: [signedArtifactId], references: [id], onDelete: SetNull)
+  archivedDocument           SalesProjectDocument?
+  jobs                       ProjectSignatureJob[]
+  distributions              ProjectDocumentDistribution[]
+
+  @@unique([organizationId, signatureRequestId])
+  @@unique([organizationId, signedArtifactId])
+  @@unique([sessionId, sortOrder])
+  @@index([organizationId, projectId, status])
+  @@index([organizationId, sessionId, status])
+  @@index([organizationId, signedArtifactSha256])
+}
+
+model ProjectSignatureJob {
+  id                  String                  @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  projectId           String?
+  sessionId           String?
+  sessionDocumentId   String?
+  signatureRequestId  String?
+  signatureArtifactId String?
+  distributionId      String?
+  type                ProjectSigningJobType
+  status              ProjectSigningJobStatus @default(queued)
+  idempotencyKey      String                  @unique
+  attempts            Int                     @default(0)
+  maxAttempts         Int                     @default(5)
+  runAfter            DateTime                @default(now())
+  lockedAt            DateTime?
+  lockedBy            String?
+  lastError           String?
+  completedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  project             SalesProject?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  session             ProjectSigningSession?  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDocument     ProjectSigningSessionDocument? @relation(fields: [sessionDocumentId], references: [id], onDelete: Cascade)
+  signatureArtifact   SignatureArtifact?      @relation(fields: [signatureArtifactId], references: [id], onDelete: SetNull)
+  distribution        ProjectDocumentDistribution? @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAfter])
+  @@index([status, lockedAt])
+  @@index([organizationId, type, status])
+  @@index([organizationId, sessionId, status])
+}
+
+model ProjectDocumentDistribution {
+  id                  String                                   @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  projectId           String
+  sessionId           String
+  sessionDocumentId   String
+  signatureArtifactId String?
+  recipientKind       ProjectDocumentDistributionRecipientKind
+  recipientEmail      String
+  recipientName       String?
+  deliveryMode        ProjectDocumentDistributionMode          @default(secure_link)
+  status              ProjectDocumentDistributionStatus        @default(queued)
+  resendCount         Int                                      @default(0)
+  lastError           String?
+  sentAt              DateTime?
+  createdAt           DateTime                                 @default(now())
+  updatedAt           DateTime                                 @updatedAt
+  organization        Organization                             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                                  @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  project             SalesProject                             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  session             ProjectSigningSession                    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDocument     ProjectSigningSessionDocument            @relation(fields: [sessionDocumentId], references: [id], onDelete: Cascade)
+  signatureArtifact   SignatureArtifact?                       @relation(fields: [signatureArtifactId], references: [id], onDelete: SetNull)
+  jobs                ProjectSignatureJob[]
+  downloadTokens      ProjectDocumentDownloadToken[]
+
+  @@index([organizationId, sessionId, status])
+  @@index([organizationId, recipientEmail])
+  @@index([organizationId, projectId, status])
+}
+
+model ProjectDocumentDownloadToken {
+  id                     String                       @id @default(cuid())
+  organizationId         String
+  officeId               String?
+  distributionId         String?
+  salesProjectDocumentId String?
+  signatureArtifactId    String
+  tokenHash              String                       @unique
+  expiresAt              DateTime
+  maxUses                Int                          @default(1)
+  useCount               Int                          @default(0)
+  consumedAt             DateTime?
+  revokedAt              DateTime?
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  organization           Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                 Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  distribution           ProjectDocumentDistribution? @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  salesProjectDocument   SalesProjectDocument?        @relation(fields: [salesProjectDocumentId], references: [id], onDelete: SetNull)
+  signatureArtifact      SignatureArtifact            @relation(fields: [signatureArtifactId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, expiresAt])
+  @@index([organizationId, signatureArtifactId])
 }
 
 model IncomingUpdate {

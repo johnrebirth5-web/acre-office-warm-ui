@@ -187,6 +187,7 @@ export const enUSMessages = {
       studioListings: "Listings",
       studioCollections: "Collections",
       studioShares: "Shares",
+      projects: "Project Signing",
       activity: "Activity",
       resources: "Resources",
       training: "Training",

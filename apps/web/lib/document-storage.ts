@@ -24,6 +24,13 @@ type SaveStoredResourceFileInput = {
   bytes: Uint8Array;
 };
 
+type SaveStoredProjectFileInput = {
+  organizationId: string;
+  projectId: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
 type SaveStoredTextInput = {
   organizationId: string;
   transactionId: string;
@@ -282,6 +289,15 @@ export async function saveStoredResourceFile(input: SaveStoredResourceFileInput)
     scopeSegments: ["resources", input.officeId ? `office-${input.officeId}` : "company"],
     fileName: input.fileName,
     bytes: input.bytes
+  });
+}
+
+export async function saveStoredProjectFile(input: SaveStoredProjectFileInput): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["projects", input.projectId],
+    fileName: input.fileName,
+    bytes: input.bytes,
   });
 }
 

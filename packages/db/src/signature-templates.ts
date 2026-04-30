@@ -148,7 +148,8 @@ const categoryLabelMap: Record<SignatureTemplateCategory, string> = {
   hr: "HR",
   finance: "Finance",
   admin: "Admin",
-  transaction: "Transaction"
+  transaction: "Transaction",
+  project_sales: "Project sales"
 };
 
 const signatureRequestStatusLabelMap: Record<SignatureRequestStatus, string> = {

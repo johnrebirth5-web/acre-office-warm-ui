@@ -172,7 +172,8 @@ const pipelineStatusFromDb: Record<TransactionStatus, OfficePipelineStatus> = {
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "Cancelled"
 };
 
 const representingLabelMap: Record<TransactionRepresenting, string> = {

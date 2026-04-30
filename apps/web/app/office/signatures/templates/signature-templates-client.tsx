@@ -29,11 +29,13 @@ type SignatureTemplatesClientProps = {
   canManageSignatures: boolean;
 };
 
+type SignatureTemplateCategoryKey = "transaction" | "hr" | "finance" | "admin" | "project_sales";
+
 type EditorState = {
   templateId: string;
   name: string;
   description: string;
-  category: "transaction" | "hr" | "finance" | "admin";
+  category: SignatureTemplateCategoryKey;
   isActive: boolean;
   emailSubject: string;
   emailBody: string;
@@ -43,7 +45,7 @@ type EditorState = {
 
 type LibraryFilterState = {
   query: string;
-  category: "all" | "transaction" | "hr" | "finance" | "admin";
+  category: "all" | SignatureTemplateCategoryKey;
   status: "all" | "active" | "inactive" | "live_drafts" | "unused";
 };
 
@@ -385,6 +387,7 @@ export function SignatureTemplatesClient({
               <option value="hr">{t((messages) => messages.officeSignatures.hrCategory)}</option>
               <option value="finance">{t((messages) => messages.officeSignatures.financeCategory)}</option>
               <option value="admin">{t((messages) => messages.officeSignatures.adminCategory)}</option>
+              <option value="project_sales">Project sales</option>
             </SelectInput>
           </FormField>
 
@@ -626,11 +629,12 @@ export function SignatureTemplatesClient({
                 value={editorState.category}
               >
                 <option value="transaction">{t((messages) => messages.officeSignatures.transactionCategory)}</option>
-                <option value="hr">{t((messages) => messages.officeSignatures.hrCategory)}</option>
-                <option value="finance">{t((messages) => messages.officeSignatures.financeCategory)}</option>
-                <option value="admin">{t((messages) => messages.officeSignatures.adminCategory)}</option>
-              </SelectInput>
-            </FormField>
+                    <option value="hr">{t((messages) => messages.officeSignatures.hrCategory)}</option>
+                    <option value="finance">{t((messages) => messages.officeSignatures.financeCategory)}</option>
+                    <option value="admin">{t((messages) => messages.officeSignatures.adminCategory)}</option>
+                    <option value="project_sales">Project sales</option>
+                  </SelectInput>
+                </FormField>
 
             <FormField label={t((messages) => messages.officeSignatureTemplates.templateName)}>
               <TextInput onChange={(event) => setEditorState((current) => ({ ...current, name: event.target.value }))} value={editorState.name} />

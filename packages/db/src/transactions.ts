@@ -432,7 +432,8 @@ const transactionStatusLabelMap: Record<TransactionStatus, OfficeTransactionStat
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "Cancelled"
 };
 
 const transactionStatusDisplayDbMap: Record<OfficeTransactionStatus, TransactionStatus> = {

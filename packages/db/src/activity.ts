@@ -57,7 +57,8 @@ const transactionStatusLabelMap: Record<TransactionStatus, string> = {
   active: "Active",
   pending: "Pending",
   closed: "Closed",
-  cancelled: "Cancelled"
+  cancelled: "Cancelled",
+  system_anchor: "System Anchor"
 };
 
 const notificationTypeLabelMap: Record<NotificationType, string> = {

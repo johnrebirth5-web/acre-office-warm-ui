@@ -65,6 +65,11 @@ export type PermissionKey =
   | "signatures:template_manage"
   | "signatures:report_view"
   | "signatures:report_export"
+  | "project_signing:view"
+  | "project_signing:create"
+  | "project_signing:manage"
+  | "project_signing:template_manage"
+  | "project_signing:archive_manage"
   | "incoming_updates:review"
   | "library:view"
   | "library:manage"
@@ -732,12 +737,57 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "company"
   },
   {
+    key: "project_signing:view",
+    label: "Can view project signing",
+    description: "Open the Front Office project signing and archive module.",
+    group: "documents",
+    parentKey: "signatures:view",
+    sortOrder: 142,
+    scopeBehavior: "self"
+  },
+  {
+    key: "project_signing:create",
+    label: "Can create project signing sessions",
+    description: "Create Front Office project signing requests and sessions.",
+    group: "documents",
+    parentKey: "project_signing:view",
+    sortOrder: 143,
+    scopeBehavior: "self"
+  },
+  {
+    key: "project_signing:manage",
+    label: "Can manage project signing",
+    description: "Manage assigned Front Office project signing sessions and archive actions.",
+    group: "documents",
+    parentKey: "project_signing:view",
+    sortOrder: 144,
+    scopeBehavior: "team"
+  },
+  {
+    key: "project_signing:template_manage",
+    label: "Can manage project signing templates",
+    description: "Manage reusable PDF templates for project sales signing.",
+    group: "documents",
+    parentKey: "project_signing:view",
+    sortOrder: 145,
+    scopeBehavior: "company"
+  },
+  {
+    key: "project_signing:archive_manage",
+    label: "Can manage project archives",
+    description: "Download, resend, and manage project signed document archives.",
+    group: "documents",
+    parentKey: "project_signing:view",
+    sortOrder: 146,
+    scopeBehavior: "team"
+  },
+  {
     key: "incoming_updates:review",
     label: "Can review incoming updates",
     description: "Review incoming updates and synced content.",
     group: "documents",
     parentKey: "documents:view",
-    sortOrder: 142,
+    sortOrder: 147,
     scopeBehavior: "company"
   },
   {
@@ -1212,6 +1262,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "signatures:manage",
     "signatures:report_view",
     "signatures:report_export",
+    "project_signing:view",
+    "project_signing:create",
+    "project_signing:manage",
+    "project_signing:archive_manage",
     "library:view",
     "accounting:view",
     "accounting:manage",
@@ -1252,6 +1306,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "signatures:manage",
     "signatures:report_view",
     "signatures:report_export",
+    "project_signing:view",
+    "project_signing:create",
+    "project_signing:manage",
+    "project_signing:archive_manage",
     "library:view",
     "accounting:view",
     "accounting:billing:view",
@@ -1283,6 +1341,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:link",
     "documents:view",
     "signatures:view",
+    "project_signing:view",
+    "project_signing:create",
+    "project_signing:manage",
+    "project_signing:archive_manage",
     "offers:view",
     "listing_studio:view",
     "listing_studio:create",
@@ -1313,6 +1375,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:link",
     "documents:view",
     "signatures:view",
+    "project_signing:view",
+    "project_signing:create",
     "offers:view",
     "listing_studio:view",
     "listing_studio:create",
@@ -1363,6 +1427,11 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "signatures:template_manage",
     "signatures:report_view",
     "signatures:report_export",
+    "project_signing:view",
+    "project_signing:create",
+    "project_signing:manage",
+    "project_signing:template_manage",
+    "project_signing:archive_manage",
     "incoming_updates:review",
     "accounting:view",
     "accounting:manage",
@@ -1418,6 +1487,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:view:company",
     "documents:view",
     "signatures:view",
+    "project_signing:view",
     "offers:view",
     "offers:view:company",
     "listing_studio:view",
@@ -1435,8 +1505,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
 };
 
 const requiredRoleBaselinePermissions: Partial<Record<UserRole, PermissionKey[]>> = {
-  agent: ["clients:view", "clients:manage", "commissions:view", "resources:view"],
-  team_lead: ["commissions:view", "commissions:view:team", "resources:view"]
+  agent: ["clients:view", "clients:manage", "commissions:view", "resources:view", "project_signing:view", "project_signing:create"],
+  team_lead: ["commissions:view", "commissions:view:team", "resources:view", "project_signing:view", "project_signing:create", "project_signing:manage"]
 };
 
 function applyRequiredRoleBaselinePermissions(role: UserRole, permissions: readonly PermissionKey[]) {
