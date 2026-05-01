@@ -55,7 +55,7 @@ export function FrontOfficeProjectsClient(props: {
   projects: ProjectRecord[];
   templates: TemplateRecord[];
   canManage: boolean;
-  canManageTemplates: boolean;
+  canCreateTemplate: boolean;
   includeArchived: boolean;
   archivedProjectCount: number;
 }) {
@@ -158,66 +158,35 @@ export function FrontOfficeProjectsClient(props: {
     }
 
     setPendingNewTemplate(true);
-    setMutation({ kind: "loading", message: "Creating template..." });
+    setMutation({ kind: "loading", message: "Uploading template..." });
 
     try {
-      const createResponse = await fetch("/api/office/signatures/templates", {
+      const uploadFormData = new FormData();
+      uploadFormData.append("name", name);
+      uploadFormData.append("file", file);
+
+      const response = await fetch("/api/agent/projects/templates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: null,
-          name,
-          category: "project_sales",
-          isActive: true,
-          recipients: [
-            {
-              role: "signer",
-              recipientRole: "buyer",
-              routingStep: 1,
-              sortOrder: 0,
-            },
-          ],
-          fields: [],
-        }),
+        body: uploadFormData,
       });
-      const createPayload = (await createResponse.json().catch(() => null)) as
+      const payload = (await response.json().catch(() => null)) as
         | { template?: { id: string; name: string }; error?: string }
         | null;
 
-      if (!createResponse.ok || !createPayload?.template) {
-        throw new Error(createPayload?.error || "Failed to create template.");
-      }
-
-      const newTemplate = createPayload.template;
-      const uploadFormData = new FormData();
-      uploadFormData.append("file", file);
-
-      const uploadResponse = await fetch(
-        `/api/office/signatures/templates/${encodeURIComponent(newTemplate.id)}/pdf`,
-        {
-          method: "POST",
-          body: uploadFormData,
-        },
-      );
-      const uploadPayload = (await uploadResponse.json().catch(() => null)) as { error?: string } | null;
-
-      if (!uploadResponse.ok) {
-        throw new Error(
-          uploadPayload?.error ||
-            `Template "${newTemplate.name}" was created but PDF upload failed. Retry from the Back Office templates page.`,
-        );
+      if (!response.ok || !payload?.template) {
+        throw new Error(payload?.error || "Failed to upload signing template.");
       }
 
       formElement.reset();
       setMutation({
         kind: "success",
-        message: `Template "${newTemplate.name}" created with PDF. It is now available for new signing sessions.`,
+        message: `Template "${payload.template.name}" uploaded. It is now available for new signing sessions.`,
       });
       router.refresh();
     } catch (error) {
       setMutation({
         kind: "error",
-        message: error instanceof Error ? error.message : "Failed to create template.",
+        message: error instanceof Error ? error.message : "Failed to upload signing template.",
       });
     } finally {
       setPendingNewTemplate(false);
@@ -456,28 +425,27 @@ export function FrontOfficeProjectsClient(props: {
         <SectionCard
           className="office-list-card"
           subtitle={
-            props.canManageTemplates
+            props.canCreateTemplate
               ? "Upload your first project signing template right here. It will appear in the templates list and become selectable for signing sessions."
-              : "An admin or template manager needs to upload a project signing template before signing sessions can be created."
+              : "Ask a teammate with project signing create access to upload the first signing template."
           }
           title="No PDF-ready templates yet"
         >
-          {props.canManageTemplates ? (
-            <p>Use the &quot;Upload signing template&quot; form below to create the first one.</p>
+          {props.canCreateTemplate ? (
+            <p>Use the &quot;Upload signing template&quot; form below.</p>
           ) : (
             <p>
-              Ask an admin or template manager to use the &quot;Upload signing template&quot; form on this page,
-              or open the Back Office templates page at{" "}
-              <Link href="/office/signatures/templates">/office/signatures/templates</Link>.
+              Templates can be uploaded by anyone with project signing create permission, or managed in the Back
+              Office at <Link href="/office/signatures/templates">/office/signatures/templates</Link>.
             </p>
           )}
         </SectionCard>
       ) : null}
 
-      {props.canManageTemplates ? (
+      {props.canCreateTemplate ? (
         <SectionCard
           className="office-list-card"
-          subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields in the Back Office editor when needed."
+          subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields later in the Back Office editor if needed."
           title="Upload signing template"
         >
           <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
@@ -489,7 +457,7 @@ export function FrontOfficeProjectsClient(props: {
             </FormField>
             <div className="office-form-actions">
               <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
-                {pendingNewTemplate ? "Creating..." : "Upload template"}
+                {pendingNewTemplate ? "Uploading..." : "Upload template"}
               </Button>
             </div>
           </form>

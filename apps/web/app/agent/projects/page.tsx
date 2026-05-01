@@ -1,5 +1,9 @@
-import { canManageOfficeSignatureTemplates } from "@acre/auth";
-import { canManageProjectSigning, canViewProjectSigning, getFrontOfficeProjectSigningSnapshot } from "@acre/db";
+import {
+  canCreateProjectSigning,
+  canManageProjectSigning,
+  canViewProjectSigning,
+  getFrontOfficeProjectSigningSnapshot,
+} from "@acre/db";
 import { EmptyState, ListPageStatsGrid, QueueItem, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
@@ -24,7 +28,7 @@ export default async function AgentProjectsPage(props: {
   const searchParams = (await props.searchParams) ?? {};
   const includeArchived = searchParams.archived === "1";
   const canManage = canManageProjectSigning(context.currentMembership);
-  const canManageTemplates = canManageOfficeSignatureTemplates(context.currentMembership);
+  const canCreateTemplate = canCreateProjectSigning(context.currentMembership);
 
   const snapshot = await getFrontOfficeProjectSigningSnapshot({
     organizationId: context.currentOrganization.id,
@@ -102,8 +106,8 @@ export default async function AgentProjectsPage(props: {
 
           <FrontOfficeProjectsClient
             archivedProjectCount={snapshot.summary.archivedProjectCount}
+            canCreateTemplate={canCreateTemplate}
             canManage={canManage}
-            canManageTemplates={canManageTemplates}
             includeArchived={snapshot.summary.includeArchived}
             projects={snapshot.projects}
             templates={snapshot.templates}
