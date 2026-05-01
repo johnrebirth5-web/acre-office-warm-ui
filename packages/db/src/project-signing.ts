@@ -1,5 +1,4 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { compare, hash } from "bcryptjs";
 import { can, type PermissionKey, type UserRole } from "@acre/auth";
 import {
   Prisma,
@@ -92,7 +91,6 @@ export type CreateProjectSigningSessionInput = ProjectSigningActorContext & {
 
 export type StartProjectHandoffInput = ProjectSigningActorContext & {
   sessionId: string;
-  pin: string;
   expiresInMinutes?: number;
 };
 
@@ -1058,10 +1056,6 @@ export async function startProjectSigningHandoff(input: StartProjectHandoffInput
     throw new Error("Project signing create access required.");
   }
 
-  if (!/^\d{4,6}$/.test(input.pin.trim())) {
-    throw new Error("Handoff PIN must be 4 to 6 digits.");
-  }
-
   const session = await prisma.projectSigningSession.findFirst({
     where: {
       id: input.sessionId,
@@ -1087,7 +1081,6 @@ export async function startProjectSigningHandoff(input: StartProjectHandoffInput
 
   const rawToken = randomBytes(32).toString("base64url");
   const tokenHash = hashProjectSigningToken(rawToken);
-  const pinHash = await hash(input.pin.trim(), 10);
   const expiresAt = nowPlusMinutes(Math.min(Math.max(input.expiresInMinutes ?? 30, 1), 30));
 
   const saved = await prisma.projectSigningSession.update({
@@ -1099,7 +1092,7 @@ export async function startProjectSigningHandoff(input: StartProjectHandoffInput
       status: ProjectSigningSessionStatus.awaiting_signers,
       handoffTokenHash: tokenHash,
       handoffTokenExpiresAt: expiresAt,
-      handoffPinHash: pinHash,
+      handoffPinHash: null,
       handoffPinFailedAttempts: 0,
       handoffLockedUntil: null,
       handoffStartedAt: new Date(),
@@ -1117,7 +1110,7 @@ export async function startProjectSigningHandoff(input: StartProjectHandoffInput
     payload: buildAuditPayload({
       projectId: session.projectId,
       expiresAt,
-      pinReset: true,
+      exitMode: "token_only",
     }),
   });
 
@@ -1128,53 +1121,20 @@ export async function startProjectSigningHandoff(input: StartProjectHandoffInput
   };
 }
 
-export async function verifyProjectHandoffPin(sessionId: string, pin: string) {
-  const session = await prisma.projectSigningSession.findUnique({
+export async function exitProjectSigningHandoff(sessionId: string) {
+  await prisma.projectSigningSession.update({
     where: {
       id: sessionId,
     },
-  });
-
-  if (!session?.handoffPinHash) {
-    return { ok: false, locked: false };
-  }
-
-  if (session.handoffLockedUntil && session.handoffLockedUntil.getTime() > Date.now()) {
-    return { ok: false, locked: true };
-  }
-
-  const ok = await compare(pin.trim(), session.handoffPinHash);
-
-  if (ok) {
-    await prisma.projectSigningSession.update({
-      where: {
-        id: session.id,
-      },
-      data: {
-        handoffTokenHash: null,
-        handoffTokenExpiresAt: null,
-        handoffPinHash: null,
-        handoffPinFailedAttempts: 0,
-        handoffLockedUntil: null,
-        handoffExitedAt: new Date(),
-      },
-    });
-    return { ok: true, locked: false };
-  }
-
-  const failedAttempts = session.handoffPinFailedAttempts + 1;
-
-  await prisma.projectSigningSession.update({
-    where: {
-      id: session.id,
-    },
     data: {
-      handoffPinFailedAttempts: failedAttempts,
-      handoffLockedUntil: failedAttempts >= 5 ? nowPlusMinutes(5) : null,
+      handoffTokenHash: null,
+      handoffTokenExpiresAt: null,
+      handoffPinHash: null,
+      handoffPinFailedAttempts: 0,
+      handoffLockedUntil: null,
+      handoffExitedAt: new Date(),
     },
   });
-
-  return { ok: false, locked: failedAttempts >= 5 };
 }
 
 export async function resolveProjectHandoffToken(rawToken: string) {

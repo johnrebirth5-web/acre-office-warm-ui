@@ -78,7 +78,7 @@ Developer-sales document signing lives in `Front Office` as the `/agent/projects
 
 - `/agent/projects` is the only project signing product entry. Do not add a parallel `/office/projects` route.
 - The page must filter by role on the server: admins see the organization-wide project archive, managers see assigned/team scope, and agents or staff see projects they created or are assigned to.
-- External signers never enter the Front Office shell. Remote signers use `/sign/session/[token]`; in-person handoff uses `/sign/handoff/[token]`.
+- External signers never enter the Front Office shell. Remote signers use `/sign/session/[token]`; in-person handoff uses `/sign/handoff/[token]` with an expiring token-only link and no agent exit PIN.
 - Remote send keeps the generated secure links visible to the initiating agent, so email delivery failures can be handled manually without reissuing the session.
 - Project signing may use a hidden `TransactionStatus.system_anchor` transaction only to satisfy legacy signature request constraints. Transaction lists, reports, dashboards, pipeline views, and exports must exclude anchors through the shared transaction visibility helper.
 - Signed copies default to secure download links, with hash verification against `SignatureArtifact.contentSha256`; attachment delivery is an explicit compliance/product opt-in.
