@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Button, TextInput } from "@acre/ui";
+import { Button } from "@acre/ui";
 
 type Recipient = {
   id: string;
@@ -104,24 +104,21 @@ export function ProjectHandoffClient(props: {
 
   async function exitHandoff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
     setIsBusy(true);
 
     try {
       const response = await fetch(`/api/public/project-handoff/${encodeURIComponent(props.token)}/exit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: String(formData.get("pin") ?? "") }),
       });
       const payload = (await response.json().catch(() => ({}))) as { error?: string; redirectTo?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error || "PIN could not be verified.");
+        throw new Error(payload.error || "Handoff could not be exited.");
       }
 
       window.location.href = payload.redirectTo ?? "/agent/projects";
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "PIN could not be verified.");
+      setMessage(error instanceof Error ? error.message : "Handoff could not be exited.");
     } finally {
       setIsBusy(false);
     }
@@ -132,7 +129,7 @@ export function ProjectHandoffClient(props: {
       <section className="project-kiosk-panel">
         <p className="office-eyebrow">Acre Project Signing</p>
         <h1>{props.projectName}</h1>
-        <p>{allComplete ? "All signers are complete. Enter the agent PIN to exit." : "Tap your name when the iPad is handed to you."}</p>
+        <p>{allComplete ? "All signers are complete. Exit the kiosk when you are ready." : "Tap your name when the iPad is handed to you."}</p>
         {message ? <p className="project-public-message">{message}</p> : null}
 
         {!allComplete ? (
@@ -155,7 +152,6 @@ export function ProjectHandoffClient(props: {
           </div>
         ) : (
           <form className="project-public-otp" onSubmit={exitHandoff}>
-            <TextInput inputMode="numeric" maxLength={6} minLength={4} name="pin" placeholder="Agent PIN" required />
             <Button disabled={isBusy} type="submit">
               Exit kiosk
             </Button>

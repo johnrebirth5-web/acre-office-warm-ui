@@ -57,6 +57,13 @@ type RemoteDeliveryState = {
   copiedUrl: string;
 };
 
+type SigningSessionResponse = {
+  session?: {
+    id: string;
+    mode: "remote" | "in_person";
+  };
+};
+
 type CreateProjectPayload = {
   code: string;
   name: string;
@@ -158,6 +165,24 @@ export function FrontOfficeProjectsClient(props: {
       kind: "success",
       message: "Saved. Refresh the page to see the latest workspace state.",
     });
+  }
+
+  async function createSigningSession(url: string, body: Record<string, unknown>) {
+    setMutation({ kind: "loading", message: "Creating signing session..." });
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json().catch(() => ({}))) as SigningSessionResponse & {
+      error?: string;
+    };
+
+    if (!response.ok || !payload.session) {
+      throw new Error(payload.error || "Signing session could not be created.");
+    }
+
+    return payload.session;
   }
 
   async function handleCreateTemplateWithPdf(event: FormEvent<HTMLFormElement>) {
@@ -312,8 +337,9 @@ export function FrontOfficeProjectsClient(props: {
     }
 
     try {
-      await submitJson(`/api/agent/projects/${encodeURIComponent(projectId)}/sessions`, {
-        mode: String(formData.get("mode") ?? "remote"),
+      const mode = String(formData.get("mode") ?? "remote") === "in_person" ? "in_person" : "remote";
+      const session = await createSigningSession(`/api/agent/projects/${encodeURIComponent(projectId)}/sessions`, {
+        mode,
         templateIds,
         buyerName: String(formData.get("buyerName") ?? ""),
         buyerEmail: String(formData.get("buyerEmail") ?? ""),
@@ -329,6 +355,14 @@ export function FrontOfficeProjectsClient(props: {
         ],
       });
       event.currentTarget.reset();
+      setMutation({
+        kind: "success",
+        message:
+          session.mode === "remote"
+            ? "Signing session created. Use Launch existing session > Send remote link to email the recipient."
+            : "Signing session created. Use Launch existing session > Start iPad handoff when the iPad is ready.",
+      });
+      router.refresh();
     } catch (error) {
       setMutation({
         kind: "error",
@@ -400,16 +434,11 @@ export function FrontOfficeProjectsClient(props: {
     setRemoteDelivery(null);
     const formData = new FormData(event.currentTarget);
     const sessionId = String(formData.get("sessionId") ?? "");
-    const pin = String(formData.get("pin") ?? "");
 
     try {
       setMutation({ kind: "loading", message: "Starting handoff..." });
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/handoff/start`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ pin }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -608,7 +637,7 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card"
-        subtitle="Create one bundled signing session. Start handoff or remote send from the session row after refresh."
+        subtitle="Create one bundled signing session. Remote emails send only after you click Send remote link."
         title="Create signing session"
       >
         <form className="office-form-grid" onSubmit={handleCreateSession}>
@@ -655,7 +684,7 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card"
-        subtitle="Remote links use email OTP. Handoff links require a fresh PIN and expire in 30 minutes."
+        subtitle="Remote links use email OTP. iPad handoff links expire in 30 minutes."
         title="Launch existing session"
       >
         <div className="office-form-grid">
@@ -685,9 +714,6 @@ export function FrontOfficeProjectsClient(props: {
                   </option>
                 ))}
               </SelectInput>
-            </FormField>
-            <FormField label="Exit PIN">
-              <TextInput inputMode="numeric" maxLength={6} minLength={4} name="pin" pattern="[0-9]{4,6}" required />
             </FormField>
             <div className="office-form-actions">
               <Button disabled={!firstSessionId || mutation.kind === "loading"} type="submit">
