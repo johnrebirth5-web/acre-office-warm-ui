@@ -369,9 +369,10 @@ export function FrontOfficeProjectsClient(props: {
           title="No PDF-ready templates yet"
         >
           <p>
-            Manage templates in the Back Office:{" "}
-            <Link href="/office/signatures/templates">/office/signatures/templates</Link>. Create or open a
-            project_sales template, then attach a source PDF to make it available here.
+            Open the Back Office templates page at{" "}
+            <Link href="/office/signatures/templates">/office/signatures/templates</Link> and use the
+            &quot;Create new template with PDF&quot; section at the top: enter a name, keep category as
+            &quot;Project sales&quot;, attach the PDF, and click <strong>Create with PDF</strong>.
           </p>
         </SectionCard>
       ) : null}

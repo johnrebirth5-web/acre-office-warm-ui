@@ -182,6 +182,7 @@ export function SignatureTemplatesClient({
   });
   const [pendingAction, setPendingAction] = useState(false);
   const [pendingPdfUpload, setPendingPdfUpload] = useState(false);
+  const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -253,6 +254,116 @@ export function SignatureTemplatesClient({
     });
     setError("");
     setSuccessMessage("");
+  }
+
+  async function handleCreateNewTemplateWithPdf(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
+    const name = String(formData.get("newName") ?? "").trim();
+    const category = String(formData.get("newCategory") ?? "project_sales") as EditorState["category"];
+    const fileInput = formElement.elements.namedItem("newFile");
+    const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] ?? null : null;
+
+    if (!name) {
+      setError("Template name is required.");
+      return;
+    }
+
+    if (!file) {
+      setError("Choose a PDF file before creating the template.");
+      return;
+    }
+
+    setPendingNewTemplate(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const createResponse = await fetch("/api/office/signatures/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: null,
+          name,
+          category,
+          isActive: true,
+          recipients: [
+            {
+              role: "signer",
+              recipientRole: "buyer",
+              routingStep: 1,
+              sortOrder: 0,
+            },
+          ],
+          fields: [],
+        }),
+      });
+      const createPayload = (await createResponse.json().catch(() => null)) as
+        | { template?: OfficeSignatureTemplate; error?: string }
+        | null;
+
+      if (!createResponse.ok || !createPayload?.template) {
+        throw new Error(createPayload?.error || "Failed to create template.");
+      }
+
+      const newTemplate = createPayload.template;
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+
+      const uploadResponse = await fetch(
+        `/api/office/signatures/templates/${encodeURIComponent(newTemplate.id)}/pdf`,
+        {
+          method: "POST",
+          body: uploadFormData,
+        },
+      );
+      const uploadPayload = (await uploadResponse.json().catch(() => null)) as
+        | { template?: { pdfFileName?: string; pdfByteSize?: number; pdfContentType?: string }; error?: string }
+        | null;
+
+      if (!uploadResponse.ok) {
+        throw new Error(
+          uploadPayload?.error ||
+            `Template was created but PDF upload failed. Use Replace PDF on "${newTemplate.name}" to retry.`,
+        );
+      }
+
+      const enrichedTemplate: OfficeSignatureTemplate = {
+        ...newTemplate,
+        pdfFileName: uploadPayload?.template?.pdfFileName ?? newTemplate.pdfFileName,
+        pdfByteSize: uploadPayload?.template?.pdfByteSize ?? newTemplate.pdfByteSize,
+        hasPdfSource: true,
+      };
+
+      const nextTemplates = [enrichedTemplate, ...currentSnapshot.templates];
+
+      setCurrentSnapshot({
+        summary: buildSnapshotSummary(nextTemplates),
+        capabilities: currentSnapshot.capabilities,
+        templates: nextTemplates,
+      });
+      setEditorState({
+        templateId: enrichedTemplate.id,
+        name: enrichedTemplate.name,
+        description: enrichedTemplate.description,
+        category: enrichedTemplate.category,
+        isActive: enrichedTemplate.isActive,
+        emailSubject: enrichedTemplate.emailSubject,
+        emailBody: enrichedTemplate.emailBody,
+        senderDisplayName: enrichedTemplate.senderDisplayName,
+        senderReplyTo: enrichedTemplate.senderReplyTo,
+      });
+      setSuccessMessage(
+        `Template "${enrichedTemplate.name}" created with PDF. Adjust recipients, fields, and email copy in the editor below.`,
+      );
+      formElement.reset();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Failed to create template.");
+    } finally {
+      setPendingNewTemplate(false);
+    }
   }
 
   async function handleUploadPdf(event: FormEvent<HTMLFormElement>) {
@@ -427,6 +538,53 @@ export function SignatureTemplatesClient({
         <StatCard hint={t((messages) => messages.officeSignatureTemplates.statsUsedHint)} label={t((messages) => messages.officeSignatureTemplates.usedAtLeastOnce)} value={currentSnapshot.summary.usedCount} />
         <StatCard hint={t((messages) => messages.officeSignatureTemplates.statsLiveDraftsHint)} label={t((messages) => messages.officeSignatureTemplates.liveDrafts)} value={currentSnapshot.summary.templatesWithLiveDraftsCount} />
       </ListPageStatsGrid>
+
+      <ListPageSection
+        subtitle="Pick a category, give it a name, attach a source PDF, and the template appears in the library below for further editing."
+        title="Create new template with PDF"
+      >
+        {!canManageSignatures ? (
+          <p className="office-form-helper">
+            Creating templates is restricted to admins, owners, and template managers. Ask one of them if a new
+            project signing template is needed.
+          </p>
+        ) : null}
+        {error ? <p className="office-inline-error">{error}</p> : null}
+        {successMessage ? <p className="office-inline-success">{successMessage}</p> : null}
+        <form className="office-form-grid" onSubmit={handleCreateNewTemplateWithPdf}>
+          <FormField label="Template name">
+            <TextInput
+              disabled={!canManageSignatures}
+              name="newName"
+              placeholder="Astoria Reservation Agreement"
+              required
+            />
+          </FormField>
+          <FormField label="Category">
+            <SelectInput defaultValue="project_sales" disabled={!canManageSignatures} name="newCategory">
+              <option value="project_sales">Project sales</option>
+              <option value="transaction">{t((messages) => messages.officeSignatures.transactionCategory)}</option>
+              <option value="hr">{t((messages) => messages.officeSignatures.hrCategory)}</option>
+              <option value="finance">{t((messages) => messages.officeSignatures.financeCategory)}</option>
+              <option value="admin">{t((messages) => messages.officeSignatures.adminCategory)}</option>
+            </SelectInput>
+          </FormField>
+          <FormField className="office-detail-field-wide" label="Source PDF">
+            <input
+              accept="application/pdf,.pdf"
+              disabled={!canManageSignatures}
+              name="newFile"
+              required
+              type="file"
+            />
+          </FormField>
+          <div className="office-settings-actions">
+            <Button disabled={!canManageSignatures || pendingNewTemplate} type="submit">
+              {pendingNewTemplate ? "Creating..." : "Create with PDF"}
+            </Button>
+          </div>
+        </form>
+      </ListPageSection>
 
       <ListPageSection
         subtitle={t((messages) => messages.officeSignatureTemplates.libraryControlsSubtitle)}
