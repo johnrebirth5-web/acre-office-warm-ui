@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 
@@ -54,14 +55,17 @@ export function FrontOfficeProjectsClient(props: {
   projects: ProjectRecord[];
   templates: TemplateRecord[];
   canManage: boolean;
+  canManageTemplates: boolean;
   includeArchived: boolean;
   archivedProjectCount: number;
 }) {
+  const router = useRouter();
   const [mutation, setMutation] = useState<MutationState>({
     kind: "idle",
     message: "",
   });
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
+  const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const firstProjectId = props.projects[0]?.id ?? "";
   const firstTemplateId = props.templates.find((template) => template.hasPdfSource)?.id ?? "";
   const sessions = props.projects.flatMap((project) =>
@@ -132,6 +136,92 @@ export function FrontOfficeProjectsClient(props: {
       kind: "success",
       message: "Saved. Refresh the page to see the latest workspace state.",
     });
+  }
+
+  async function handleCreateTemplateWithPdf(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
+    const name = String(formData.get("templateName") ?? "").trim();
+    const fileInput = formElement.elements.namedItem("templateFile");
+    const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] ?? null : null;
+
+    if (!name) {
+      setMutation({ kind: "error", message: "Template name is required." });
+      return;
+    }
+
+    if (!file) {
+      setMutation({ kind: "error", message: "Choose a PDF file before creating the template." });
+      return;
+    }
+
+    setPendingNewTemplate(true);
+    setMutation({ kind: "loading", message: "Creating template..." });
+
+    try {
+      const createResponse = await fetch("/api/office/signatures/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: null,
+          name,
+          category: "project_sales",
+          isActive: true,
+          recipients: [
+            {
+              role: "signer",
+              recipientRole: "buyer",
+              routingStep: 1,
+              sortOrder: 0,
+            },
+          ],
+          fields: [],
+        }),
+      });
+      const createPayload = (await createResponse.json().catch(() => null)) as
+        | { template?: { id: string; name: string }; error?: string }
+        | null;
+
+      if (!createResponse.ok || !createPayload?.template) {
+        throw new Error(createPayload?.error || "Failed to create template.");
+      }
+
+      const newTemplate = createPayload.template;
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+
+      const uploadResponse = await fetch(
+        `/api/office/signatures/templates/${encodeURIComponent(newTemplate.id)}/pdf`,
+        {
+          method: "POST",
+          body: uploadFormData,
+        },
+      );
+      const uploadPayload = (await uploadResponse.json().catch(() => null)) as { error?: string } | null;
+
+      if (!uploadResponse.ok) {
+        throw new Error(
+          uploadPayload?.error ||
+            `Template "${newTemplate.name}" was created but PDF upload failed. Retry from the Back Office templates page.`,
+        );
+      }
+
+      formElement.reset();
+      setMutation({
+        kind: "success",
+        message: `Template "${newTemplate.name}" created with PDF. It is now available for new signing sessions.`,
+      });
+      router.refresh();
+    } catch (error) {
+      setMutation({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Failed to create template.",
+      });
+    } finally {
+      setPendingNewTemplate(false);
+    }
   }
 
   async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
@@ -365,15 +455,44 @@ export function FrontOfficeProjectsClient(props: {
       {usableTemplates.length === 0 ? (
         <SectionCard
           className="office-list-card"
-          subtitle="An admin or template manager needs to upload a PDF to a project_sales template before agents can start signing sessions."
+          subtitle={
+            props.canManageTemplates
+              ? "Upload your first project signing template right here. It will appear in the templates list and become selectable for signing sessions."
+              : "An admin or template manager needs to upload a project signing template before signing sessions can be created."
+          }
           title="No PDF-ready templates yet"
         >
-          <p>
-            Open the Back Office templates page at{" "}
-            <Link href="/office/signatures/templates">/office/signatures/templates</Link> and use the
-            &quot;Create new template with PDF&quot; section at the top: enter a name, keep category as
-            &quot;Project sales&quot;, attach the PDF, and click <strong>Create with PDF</strong>.
-          </p>
+          {props.canManageTemplates ? (
+            <p>Use the &quot;Upload signing template&quot; form below to create the first one.</p>
+          ) : (
+            <p>
+              Ask an admin or template manager to use the &quot;Upload signing template&quot; form on this page,
+              or open the Back Office templates page at{" "}
+              <Link href="/office/signatures/templates">/office/signatures/templates</Link>.
+            </p>
+          )}
+        </SectionCard>
+      ) : null}
+
+      {props.canManageTemplates ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields in the Back Office editor when needed."
+          title="Upload signing template"
+        >
+          <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
+            <FormField label="Template name">
+              <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
+            </FormField>
+            <FormField className="office-detail-field-wide" label="Source PDF">
+              <input accept="application/pdf,.pdf" name="templateFile" required type="file" />
+            </FormField>
+            <div className="office-form-actions">
+              <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
+                {pendingNewTemplate ? "Creating..." : "Upload template"}
+              </Button>
+            </div>
+          </form>
         </SectionCard>
       ) : null}
 
