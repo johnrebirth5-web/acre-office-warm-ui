@@ -535,6 +535,11 @@ export function SignatureTemplatesClient({
                   <div className="office-list-table-main-meta">
                     <span>{template.createdByLabel}</span>
                     <span>{t((messages) => messages.officeSignatureTemplates.version, { value: template.version })}</span>
+                    <span>
+                      {template.hasPdfSource
+                        ? `PDF: ${template.pdfFileName || "stored"}`
+                        : "No source PDF — upload required"}
+                    </span>
                     {canManageSignatures && template.latestRequest?.requestHref ? (
                       <span>
                         <Link className="office-toggle-link" href={template.latestRequest.requestHref}>
@@ -683,7 +688,12 @@ export function SignatureTemplatesClient({
                   ? `Current PDF: ${selectedTemplate.pdfFileName || "(unnamed)"} (${(selectedTemplate.pdfByteSize / 1024).toFixed(0)} KB). Uploading replaces the current source.`
                   : "No source PDF yet. Upload one before this template can power a signing session."}
               </div>
-              <input accept="application/pdf,.pdf" name="file" required type="file" />
+              {!canManageSignatures ? (
+                <div className="office-form-helper">
+                  Uploading or replacing a template PDF is restricted to admins, owners, and template managers.
+                </div>
+              ) : null}
+              <input accept="application/pdf,.pdf" disabled={!canManageSignatures} name="file" required type="file" />
             </FormField>
             <div className="office-settings-actions">
               <Button disabled={pendingPdfUpload || !canManageSignatures} type="submit" variant="secondary">

@@ -44,7 +44,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Project signing access required." }, { status: 403 });
   }
 
-  const snapshot = await getFrontOfficeProjectSigningSnapshot(buildProjectSigningContext(context));
+  const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "1";
+  const snapshot = await getFrontOfficeProjectSigningSnapshot({
+    ...buildProjectSigningContext(context),
+    includeArchived,
+  });
 
   return NextResponse.json({ snapshot });
 }

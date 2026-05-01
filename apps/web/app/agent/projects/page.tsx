@@ -1,11 +1,13 @@
-import { canViewProjectSigning, getFrontOfficeProjectSigningSnapshot } from "@acre/db";
+import { canManageProjectSigning, canViewProjectSigning, getFrontOfficeProjectSigningSnapshot } from "@acre/db";
 import { EmptyState, ListPageStatsGrid, QueueItem, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
 import { FrontOfficeProjectsClient } from "./front-office-projects-client";
 
-export default async function AgentProjectsPage() {
+export default async function AgentProjectsPage(props: {
+  searchParams?: Promise<{ archived?: string }>;
+}) {
   const context = await requireSessionContext();
 
   if (!canViewProjectSigning(context.currentMembership)) {
@@ -18,12 +20,17 @@ export default async function AgentProjectsPage() {
     );
   }
 
+  const searchParams = (await props.searchParams) ?? {};
+  const includeArchived = searchParams.archived === "1";
+  const canManage = canManageProjectSigning(context.currentMembership);
+
   const snapshot = await getFrontOfficeProjectSigningSnapshot({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     viewerMembershipId: context.currentMembership.id,
     viewerRole: context.currentMembership.role,
     viewerPermissions: context.currentMembership.permissions,
+    includeArchived,
   });
 
   return (
@@ -92,6 +99,9 @@ export default async function AgentProjectsPage() {
           </SectionCard>
 
           <FrontOfficeProjectsClient
+            archivedProjectCount={snapshot.summary.archivedProjectCount}
+            canManage={canManage}
+            includeArchived={snapshot.summary.includeArchived}
             projects={snapshot.projects}
             templates={snapshot.templates}
           />

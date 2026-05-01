@@ -361,8 +361,13 @@ function formatDateLabel(value: Date | null | undefined) {
     : "Not set";
 }
 
-export async function getFrontOfficeProjectSigningSnapshot(input: ProjectSigningActorContext) {
-  const where = await buildProjectSigningWhere(input);
+export async function getFrontOfficeProjectSigningSnapshot(
+  input: ProjectSigningActorContext & { includeArchived?: boolean },
+) {
+  const baseWhere = await buildProjectSigningWhere(input);
+  const where: Prisma.SalesProjectWhereInput = input.includeArchived
+    ? baseWhere
+    : { AND: [baseWhere, { status: SalesProjectStatus.active }] };
   const [projects, templates] = await Promise.all([
     prisma.salesProject.findMany({
       where,
@@ -424,6 +429,9 @@ export async function getFrontOfficeProjectSigningSnapshot(input: ProjectSigning
 
   const activeSessions = projects.flatMap((project) => project.sessions).filter((session) => !projectSigningTerminalSessionStatuses.includes(session.status));
   const completedSessions = projects.flatMap((project) => project.sessions).filter((session) => session.status === ProjectSigningSessionStatus.completed);
+  const archivedProjectCount = await prisma.salesProject.count({
+    where: { AND: [baseWhere, { status: SalesProjectStatus.archived }] },
+  });
   const failedJobs = await prisma.projectSignatureJob.count({
     where: {
       organizationId: input.organizationId,
@@ -440,7 +448,9 @@ export async function getFrontOfficeProjectSigningSnapshot(input: ProjectSigning
       activeSessionCount: activeSessions.length,
       completedSessionCount: completedSessions.length,
       archivedDocumentCount: projects.reduce((total, project) => total + project._count.documents, 0),
+      archivedProjectCount,
       failedJobCount: failedJobs,
+      includeArchived: Boolean(input.includeArchived),
     },
     templates: templates.map((template) => ({
       id: template.id,

@@ -53,6 +53,9 @@ type DuplicatePrompt = {
 export function FrontOfficeProjectsClient(props: {
   projects: ProjectRecord[];
   templates: TemplateRecord[];
+  canManage: boolean;
+  includeArchived: boolean;
+  archivedProjectCount: number;
 }) {
   const [mutation, setMutation] = useState<MutationState>({
     kind: "idle",
@@ -408,25 +411,46 @@ export function FrontOfficeProjectsClient(props: {
         </form>
       </SectionCard>
 
-      {props.projects.length ? (
+      {props.projects.length || props.archivedProjectCount > 0 ? (
         <SectionCard
           className="office-list-card"
-          subtitle="Archive hides a project from active lists; sessions and signed archives stay intact and can be restored."
+          subtitle={
+            props.canManage
+              ? "Archive hides a project from active lists; sessions and signed archives stay intact and can be restored later."
+              : "Archive and restore are restricted to managers, admins, and owners. Ask a manager if a duplicate project needs cleanup."
+          }
           title="Manage projects"
         >
+          <div className="office-form-actions">
+            {props.includeArchived ? (
+              <Link href="/agent/projects">
+                <Button size="sm" type="button" variant="secondary">
+                  Hide archived
+                </Button>
+              </Link>
+            ) : props.archivedProjectCount > 0 ? (
+              <Link href="/agent/projects?archived=1">
+                <Button size="sm" type="button" variant="secondary">
+                  Show {props.archivedProjectCount} archived
+                </Button>
+              </Link>
+            ) : null}
+          </div>
           <div className="office-queue-list">
             {props.projects.map((project) => (
               <QueueItem
                 action={
-                  <Button
-                    disabled={mutation.kind === "loading"}
-                    onClick={() => handleArchiveProject(project)}
-                    size="sm"
-                    type="button"
-                    variant={project.status === "archived" ? "secondary" : "danger"}
-                  >
-                    {project.status === "archived" ? "Unarchive" : "Archive"}
-                  </Button>
+                  props.canManage ? (
+                    <Button
+                      disabled={mutation.kind === "loading"}
+                      onClick={() => handleArchiveProject(project)}
+                      size="sm"
+                      type="button"
+                      variant={project.status === "archived" ? "secondary" : "danger"}
+                    >
+                      {project.status === "archived" ? "Unarchive" : "Archive"}
+                    </Button>
+                  ) : null
                 }
                 badgeLabel={project.status}
                 badgeTone={project.status === "active" ? "accent" : "neutral"}
