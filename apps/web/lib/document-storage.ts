@@ -31,6 +31,13 @@ type SaveStoredProjectFileInput = {
   bytes: Uint8Array;
 };
 
+type SaveStoredSignatureTemplateFileInput = {
+  organizationId: string;
+  templateId: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
 type SaveStoredTextInput = {
   organizationId: string;
   transactionId: string;
@@ -296,6 +303,17 @@ export async function saveStoredProjectFile(input: SaveStoredProjectFileInput): 
   return saveScopedFile({
     organizationId: input.organizationId,
     scopeSegments: ["projects", input.projectId],
+    fileName: input.fileName,
+    bytes: input.bytes,
+  });
+}
+
+export async function saveStoredSignatureTemplateFile(
+  input: SaveStoredSignatureTemplateFileInput,
+): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["signature-templates", input.templateId],
     fileName: input.fileName,
     bytes: input.bytes,
   });

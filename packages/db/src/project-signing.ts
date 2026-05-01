@@ -10,6 +10,7 @@ import {
   ProjectSigningJobType,
   ProjectSigningSessionMode,
   ProjectSigningSessionStatus,
+  SalesProjectStatus,
   SignatureArtifactKind,
   SignatureContextType,
   SignatureRecipientRole,
@@ -575,6 +576,144 @@ export async function createSalesProject(input: CreateSalesProjectInput) {
     });
 
     return project;
+  });
+}
+
+export type FindSimilarSalesProjectsInput = ProjectSigningActorContext & {
+  code: string;
+  name: string;
+  excludeProjectId?: string | null;
+};
+
+export async function findSimilarSalesProjects(input: FindSimilarSalesProjectsInput) {
+  const code = normalizeText(input.code);
+  const name = normalizeText(input.name);
+
+  if (!code && !name) {
+    return [];
+  }
+
+  const baseScope: Prisma.SalesProjectWhereInput = {
+    organizationId: input.organizationId,
+  };
+
+  if (input.officeId) {
+    baseScope.officeId = input.officeId;
+  }
+
+  const orFilters: Prisma.SalesProjectWhereInput[] = [];
+
+  if (code) {
+    orFilters.push({ code: { equals: code, mode: "insensitive" } });
+  }
+
+  if (name) {
+    orFilters.push({ name: { equals: name, mode: "insensitive" } });
+  }
+
+  if (orFilters.length === 0) {
+    return [];
+  }
+
+  const filter: Prisma.SalesProjectWhereInput = {
+    AND: [
+      baseScope,
+      { OR: orFilters },
+      input.excludeProjectId ? { NOT: { id: input.excludeProjectId } } : {},
+    ],
+  };
+
+  return prisma.salesProject.findMany({
+    where: filter,
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    take: 5,
+  });
+}
+
+export type ArchiveSalesProjectInput = ProjectSigningActorContext & {
+  projectId: string;
+};
+
+export async function archiveSalesProject(input: ArchiveSalesProjectInput) {
+  if (!canManageProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing manage access required.");
+  }
+
+  const project = await getAccessibleSalesProject(input);
+
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  if (project.status === SalesProjectStatus.archived) {
+    return project;
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.salesProject.update({
+      where: { id: project.id },
+      data: { status: SalesProjectStatus.archived },
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "sales_project",
+      entityId: project.id,
+      action: "project_signing.project_archived",
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        code: project.code,
+        name: project.name,
+      }),
+    });
+
+    return updated;
+  });
+}
+
+export async function unarchiveSalesProject(input: ArchiveSalesProjectInput) {
+  if (!canManageProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing manage access required.");
+  }
+
+  const project = await getAccessibleSalesProject(input);
+
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  if (project.status === SalesProjectStatus.active) {
+    return project;
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.salesProject.update({
+      where: { id: project.id },
+      data: { status: SalesProjectStatus.active },
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "sales_project",
+      entityId: project.id,
+      action: "project_signing.project_unarchived",
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        code: project.code,
+        name: project.name,
+      }),
+    });
+
+    return updated;
   });
 }
 

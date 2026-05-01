@@ -181,6 +181,7 @@ export function SignatureTemplatesClient({
     status: "all"
   });
   const [pendingAction, setPendingAction] = useState(false);
+  const [pendingPdfUpload, setPendingPdfUpload] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -252,6 +253,74 @@ export function SignatureTemplatesClient({
     });
     setError("");
     setSuccessMessage("");
+  }
+
+  async function handleUploadPdf(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedTemplate) {
+      setError(t((messages) => messages.officeSignatureTemplates.selectTemplateFirst));
+      return;
+    }
+
+    const formElement = event.currentTarget;
+    const fileInput = formElement.elements.namedItem("file");
+    const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] ?? null : null;
+
+    if (!file) {
+      setError("Choose a PDF file before uploading.");
+      return;
+    }
+
+    setPendingPdfUpload(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `/api/office/signatures/templates/${encodeURIComponent(selectedTemplate.id)}/pdf`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | { template?: { pdfFileName?: string; pdfByteSize?: number; pdfContentType?: string }; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to upload PDF.");
+      }
+
+      setSuccessMessage(
+        `PDF uploaded${payload?.template?.pdfFileName ? `: ${payload.template.pdfFileName}` : ""}. Refresh the page to see the latest source PDF metadata.`,
+      );
+      formElement.reset();
+
+      const nextTemplates = currentSnapshot.templates.map((template) =>
+        template.id === selectedTemplate.id
+          ? {
+              ...template,
+              pdfFileName: payload?.template?.pdfFileName ?? template.pdfFileName,
+              pdfByteSize: payload?.template?.pdfByteSize ?? template.pdfByteSize,
+              hasPdfSource: true,
+            }
+          : template,
+      );
+
+      setCurrentSnapshot({
+        summary: buildSnapshotSummary(nextTemplates),
+        capabilities: currentSnapshot.capabilities,
+        templates: nextTemplates,
+      });
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Failed to upload PDF.");
+    } finally {
+      setPendingPdfUpload(false);
+    }
   }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -606,6 +675,22 @@ export function SignatureTemplatesClient({
               })}
             </Link>
           </div>
+
+          <form className="office-form-grid" onSubmit={handleUploadPdf}>
+            <FormField className="office-detail-field-wide" label="Source PDF">
+              <div className="office-form-helper">
+                {selectedTemplate.hasPdfSource
+                  ? `Current PDF: ${selectedTemplate.pdfFileName || "(unnamed)"} (${(selectedTemplate.pdfByteSize / 1024).toFixed(0)} KB). Uploading replaces the current source.`
+                  : "No source PDF yet. Upload one before this template can power a signing session."}
+              </div>
+              <input accept="application/pdf,.pdf" name="file" required type="file" />
+            </FormField>
+            <div className="office-settings-actions">
+              <Button disabled={pendingPdfUpload || !canManageSignatures} type="submit" variant="secondary">
+                {pendingPdfUpload ? "Uploading..." : selectedTemplate.hasPdfSource ? "Replace PDF" : "Upload PDF"}
+              </Button>
+            </div>
+          </form>
 
           <form className="office-form-grid" onSubmit={handleSave}>
             <FormField label={t((messages) => messages.officeSignatureTemplates.selectedTemplateLabel)}>

@@ -109,8 +109,11 @@ export const activityLogActions = {
   signatureCompleted: "signature_request.completed",
   signatureDeclined: "signature_request.declined",
   projectSigningProjectCreated: "project_signing.project_created",
+  projectSigningProjectArchived: "project_signing.project_archived",
+  projectSigningProjectUnarchived: "project_signing.project_unarchived",
   projectSigningArchiveSinkChanged:
     "project_signing.archive_sink_changed",
+  projectSigningTemplatePdfUploaded: "project_signing.template_pdf_uploaded",
   projectSigningSessionCreated: "project_signing.session_created",
   projectSigningHandoffStarted: "project_signing.handoff_started",
   projectSigningSessionCompleted: "project_signing.session_completed",
@@ -296,6 +299,9 @@ export type ActivityLogPayload = {
   projectId?: string;
   projectName?: string;
   sessionId?: string;
+  templateId?: string;
+  fileName?: string;
+  fileSizeBytes?: number;
   actorMembershipId?: string;
   before?: unknown;
   after?: unknown;
@@ -570,7 +576,10 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "signature_request.completed": "Signature completed",
   "signature_request.declined": "Signature declined",
   "project_signing.project_created": "Sales project created",
+  "project_signing.project_archived": "Sales project archived",
+  "project_signing.project_unarchived": "Sales project unarchived",
   "project_signing.archive_sink_changed": "Archive recipients changed",
+  "project_signing.template_pdf_uploaded": "Project signing template PDF uploaded",
   "project_signing.session_created": "Project signing session created",
   "project_signing.handoff_started": "Project handoff started",
   "project_signing.session_completed": "Project signing session completed",

@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
-import { Button, FormField, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import { Button, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 
 type ProjectRecord = {
   id: string;
   code: string;
   name: string;
+  status: string;
   archiveSinkEmails: string[];
   sessions: Array<{
     id: string;
@@ -21,9 +23,31 @@ type TemplateRecord = {
   hasPdfSource: boolean;
 };
 
+type SimilarProject = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+};
+
 type MutationState = {
   kind: "idle" | "loading" | "success" | "error";
   message: string;
+};
+
+type CreateProjectPayload = {
+  code: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  archiveSinkEmails: string[];
+};
+
+type DuplicatePrompt = {
+  payload: CreateProjectPayload;
+  similar: SimilarProject[];
 };
 
 export function FrontOfficeProjectsClient(props: {
@@ -34,6 +58,7 @@ export function FrontOfficeProjectsClient(props: {
     kind: "idle",
     message: "",
   });
+  const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
   const firstProjectId = props.projects[0]?.id ?? "";
   const firstTemplateId = props.templates.find((template) => template.hasPdfSource)?.id ?? "";
   const sessions = props.projects.flatMap((project) =>
@@ -48,20 +73,53 @@ export function FrontOfficeProjectsClient(props: {
     [props.templates],
   );
 
-  async function submitJson(url: string, body: Record<string, unknown>) {
-    setMutation({
-      kind: "loading",
-      message: "Saving...",
-    });
-
+  async function postJson(url: string, body: Record<string, unknown>) {
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      similarProjects?: SimilarProject[];
+    };
+    return { response, payload };
+  }
+
+  async function submitCreateProject(payload: CreateProjectPayload, force: boolean) {
+    setMutation({ kind: "loading", message: "Saving..." });
+    const { response, payload: result } = await postJson("/api/agent/projects", {
+      ...payload,
+      force,
+    });
+
+    if (response.status === 409 && result.similarProjects?.length) {
+      setDuplicatePrompt({ payload, similar: result.similarProjects });
+      setMutation({
+        kind: "error",
+        message: "A similar project already exists. Confirm to create a duplicate.",
+      });
+      return;
+    }
+
+    if (!response.ok) {
+      setMutation({
+        kind: "error",
+        message: result.error || "Project could not be created.",
+      });
+      return;
+    }
+
+    setDuplicatePrompt(null);
+    setMutation({
+      kind: "success",
+      message: "Project saved. Refresh to see the latest workspace state.",
+    });
+  }
+
+  async function submitJson(url: string, body: Record<string, unknown>) {
+    setMutation({ kind: "loading", message: "Saving..." });
+    const { response, payload } = await postJson(url, body);
 
     if (!response.ok) {
       throw new Error(payload.error || "Request failed.");
@@ -76,20 +134,23 @@ export function FrontOfficeProjectsClient(props: {
   async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const payload: CreateProjectPayload = {
+      code: String(formData.get("code") ?? "").trim(),
+      name: String(formData.get("name") ?? "").trim(),
+      address: String(formData.get("address") ?? ""),
+      city: String(formData.get("city") ?? ""),
+      state: String(formData.get("state") ?? ""),
+      zipCode: String(formData.get("zipCode") ?? ""),
+      archiveSinkEmails: String(formData.get("archiveSinkEmails") ?? "")
+        .split(/,|;|\n/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    };
+
+    setDuplicatePrompt(null);
 
     try {
-      await submitJson("/api/agent/projects", {
-        code: String(formData.get("code") ?? ""),
-        name: String(formData.get("name") ?? ""),
-        address: String(formData.get("address") ?? ""),
-        city: String(formData.get("city") ?? ""),
-        state: String(formData.get("state") ?? ""),
-        zipCode: String(formData.get("zipCode") ?? ""),
-        archiveSinkEmails: String(formData.get("archiveSinkEmails") ?? "")
-          .split(/,|;|\n/)
-          .map((value) => value.trim())
-          .filter(Boolean),
-      });
+      await submitCreateProject(payload, false);
       event.currentTarget.reset();
     } catch (error) {
       setMutation({
@@ -97,6 +158,53 @@ export function FrontOfficeProjectsClient(props: {
         message: error instanceof Error ? error.message : "Project could not be created.",
       });
     }
+  }
+
+  async function handleConfirmDuplicate() {
+    if (!duplicatePrompt) return;
+    try {
+      await submitCreateProject(duplicatePrompt.payload, true);
+    } catch (error) {
+      setMutation({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Project could not be created.",
+      });
+    }
+  }
+
+  async function handleArchiveProject(project: ProjectRecord) {
+    const next = project.status === "archived" ? "active" : "archived";
+    const verb = next === "archived" ? "Archive" : "Unarchive";
+    const confirmed = window.confirm(
+      `${verb} project "${project.code} · ${project.name}"? ` +
+        (next === "archived"
+          ? "Sessions and signed archives stay intact, but the project is hidden from active lists."
+          : "The project will return to the active list."),
+    );
+
+    if (!confirmed) return;
+
+    setMutation({ kind: "loading", message: `${verb}ing project...` });
+
+    const response = await fetch(`/api/agent/projects/${encodeURIComponent(project.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+    if (!response.ok) {
+      setMutation({
+        kind: "error",
+        message: payload.error || `${verb} failed.`,
+      });
+      return;
+    }
+
+    setMutation({
+      kind: "success",
+      message: `${verb}d. Refresh to see the updated list.`,
+    });
   }
 
   async function handleCreateSession(event: FormEvent<HTMLFormElement>) {
@@ -223,6 +331,48 @@ export function FrontOfficeProjectsClient(props: {
         </div>
       ) : null}
 
+      {duplicatePrompt ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="A project with the same code or name already exists in this office. Confirm only if this is intentional."
+          title="Duplicate project detected"
+        >
+          <div className="office-queue-list">
+            {duplicatePrompt.similar.map((similar) => (
+              <QueueItem
+                badgeLabel={similar.status}
+                badgeTone={similar.status === "active" ? "accent" : "neutral"}
+                key={similar.id}
+                meta={<span>Existing project — review before creating a duplicate.</span>}
+                title={`${similar.code} · ${similar.name}`}
+              />
+            ))}
+          </div>
+          <div className="office-form-actions">
+            <Button onClick={handleConfirmDuplicate} type="button" variant="danger">
+              Create anyway
+            </Button>
+            <Button onClick={() => setDuplicatePrompt(null)} type="button" variant="secondary">
+              Cancel
+            </Button>
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {usableTemplates.length === 0 ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="An admin or template manager needs to upload a PDF to a project_sales template before agents can start signing sessions."
+          title="No PDF-ready templates yet"
+        >
+          <p>
+            Manage templates in the Back Office:{" "}
+            <Link href="/office/signatures/templates">/office/signatures/templates</Link>. Create or open a
+            project_sales template, then attach a source PDF to make it available here.
+          </p>
+        </SectionCard>
+      ) : null}
+
       <SectionCard
         className="office-list-card"
         subtitle="Set the project-level archive mailbox list once; signed copies distribute there by default."
@@ -257,6 +407,41 @@ export function FrontOfficeProjectsClient(props: {
           </div>
         </form>
       </SectionCard>
+
+      {props.projects.length ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="Archive hides a project from active lists; sessions and signed archives stay intact and can be restored."
+          title="Manage projects"
+        >
+          <div className="office-queue-list">
+            {props.projects.map((project) => (
+              <QueueItem
+                action={
+                  <Button
+                    disabled={mutation.kind === "loading"}
+                    onClick={() => handleArchiveProject(project)}
+                    size="sm"
+                    type="button"
+                    variant={project.status === "archived" ? "secondary" : "danger"}
+                  >
+                    {project.status === "archived" ? "Unarchive" : "Archive"}
+                  </Button>
+                }
+                badgeLabel={project.status}
+                badgeTone={project.status === "active" ? "accent" : "neutral"}
+                key={project.id}
+                meta={
+                  <>
+                    <span>{project.sessions.length} sessions</span>
+                  </>
+                }
+                title={`${project.code} · ${project.name}`}
+              />
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         className="office-list-card"

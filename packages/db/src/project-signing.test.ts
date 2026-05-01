@@ -2,17 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ProjectSigningJobType } from "@prisma/client";
 import {
+  archiveSalesProject,
   buildProjectSignatureJobIdempotencyKey,
   canCreateProjectSigning,
   canManageProjectSigning,
   canViewProjectSigning,
   createHashMismatchAuditDetails,
   createProjectSigningToken,
+  findSimilarSalesProjects,
   hashProjectSigningToken,
   isProjectSigningAdmin,
   isProjectSigningManager,
   parseProjectSigningTokenPayload,
   sanitizeArchiveSinkEmails,
+  unarchiveSalesProject,
   type ProjectSigningActorContext,
 } from "./project-signing.ts";
 
@@ -159,6 +162,40 @@ test("sanitizeArchiveSinkEmails deduplicates, lowercases, and drops empty values
 
   assert.deepEqual(sanitizeArchiveSinkEmails([]), []);
   assert.deepEqual(sanitizeArchiveSinkEmails(["", "   "]), []);
+});
+
+test("findSimilarSalesProjects short-circuits without hitting the DB when both code and name are empty", async () => {
+  const result = await findSimilarSalesProjects({
+    organizationId: "org-1",
+    officeId: null,
+    viewerMembershipId: "membership-1",
+    viewerRole: "agent",
+    viewerPermissions: [],
+    code: "",
+    name: "   ",
+  });
+
+  assert.deepEqual(result, []);
+});
+
+test("archiveSalesProject and unarchiveSalesProject reject viewers without manage permission before touching the DB", async () => {
+  const baseContext: ProjectSigningActorContext = {
+    organizationId: "org-1",
+    officeId: null,
+    viewerMembershipId: "membership-1",
+    viewerRole: "agent",
+    viewerPermissions: [],
+  };
+
+  await assert.rejects(
+    () => archiveSalesProject({ ...baseContext, projectId: "project-1" }),
+    /Project signing manage access required/,
+  );
+
+  await assert.rejects(
+    () => unarchiveSalesProject({ ...baseContext, projectId: "project-1" }),
+    /Project signing manage access required/,
+  );
 });
 
 test("project signing token payload version is what callers compare against recipient tokenVersion on resend", () => {

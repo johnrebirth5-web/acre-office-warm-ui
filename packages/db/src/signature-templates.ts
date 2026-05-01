@@ -53,6 +53,9 @@ export type OfficeSignatureTemplate = {
   senderReplyTo: string;
   createdByLabel: string;
   updatedAt: string;
+  pdfFileName: string;
+  pdfByteSize: number;
+  hasPdfSource: boolean;
   usage: {
     totalCount: number;
     draftCount: number;
@@ -247,6 +250,9 @@ function mapTemplate(
     senderReplyTo: template.senderReplyTo ?? "",
     createdByLabel: formatMembershipLabel(template.createdByMembership),
     updatedAt: formatDateTimeLabel(template.updatedAt) || "",
+    pdfFileName: template.pdfFileName ?? "",
+    pdfByteSize: template.pdfByteSize ?? 0,
+    hasPdfSource: Boolean(template.pdfStorageKey),
     usage: buildTemplateUsage(template),
     latestRequest: latestRequest
       ? {

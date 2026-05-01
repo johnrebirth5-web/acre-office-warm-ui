@@ -2,6 +2,7 @@ import {
   canCreateProjectSigning,
   canViewProjectSigning,
   createSalesProject,
+  findSimilarSalesProjects,
   getFrontOfficeProjectSigningSnapshot,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,6 +20,7 @@ const createProjectBodySchema = z.object({
   description: z.string().trim().optional(),
   archiveSinkEmails: z.array(z.string().trim()).optional(),
   defaultResponsibleMembershipId: z.string().trim().optional(),
+  force: z.boolean().optional(),
 });
 
 function buildProjectSigningContext(context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>) {
@@ -66,10 +68,41 @@ export async function POST(request: NextRequest) {
     return parsedBody.response;
   }
 
+  const projectContext = buildProjectSigningContext(context);
+
+  if (!parsedBody.data.force) {
+    const similar = await findSimilarSalesProjects({
+      ...projectContext,
+      code: parsedBody.data.code,
+      name: parsedBody.data.name,
+    });
+
+    if (similar.length > 0) {
+      return NextResponse.json(
+        {
+          error: "A project with the same code or name already exists in this office.",
+          similarProjects: similar.map((project) => ({
+            id: project.id,
+            code: project.code,
+            name: project.name,
+            status: project.status,
+          })),
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   try {
     const project = await createSalesProject({
-      ...buildProjectSigningContext(context),
-      ...parsedBody.data,
+      ...projectContext,
+      code: parsedBody.data.code,
+      name: parsedBody.data.name,
+      address: parsedBody.data.address,
+      city: parsedBody.data.city,
+      state: parsedBody.data.state,
+      zipCode: parsedBody.data.zipCode,
+      description: parsedBody.data.description,
       archiveSinkEmails: parsedBody.data.archiveSinkEmails ?? [],
       defaultResponsibleMembershipId: parsedBody.data.defaultResponsibleMembershipId || null,
     });

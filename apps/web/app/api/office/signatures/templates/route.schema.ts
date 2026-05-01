@@ -18,7 +18,7 @@ export const saveSignatureTemplateBodySchema = z.object({
   templateId: z.string().nullable().optional(),
   name: z.string().trim().min(1, "name is required."),
   description: z.string().optional(),
-  category: z.enum(["hr", "finance", "admin", "transaction"]).optional(),
+  category: z.enum(["hr", "finance", "admin", "transaction", "project_sales"]).optional(),
   isActive: z.boolean().optional(),
   emailSubject: z.string().optional(),
   emailBody: z.string().optional(),
