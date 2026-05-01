@@ -5654,6 +5654,18 @@ a {
   min-height: 112px;
 }
 
+.front-office-remote-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.front-office-remote-link-row .office-input {
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
 .project-public-shell,
 .project-kiosk-shell {
   min-height: 100vh;
@@ -5723,6 +5735,10 @@ a {
 
 @media (max-width: 720px) {
   .front-office-projects-actions .office-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .front-office-remote-link-row {
     grid-template-columns: 1fr;
   }
 

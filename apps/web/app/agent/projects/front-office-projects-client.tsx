@@ -36,6 +36,27 @@ type MutationState = {
   message: string;
 };
 
+type RemoteSigningLink = {
+  recipientId?: string;
+  email: string;
+  name?: string | null;
+  expiresAt?: string;
+  signingUrl: string;
+};
+
+type RemoteEmailFailure = {
+  recipientId?: string;
+  email: string;
+  name?: string | null;
+  error: string;
+};
+
+type RemoteDeliveryState = {
+  links: RemoteSigningLink[];
+  failures: RemoteEmailFailure[];
+  copiedUrl: string;
+};
+
 type CreateProjectPayload = {
   code: string;
   name: string;
@@ -64,6 +85,7 @@ export function FrontOfficeProjectsClient(props: {
     kind: "idle",
     message: "",
   });
+  const [remoteDelivery, setRemoteDelivery] = useState<RemoteDeliveryState | null>(null);
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
   const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const firstProjectId = props.projects[0]?.id ?? "";
@@ -140,6 +162,7 @@ export function FrontOfficeProjectsClient(props: {
 
   async function handleCreateTemplateWithPdf(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setRemoteDelivery(null);
 
     const formElement = event.currentTarget;
     const formData = new FormData(formElement);
@@ -195,6 +218,7 @@ export function FrontOfficeProjectsClient(props: {
 
   async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setRemoteDelivery(null);
     const formData = new FormData(event.currentTarget);
     const payload: CreateProjectPayload = {
       code: String(formData.get("code") ?? "").trim(),
@@ -271,6 +295,7 @@ export function FrontOfficeProjectsClient(props: {
 
   async function handleCreateSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setRemoteDelivery(null);
     const formData = new FormData(event.currentTarget);
     const projectId = String(formData.get("projectId") ?? "");
     const templateIds = formData
@@ -318,24 +343,37 @@ export function FrontOfficeProjectsClient(props: {
     const sessionId = String(formData.get("sessionId") ?? "");
 
     try {
+      setRemoteDelivery(null);
       setMutation({ kind: "loading", message: "Sending links..." });
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/send-remote`, {
         method: "POST",
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
-        links?: Array<{ email: string; signingUrl: string }>;
+        links?: RemoteSigningLink[];
+        emailDeliveryFailures?: RemoteEmailFailure[];
+        emailDeliveryWarning?: string;
       };
 
-      if (!response.ok) {
+      if (!response.ok && !payload.links?.length) {
         throw new Error(payload.error || "Remote links could not be sent.");
       }
 
+      if (payload.links?.length) {
+        setRemoteDelivery({
+          links: payload.links,
+          failures: payload.emailDeliveryFailures ?? [],
+          copiedUrl: "",
+        });
+      }
+
       setMutation({
-        kind: "success",
-        message: payload.links?.length
-          ? `Remote links sent: ${payload.links.map((link) => link.email).join(", ")}`
-          : "No email recipients were available for this session.",
+        kind: payload.emailDeliveryWarning ? "error" : "success",
+        message:
+          payload.emailDeliveryWarning ??
+          (payload.links?.length
+            ? `Remote links sent to saved session recipients: ${payload.links.map((link) => link.email).join(", ")}`
+            : "No email recipients were available for this session."),
       });
     } catch (error) {
       setMutation({
@@ -345,8 +383,21 @@ export function FrontOfficeProjectsClient(props: {
     }
   }
 
+  async function copyRemoteLink(signingUrl: string) {
+    try {
+      await navigator.clipboard.writeText(signingUrl);
+      setRemoteDelivery((current) => (current ? { ...current, copiedUrl: signingUrl } : current));
+    } catch (_error) {
+      setMutation({
+        kind: "error",
+        message: "Copy failed. Select the link field and copy it manually.",
+      });
+    }
+  }
+
   async function handleStartHandoff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setRemoteDelivery(null);
     const formData = new FormData(event.currentTarget);
     const sessionId = String(formData.get("sessionId") ?? "");
     const pin = String(formData.get("pin") ?? "");
@@ -646,6 +697,40 @@ export function FrontOfficeProjectsClient(props: {
           </form>
         </div>
       </SectionCard>
+
+      {remoteDelivery?.links.length ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle={
+            remoteDelivery.failures.length
+              ? "Email delivery did not complete for every recipient. Use these secure links while the delivery settings are reviewed."
+              : "These are the latest secure links generated for the saved session recipients."
+          }
+          title="Latest remote links"
+        >
+          <div className="office-queue-list">
+            {remoteDelivery.links.map((link) => {
+              const failure = remoteDelivery.failures.find(
+                (item) => item.recipientId === link.recipientId || item.email === link.email,
+              );
+              const copied = remoteDelivery.copiedUrl === link.signingUrl;
+
+              return (
+                <div className="office-detail-field office-detail-field-wide" key={link.recipientId ?? link.signingUrl}>
+                  <span>{link.name ? `${link.name} · ${link.email}` : link.email}</span>
+                  <div className="front-office-remote-link-row">
+                    <TextInput onFocus={(event) => event.currentTarget.select()} readOnly value={link.signingUrl} />
+                    <Button onClick={() => copyRemoteLink(link.signingUrl)} size="sm" type="button" variant="secondary">
+                      {copied ? "Copied" : "Copy link"}
+                    </Button>
+                  </div>
+                  {failure ? <small>Email failed: {failure.error}</small> : null}
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      ) : null}
     </section>
   );
 }
