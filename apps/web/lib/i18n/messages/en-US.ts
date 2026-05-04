@@ -770,6 +770,7 @@ export const enUSMessages = {
     financeCategory: "Finance",
     adminCategory: "Admin",
     genericCategory: "Generic",
+    projectCategory: "Project signing",
     requestedBy: "Requested by",
     allSenders: "All senders",
     subject: "Subject",
@@ -825,6 +826,7 @@ export const enUSMessages = {
       "Templates already cover transaction, HR, finance, and admin use cases, but generic templates are not fully supported yet.",
     openRequest: "Open request",
     openTransaction: "Open transaction",
+    openProjectSigning: "Open Project Signing",
   },
   officeSignatureTemplates: {
     title: "Signature templates",
@@ -890,6 +892,7 @@ export const enUSMessages = {
       "Try clearing a filter, or save a prepared request as a template from the signature editor so it becomes reusable here.",
     continueLatestDraft: "Continue latest draft",
     openLatestRequest: "Open latest request",
+    openProjectSigning: "Open Project Signing",
     reuseLatestSourcePdf: "Reuse on latest source PDF",
     useTemplate: "Use template",
     selectedTemplateTitle: "Selected template",

@@ -131,6 +131,8 @@ function getContextTypeLabel(contextType: string, t: TranslateFn) {
       return t((messages) => messages.officeSignatures.adminCategory);
     case "generic":
       return t((messages) => messages.officeSignatures.genericCategory);
+    case "project":
+      return t((messages) => messages.officeSignatures.projectCategory);
     default:
       return contextType || "—";
   }
@@ -144,6 +146,8 @@ function getPrimaryActionLabel(label: string, t: TranslateFn) {
       return t((messages) => messages.officeSignatures.openRequest);
     case "Open transaction":
       return t((messages) => messages.officeSignatures.openTransaction);
+    case "Open project signing":
+      return t((messages) => messages.officeSignatures.openProjectSigning);
     default:
       return label;
   }

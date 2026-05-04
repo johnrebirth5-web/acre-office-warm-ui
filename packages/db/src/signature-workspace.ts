@@ -131,6 +131,7 @@ const templateCategoryLabelMap: Record<string, string> = {
   finance: "Finance",
   admin: "Admin",
   transaction: "Transaction",
+  project_sales: "Project sales",
   generic: "Generic"
 };
 
@@ -139,8 +140,11 @@ const contextTypeLabelMap: Record<string, string> = {
   membership: "HR / Membership",
   finance_request: "Finance request",
   admin_request: "Admin request",
-  generic: "Generic"
+  generic: "Generic",
+  project: "Project signing"
 };
+
+const projectSigningWorkspaceHref = "/agent/projects";
 
 function buildNonTransactionCreateSupport() {
   return {
@@ -280,6 +284,10 @@ function normalizeTemplateCategory(
     return "generic";
   }
 
+  if (request.contextType === "project") {
+    return SignatureTemplateCategory.project_sales;
+  }
+
   return "";
 }
 
@@ -318,6 +326,9 @@ function buildPrimaryAction(snapshot: {
 function mapWorkspaceRow(
   request: Awaited<ReturnType<typeof listSignatureRequestsForWorkspace>>[number]
 ): OfficeSignatureWorkspaceRow {
+  const isProjectSigningRequest = request.contextType === "project";
+  const canOpenTransactionRequest = !isProjectSigningRequest && Boolean(request.transactionId && request.documentId);
+  const canOpenTransaction = !isProjectSigningRequest && Boolean(request.transactionId);
   const templateCategory = normalizeTemplateCategory(request);
   const signersCount = request.recipients.filter((recipient) => recipient.role === "signer").length;
   const approversCount = request.recipients.filter((recipient) => recipient.role === "approver").length;
@@ -328,13 +339,22 @@ function mapWorkspaceRow(
     request.completedDocument?.title ||
     request.contextLabel ||
     "Signature request";
-  const transactionHref = request.transactionId ? `/office/transactions/${request.transactionId}` : "";
-  const requestHref = request.transactionId ? `/office/transactions/${request.transactionId}/signatures/${request.id}` : "";
-  const primaryAction = buildPrimaryAction({
-    requestHref,
-    transactionHref,
-    statusKey: request.status
-  });
+  const transactionHref = canOpenTransaction ? `/office/transactions/${request.transactionId}` : "";
+  const requestHref = canOpenTransactionRequest
+    ? `/office/transactions/${request.transactionId}/signatures/${request.id}`
+    : isProjectSigningRequest
+      ? projectSigningWorkspaceHref
+      : "";
+  const primaryAction = isProjectSigningRequest
+    ? {
+        href: projectSigningWorkspaceHref,
+        label: "Open project signing"
+      }
+    : buildPrimaryAction({
+        requestHref,
+        transactionHref,
+        statusKey: request.status
+      });
 
   return {
     id: request.id,
@@ -364,7 +384,7 @@ function mapWorkspaceRow(
     primaryActionHref: primaryAction.href,
     primaryActionLabel: primaryAction.label,
     completedDocumentHref:
-      request.transactionId && request.completedDocumentId
+      !isProjectSigningRequest && request.transactionId && request.completedDocumentId
         ? `/api/office/transactions/${request.transactionId}/documents/${request.completedDocumentId}/file`
         : "",
     subjectMembershipId: request.subjectMembershipId ?? ""
