@@ -60,6 +60,7 @@ Use this baseline unless the current task explicitly says otherwise:
 - default production env file: `/etc/acre/acre-ui-rebuild.env`
 - default production service: `acre-ui-rebuild-web.service`
 - old `acre-web`, old `/opt/acre/app`, and `http://45.55.247.137/` are legacy-only references and must not be treated as the default target
+- Email, SMS, download, signature, handoff, invite, and other user-facing outbound links must use the public production base URL (`https://acresystem.us` via `ACRE_BASE_URL` / `getPublicAppBaseUrl`) instead of deriving absolute URLs from `localhost`, request origin, or the local dev server.
 
 ## Architecture summary
 

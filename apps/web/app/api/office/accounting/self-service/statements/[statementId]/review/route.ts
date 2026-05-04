@@ -11,7 +11,7 @@ import {
   captureOperationalEmailWarning,
   sendPayoutStatementReviewOperationalEmail
 } from "../../../../../../../../lib/operational-email";
-import { getAppBaseUrl } from "../../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../../lib/request-origin";
 import { reviewAgentPayoutStatementBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -80,7 +80,7 @@ export async function handleReviewAccountingStatementPost(
 
       await (dependencies.sendPayoutStatementReviewOperationalEmail ?? sendPayoutStatementReviewOperationalEmail)({
         organizationId: context.currentOrganization.id,
-        baseUrl: getAppBaseUrl(request),
+        baseUrl: getPublicAppBaseUrl(),
         statement,
         response,
         message: body.message ?? ""

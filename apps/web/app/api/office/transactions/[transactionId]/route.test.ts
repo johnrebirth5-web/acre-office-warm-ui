@@ -137,7 +137,7 @@ test("handleUpdateOfficeTransactionPatch sends a reminder when a transaction fir
 
   assert.equal(response.status, 200);
   assert.equal(capturedEmailInput?.["organizationId"], "org_1");
-  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+  assert.equal(capturedEmailInput?.["baseUrl"], "https://acresystem.us");
   assert.equal(capturedEmailInput?.["actorName"], "Office Admin");
   assert.equal(capturedEmailInput?.["actorEmail"], "admin@example.com");
   assert.deepEqual(await readJson(response), {

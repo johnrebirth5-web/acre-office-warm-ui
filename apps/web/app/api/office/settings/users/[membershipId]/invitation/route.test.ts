@@ -125,7 +125,7 @@ test("handleOfficeUserInvitationPost preserves invitation URL generation on succ
   assert.deepEqual(await readJson(response), {
     membershipId: "membership_2",
     invitationId: "invite_2",
-    invitationUrl: "http://localhost:3105/invite/token_456",
+    invitationUrl: "https://acresystem.us/invite/token_456",
     expiresAt: "2026-04-20T00:00:00.000Z",
   });
 });

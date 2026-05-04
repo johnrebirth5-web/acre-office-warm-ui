@@ -12,7 +12,7 @@ import {
   captureOperationalEmailWarning,
   sendPayoutStatementGeneratedOperationalEmail
 } from "../../../../../lib/operational-email";
-import { getAppBaseUrl } from "../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../lib/request-origin";
 import { createAgentPayoutStatementBodySchema } from "./route.schema";
 
 type AccountingStatementsRouteDependencies = {
@@ -66,7 +66,7 @@ export async function handleCreateAccountingStatementPost(
 
           await (dependencies.sendPayoutStatementGeneratedOperationalEmail ?? sendPayoutStatementGeneratedOperationalEmail)({
             organizationId: context.currentOrganization.id,
-            baseUrl: getAppBaseUrl(request),
+            baseUrl: getPublicAppBaseUrl(),
             statement
           });
         })

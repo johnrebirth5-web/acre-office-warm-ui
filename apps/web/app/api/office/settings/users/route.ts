@@ -3,7 +3,7 @@ import { createInvitedUser, type SessionMembershipContext } from "@acre/db";
 import type { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../lib/api/parse-body";
-import { getRequestOrigin } from "../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../lib/request-origin";
 import { withPermission } from "../../../../../lib/with-permission";
 import { createOfficeUserBodySchema } from "./route.schema";
 
@@ -20,7 +20,7 @@ function isPrivilegedCreateableUserRole(value: UserRole) {
 
 type OfficeUsersRouteDependencies = {
   createInvitedUser?: typeof createInvitedUser;
-  getRequestOrigin?: typeof getRequestOrigin;
+  getPublicAppBaseUrl?: typeof getPublicAppBaseUrl;
   parseJsonBody?: typeof parseJsonBody;
 };
 
@@ -118,7 +118,7 @@ export async function handleCreateOfficeUserPost(
       invitationId: result.invitationId,
       invitationUrl: new URL(
         result.invitationPath,
-        (dependencies.getRequestOrigin ?? getRequestOrigin)(request),
+        (dependencies.getPublicAppBaseUrl ?? getPublicAppBaseUrl)(),
       ).toString(),
       expiresAt: result.expiresAt.toISOString(),
       email: parsedBody.data.email ?? "",

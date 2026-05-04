@@ -2,7 +2,7 @@ import { canShareListingStudio } from "@acre/auth";
 import { publishStudioListingPack } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
-import { getAppBaseUrl } from "../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../lib/request-origin";
 
 export const runtime = "nodejs";
 
@@ -37,7 +37,7 @@ export async function POST(
     return NextResponse.json({ error: "Packet not found." }, { status: 404 });
   }
 
-  const baseUrl = getAppBaseUrl(request);
+  const baseUrl = getPublicAppBaseUrl();
 
   return NextResponse.json({
     shareCode: result.shareCode,

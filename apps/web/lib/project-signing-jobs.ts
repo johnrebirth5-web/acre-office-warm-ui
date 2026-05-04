@@ -20,6 +20,7 @@ import { sendSignatureDownloadLinkEmail } from "./signature-email";
 import { attemptSignatureDriveSync } from "./signature-drive-sync";
 import { buildSignedPdf, type SubmittedSignatureFieldValue } from "./signature-pdf";
 import { hashSignatureToken } from "./signature-token";
+import { getPublicAppBaseUrl } from "./request-origin";
 
 const scannerIntervalMs = 5 * 60 * 1000;
 const staleJobThresholdMs = 10 * 60 * 1000;
@@ -31,7 +32,7 @@ const globalForProjectSigningJobs = globalThis as typeof globalThis & {
 };
 
 function getWorkerBaseUrl() {
-  return (process.env.ACRE_BASE_URL?.trim() || "http://localhost:3105").replace(/\/+$/, "");
+  return getPublicAppBaseUrl();
 }
 
 function buildSignedFileName(fileName: string) {

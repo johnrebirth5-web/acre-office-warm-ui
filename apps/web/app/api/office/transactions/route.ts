@@ -18,7 +18,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
-import { getAppBaseUrl } from "../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../lib/request-origin";
 import {
   appendOperationalEmailWarning,
   buildOperationalEmailActorName,
@@ -191,7 +191,7 @@ async function sendAgentCreatedTransactionReminder(input: {
   return captureOperationalEmailWarning("agent transaction created", () =>
     sendReminder({
       organizationId: input.context.currentOrganization.id,
-      baseUrl: getAppBaseUrl(input.request),
+      baseUrl: getPublicAppBaseUrl(),
       transaction: input.transaction,
       actorName: buildOperationalEmailActorName(input.context),
       actorEmail: input.context.currentUser.email,

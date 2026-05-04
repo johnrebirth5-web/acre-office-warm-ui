@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { sendSignatureRequestEmail } from "../../../../../../lib/signature-email";
-import { getAppBaseUrl } from "../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../lib/request-origin";
 
 type RouteContext = {
   params: Promise<{
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, routeContext: RouteContext) {
         to: resolved.recipient.email,
         subject: "Acre signing verification code",
         message: `Your Acre signing verification code is ${nextCode}. It expires in 10 minutes.`,
-        signingLink: `${getAppBaseUrl(request)}/sign/session/${encodeURIComponent(token)}`,
+        signingLink: `${getPublicAppBaseUrl()}/sign/session/${encodeURIComponent(token)}`,
         documentTitle: "Project signing verification",
         expiresAt: expiresAt.toISOString(),
         senderDisplayName: "Acre Project Signing",
@@ -101,4 +101,3 @@ export async function POST(request: NextRequest, routeContext: RouteContext) {
 
   return NextResponse.json({ verified: true });
 }
-

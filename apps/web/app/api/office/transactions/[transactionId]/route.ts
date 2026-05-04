@@ -16,7 +16,7 @@ import {
   captureOperationalEmailWarning,
   sendTransactionClosedOperationalEmail,
 } from "../../../../../lib/operational-email";
-import { getAppBaseUrl } from "../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../lib/request-origin";
 import { updateOfficeTransactionBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -107,7 +107,7 @@ export async function handleUpdateOfficeTransactionPatch(
       ? await captureOperationalEmailWarning("transaction closed", () =>
           (dependencies.sendTransactionClosedOperationalEmail ?? sendTransactionClosedOperationalEmail)({
             organizationId: context.currentOrganization.id,
-            baseUrl: getAppBaseUrl(request),
+            baseUrl: getPublicAppBaseUrl(),
             transaction,
             actorName: buildOperationalEmailActorName(context),
             actorEmail: context.currentUser.email,
