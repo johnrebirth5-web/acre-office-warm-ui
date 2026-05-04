@@ -279,10 +279,11 @@ export function FrontOfficeProjectsClient(props: {
 
       formElement.reset();
       setSelectedTemplateFileName("");
+      setSelectedLibraryTemplateId(payload.template.id);
       setActionMutation(
         "template",
         "success",
-        `Template "${payload.template.name}" uploaded. The template list is updating.`,
+        `Template "${payload.template.name}" uploaded. Use Edit fields to place signature fields.`,
       );
       router.refresh();
     } catch (error) {
@@ -601,15 +602,22 @@ export function FrontOfficeProjectsClient(props: {
               <QueueItem
                 action={
                   props.canCreateTemplate ? (
-                    <Button
-                      disabled={mutation.kind === "loading"}
-                      onClick={() => handleDeleteTemplate(selectedLibraryTemplate)}
-                      size="sm"
-                      type="button"
-                      variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
-                    >
-                      {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
-                    </Button>
+                    <div className="front-office-template-actions">
+                      <Link href={`/agent/projects/templates/${encodeURIComponent(selectedLibraryTemplate.id)}/fields`}>
+                        <Button size="sm" type="button" variant="secondary">
+                          Edit fields
+                        </Button>
+                      </Link>
+                      <Button
+                        disabled={mutation.kind === "loading"}
+                        onClick={() => handleDeleteTemplate(selectedLibraryTemplate)}
+                        size="sm"
+                        type="button"
+                        variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
+                      >
+                        {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
+                      </Button>
+                    </div>
                   ) : null
                 }
                 badgeLabel={selectedLibraryTemplate.hasPdfSource ? "PDF ready" : "Missing PDF"}
