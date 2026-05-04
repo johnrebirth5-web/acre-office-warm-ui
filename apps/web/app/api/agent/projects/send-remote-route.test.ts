@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
-import { handleSendProjectRemotePost } from "./route";
+import { handleSendProjectRemotePost } from "./sessions/[sessionId]/send-remote/route";
 
 function createRequest(origin = "http://localhost:3105") {
   return new NextRequest(`${origin}/api/agent/projects/sessions/session_1/send-remote`, {
@@ -100,6 +100,25 @@ test("handleSendProjectRemotePost sends email and returns generated remote links
       },
     ],
   });
+});
+
+test("handleSendProjectRemotePost blocks local tokens from being sent with production links", async () => {
+  let tokenIssued = false;
+
+  const response = await handleSendProjectRemotePost(createRequest("http://localhost:3105"), { sessionId: "session_1" }, {
+    canCreateProjectSigning: () => true,
+    getAppBaseUrl: () => "https://acresystem.us",
+    getRequestSessionContext: async () => createSessionContext(),
+    issueProjectRemoteSigningTokens: async () => {
+      tokenIssued = true;
+      return [createRemoteToken()];
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 409);
+  assert.equal(tokenIssued, false);
+  assert.match(String(payload.error), /local-only token/);
 });
 
 test("handleSendProjectRemotePost returns generated links when email delivery fails", async () => {
