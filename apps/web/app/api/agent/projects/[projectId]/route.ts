@@ -1,6 +1,7 @@
 import {
   archiveSalesProject,
   canManageProjectSigning,
+  deleteUnusedSalesProject,
   unarchiveSalesProject,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -40,15 +41,15 @@ export async function DELETE(request: NextRequest, routeContext: RouteContext) {
   const { projectId } = await routeContext.params;
 
   try {
-    const project = await archiveSalesProject({
+    const project = await deleteUnusedSalesProject({
       ...buildProjectSigningContext(context),
       projectId,
     });
 
-    return NextResponse.json({ project });
+    return NextResponse.json({ project, deleted: true });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Project could not be archived." },
+      { error: error instanceof Error ? error.message : "Project could not be deleted." },
       { status: 400 },
     );
   }

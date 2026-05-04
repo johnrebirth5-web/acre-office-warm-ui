@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { Button, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import { Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 
 type ProjectRecord = {
   id: string;
@@ -11,6 +11,8 @@ type ProjectRecord = {
   name: string;
   status: string;
   archiveSinkEmails: string[];
+  sessionCount: number;
+  archivedDocumentCount: number;
   sessions: Array<{
     id: string;
     status: string;
@@ -21,7 +23,14 @@ type ProjectRecord = {
 type TemplateRecord = {
   id: string;
   name: string;
+  version: number;
+  description: string;
   hasPdfSource: boolean;
+  pdfFileName: string;
+  recipientCount: number;
+  fieldCount: number;
+  usageCount: number;
+  canDelete: boolean;
 };
 
 type SimilarProject = {
@@ -34,7 +43,7 @@ type SimilarProject = {
 type MutationState = {
   kind: "idle" | "loading" | "success" | "error";
   message: string;
-  scope?: "template" | "project" | "manage" | "session" | "launch" | "remoteLinks";
+  scope?: "templateList" | "template" | "project" | "manage" | "session" | "launch" | "remoteLinks";
 };
 
 type RemoteSigningLink = {
@@ -283,6 +292,63 @@ export function FrontOfficeProjectsClient(props: {
     }
   }
 
+  async function handleDeleteTemplate(template: TemplateRecord) {
+    const action = template.canDelete ? "Delete" : "Deactivate";
+    const confirmed = window.confirm(
+      template.canDelete
+        ? `Delete template "${template.name}"? This is only allowed because it has not been used by signing history.`
+        : `Deactivate template "${template.name}"? Existing signing history stays intact, but the template will disappear from new sessions.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setActionMutation("templateList", "loading", `${action}ing template...`);
+      const response = await fetch(`/api/agent/projects/templates/${encodeURIComponent(template.id)}`, {
+        method: template.canDelete ? "DELETE" : "PATCH",
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || `Template could not be ${template.canDelete ? "deleted" : "deactivated"}.`);
+      }
+
+      setActionMutation("templateList", "success", `Template ${template.canDelete ? "deleted" : "deactivated"}. The template list is updating.`);
+      router.refresh();
+    } catch (error) {
+      setActionMutation(
+        "templateList",
+        "error",
+        error instanceof Error ? error.message : `Template could not be ${template.canDelete ? "deleted" : "deactivated"}.`,
+      );
+    }
+  }
+
+  async function handleDeleteProject(project: ProjectRecord) {
+    const confirmed = window.confirm(
+      `Delete project "${project.code} · ${project.name}"? This is only allowed because it has no sessions or archived documents.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setActionMutation("manage", "loading", "Deleting project...");
+      const response = await fetch(`/api/agent/projects/${encodeURIComponent(project.id)}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Project could not be deleted.");
+      }
+
+      setActionMutation("manage", "success", "Project deleted. The project list is updating.");
+      router.refresh();
+    } catch (error) {
+      setActionMutation("manage", "error", error instanceof Error ? error.message : "Project could not be deleted.");
+    }
+  }
+
   async function handleArchiveProject(project: ProjectRecord) {
     const next = project.status === "archived" ? "active" : "archived";
     const verb = next === "archived" ? "Archive" : "Unarchive";
@@ -472,6 +538,53 @@ export function FrontOfficeProjectsClient(props: {
         </SectionCard>
       ) : null}
 
+      <SectionCard
+        className="office-list-card"
+        subtitle="Only templates with a stored source PDF can be used for project signing."
+        title="Active templates"
+      >
+        {renderFeedback("templateList")}
+        {props.templates.length ? (
+          <div className="office-queue-list">
+            {props.templates.map((template) => (
+              <QueueItem
+                action={
+                  props.canCreateTemplate ? (
+                    <Button
+                      disabled={mutation.kind === "loading"}
+                      onClick={() => handleDeleteTemplate(template)}
+                      size="sm"
+                      type="button"
+                      variant={template.canDelete ? "danger" : "secondary"}
+                    >
+                      {template.canDelete ? "Delete" : "Deactivate"}
+                    </Button>
+                  ) : null
+                }
+                badgeLabel={template.hasPdfSource ? "PDF ready" : "Missing PDF"}
+                badgeTone={template.hasPdfSource ? "success" : "warning"}
+                description={template.description || template.pdfFileName || "No description"}
+                key={template.id}
+                meta={
+                  <>
+                    <span>v{template.version}</span>
+                    <span>{template.recipientCount} recipients</span>
+                    <span>{template.fieldCount} fields</span>
+                    <span>{template.usageCount ? `${template.usageCount} uses` : "unused"}</span>
+                  </>
+                }
+                title={template.name}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            description="Create a project_sales signature template with a PDF source before sending sessions."
+            title="No project templates"
+          />
+        )}
+      </SectionCard>
+
       {usableTemplates.length === 0 ? (
         <SectionCard
           className="office-list-card"
@@ -579,32 +692,37 @@ export function FrontOfficeProjectsClient(props: {
             ) : null}
           </div>
           <div className="office-queue-list">
-            {props.projects.map((project) => (
-              <QueueItem
-                action={
-                  props.canManage ? (
-                    <Button
-                      disabled={mutation.kind === "loading"}
-                      onClick={() => handleArchiveProject(project)}
-                      size="sm"
-                      type="button"
-                      variant={project.status === "archived" ? "secondary" : "danger"}
-                    >
-                      {project.status === "archived" ? "Unarchive" : "Archive"}
-                    </Button>
-                  ) : null
-                }
-                badgeLabel={project.status}
-                badgeTone={project.status === "active" ? "accent" : "neutral"}
-                key={project.id}
-                meta={
-                  <>
-                    <span>{project.sessions.length} sessions</span>
-                  </>
-                }
-                title={`${project.code} · ${project.name}`}
-              />
-            ))}
+            {props.projects.map((project) => {
+              const canDeleteProject = project.sessionCount === 0 && project.archivedDocumentCount === 0;
+
+              return (
+                <QueueItem
+                  action={
+                    props.canManage ? (
+                      <Button
+                        disabled={mutation.kind === "loading"}
+                        onClick={() => (canDeleteProject ? handleDeleteProject(project) : handleArchiveProject(project))}
+                        size="sm"
+                        type="button"
+                        variant={canDeleteProject ? "danger" : project.status === "archived" ? "secondary" : "danger"}
+                      >
+                        {canDeleteProject ? "Delete" : project.status === "archived" ? "Unarchive" : "Archive"}
+                      </Button>
+                    ) : null
+                  }
+                  badgeLabel={project.status}
+                  badgeTone={project.status === "active" ? "accent" : "neutral"}
+                  key={project.id}
+                  meta={
+                    <>
+                      <span>{project.sessionCount} sessions</span>
+                      <span>{project.archivedDocumentCount} archived docs</span>
+                    </>
+                  }
+                  title={`${project.code} · ${project.name}`}
+                />
+              );
+            })}
           </div>
         </SectionCard>
       ) : null}

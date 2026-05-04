@@ -77,6 +77,14 @@ export type SaveSalesProjectArchiveSinksInput = ProjectSigningActorContext & {
   archiveSinkEmails: string[];
 };
 
+export type DeleteSalesProjectInput = ProjectSigningActorContext & {
+  projectId: string;
+};
+
+export type ProjectSigningTemplateMutationInput = ProjectSigningActorContext & {
+  templateId: string;
+};
+
 export type CreateProjectSigningSessionInput = ProjectSigningActorContext & {
   projectId: string;
   mode: ProjectSigningSessionMode;
@@ -420,6 +428,13 @@ export async function getFrontOfficeProjectSigningSnapshot(
         fields: {
           orderBy: [{ sortOrder: "asc" }],
         },
+        _count: {
+          select: {
+            signatureRequests: true,
+            projectSessionDocuments: true,
+            salesProjectDocuments: true,
+          },
+        },
       },
       orderBy: [{ name: "asc" }],
     }),
@@ -456,10 +471,18 @@ export async function getFrontOfficeProjectSigningSnapshot(
       version: template.version,
       description: template.description ?? "",
       hasPdfSource: Boolean(template.pdfStorageKey),
-      pdfFileName: template.pdfFileName ?? "",
-      recipientCount: template.recipients.length,
-      fieldCount: template.fields.length,
-    })),
+        pdfFileName: template.pdfFileName ?? "",
+        recipientCount: template.recipients.length,
+        fieldCount: template.fields.length,
+        usageCount:
+          template._count.signatureRequests +
+          template._count.projectSessionDocuments +
+          template._count.salesProjectDocuments,
+        canDelete:
+          template._count.signatureRequests === 0 &&
+          template._count.projectSessionDocuments === 0 &&
+          template._count.salesProjectDocuments === 0,
+      })),
     projects: projects.map((project) => ({
       id: project.id,
       code: project.code,
@@ -649,6 +672,84 @@ export type ArchiveSalesProjectInput = ProjectSigningActorContext & {
   projectId: string;
 };
 
+export async function deleteUnusedSalesProject(input: DeleteSalesProjectInput) {
+  if (!canManageProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing manage access required.");
+  }
+
+  const project = await getAccessibleSalesProject(input);
+
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  const [sessionCount, archivedDocumentCount, sessionDocumentCount, jobCount, distributionCount] = await Promise.all([
+    prisma.projectSigningSession.count({
+      where: {
+        organizationId: input.organizationId,
+        projectId: project.id,
+      },
+    }),
+    prisma.salesProjectDocument.count({
+      where: {
+        organizationId: input.organizationId,
+        projectId: project.id,
+      },
+    }),
+    prisma.projectSigningSessionDocument.count({
+      where: {
+        organizationId: input.organizationId,
+        projectId: project.id,
+      },
+    }),
+    prisma.projectSignatureJob.count({
+      where: {
+        organizationId: input.organizationId,
+        projectId: project.id,
+      },
+    }),
+    prisma.projectDocumentDistribution.count({
+      where: {
+        organizationId: input.organizationId,
+        projectId: project.id,
+      },
+    }),
+  ]);
+
+  if (sessionCount || archivedDocumentCount || sessionDocumentCount || jobCount || distributionCount) {
+    throw new Error("Only projects with no sessions or archived documents can be deleted. Archive this project instead.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "sales_project",
+      entityId: project.id,
+      action: activityLogActions.projectSigningProjectDeleted,
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        code: project.code,
+        name: project.name,
+      }),
+    });
+
+    const deleted = await tx.salesProject.delete({
+      where: {
+        id: project.id,
+      },
+    });
+
+    await tx.transaction.delete({
+      where: {
+        id: project.signatureAnchorTransactionId,
+      },
+    });
+
+    return deleted;
+  });
+}
+
 export async function archiveSalesProject(input: ArchiveSalesProjectInput) {
   if (!canManageProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
     throw new Error("Project signing manage access required.");
@@ -770,6 +871,112 @@ export async function saveSalesProjectArchiveSinkEmails(input: SaveSalesProjectA
   }
 
   return saved;
+}
+
+async function getAccessibleProjectSigningTemplate(input: ProjectSigningTemplateMutationInput) {
+  return prisma.signatureTemplate.findFirst({
+    where: {
+      id: input.templateId,
+      organizationId: input.organizationId,
+      category: SignatureTemplateCategory.project_sales,
+      OR: input.officeId ? [{ officeId: input.officeId }, { officeId: null }] : [{ officeId: null }],
+    },
+    include: {
+      _count: {
+        select: {
+          signatureRequests: true,
+          projectSessionDocuments: true,
+          salesProjectDocuments: true,
+        },
+      },
+    },
+  });
+}
+
+export async function deactivateProjectSigningTemplate(input: ProjectSigningTemplateMutationInput) {
+  if (!canCreateProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing create access required.");
+  }
+
+  const template = await getAccessibleProjectSigningTemplate(input);
+
+  if (!template) {
+    throw new Error("Project signing template not found.");
+  }
+
+  if (!template.isActive) {
+    return template;
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.signatureTemplate.update({
+      where: {
+        id: template.id,
+      },
+      data: {
+        isActive: false,
+        version: template.version + 1,
+      },
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "signature_template",
+      entityId: template.id,
+      action: activityLogActions.settingsSignatureTemplateUpdated,
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        objectLabel: template.name,
+        details: ["Project sales template deactivated"],
+      }),
+    });
+
+    return updated;
+  });
+}
+
+export async function deleteUnusedProjectSigningTemplate(input: ProjectSigningTemplateMutationInput) {
+  if (!canCreateProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing create access required.");
+  }
+
+  const template = await getAccessibleProjectSigningTemplate(input);
+
+  if (!template) {
+    throw new Error("Project signing template not found.");
+  }
+
+  const usageCount =
+    template._count.signatureRequests +
+    template._count.projectSessionDocuments +
+    template._count.salesProjectDocuments;
+
+  if (usageCount > 0) {
+    throw new Error("This template is already used by signing history. Deactivate it instead.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "signature_template",
+      entityId: template.id,
+      action: activityLogActions.settingsSignatureTemplateDeleted,
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        objectLabel: template.name,
+        category: template.category,
+        pdfFileName: template.pdfFileName,
+      }),
+    });
+
+    return tx.signatureTemplate.delete({
+      where: {
+        id: template.id,
+      },
+    });
+  });
 }
 
 function resolveSessionRecipients(input: CreateProjectSigningSessionInput, templateRecipients: Array<{
