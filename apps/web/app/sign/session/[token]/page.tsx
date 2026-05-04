@@ -7,10 +7,13 @@ type PageProps = {
   }>;
 };
 
-function buildSigningFields(resolved: NonNullable<Awaited<ReturnType<typeof resolveProjectRemoteSigningToken>>>) {
+function buildSigningDocuments(
+  resolved: NonNullable<Awaited<ReturnType<typeof resolveProjectRemoteSigningToken>>>,
+  token: string,
+) {
   const sessionRecipient = resolved.recipient;
 
-  return sessionRecipient.session.documents.flatMap((document) => {
+  return sessionRecipient.session.documents.map((document) => {
     const matchingSignatureRecipients = document.signatureRequest.recipients.filter(
       (recipient) =>
         (sessionRecipient.normalizedEmail && recipient.email.toLowerCase() === sessionRecipient.normalizedEmail) ||
@@ -18,14 +21,26 @@ function buildSigningFields(resolved: NonNullable<Awaited<ReturnType<typeof reso
     );
     const assignedRecipientIds = new Set(matchingSignatureRecipients.map((recipient) => recipient.id));
 
-    return document.signatureRequest.fields
+    const fields = document.signatureRequest.fields
       .filter((field) => field.assignedRecipientId && assignedRecipientIds.has(field.assignedRecipientId))
       .map((field) => ({
         id: field.id,
         fieldType: field.fieldType,
         label: field.label,
-        documentTitle: document.title,
+        page: field.page,
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+        defaultValue: field.defaultValue ?? "",
       }));
+
+    return {
+      id: document.id,
+      title: document.title,
+      documentUrl: `/api/public/project-signatures/${encodeURIComponent(token)}/documents/${encodeURIComponent(document.id)}`,
+      fields,
+    };
   });
 }
 
@@ -45,12 +60,10 @@ export default async function ProjectRemoteSigningPage({ params }: PageProps) {
   }
 
   return (
-    <main className="project-public-shell">
-      <ProjectRemoteSignClient
-        signingFields={buildSigningFields(resolved)}
-        recipientName={resolved.recipient.name}
-        token={token}
-      />
-    </main>
+    <ProjectRemoteSignClient
+      documents={buildSigningDocuments(resolved, token)}
+      recipientName={resolved.recipient.name}
+      token={token}
+    />
   );
 }

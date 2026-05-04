@@ -125,6 +125,7 @@ export {
   canManageProjectSigning,
   canViewProjectSigning,
   completeProjectSigningSessionIfReady,
+  countAssignedProjectSigningFieldsForRecipient,
   createHashMismatchAuditDetails,
   createProjectDistributionRows,
   createProjectSigningSession,

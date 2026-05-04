@@ -7,6 +7,7 @@ import {
   canCreateProjectSigning,
   canManageProjectSigning,
   canViewProjectSigning,
+  countAssignedProjectSigningFieldsForRecipient,
   createHashMismatchAuditDetails,
   createProjectSigningToken,
   deactivateProjectSigningTemplate,
@@ -42,6 +43,62 @@ test("project signing token parser rejects missing or invalid versions", () => {
   assert.equal(parseProjectSigningTokenPayload(missingVersion), null);
   assert.equal(parseProjectSigningTokenPayload(negativeVersion), null);
   assert.equal(parseProjectSigningTokenPayload("not-a-token"), null);
+});
+
+test("project signing assigned field counter matches recipient email or membership", () => {
+  const recipient = {
+    membershipId: null,
+    normalizedEmail: "buyer@example.com",
+    session: {
+      documents: [
+        {
+          signatureRequest: {
+            recipients: [
+              {
+                id: "signature-recipient-1",
+                email: "Buyer@Example.com",
+                membershipId: null,
+              },
+            ],
+            fields: [
+              {
+                assignedRecipientId: "signature-recipient-1",
+              },
+              {
+                assignedRecipientId: null,
+              },
+            ],
+          },
+        },
+        {
+          signatureRequest: {
+            recipients: [
+              {
+                id: "signature-recipient-2",
+                email: "other@example.com",
+                membershipId: "membership-2",
+              },
+            ],
+            fields: [
+              {
+                assignedRecipientId: "signature-recipient-2",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+
+  assert.equal(countAssignedProjectSigningFieldsForRecipient(recipient), 1);
+  assert.equal(
+    countAssignedProjectSigningFieldsForRecipient({
+      ...recipient,
+      membershipId: "membership-2",
+      normalizedEmail: null,
+    }),
+    1,
+  );
 });
 
 test("project signature job idempotency keys follow the durable naming contract", () => {
