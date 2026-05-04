@@ -116,14 +116,18 @@ export function FrontOfficeProjectsClient(props: {
     () => props.templates.filter((template) => template.hasPdfSource),
     [props.templates],
   );
-  const firstTemplateId = usableTemplates[0]?.id ?? "";
+  const signableTemplates = useMemo(
+    () => usableTemplates.filter((template) => template.fieldCount > 0),
+    [usableTemplates],
+  );
+  const firstTemplateId = signableTemplates[0]?.id ?? "";
   const [selectedLibraryTemplateId, setSelectedLibraryTemplateId] = useState(firstTemplateId || props.templates[0]?.id || "");
   const [selectedSessionTemplateIds, setSelectedSessionTemplateIds] = useState<string[]>(() =>
     firstTemplateId ? [firstTemplateId] : [],
   );
   const selectedLibraryTemplate =
     props.templates.find((template) => template.id === selectedLibraryTemplateId) ?? props.templates[0] ?? null;
-  const selectedSessionTemplates = usableTemplates.filter((template) => selectedSessionTemplateIds.includes(template.id));
+  const selectedSessionTemplates = signableTemplates.filter((template) => selectedSessionTemplateIds.includes(template.id));
   const sessionTemplateSummary =
     selectedSessionTemplates.length === 0
       ? "No templates selected"
@@ -132,10 +136,10 @@ export function FrontOfficeProjectsClient(props: {
         : `${selectedSessionTemplates.length} templates selected`;
   const sessionTemplateMeta =
     selectedSessionTemplates.length === 0
-      ? "At least one PDF-ready template is required"
+      ? "At least one template with signing fields is required"
       : selectedSessionTemplates.map((template) => template.name).join(", ");
   const firstSessionId = sessions[0]?.id ?? "";
-  const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${usableTemplates.length}`;
+  const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${signableTemplates.length}`;
   const launchSessionFormKey = sessions.map((session) => session.id).join(":");
 
   useEffect(() => {
@@ -143,7 +147,7 @@ export function FrontOfficeProjectsClient(props: {
       props.templates.some((template) => template.id === current) ? current : props.templates[0]?.id ?? "",
     );
     setSelectedSessionTemplateIds((current) => {
-      const usableTemplateIds = new Set(usableTemplates.map((template) => template.id));
+      const usableTemplateIds = new Set(signableTemplates.map((template) => template.id));
       const valid = current.filter((templateId) => usableTemplateIds.has(templateId));
 
       if (valid.length || current.length === 0) {
@@ -152,7 +156,7 @@ export function FrontOfficeProjectsClient(props: {
 
       return firstTemplateId ? [firstTemplateId] : [];
     });
-  }, [firstTemplateId, props.templates, usableTemplates]);
+  }, [firstTemplateId, props.templates, signableTemplates]);
 
   function toggleSessionTemplate(templateId: string) {
     setSelectedSessionTemplateIds((current) =>
@@ -433,6 +437,11 @@ export function FrontOfficeProjectsClient(props: {
 
     if (!projectId || !templateIds.length) {
       setActionMutation("session", "error", "Choose a project and at least one template first.");
+      return;
+    }
+
+    if (templateIds.some((templateId) => !signableTemplates.some((template) => template.id === templateId))) {
+      setActionMutation("session", "error", "Choose templates that already have at least one signing field.");
       return;
     }
 
@@ -845,6 +854,7 @@ export function FrontOfficeProjectsClient(props: {
                     <label className="front-office-template-choice" key={template.id}>
                       <input
                         checked={selectedSessionTemplateIds.includes(template.id)}
+                        disabled={template.fieldCount === 0}
                         name="templateIds"
                         onChange={() => toggleSessionTemplate(template.id)}
                         type="checkbox"
@@ -854,6 +864,7 @@ export function FrontOfficeProjectsClient(props: {
                         <strong>{template.name}</strong>
                         <small>
                           v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
+                          {template.fieldCount === 0 ? " · add fields before use" : ""}
                         </small>
                       </span>
                     </label>

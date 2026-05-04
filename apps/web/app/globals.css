@@ -18939,6 +18939,27 @@ body,
   padding: 36px 28px 48px;
 }
 
+.public-signature-document {
+  display: grid;
+  gap: 18px;
+}
+
+.public-signature-document + .public-signature-document {
+  margin-top: 28px;
+}
+
+.public-signature-document-heading {
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.public-signature-document-heading h2 {
+  margin: 6px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
 .public-signature-pages {
   display: grid;
   gap: 28px;

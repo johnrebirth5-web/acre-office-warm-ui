@@ -61,6 +61,25 @@ export type ProjectSigningRecipientInput = {
   sortOrder?: number | null;
 };
 
+type ProjectSigningFieldAssignmentSnapshot = {
+  membershipId: string | null;
+  normalizedEmail: string | null;
+  session: {
+    documents: Array<{
+      signatureRequest: {
+        recipients: Array<{
+          id: string;
+          email: string;
+          membershipId: string | null;
+        }>;
+        fields: Array<{
+          assignedRecipientId: string | null;
+        }>;
+      };
+    }>;
+  };
+};
+
 export type CreateSalesProjectInput = ProjectSigningActorContext & {
   code: string;
   name: string;
@@ -184,6 +203,47 @@ export type ProjectSigningTokenPayload = {
   recipientId: string;
   version: number;
 };
+
+export function countAssignedProjectSigningFieldsForRecipient(
+  recipient: ProjectSigningFieldAssignmentSnapshot,
+) {
+  return recipient.session.documents.reduce((count, document) => {
+    const matchingSignatureRecipientIds = new Set(
+      document.signatureRequest.recipients
+        .filter(
+          (signatureRecipient) =>
+            (recipient.normalizedEmail &&
+              normalizeProjectSignerEmail(signatureRecipient.email) === recipient.normalizedEmail) ||
+            (recipient.membershipId &&
+              signatureRecipient.membershipId === recipient.membershipId),
+        )
+        .map((signatureRecipient) => signatureRecipient.id),
+    );
+
+    return (
+      count +
+      document.signatureRequest.fields.filter(
+        (field) => field.assignedRecipientId && matchingSignatureRecipientIds.has(field.assignedRecipientId),
+      ).length
+    );
+  }, 0);
+}
+
+function assertProjectSignerHasAssignedFields(
+  recipient: ProjectSigningFieldAssignmentSnapshot & {
+    role: SignatureRecipientRole;
+  },
+) {
+  if (recipient.role === SignatureRecipientRole.cc || recipient.role === SignatureRecipientRole.approver) {
+    return;
+  }
+
+  if (countAssignedProjectSigningFieldsForRecipient(recipient) === 0) {
+    throw new Error(
+      "This signing link has no fields assigned. Ask Acre to add signing fields to the template and send a new link.",
+    );
+  }
+}
 
 type ProjectSigningDbClient = typeof prisma | Prisma.TransactionClient;
 
@@ -1383,6 +1443,12 @@ export async function createProjectSigningSession(input: CreateProjectSigningSes
     if (!template.pdfStorageKey || !template.pdfFileName || !template.pdfByteSize || !template.pdfContentType) {
       throw new Error(`Template ${template.name} is missing its PDF source file.`);
     }
+
+    if (!template.fields.some((field) => field.assignedTemplateRecipientId)) {
+      throw new Error(
+        `Template ${template.name} has no assigned signing fields. Use Edit fields to place at least one field before creating a session.`,
+      );
+    }
   }
 
   const templateRecipientBlueprint = templates.flatMap((template) => template.recipients);
@@ -2019,6 +2085,8 @@ export async function markProjectSignatureSubmitted(input: {
     }
   }
 
+  assertProjectSignerHasAssignedFields(resolved.recipient);
+
   const recipient = await prisma.projectSigningSessionRecipient.update({
     where: {
       id: resolved.recipient.id,
@@ -2156,6 +2224,11 @@ export async function markProjectHandoffRecipientSubmitted(input: {
   if (sessionRecipient.routingStep !== activeRoutingStep) {
     throw new Error("This signer is not active yet.");
   }
+
+  assertProjectSignerHasAssignedFields({
+    ...sessionRecipient,
+    session,
+  });
 
   const recipient = await prisma.projectSigningSessionRecipient.update({
     where: {
