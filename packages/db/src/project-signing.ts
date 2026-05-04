@@ -12,6 +12,7 @@ import {
   SalesProjectStatus,
   SignatureArtifactKind,
   SignatureContextType,
+  SignatureFieldType,
   SignatureRecipientRole,
   SignatureRecipientStatus,
   SignatureRequestStatus,
@@ -83,6 +84,78 @@ export type DeleteSalesProjectInput = ProjectSigningActorContext & {
 
 export type ProjectSigningTemplateMutationInput = ProjectSigningActorContext & {
   templateId: string;
+};
+
+export type ProjectSigningTemplateFieldEditorField = {
+  id: string;
+  assignedTemplateRecipientId: string;
+  fieldType: SignatureFieldType;
+  label: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  defaultValue: string;
+  fontStyle: string;
+  fieldKey: string;
+  isReadOnly: boolean;
+  isSystemPrefilled: boolean;
+  visibilityRule: Record<string, string>;
+  mirrorGroup: string;
+  fieldOptions: Record<string, string>;
+  sortOrder: number;
+};
+
+export type ProjectSigningTemplateFieldEditorSnapshot = {
+  template: {
+    id: string;
+    name: string;
+    description: string;
+    version: number;
+    pdfFileName: string;
+    pdfByteSize: number;
+    hasPdfSource: boolean;
+    recipients: Array<{
+      id: string;
+      roleKey: SignatureRecipientRole;
+      recipientRole: string;
+      routingStep: number;
+      sortOrder: number;
+    }>;
+    fields: ProjectSigningTemplateFieldEditorField[];
+  };
+};
+
+export type SaveProjectSigningTemplateFieldsInput = ProjectSigningTemplateMutationInput & {
+  fields: Array<{
+    assignedTemplateRecipientId?: string | null;
+    fieldType: SignatureFieldType;
+    label: string;
+    page: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    required?: boolean;
+    defaultValue?: string | null;
+    fontStyle?: string | null;
+    fieldKey?: string | null;
+    isReadOnly?: boolean;
+    isSystemPrefilled?: boolean;
+    visibilityRule?: Record<string, string>;
+    mirrorGroup?: string | null;
+    fieldOptions?: Record<string, string>;
+    sortOrder?: number | null;
+  }>;
+};
+
+export type ProjectSigningTemplatePdfStorageRecord = {
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
 };
 
 export type CreateProjectSigningSessionInput = ProjectSigningActorContext & {
@@ -891,6 +964,242 @@ async function getAccessibleProjectSigningTemplate(input: ProjectSigningTemplate
       },
     },
   });
+}
+
+function normalizeJsonObject(value: Prisma.JsonValue | Record<string, string> | null | undefined) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, string>) : {};
+}
+
+function mapProjectSigningTemplateField(field: {
+  id: string;
+  assignedTemplateRecipientId: string | null;
+  fieldType: SignatureFieldType;
+  label: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  defaultValue: string | null;
+  fontStyle: string | null;
+  fieldKey: string | null;
+  isReadOnly: boolean;
+  isSystemPrefilled: boolean;
+  visibilityRule: Prisma.JsonValue | null;
+  mirrorGroup: string | null;
+  fieldOptions: Prisma.JsonValue | null;
+  sortOrder: number;
+}): ProjectSigningTemplateFieldEditorField {
+  return {
+    id: field.id,
+    assignedTemplateRecipientId: field.assignedTemplateRecipientId ?? "",
+    fieldType: field.fieldType,
+    label: field.label,
+    page: field.page,
+    x: field.x,
+    y: field.y,
+    width: field.width,
+    height: field.height,
+    required: field.required,
+    defaultValue: field.defaultValue ?? "",
+    fontStyle: field.fontStyle ?? "",
+    fieldKey: field.fieldKey ?? "",
+    isReadOnly: field.isReadOnly,
+    isSystemPrefilled: field.isSystemPrefilled,
+    visibilityRule: normalizeJsonObject(field.visibilityRule),
+    mirrorGroup: field.mirrorGroup ?? "",
+    fieldOptions: normalizeJsonObject(field.fieldOptions),
+    sortOrder: field.sortOrder,
+  };
+}
+
+async function getProjectSigningTemplateForEditor(input: ProjectSigningTemplateMutationInput) {
+  return prisma.signatureTemplate.findFirst({
+    where: {
+      id: input.templateId,
+      organizationId: input.organizationId,
+      category: SignatureTemplateCategory.project_sales,
+      OR: input.officeId ? [{ officeId: input.officeId }, { officeId: null }] : [{ officeId: null }],
+    },
+    include: {
+      recipients: {
+        orderBy: [{ routingStep: "asc" }, { sortOrder: "asc" }],
+      },
+      fields: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+}
+
+function mapProjectSigningTemplateEditorSnapshot(
+  template: NonNullable<Awaited<ReturnType<typeof getProjectSigningTemplateForEditor>>>,
+): ProjectSigningTemplateFieldEditorSnapshot {
+  return {
+    template: {
+      id: template.id,
+      name: template.name,
+      description: template.description ?? "",
+      version: template.version,
+      pdfFileName: template.pdfFileName ?? "",
+      pdfByteSize: template.pdfByteSize ?? 0,
+      hasPdfSource: Boolean(template.pdfStorageKey),
+      recipients: template.recipients.map((recipient) => ({
+        id: recipient.id,
+        roleKey: recipient.role,
+        recipientRole: recipient.recipientRole,
+        routingStep: recipient.routingStep,
+        sortOrder: recipient.sortOrder,
+      })),
+      fields: template.fields.map(mapProjectSigningTemplateField),
+    },
+  };
+}
+
+export async function getProjectSigningTemplateFieldEditorSnapshot(
+  input: ProjectSigningTemplateMutationInput,
+): Promise<ProjectSigningTemplateFieldEditorSnapshot | null> {
+  if (!canCreateProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing create access required.");
+  }
+
+  const template = await getProjectSigningTemplateForEditor(input);
+
+  return template ? mapProjectSigningTemplateEditorSnapshot(template) : null;
+}
+
+export async function getProjectSigningTemplatePdfStorageRecord(
+  input: ProjectSigningTemplateMutationInput,
+): Promise<ProjectSigningTemplatePdfStorageRecord | null> {
+  if (!canCreateProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing create access required.");
+  }
+
+  const template = await prisma.signatureTemplate.findFirst({
+    where: {
+      id: input.templateId,
+      organizationId: input.organizationId,
+      category: SignatureTemplateCategory.project_sales,
+      OR: input.officeId ? [{ officeId: input.officeId }, { officeId: null }] : [{ officeId: null }],
+    },
+    select: {
+      pdfStorageKey: true,
+      pdfFileName: true,
+      pdfByteSize: true,
+      pdfContentType: true,
+    },
+  });
+
+  if (!template?.pdfStorageKey) {
+    return null;
+  }
+
+  return {
+    storageKey: template.pdfStorageKey,
+    fileName: template.pdfFileName ?? "project-signing-template.pdf",
+    mimeType: template.pdfContentType ?? "application/pdf",
+    fileSizeBytes: template.pdfByteSize ?? 0,
+  };
+}
+
+export async function saveProjectSigningTemplateFields(
+  input: SaveProjectSigningTemplateFieldsInput,
+): Promise<ProjectSigningTemplateFieldEditorSnapshot> {
+  if (!canCreateProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing create access required.");
+  }
+
+  const template = await getProjectSigningTemplateForEditor(input);
+
+  if (!template) {
+    throw new Error("Project signing template not found.");
+  }
+
+  if (!template.pdfStorageKey) {
+    throw new Error("Upload a source PDF before placing fields.");
+  }
+
+  const actionableRecipients = template.recipients.filter((recipient) => recipient.role !== SignatureRecipientRole.cc);
+  const fallbackRecipient = actionableRecipients[0] ?? template.recipients[0] ?? null;
+
+  if (!fallbackRecipient) {
+    throw new Error("Add at least one signer or approver before placing fields.");
+  }
+
+  const validRecipientIds = new Set(actionableRecipients.map((recipient) => recipient.id));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.signatureTemplateField.deleteMany({
+      where: {
+        templateId: template.id,
+      },
+    });
+
+    await Promise.all(
+      input.fields.map((field, index) =>
+        tx.signatureTemplateField.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: template.officeId,
+            templateId: template.id,
+            assignedTemplateRecipientId:
+              field.assignedTemplateRecipientId && validRecipientIds.has(field.assignedTemplateRecipientId)
+                ? field.assignedTemplateRecipientId
+                : fallbackRecipient.id,
+            fieldType: field.fieldType,
+            label: field.label.trim(),
+            page: field.page,
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            required: field.required ?? true,
+            defaultValue: normalizeText(field.defaultValue),
+            fontStyle: normalizeText(field.fontStyle),
+            fieldKey: normalizeText(field.fieldKey),
+            isReadOnly: Boolean(field.isReadOnly),
+            isSystemPrefilled: Boolean(field.isSystemPrefilled),
+            visibilityRule: field.visibilityRule ?? {},
+            mirrorGroup: normalizeText(field.mirrorGroup),
+            fieldOptions: field.fieldOptions ?? {},
+            sortOrder: typeof field.sortOrder === "number" ? field.sortOrder : index,
+          },
+        }),
+      ),
+    );
+
+    await tx.signatureTemplate.update({
+      where: {
+        id: template.id,
+      },
+      data: {
+        version: template.version + 1,
+      },
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      entityType: "signature_template",
+      entityId: template.id,
+      action: activityLogActions.settingsSignatureTemplateUpdated,
+      payload: buildAuditPayload({
+        actorMembershipId: input.viewerMembershipId,
+        objectLabel: template.name,
+        details: [`Project sales template fields updated: ${input.fields.length}`],
+      }),
+    });
+
+  });
+
+  const savedTemplate = await getProjectSigningTemplateForEditor(input);
+
+  if (!savedTemplate) {
+    throw new Error("Project signing template not found.");
+  }
+
+  return mapProjectSigningTemplateEditorSnapshot(savedTemplate);
 }
 
 export async function deactivateProjectSigningTemplate(input: ProjectSigningTemplateMutationInput) {

@@ -5918,6 +5918,15 @@ a {
   min-height: 0;
 }
 
+.front-office-template-actions,
+.front-office-template-fields-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .front-office-template-dropdown {
   position: relative;
   min-width: 0;
@@ -6009,6 +6018,50 @@ a {
   max-height: 250px;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.front-office-field-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 18px;
+  align-items: start;
+}
+
+.front-office-field-editor-main,
+.front-office-field-editor-side {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.front-office-field-editor-card,
+.front-office-field-editor-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.front-office-field-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.front-office-field-preview-stack {
+  max-height: 76vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.front-office-field-editor-panel .front-office-template-fields-actions {
+  justify-content: flex-start;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 1180px) {
+  .front-office-field-editor {
+    grid-template-columns: 1fr;
+  }
 }
 
 .front-office-project-manage-list {
