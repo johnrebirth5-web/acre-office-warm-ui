@@ -720,6 +720,7 @@ export const zhCNMessages = {
     financeCategory: "财务",
     adminCategory: "行政",
     genericCategory: "通用",
+    projectCategory: "项目签署",
     requestedBy: "发起人",
     allSenders: "全部发起人",
     subject: "主体",
@@ -772,6 +773,7 @@ export const zhCNMessages = {
       "模板目前已经覆盖交易、人事、财务和行政用例，但通用模板还没有完整支持。",
     openRequest: "打开请求",
     openTransaction: "打开交易",
+    openProjectSigning: "打开 Project Signing",
   },
   officeSignatureTemplates: {
     title: "签署模板",
@@ -832,6 +834,7 @@ export const zhCNMessages = {
       "可以尝试清空筛选，或者在签署编辑器中把一个已准备好的请求保存为模板，这样它就会出现在这里。",
     continueLatestDraft: "继续最新草稿",
     openLatestRequest: "打开最新请求",
+    openProjectSigning: "打开 Project Signing",
     reuseLatestSourcePdf: "在最新源 PDF 上复用",
     useTemplate: "使用模板",
     selectedTemplateTitle: "选中的模板",

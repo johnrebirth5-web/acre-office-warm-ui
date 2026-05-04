@@ -67,6 +67,7 @@ export type OfficeSignatureTemplate = {
         id: string;
         title: string;
         statusKey: SignatureRequestStatus;
+        contextType: string;
         statusLabel: string;
         updatedAt: string;
         requestHref: string;
@@ -168,6 +169,8 @@ const signatureRequestStatusLabelMap: Record<SignatureRequestStatus, string> = {
   expired: "Expired"
 };
 
+const projectSigningWorkspaceHref = "/agent/projects";
+
 function normalizeOptionalString(value: string | null | undefined) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -235,6 +238,22 @@ function mapTemplate(
   template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
 ): OfficeSignatureTemplate {
   const latestRequest = resolveTemplateLatestRequest(template);
+  const isProjectSigningRequest = latestRequest?.contextType === "project";
+  const latestRequestHref = latestRequest
+    ? isProjectSigningRequest
+      ? projectSigningWorkspaceHref
+      : latestRequest.transactionId && latestRequest.documentId
+        ? `/office/transactions/${latestRequest.transactionId}/signatures/${latestRequest.id}`
+        : ""
+    : "";
+  const latestTransactionHref =
+    latestRequest && !isProjectSigningRequest && latestRequest.transactionId
+      ? `/office/transactions/${latestRequest.transactionId}`
+      : "";
+  const latestReuseHref =
+    latestRequest && !isProjectSigningRequest && latestRequest.transactionId && latestRequest.documentId
+      ? `/office/transactions/${latestRequest.transactionId}/signatures/new?documentId=${latestRequest.documentId}&templateId=${template.id}`
+      : "";
 
   return {
     id: template.id,
@@ -259,15 +278,13 @@ function mapTemplate(
           id: latestRequest.id,
           title: buildTemplateRequestTitle(latestRequest),
           statusKey: latestRequest.status,
+          contextType: latestRequest.contextType,
           statusLabel: signatureRequestStatusLabelMap[latestRequest.status],
           updatedAt: formatDateTimeLabel(latestRequest.updatedAt) || "",
-          requestHref: `/office/transactions/${latestRequest.transactionId}/signatures/${latestRequest.id}`,
-          transactionHref: `/office/transactions/${latestRequest.transactionId}`,
+          requestHref: latestRequestHref,
+          transactionHref: latestTransactionHref,
           transactionLabel: latestRequest.transaction?.title || latestRequest.contextLabel || "Transaction",
-          reuseHref:
-            latestRequest.documentId
-              ? `/office/transactions/${latestRequest.transactionId}/signatures/new?documentId=${latestRequest.documentId}&templateId=${template.id}`
-              : ""
+          reuseHref: latestReuseHref
         }
       : null,
     recipients: template.recipients.map((recipient) => ({
@@ -341,6 +358,7 @@ async function listSignatureTemplatesInternal(input: {
           id: true,
           transactionId: true,
           documentId: true,
+          contextType: true,
           status: true,
           contextLabel: true,
           updatedAt: true,
@@ -440,6 +458,7 @@ export async function getOfficeSignatureTemplate(input: {
           id: true,
           transactionId: true,
           documentId: true,
+          contextType: true,
           status: true,
           contextLabel: true,
           updatedAt: true,

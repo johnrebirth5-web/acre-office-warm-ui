@@ -149,6 +149,10 @@ function getLatestRequestActionLabel(template: OfficeSignatureTemplate, t: Trans
     return "";
   }
 
+  if (template.latestRequest.contextType === "project") {
+    return t((messages) => messages.officeSignatureTemplates.openProjectSigning);
+  }
+
   if (template.latestRequest.statusKey === "draft" || template.latestRequest.statusKey === "pending_send") {
     return t((messages) => messages.officeSignatureTemplates.continueLatestDraft);
   }
