@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 
 type ProjectRecord = {
@@ -23,6 +23,10 @@ type ProjectRecord = {
     recipientCount: number;
     createdAtLabel: string;
   }>;
+};
+
+type SessionRow = ProjectRecord["sessions"][number] & {
+  projectLabel: string;
 };
 
 type TemplateRecord = {
@@ -77,6 +81,10 @@ type SigningSessionResponse = {
   session?: {
     id: string;
     mode: "remote" | "in_person";
+    status?: string;
+    buyerName?: string | null;
+    buyerEmail?: string | null;
+    recipients?: Array<{ id: string }>;
   };
 };
 
@@ -103,22 +111,41 @@ export function FrontOfficeProjectsClient(props: {
   archivedProjectCount: number;
 }) {
   const router = useRouter();
+  const step4Ref = useRef<HTMLDivElement | null>(null);
   const [mutation, setMutation] = useState<MutationState>({
     kind: "idle",
     message: "",
   });
   const [remoteDelivery, setRemoteDelivery] = useState<RemoteDeliveryState | null>(null);
+  const [createdSessions, setCreatedSessions] = useState<SessionRow[]>([]);
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
   const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const [selectedTemplateFileName, setSelectedTemplateFileName] = useState("");
   const firstProjectId = props.projects[0]?.id ?? "";
   const [selectedProjectId, setSelectedProjectId] = useState(firstProjectId);
-  const sessions = props.projects.flatMap((project) =>
-    project.sessions.map((session) => ({
-      ...session,
-      projectLabel: `${project.code} · ${project.name}`,
-    })),
+  const baseSessions = useMemo(
+    () =>
+      props.projects.flatMap((project) =>
+        project.sessions.map((session) => ({
+          ...session,
+          projectLabel: `${project.code} · ${project.name}`,
+        })),
+      ),
+    [props.projects],
   );
+  const baseSessionIds = useMemo(() => new Set(baseSessions.map((session) => session.id)), [baseSessions]);
+  const sessions = useMemo(() => {
+    const seenSessionIds = new Set<string>();
+
+    return [...createdSessions, ...baseSessions].filter((session) => {
+      if (seenSessionIds.has(session.id)) {
+        return false;
+      }
+
+      seenSessionIds.add(session.id);
+      return true;
+    });
+  }, [baseSessions, createdSessions]);
   const usableTemplates = useMemo(
     () => props.templates.filter((template) => template.hasPdfSource),
     [props.templates],
@@ -147,6 +174,10 @@ export function FrontOfficeProjectsClient(props: {
       ? "At least one template with signing fields is required"
       : selectedSessionTemplates.map((template) => template.name).join(", ");
   const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${signableTemplates.length}`;
+
+  useEffect(() => {
+    setCreatedSessions((current) => current.filter((session) => !baseSessionIds.has(session.id)));
+  }, [baseSessionIds]);
 
   useEffect(() => {
     setSelectedProjectId((current) =>
@@ -456,31 +487,54 @@ export function FrontOfficeProjectsClient(props: {
 
     try {
       const mode = String(formData.get("mode") ?? "remote") === "in_person" ? "in_person" : "remote";
+      const buyerName = String(formData.get("buyerName") ?? "").trim();
+      const buyerEmail = String(formData.get("buyerEmail") ?? "").trim();
+      const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
       const session = await createSigningSession(`/api/agent/projects/${encodeURIComponent(projectId)}/sessions`, {
         mode,
         templateIds,
-        buyerName: String(formData.get("buyerName") ?? ""),
-        buyerEmail: String(formData.get("buyerEmail") ?? ""),
-        buyerPhone: String(formData.get("buyerPhone") ?? ""),
+        buyerName,
+        buyerEmail,
+        buyerPhone,
         recipients: [
           {
-            name: String(formData.get("buyerName") ?? ""),
-            email: String(formData.get("buyerEmail") ?? ""),
+            name: buyerName,
+            email: buyerEmail,
             recipientRole: "buyer",
             routingStep: 1,
             sortOrder: 0,
           },
         ],
       });
+      const project = props.projects.find((candidate) => candidate.id === projectId);
+      const createdSession: SessionRow = {
+        id: session.id,
+        mode: session.mode,
+        status: session.status ?? "draft",
+        buyerName: session.buyerName?.trim() || buyerName || "Unnamed buyer",
+        buyerEmail: session.buyerEmail?.trim() || buyerEmail,
+        documentCount: templateIds.length,
+        recipientCount: session.recipients?.length || 1,
+        createdAtLabel: "Just now",
+        projectLabel: project ? `${project.code} · ${project.name}` : "Selected project",
+      };
+
+      setCreatedSessions((current) => [
+        createdSession,
+        ...current.filter((currentSession) => currentSession.id !== createdSession.id),
+      ]);
       event.currentTarget.reset();
       setSelectedSessionTemplateIds(firstTemplateId ? [firstTemplateId] : []);
       setActionMutation(
         "session",
         "success",
         session.mode === "remote"
-          ? "Signing session created. The launch list is updating; send the remote link next."
-          : "Signing session created. The launch list is updating; start the iPad handoff when ready.",
+          ? "Signing session created. It is ready in Step 4; send the remote link next."
+          : "Signing session created. It is ready in Step 4; start the iPad handoff when ready.",
       );
+      window.requestAnimationFrame(() => {
+        step4Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
       router.refresh();
     } catch (error) {
       setActionMutation(
@@ -904,95 +958,97 @@ export function FrontOfficeProjectsClient(props: {
         </form>
       </SectionCard>
 
-      <SectionCard
-        className="office-list-card front-office-compact-card front-office-active-sessions-card"
-        subtitle="Send remote links, copy the latest secure link, or start an iPad handoff from the same session row."
-        title="Step 4 · Send / handoff"
-      >
-        {renderFeedback("launch")}
-        {renderFeedback("remoteLinks")}
-        {sessions.length ? (
-          <div className="office-queue-list front-office-session-list">
-            {sessions.map((session) => {
-              const sessionLinks = remoteDelivery?.sessionId === session.id ? remoteDelivery.links : [];
-              const firstLink = sessionLinks[0];
+      <div ref={step4Ref}>
+        <SectionCard
+          className="office-list-card front-office-compact-card front-office-active-sessions-card"
+          subtitle="Send remote links, copy the latest secure link, or start an iPad handoff from the same session row."
+          title="Step 4 · Send / handoff"
+        >
+          {renderFeedback("launch")}
+          {renderFeedback("remoteLinks")}
+          {sessions.length ? (
+            <div className="office-queue-list front-office-session-list">
+              {sessions.map((session) => {
+                const sessionLinks = remoteDelivery?.sessionId === session.id ? remoteDelivery.links : [];
+                const firstLink = sessionLinks[0];
 
-              return (
-                <article className="front-office-session-row" key={session.id}>
-                  <QueueItem
-                    action={
-                      <div className="front-office-session-row-actions">
-                        <form onSubmit={handleSendRemote}>
-                          <input name="sessionId" type="hidden" value={session.id} />
-                          <Button disabled={mutation.kind === "loading"} size="sm" type="submit" variant="secondary">
-                            Send remote link
-                          </Button>
-                        </form>
-                        {firstLink ? (
-                          <Button
-                            onClick={() => copyRemoteLink(firstLink.signingUrl)}
-                            size="sm"
-                            type="button"
-                            variant="secondary"
-                          >
-                            {remoteDelivery?.copiedUrl === firstLink.signingUrl ? "Copied" : "Copy link"}
-                          </Button>
-                        ) : null}
-                        <form onSubmit={handleStartHandoff}>
-                          <input name="sessionId" type="hidden" value={session.id} />
-                          <Button disabled={mutation.kind === "loading"} size="sm" type="submit">
-                            Start iPad
-                          </Button>
-                        </form>
-                      </div>
-                    }
-                    badgeLabel={session.status}
-                    badgeTone={session.status === "completed" ? "success" : "accent"}
-                    description={session.buyerEmail || "No buyer email saved"}
-                    meta={
-                      <>
-                        <span>{session.mode === "in_person" ? "iPad handoff" : "Remote"}</span>
-                        <span>{session.documentCount} docs</span>
-                        <span>{session.recipientCount} recipients</span>
-                        <span>{session.createdAtLabel}</span>
-                      </>
-                    }
-                    title={`${session.projectLabel} · ${session.buyerName}`}
-                  />
-                  {sessionLinks.length ? (
-                    <div className="front-office-session-row-links">
-                      {sessionLinks.map((link) => {
-                        const failure = remoteDelivery?.failures.find(
-                          (item) => item.recipientId === link.recipientId || item.email === link.email,
-                        );
-                        const copied = remoteDelivery?.copiedUrl === link.signingUrl;
+                return (
+                  <article className="front-office-session-row" key={session.id}>
+                    <QueueItem
+                      action={
+                        <div className="front-office-session-row-actions">
+                          <form onSubmit={handleSendRemote}>
+                            <input name="sessionId" type="hidden" value={session.id} />
+                            <Button disabled={mutation.kind === "loading"} size="sm" type="submit" variant="secondary">
+                              Send remote link
+                            </Button>
+                          </form>
+                          {firstLink ? (
+                            <Button
+                              onClick={() => copyRemoteLink(firstLink.signingUrl)}
+                              size="sm"
+                              type="button"
+                              variant="secondary"
+                            >
+                              {remoteDelivery?.copiedUrl === firstLink.signingUrl ? "Copied" : "Copy link"}
+                            </Button>
+                          ) : null}
+                          <form onSubmit={handleStartHandoff}>
+                            <input name="sessionId" type="hidden" value={session.id} />
+                            <Button disabled={mutation.kind === "loading"} size="sm" type="submit">
+                              Start iPad
+                            </Button>
+                          </form>
+                        </div>
+                      }
+                      badgeLabel={session.status}
+                      badgeTone={session.status === "completed" ? "success" : "accent"}
+                      description={session.buyerEmail || "No buyer email saved"}
+                      meta={
+                        <>
+                          <span>{session.mode === "in_person" ? "iPad handoff" : "Remote"}</span>
+                          <span>{session.documentCount} docs</span>
+                          <span>{session.recipientCount} recipients</span>
+                          <span>{session.createdAtLabel}</span>
+                        </>
+                      }
+                      title={`${session.projectLabel} · ${session.buyerName}`}
+                    />
+                    {sessionLinks.length ? (
+                      <div className="front-office-session-row-links">
+                        {sessionLinks.map((link) => {
+                          const failure = remoteDelivery?.failures.find(
+                            (item) => item.recipientId === link.recipientId || item.email === link.email,
+                          );
+                          const copied = remoteDelivery?.copiedUrl === link.signingUrl;
 
-                        return (
-                          <div className="office-detail-field office-detail-field-wide" key={link.recipientId ?? link.signingUrl}>
-                            <span>{link.name ? `${link.name} · ${link.email}` : link.email}</span>
-                            <div className="front-office-remote-link-row">
-                              <TextInput onFocus={(event) => event.currentTarget.select()} readOnly value={link.signingUrl} />
-                              <Button onClick={() => copyRemoteLink(link.signingUrl)} size="sm" type="button" variant="secondary">
-                                {copied ? "Copied" : "Copy link"}
-                              </Button>
+                          return (
+                            <div className="office-detail-field office-detail-field-wide" key={link.recipientId ?? link.signingUrl}>
+                              <span>{link.name ? `${link.name} · ${link.email}` : link.email}</span>
+                              <div className="front-office-remote-link-row">
+                                <TextInput onFocus={(event) => event.currentTarget.select()} readOnly value={link.signingUrl} />
+                                <Button onClick={() => copyRemoteLink(link.signingUrl)} size="sm" type="button" variant="secondary">
+                                  {copied ? "Copied" : "Copy link"}
+                                </Button>
+                              </div>
+                              {failure ? <small>Email failed: {failure.error}</small> : null}
                             </div>
-                            {failure ? <small>Email failed: {failure.error}</small> : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyState
-            description="Create a signing session above, then send a remote link or start the iPad handoff here."
-            title="No sessions ready to launch"
-          />
-        )}
-      </SectionCard>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              description="Create a signing session above, then send a remote link or start the iPad handoff here."
+              title="No sessions ready to launch"
+            />
+          )}
+        </SectionCard>
+      </div>
 
       {props.projects.length || props.archivedProjectCount > 0 ? (
         <SectionCard
