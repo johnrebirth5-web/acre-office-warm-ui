@@ -38,6 +38,39 @@ export default async function AgentProjectsPage(props: {
     viewerPermissions: context.currentMembership.permissions,
     includeArchived,
   });
+  const activeTemplatesCard = (
+    <SectionCard
+      className="office-list-card"
+      subtitle="Only templates with a stored source PDF can be used for project signing."
+      title="Active templates"
+    >
+      {snapshot.templates.length ? (
+        <div className="office-queue-list">
+          {snapshot.templates.map((template) => (
+            <QueueItem
+              badgeLabel={template.hasPdfSource ? "PDF ready" : "Missing PDF"}
+              badgeTone={template.hasPdfSource ? "success" : "warning"}
+              description={template.description || template.pdfFileName || "No description"}
+              key={template.id}
+              meta={
+                <>
+                  <span>v{template.version}</span>
+                  <span>{template.recipientCount} recipients</span>
+                  <span>{template.fieldCount} fields</span>
+                </>
+              }
+              title={template.name}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          description="Create a project_sales signature template with a PDF source before sending sessions."
+          title="No project templates"
+        />
+      )}
+    </SectionCard>
+  );
 
   return (
     <FrontOfficePageTemplate
@@ -104,6 +137,8 @@ export default async function AgentProjectsPage(props: {
             )}
           </SectionCard>
 
+          {activeTemplatesCard}
+
           <FrontOfficeProjectsClient
             archivedProjectCount={snapshot.summary.archivedProjectCount}
             canCreateTemplate={canCreateTemplate}
@@ -113,39 +148,6 @@ export default async function AgentProjectsPage(props: {
             templates={snapshot.templates}
           />
         </>
-      }
-      rail={
-        <SectionCard
-          className="office-list-card"
-          subtitle="Only templates with a stored source PDF can be used for project signing."
-          title="Active templates"
-        >
-          {snapshot.templates.length ? (
-            <div className="office-queue-list">
-              {snapshot.templates.slice(0, 6).map((template) => (
-                <QueueItem
-                  badgeLabel={template.hasPdfSource ? "PDF ready" : "Missing PDF"}
-                  badgeTone={template.hasPdfSource ? "success" : "warning"}
-                  description={template.description || template.pdfFileName || "No description"}
-                  key={template.id}
-                  meta={
-                    <>
-                      <span>v{template.version}</span>
-                      <span>{template.recipientCount} recipients</span>
-                      <span>{template.fieldCount} fields</span>
-                    </>
-                  }
-                  title={template.name}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              description="Create a project_sales signature template with a PDF source before sending sessions."
-              title="No project templates"
-            />
-          )}
-        </SectionCard>
       }
       summary={
         <>
@@ -158,4 +160,3 @@ export default async function AgentProjectsPage(props: {
     />
   );
 }
-
