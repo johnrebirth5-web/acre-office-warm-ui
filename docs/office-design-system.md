@@ -398,6 +398,7 @@ Back Office 以后新增表格时，默认模板就是这套共享 Office table 
 规则：
 
 - 同等级模块必须共享相近的 border、radius、padding、shadow 强度
+- 同一行并排展示的模块卡片必须等高；默认使用 `office-card-equal-grid`，让短卡片拉伸到同排最高卡片高度，卡片内主动作贴近底部
 - 不再允许 `bm-table-card`、`bm-detail-card`、`bm-goal-card`、`bm-transactions-card` 继续各自像不同产品
 - 页面局部需要特殊布局时，优先在共享 surface 上加变体类，而不是重新定义新 card family
 

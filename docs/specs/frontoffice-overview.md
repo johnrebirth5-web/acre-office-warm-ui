@@ -81,6 +81,7 @@ Developer-sales document signing lives in `Front Office` as the `/agent/projects
 - External signers never enter the Front Office shell. Remote signers use `/sign/session/[token]`; in-person handoff uses `/sign/handoff/[token]` with an expiring token-only link and no agent exit PIN.
 - Remote send keeps the generated secure links visible to the initiating agent, so email delivery failures can be handled manually without reissuing the session.
 - Project signing may use a hidden `TransactionStatus.system_anchor` transaction only to satisfy legacy signature request constraints. Transaction lists, reports, dashboards, pipeline views, and exports must exclude anchors through the shared transaction visibility helper.
+- Project code is an internal identifier generated from the project name; Front Office users should create projects by name/address instead of manually entering or validating a code.
 - Signed copies default to secure download links, with hash verification against `SignatureArtifact.contentSha256`; attachment delivery is an explicit compliance/product opt-in.
 - In-flight project signing sessions use template snapshots, so later template edits do not mutate already-issued signing packets.
 

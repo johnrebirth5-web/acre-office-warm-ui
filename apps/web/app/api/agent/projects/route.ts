@@ -4,6 +4,7 @@ import {
   createSalesProject,
   findSimilarSalesProjects,
   getFrontOfficeProjectSigningSnapshot,
+  prisma,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -11,7 +12,7 @@ import { getRequestSessionContext } from "../../../../lib/auth-session";
 import { parseJsonBody } from "../../../../lib/api/parse-body";
 
 const createProjectBodySchema = z.object({
-  code: z.string().trim().min(1, "Project code is required."),
+  code: z.string().trim().optional(),
   name: z.string().trim().min(1, "Project name is required."),
   address: z.string().trim().optional(),
   city: z.string().trim().optional(),
@@ -22,6 +23,48 @@ const createProjectBodySchema = z.object({
   defaultResponsibleMembershipId: z.string().trim().optional(),
   force: z.boolean().optional(),
 });
+
+function buildProjectCode(name: string) {
+  const normalized = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+
+  return normalized || `PROJECT-${Date.now().toString(36).toUpperCase()}`;
+}
+
+async function resolveUniqueProjectCode(
+  context: ReturnType<typeof buildProjectSigningContext>,
+  requestedCode: string,
+) {
+  const baseCode = buildProjectCode(requestedCode);
+
+  for (let suffix = 1; suffix <= 99; suffix += 1) {
+    const code = suffix === 1 ? baseCode : `${baseCode.slice(0, Math.max(1, 36 - String(suffix).length - 1))}-${suffix}`;
+    const existing = await prisma.salesProject.findFirst({
+      where: {
+        organizationId: context.organizationId,
+        officeId: context.officeId,
+        code: {
+          equals: code,
+          mode: "insensitive",
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existing) {
+      return code;
+    }
+  }
+
+  return `${baseCode.slice(0, 24)}-${Date.now().toString(36).toUpperCase()}`;
+}
 
 function buildProjectSigningContext(context: NonNullable<Awaited<ReturnType<typeof getRequestSessionContext>>>) {
   return {
@@ -73,18 +116,19 @@ export async function POST(request: NextRequest) {
   }
 
   const projectContext = buildProjectSigningContext(context);
+  const requestedCode = parsedBody.data.code || buildProjectCode(parsedBody.data.name);
 
   if (!parsedBody.data.force) {
     const similar = await findSimilarSalesProjects({
       ...projectContext,
-      code: parsedBody.data.code,
+      code: requestedCode,
       name: parsedBody.data.name,
     });
 
     if (similar.length > 0) {
       return NextResponse.json(
         {
-          error: "A project with the same code or name already exists in this office.",
+          error: "A similar project already exists in this office.",
           similarProjects: similar.map((project) => ({
             id: project.id,
             code: project.code,
@@ -98,9 +142,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const code = parsedBody.data.force
+      ? await resolveUniqueProjectCode(projectContext, requestedCode)
+      : requestedCode;
     const project = await createSalesProject({
       ...projectContext,
-      code: parsedBody.data.code,
+      code,
       name: parsedBody.data.name,
       address: parsedBody.data.address,
       city: parsedBody.data.city,
@@ -119,4 +166,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
