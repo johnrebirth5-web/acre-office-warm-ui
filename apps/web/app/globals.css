@@ -5650,8 +5650,71 @@ a {
   justify-content: flex-end;
 }
 
-.front-office-projects-actions .office-select[multiple] {
-  min-height: 112px;
+.front-office-session-form {
+  align-items: start;
+}
+
+.front-office-template-choice-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.front-office-template-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 58px;
+  padding: 11px 12px;
+  border: 1px solid var(--office-border-strong);
+  border-radius: var(--office-radius-sm);
+  background: var(--office-surface);
+  color: var(--office-text);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.front-office-template-choice:hover {
+  border-color: var(--office-accent);
+  background: color-mix(in srgb, var(--office-accent-soft) 46%, #ffffff);
+}
+
+.front-office-template-choice:has(input:checked) {
+  border-color: color-mix(in srgb, var(--office-accent) 42%, var(--office-border));
+  background: color-mix(in srgb, var(--office-accent-soft) 72%, #ffffff);
+  box-shadow: var(--office-shadow-sm);
+}
+
+.front-office-template-choice input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--office-accent);
+}
+
+.front-office-template-choice-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.front-office-template-choice-copy strong {
+  overflow: hidden;
+  color: var(--office-text);
+  font-size: var(--office-text-body-size);
+  line-height: var(--office-line-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.front-office-template-choice-copy small {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: var(--office-line-body);
 }
 
 .front-office-remote-link-row {
@@ -5735,6 +5798,10 @@ a {
 
 @media (max-width: 720px) {
   .front-office-projects-actions .office-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .front-office-template-choice-list {
     grid-template-columns: 1fr;
   }
 
