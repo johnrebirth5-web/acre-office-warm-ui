@@ -4,7 +4,7 @@ import {
   canViewProjectSigning,
   getFrontOfficeProjectSigningSnapshot,
 } from "@acre/db";
-import { EmptyState, ListPageStatsGrid, QueueItem, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { ListPageStatsGrid, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
@@ -46,11 +46,11 @@ export default async function AgentProjectsPage(props: {
       main={
         <>
           <SectionCard
-            className="office-list-card front-office-projects-overview"
-            subtitle="A project-first signing workspace for reservations, waivers, disclosures, and buyer acknowledgments."
+            className="office-list-card front-office-projects-overview front-office-projects-kpi-card"
+            subtitle="The workbench below follows the same path every time: project, template fields, session, then delivery."
             title="Project signing workspace"
           >
-            <ListPageStatsGrid>
+            <ListPageStatsGrid className="office-kpi-grid-compact">
               <StatCard
                 hint="Visible to your role scope"
                 label="Projects"
@@ -76,32 +76,6 @@ export default async function AgentProjectsPage(props: {
                 value={snapshot.summary.failedJobCount}
               />
             </ListPageStatsGrid>
-
-            {snapshot.projects.length ? (
-              <div className="office-queue-list">
-                {snapshot.projects.map((project) => (
-                  <QueueItem
-                    badgeLabel={project.status}
-                    badgeTone={project.status === "active" ? "accent" : "neutral"}
-                    description={project.addressLabel}
-                    key={project.id}
-                    meta={
-                      <>
-                        <span>{project.sessionCount} sessions</span>
-                        <span>{project.archivedDocumentCount} archived docs</span>
-                        <span>Responsible: {project.responsibleLabel}</span>
-                      </>
-                    }
-                    title={`${project.code} · ${project.name}`}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                description="Create the first project, attach project-sales templates, then start an iPad handoff or remote signing session."
-                title="No project signing records yet"
-              />
-            )}
           </SectionCard>
 
           <FrontOfficeProjectsClient
