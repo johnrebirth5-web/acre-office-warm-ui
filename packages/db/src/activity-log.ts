@@ -54,6 +54,7 @@ export const activityLogActions = {
   settingsQuickBooksValidated: "settings.quickbooks_validated",
   settingsSignatureTemplateCreated: "settings.signature_template_created",
   settingsSignatureTemplateUpdated: "settings.signature_template_updated",
+  settingsSignatureTemplateDeleted: "settings.signature_template_deleted",
   settingsTransactionSearchLayoutUpdated:
     "settings.transaction_search_layout_updated",
   settingsTransactionReportSearchLayoutUpdated:
@@ -111,6 +112,7 @@ export const activityLogActions = {
   projectSigningProjectCreated: "project_signing.project_created",
   projectSigningProjectArchived: "project_signing.project_archived",
   projectSigningProjectUnarchived: "project_signing.project_unarchived",
+  projectSigningProjectDeleted: "project_signing.project_deleted",
   projectSigningArchiveSinkChanged:
     "project_signing.archive_sink_changed",
   projectSigningTemplatePdfUploaded: "project_signing.template_pdf_uploaded",
@@ -524,6 +526,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.quickbooks_validated": "QuickBooks checked",
   "settings.signature_template_created": "Signature template created",
   "settings.signature_template_updated": "Signature template updated",
+  "settings.signature_template_deleted": "Signature template deleted",
   "settings.transaction_search_layout_updated":
     "Transaction search layout updated",
   "settings.transaction_report_search_layout_updated":
@@ -578,6 +581,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "project_signing.project_created": "Sales project created",
   "project_signing.project_archived": "Sales project archived",
   "project_signing.project_unarchived": "Sales project unarchived",
+  "project_signing.project_deleted": "Sales project deleted",
   "project_signing.archive_sink_changed": "Archive recipients changed",
   "project_signing.template_pdf_uploaded": "Project signing template PDF uploaded",
   "project_signing.session_created": "Project signing session created",
@@ -803,6 +807,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.signatureCompleted ||
       action === activityLogActions.signatureDeclined ||
       action === activityLogActions.projectSigningProjectCreated ||
+      action === activityLogActions.projectSigningProjectDeleted ||
       action === activityLogActions.projectSigningArchiveSinkChanged ||
       action === activityLogActions.projectSigningSessionCreated ||
       action === activityLogActions.projectSigningHandoffStarted ||
@@ -1708,6 +1713,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "recorded a declined signature request";
     case activityLogActions.projectSigningProjectCreated:
       return "created a Front Office signing project";
+    case activityLogActions.projectSigningProjectDeleted:
+      return "deleted a Front Office signing project";
     case activityLogActions.projectSigningArchiveSinkChanged:
       return "changed project archive recipients";
     case activityLogActions.projectSigningSessionCreated:

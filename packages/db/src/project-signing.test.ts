@@ -9,6 +9,9 @@ import {
   canViewProjectSigning,
   createHashMismatchAuditDetails,
   createProjectSigningToken,
+  deactivateProjectSigningTemplate,
+  deleteUnusedProjectSigningTemplate,
+  deleteUnusedSalesProject,
   findSimilarSalesProjects,
   hashProjectSigningToken,
   isProjectSigningAdmin,
@@ -195,6 +198,40 @@ test("archiveSalesProject and unarchiveSalesProject reject viewers without manag
   await assert.rejects(
     () => unarchiveSalesProject({ ...baseContext, projectId: "project-1" }),
     /Project signing manage access required/,
+  );
+});
+
+test("deleteUnusedSalesProject rejects viewers without manage permission before touching the DB", async () => {
+  const baseContext: ProjectSigningActorContext = {
+    organizationId: "org-1",
+    officeId: null,
+    viewerMembershipId: "membership-1",
+    viewerRole: "agent",
+    viewerPermissions: [],
+  };
+
+  await assert.rejects(
+    () => deleteUnusedSalesProject({ ...baseContext, projectId: "project-1" }),
+    /Project signing manage access required/,
+  );
+});
+
+test("project signing template delete and deactivate reject viewers without create permission before touching the DB", async () => {
+  const baseContext: ProjectSigningActorContext = {
+    organizationId: "org-1",
+    officeId: null,
+    viewerMembershipId: "membership-1",
+    viewerRole: "office_user",
+    viewerPermissions: [],
+  };
+
+  await assert.rejects(
+    () => deleteUnusedProjectSigningTemplate({ ...baseContext, templateId: "template-1" }),
+    /Project signing create access required/,
+  );
+  await assert.rejects(
+    () => deactivateProjectSigningTemplate({ ...baseContext, templateId: "template-1" }),
+    /Project signing create access required/,
   );
 });
 
