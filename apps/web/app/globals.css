@@ -6112,6 +6112,48 @@ a {
   line-height: var(--office-line-body);
 }
 
+.front-office-step-card > .office-section-body {
+  gap: 14px;
+}
+
+.front-office-step-grid {
+  display: grid;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.front-office-step-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.front-office-step-project-card .front-office-step-grid-two {
+  grid-template-columns: minmax(340px, 1.14fr) minmax(260px, 0.86fr);
+}
+
+.front-office-step-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: color-mix(in srgb, var(--office-surface-muted) 58%, #ffffff);
+}
+
+.front-office-step-panel .office-queue-item {
+  min-height: 0;
+}
+
+.front-office-step-panel .office-form-grid {
+  align-content: start;
+}
+
+.front-office-step-template-card .front-office-upload-panel .office-form-grid,
+.front-office-step-template-card .front-office-template-library-panel .office-form-grid {
+  grid-template-columns: 1fr;
+}
+
 .front-office-primary-session-card {
   border-color: color-mix(in srgb, var(--office-accent) 20%, var(--office-border));
 }
@@ -6365,6 +6407,8 @@ a {
   }
 
   .front-office-flow-steps,
+  .front-office-step-grid-two,
+  .front-office-step-project-card .front-office-step-grid-two,
   .front-office-setup-grid {
     grid-template-columns: 1fr;
   }

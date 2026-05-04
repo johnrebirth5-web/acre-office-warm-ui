@@ -112,6 +112,7 @@ export function FrontOfficeProjectsClient(props: {
   const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const [selectedTemplateFileName, setSelectedTemplateFileName] = useState("");
   const firstProjectId = props.projects[0]?.id ?? "";
+  const [selectedProjectId, setSelectedProjectId] = useState(firstProjectId);
   const sessions = props.projects.flatMap((project) =>
     project.sessions.map((session) => ({
       ...session,
@@ -133,6 +134,7 @@ export function FrontOfficeProjectsClient(props: {
   );
   const selectedLibraryTemplate =
     props.templates.find((template) => template.id === selectedLibraryTemplateId) ?? props.templates[0] ?? null;
+  const selectedProject = props.projects.find((project) => project.id === selectedProjectId) ?? props.projects[0] ?? null;
   const selectedSessionTemplates = signableTemplates.filter((template) => selectedSessionTemplateIds.includes(template.id));
   const sessionTemplateSummary =
     selectedSessionTemplates.length === 0
@@ -147,6 +149,9 @@ export function FrontOfficeProjectsClient(props: {
   const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${signableTemplates.length}`;
 
   useEffect(() => {
+    setSelectedProjectId((current) =>
+      props.projects.some((project) => project.id === current) ? current : firstProjectId,
+    );
     setSelectedLibraryTemplateId((current) =>
       props.templates.some((template) => template.id === current) ? current : props.templates[0]?.id ?? "",
     );
@@ -160,7 +165,7 @@ export function FrontOfficeProjectsClient(props: {
 
       return firstTemplateId ? [firstTemplateId] : [];
     });
-  }, [firstTemplateId, props.templates, signableTemplates]);
+  }, [firstProjectId, firstTemplateId, props.projects, props.templates, signableTemplates]);
 
   function toggleSessionTemplate(templateId: string) {
     setSelectedSessionTemplateIds((current) =>
@@ -573,41 +578,7 @@ export function FrontOfficeProjectsClient(props: {
         : selectedLibraryTemplate
           ? "Ready for sessions"
           : "No template selected";
-  const sessionReady = Boolean(firstProjectId && firstTemplateId);
-  const flowSteps = [
-    {
-      label: "Step 1",
-      title: "Project",
-      copy: firstProjectId
-        ? `${props.projects.length} active project${props.projects.length === 1 ? "" : "s"} available`
-        : "Create a project before starting a packet",
-      state: firstProjectId ? "ready" : "blocked",
-    },
-    {
-      label: "Step 2",
-      title: "Template & fields",
-      copy: signableTemplates.length
-        ? `${signableTemplates.length} template${signableTemplates.length === 1 ? "" : "s"} ready with fields`
-        : usableTemplates.length
-          ? "Open Edit fields before sending"
-          : "Upload a PDF template first",
-      state: signableTemplates.length ? "ready" : "blocked",
-    },
-    {
-      label: "Step 3",
-      title: "Session",
-      copy: sessionReady ? "Choose buyer details and create the bundle" : "Project and fields are required",
-      state: sessionReady ? "ready" : "blocked",
-    },
-    {
-      label: "Step 4",
-      title: "Send / handoff",
-      copy: sessions.length
-        ? `${sessions.length} recent session${sessions.length === 1 ? "" : "s"} can be launched`
-        : "Create a session to unlock links",
-      state: sessions.length ? "ready" : "idle",
-    },
-  ];
+  const sessionReady = Boolean(selectedProjectId && firstTemplateId);
 
   return (
     <section className="front-office-projects-actions front-office-projects-workbench">
@@ -640,40 +611,229 @@ export function FrontOfficeProjectsClient(props: {
       ) : null}
 
       <SectionCard
-        className="office-list-card front-office-flow-card"
-        subtitle="Follow these four checks from left to right, then use the workbench below to manage the details."
-        title="Start a signing flow"
+        className="office-list-card front-office-compact-card front-office-step-card front-office-step-project-card"
+        subtitle="Choose the project first. If it does not exist yet, create it here before touching templates or sessions."
+        title="Step 1 · Project"
       >
-        <ol className="front-office-flow-steps">
-          {flowSteps.map((step, index) => (
-            <li className={`front-office-flow-step is-${step.state}`} key={step.title}>
-              <span className="front-office-flow-step-index">{index + 1}</span>
-              <span className="front-office-flow-step-copy">
-                <small>{step.label}</small>
-                <strong>{step.title}</strong>
-                <span>{step.copy}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
+        <div className="front-office-step-grid front-office-step-grid-two">
+          <div className="front-office-step-panel">
+            <div className="front-office-panel-head">
+              <h4>Create project</h4>
+              <p>Project name is here. This is the first required setup field for a new signing packet.</p>
+            </div>
+            {renderFeedback("project")}
+            <form className="office-form-grid" onSubmit={handleCreateProject}>
+              <FormField className="office-form-field-wide" label="Project name">
+                <TextInput name="name" placeholder="Astoria Reserve" required />
+              </FormField>
+              <FormField label="Address">
+                <TextInput name="address" placeholder="12-34 31st Ave" />
+              </FormField>
+              <FormField label="City">
+                <TextInput name="city" placeholder="Astoria" />
+              </FormField>
+              <FormField label="State">
+                <TextInput name="state" placeholder="NY" />
+              </FormField>
+              <FormField label="ZIP">
+                <TextInput name="zipCode" placeholder="11106" />
+              </FormField>
+              <FormField className="office-form-field-wide" label="Archive recipients">
+                <TextareaInput
+                  className="front-office-compact-textarea"
+                  name="archiveSinkEmails"
+                  placeholder="archive@company.com, ops@company.com"
+                  rows={2}
+                />
+              </FormField>
+              <div className="office-form-actions">
+                <Button disabled={mutation.kind === "loading"} type="submit">
+                  Create project
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          <div className="front-office-step-panel">
+            <div className="front-office-panel-head">
+              <h4>Use an existing project</h4>
+              <p>If the project already exists, select it here and continue to Step 2.</p>
+            </div>
+            <FormField label="Project">
+              <SelectInput
+                onChange={(event) => setSelectedProjectId(event.currentTarget.value)}
+                value={selectedProjectId}
+              >
+                {props.projects.length ? (
+                  props.projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.code} · {project.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No project yet</option>
+                )}
+              </SelectInput>
+            </FormField>
+            {selectedProject ? (
+              <QueueItem
+                badgeLabel={selectedProject.status}
+                badgeTone={selectedProject.status === "active" ? "accent" : "neutral"}
+                meta={
+                  <>
+                    <span>{selectedProject.sessionCount} sessions</span>
+                    <span>{selectedProject.archivedDocumentCount} archived docs</span>
+                  </>
+                }
+                title={`${selectedProject.code} · ${selectedProject.name}`}
+              />
+            ) : (
+              <EmptyState
+                description="Create a project on the left before building a signing session."
+                title="No project selected"
+              />
+            )}
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard
-        className="office-list-card front-office-compact-card front-office-session-card front-office-primary-session-card"
-        subtitle="Create the packet first. Remote emails are sent only after you launch a session below."
-        title="Create signing session"
+        className="office-list-card front-office-compact-card front-office-step-card front-office-step-template-card"
+        subtitle="Upload the PDF if needed, then open Edit fields. A template with 0 fields cannot produce a real signer experience."
+        title="Step 2 · Template & fields"
+      >
+        <div className="front-office-step-grid front-office-step-grid-two">
+          <div className="front-office-step-panel front-office-template-library-panel">
+            <div className="front-office-panel-head">
+              <h4>Template library</h4>
+              <p>Choose a PDF-ready template and confirm fields before it can be used in a signing session.</p>
+            </div>
+            {renderFeedback("templateList")}
+            {props.templates.length > 0 && selectedLibraryTemplate ? (
+              <div className="front-office-template-library">
+                <FormField label="Template">
+                  <SelectInput
+                    value={selectedLibraryTemplate.id}
+                    onChange={(event) => setSelectedLibraryTemplateId(event.currentTarget.value)}
+                  >
+                    {props.templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · v{template.version} · {template.hasPdfSource ? "PDF ready" : "Missing PDF"}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                {selectedLibraryTemplate.hasPdfSource && selectedLibraryTemplate.fieldCount === 0 ? (
+                  <div className="office-inline-alert office-inline-alert-danger">
+                    No signing fields yet. Open Edit fields before using this template.
+                  </div>
+                ) : null}
+                <div className="office-queue-list front-office-template-library-detail">
+                  <QueueItem
+                    action={
+                      props.canCreateTemplate ? (
+                        <div className="front-office-template-actions">
+                          <Link href={`/agent/projects/templates/${encodeURIComponent(selectedLibraryTemplate.id)}/fields`}>
+                            <Button size="sm" type="button" variant="secondary">
+                              Edit fields
+                            </Button>
+                          </Link>
+                          <Button
+                            disabled={mutation.kind === "loading"}
+                            onClick={() => handleDeleteTemplate(selectedLibraryTemplate)}
+                            size="sm"
+                            type="button"
+                            variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
+                          >
+                            {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
+                          </Button>
+                        </div>
+                      ) : null
+                    }
+                    badgeLabel={selectedLibraryTemplateStatus}
+                    badgeTone={selectedLibraryTemplate.fieldCount > 0 ? "success" : "warning"}
+                    description={selectedLibraryTemplate.description || selectedLibraryTemplate.pdfFileName || "No description"}
+                    meta={
+                      <>
+                        <span>v{selectedLibraryTemplate.version}</span>
+                        <span>{selectedLibraryTemplate.recipientCount} recipients</span>
+                        <span>{selectedLibraryTemplate.fieldCount} fields</span>
+                        <span>{selectedLibraryTemplate.usageCount ? `${selectedLibraryTemplate.usageCount} uses` : "unused"}</span>
+                      </>
+                    }
+                    title={selectedLibraryTemplate.name}
+                  />
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                description="Upload a project-sales PDF template, then open Edit fields to place the buyer signature areas."
+                title="No project templates"
+              />
+            )}
+          </div>
+
+          {props.canCreateTemplate ? (
+            <div className="front-office-step-panel front-office-upload-panel">
+              <div className="front-office-panel-head">
+                <h4>Upload template</h4>
+                <p>Add a PDF source, then use Edit fields before sending it to a signer.</p>
+              </div>
+              {renderFeedback("template")}
+              <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
+                <FormField label="Template name">
+                  <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
+                </FormField>
+                <FormField className="office-detail-field-wide front-office-file-field" label="Source PDF">
+                  <input
+                    accept="application/pdf,.pdf"
+                    className="front-office-file-input"
+                    name="templateFile"
+                    onChange={(event) => setSelectedTemplateFileName(event.currentTarget.files?.[0]?.name ?? "")}
+                    required
+                    type="file"
+                  />
+                  <span className={`front-office-file-picker${selectedTemplateFileName ? " is-selected" : ""}`}>
+                    <span className="front-office-file-badge">PDF</span>
+                    <span className="front-office-file-copy">
+                      <strong>{selectedTemplateFileName || "Choose source PDF"}</strong>
+                      <small>{selectedTemplateFileName ? "Ready to upload" : "No file selected"}</small>
+                    </span>
+                    <span className="front-office-file-action">Choose PDF</span>
+                  </span>
+                </FormField>
+                <div className="office-form-actions">
+                  <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
+                    {pendingNewTemplate ? "Uploading..." : "Upload template"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        className="office-list-card front-office-compact-card front-office-step-card front-office-session-card front-office-primary-session-card"
+        subtitle="Now create the signer packet from the project and the field-ready template selected above."
+        title="Step 3 · Create signing session"
       >
         {renderFeedback("session")}
         {!sessionReady ? (
           <div className="office-inline-alert office-inline-alert-danger">
-            {firstProjectId
+            {selectedProjectId
               ? "Choose a PDF template with at least one signing field before creating a session."
-              : "Create a project before creating a signing session."}
+              : "Create or select a project before creating a signing session."}
           </div>
         ) : null}
         <form className="office-form-grid front-office-session-form" key={createSessionFormKey} onSubmit={handleCreateSession}>
           <FormField label="Project">
-            <SelectInput defaultValue={firstProjectId} name="projectId" required>
+            <SelectInput
+              name="projectId"
+              onChange={(event) => setSelectedProjectId(event.currentTarget.value)}
+              required
+              value={selectedProjectId}
+            >
               {props.projects.length ? (
                 props.projects.map((project) => (
                   <option key={project.id} value={project.id}>
@@ -745,163 +905,9 @@ export function FrontOfficeProjectsClient(props: {
       </SectionCard>
 
       <SectionCard
-        className="office-list-card front-office-compact-card front-office-setup-card"
-        subtitle="Use this section when a project, PDF template, or field layout is missing."
-        title="Setup & library"
-      >
-        <div className="front-office-setup-grid">
-          <div className="front-office-setup-panel front-office-template-library-panel">
-            <div className="front-office-panel-head">
-              <h4>Template library</h4>
-              <p>Choose a PDF-ready template and confirm fields before it can be used in a signing session.</p>
-            </div>
-            {renderFeedback("templateList")}
-            {props.templates.length > 0 && selectedLibraryTemplate ? (
-              <div className="front-office-template-library">
-                <FormField label="Template">
-                  <SelectInput
-                    value={selectedLibraryTemplate.id}
-                    onChange={(event) => setSelectedLibraryTemplateId(event.currentTarget.value)}
-                  >
-                    {props.templates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} · v{template.version} · {template.hasPdfSource ? "PDF ready" : "Missing PDF"}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </FormField>
-                {selectedLibraryTemplate.hasPdfSource && selectedLibraryTemplate.fieldCount === 0 ? (
-                  <div className="office-inline-alert office-inline-alert-danger">
-                    No signing fields yet. Open Edit fields before using this template.
-                  </div>
-                ) : null}
-                <div className="office-queue-list front-office-template-library-detail">
-                  <QueueItem
-                    action={
-                      props.canCreateTemplate ? (
-                        <div className="front-office-template-actions">
-                          <Link href={`/agent/projects/templates/${encodeURIComponent(selectedLibraryTemplate.id)}/fields`}>
-                            <Button size="sm" type="button" variant="secondary">
-                              Edit fields
-                            </Button>
-                          </Link>
-                          <Button
-                            disabled={mutation.kind === "loading"}
-                            onClick={() => handleDeleteTemplate(selectedLibraryTemplate)}
-                            size="sm"
-                            type="button"
-                            variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
-                          >
-                            {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
-                          </Button>
-                        </div>
-                      ) : null
-                    }
-                    badgeLabel={selectedLibraryTemplateStatus}
-                    badgeTone={selectedLibraryTemplate.fieldCount > 0 ? "success" : "warning"}
-                    description={selectedLibraryTemplate.description || selectedLibraryTemplate.pdfFileName || "No description"}
-                    meta={
-                      <>
-                        <span>v{selectedLibraryTemplate.version}</span>
-                        <span>{selectedLibraryTemplate.recipientCount} recipients</span>
-                        <span>{selectedLibraryTemplate.fieldCount} fields</span>
-                        <span>{selectedLibraryTemplate.usageCount ? `${selectedLibraryTemplate.usageCount} uses` : "unused"}</span>
-                      </>
-                    }
-                    title={selectedLibraryTemplate.name}
-                  />
-                </div>
-              </div>
-            ) : (
-              <EmptyState
-                description="Upload a project-sales PDF template, then open Edit fields to place the buyer signature areas."
-                title="No project templates"
-              />
-            )}
-          </div>
-
-          <div className="front-office-setup-panel front-office-project-create-panel">
-            <div className="front-office-panel-head">
-              <h4>Create project</h4>
-              <p>Set the project name and archive recipients once; signed copies use this project by default.</p>
-            </div>
-            {renderFeedback("project")}
-            <form className="office-form-grid" onSubmit={handleCreateProject}>
-              <FormField className="office-form-field-wide" label="Project name">
-                <TextInput name="name" placeholder="Astoria Reserve" required />
-              </FormField>
-              <FormField label="Address">
-                <TextInput name="address" placeholder="12-34 31st Ave" />
-              </FormField>
-              <FormField label="City">
-                <TextInput name="city" placeholder="Astoria" />
-              </FormField>
-              <FormField label="State">
-                <TextInput name="state" placeholder="NY" />
-              </FormField>
-              <FormField label="ZIP">
-                <TextInput name="zipCode" placeholder="11106" />
-              </FormField>
-              <FormField className="office-form-field-wide" label="Archive recipients">
-                <TextareaInput
-                  className="front-office-compact-textarea"
-                  name="archiveSinkEmails"
-                  placeholder="archive@company.com, ops@company.com"
-                  rows={2}
-                />
-              </FormField>
-              <div className="office-form-actions">
-                <Button disabled={mutation.kind === "loading"} type="submit">
-                  Create project
-                </Button>
-              </div>
-            </form>
-          </div>
-
-          {props.canCreateTemplate ? (
-            <div className="front-office-setup-panel front-office-upload-panel">
-              <div className="front-office-panel-head">
-                <h4>Upload template</h4>
-                <p>Add a PDF source, then use Edit fields before sending it to a signer.</p>
-              </div>
-              {renderFeedback("template")}
-              <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
-                <FormField label="Template name">
-                  <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
-                </FormField>
-                <FormField className="office-detail-field-wide front-office-file-field" label="Source PDF">
-                  <input
-                    accept="application/pdf,.pdf"
-                    className="front-office-file-input"
-                    name="templateFile"
-                    onChange={(event) => setSelectedTemplateFileName(event.currentTarget.files?.[0]?.name ?? "")}
-                    required
-                    type="file"
-                  />
-                  <span className={`front-office-file-picker${selectedTemplateFileName ? " is-selected" : ""}`}>
-                    <span className="front-office-file-badge">PDF</span>
-                    <span className="front-office-file-copy">
-                      <strong>{selectedTemplateFileName || "Choose source PDF"}</strong>
-                      <small>{selectedTemplateFileName ? "Ready to upload" : "No file selected"}</small>
-                    </span>
-                    <span className="front-office-file-action">Choose PDF</span>
-                  </span>
-                </FormField>
-                <div className="office-form-actions">
-                  <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
-                    {pendingNewTemplate ? "Uploading..." : "Upload template"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          ) : null}
-        </div>
-      </SectionCard>
-
-      <SectionCard
         className="office-list-card front-office-compact-card front-office-active-sessions-card"
         subtitle="Send remote links, copy the latest secure link, or start an iPad handoff from the same session row."
-        title="Active sessions"
+        title="Step 4 · Send / handoff"
       >
         {renderFeedback("launch")}
         {renderFeedback("remoteLinks")}
