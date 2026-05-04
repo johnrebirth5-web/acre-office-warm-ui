@@ -687,7 +687,7 @@ export function FrontOfficeProjectsClient(props: {
                     <strong>{selectedTemplateFileName || "Choose source PDF"}</strong>
                     <small>{selectedTemplateFileName ? "Ready to upload" : "No file selected"}</small>
                   </span>
-                  <span className="front-office-file-action">Browse</span>
+                  <span className="front-office-file-action">Choose PDF</span>
                 </span>
               </FormField>
               <div className="office-form-actions">
