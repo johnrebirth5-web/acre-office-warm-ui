@@ -1,7 +1,7 @@
 import { canCreateProjectSigning, issueProjectRemoteSigningTokens } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
-import { getPublicAppBaseUrl } from "../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl, getRequestOrigin } from "../../../../../../../lib/request-origin";
 import { sendSignatureRequestEmail } from "../../../../../../../lib/signature-email";
 
 type RouteContext = {
@@ -32,6 +32,24 @@ function buildProjectSigningContext(context: NonNullable<Awaited<ReturnType<type
 
 function buildSigningLink(baseUrl: string, token: ProjectRemoteToken) {
   return `${baseUrl}/sign/session/${encodeURIComponent(token.rawToken)}`;
+}
+
+function isLoopbackHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isCrossEnvironmentSigningBaseUrl(input: {
+  baseUrl: string;
+  requestOrigin: string;
+}) {
+  try {
+    const baseUrl = new URL(input.baseUrl);
+    const requestOrigin = new URL(input.requestOrigin);
+
+    return isLoopbackHost(requestOrigin.hostname) && !isLoopbackHost(baseUrl.hostname);
+  } catch {
+    return false;
+  }
 }
 
 function getErrorMessage(error: unknown) {
@@ -72,11 +90,23 @@ export async function handleSendProjectRemotePost(
   }
 
   try {
+    const baseUrl = resolveBaseUrl();
+    const requestOrigin = getRequestOrigin(request);
+
+    if (isCrossEnvironmentSigningBaseUrl({ baseUrl, requestOrigin })) {
+      return NextResponse.json(
+        {
+          error:
+            "Remote signing email was not sent because this local request would create a production URL backed by a local-only token. Open https://acresystem.us/agent/projects and send the remote link from production.",
+        },
+        { status: 409 },
+      );
+    }
+
     const tokens = await issueRemoteTokens({
       ...buildProjectSigningContext(context),
       sessionId: params.sessionId,
     });
-    const baseUrl = resolveBaseUrl();
     const links = tokens.map((token) => ({
       recipientId: token.recipientId,
       email: token.email,
