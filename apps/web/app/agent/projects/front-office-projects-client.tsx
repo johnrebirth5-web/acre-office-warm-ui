@@ -34,6 +34,7 @@ type SimilarProject = {
 type MutationState = {
   kind: "idle" | "loading" | "success" | "error";
   message: string;
+  scope?: "template" | "project" | "manage" | "session" | "launch" | "remoteLinks";
 };
 
 type RemoteSigningLink = {
@@ -103,11 +104,33 @@ export function FrontOfficeProjectsClient(props: {
       projectLabel: `${project.code} · ${project.name}`,
     })),
   );
-  const firstSessionId = sessions[0]?.id ?? "";
   const usableTemplates = useMemo(
     () => props.templates.filter((template) => template.hasPdfSource),
     [props.templates],
   );
+  const firstSessionId = sessions[0]?.id ?? "";
+  const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${usableTemplates.length}`;
+  const launchSessionFormKey = sessions.map((session) => session.id).join(":");
+
+  function setActionMutation(scope: NonNullable<MutationState["scope"]>, kind: MutationState["kind"], message: string) {
+    setMutation({ kind, message, scope });
+  }
+
+  function renderFeedback(scope: NonNullable<MutationState["scope"]>) {
+    if (!mutation.message || mutation.scope !== scope) {
+      return null;
+    }
+
+    return (
+      <div
+        className={`office-inline-alert ${
+          mutation.kind === "error" ? "office-inline-alert-danger" : "office-inline-alert-info"
+        }`}
+      >
+        {mutation.message}
+      </div>
+    );
+  }
 
   async function postJson(url: string, body: Record<string, unknown>) {
     const response = await fetch(url, {
@@ -123,7 +146,7 @@ export function FrontOfficeProjectsClient(props: {
   }
 
   async function submitCreateProject(payload: CreateProjectPayload, force: boolean) {
-    setMutation({ kind: "loading", message: "Saving..." });
+    setActionMutation("project", "loading", "Saving project...");
     const { response, payload: result } = await postJson("/api/agent/projects", {
       ...payload,
       force,
@@ -131,44 +154,23 @@ export function FrontOfficeProjectsClient(props: {
 
     if (response.status === 409 && result.similarProjects?.length) {
       setDuplicatePrompt({ payload, similar: result.similarProjects });
-      setMutation({
-        kind: "error",
-        message: "A similar project already exists. Confirm to create a duplicate.",
-      });
-      return;
+      setActionMutation("project", "error", "A similar project already exists. Confirm to create a duplicate.");
+      return false;
     }
 
     if (!response.ok) {
-      setMutation({
-        kind: "error",
-        message: result.error || "Project could not be created.",
-      });
-      return;
+      setActionMutation("project", "error", result.error || "Project could not be created.");
+      return false;
     }
 
     setDuplicatePrompt(null);
-    setMutation({
-      kind: "success",
-      message: "Project saved. Refresh to see the latest workspace state.",
-    });
-  }
-
-  async function submitJson(url: string, body: Record<string, unknown>) {
-    setMutation({ kind: "loading", message: "Saving..." });
-    const { response, payload } = await postJson(url, body);
-
-    if (!response.ok) {
-      throw new Error(payload.error || "Request failed.");
-    }
-
-    setMutation({
-      kind: "success",
-      message: "Saved. Refresh the page to see the latest workspace state.",
-    });
+    setActionMutation("project", "success", "Project saved. The workspace list is updating.");
+    router.refresh();
+    return true;
   }
 
   async function createSigningSession(url: string, body: Record<string, unknown>) {
-    setMutation({ kind: "loading", message: "Creating signing session..." });
+    setActionMutation("session", "loading", "Creating signing session...");
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -196,17 +198,17 @@ export function FrontOfficeProjectsClient(props: {
     const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] ?? null : null;
 
     if (!name) {
-      setMutation({ kind: "error", message: "Template name is required." });
+      setActionMutation("template", "error", "Template name is required.");
       return;
     }
 
     if (!file) {
-      setMutation({ kind: "error", message: "Choose a PDF file before creating the template." });
+      setActionMutation("template", "error", "Choose a PDF file before creating the template.");
       return;
     }
 
     setPendingNewTemplate(true);
-    setMutation({ kind: "loading", message: "Uploading template..." });
+    setActionMutation("template", "loading", "Uploading template...");
 
     try {
       const uploadFormData = new FormData();
@@ -226,16 +228,18 @@ export function FrontOfficeProjectsClient(props: {
       }
 
       formElement.reset();
-      setMutation({
-        kind: "success",
-        message: `Template "${payload.template.name}" uploaded. It is now available for new signing sessions.`,
-      });
+      setActionMutation(
+        "template",
+        "success",
+        `Template "${payload.template.name}" uploaded. The template list is updating.`,
+      );
       router.refresh();
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Failed to upload signing template.",
-      });
+      setActionMutation(
+        "template",
+        "error",
+        error instanceof Error ? error.message : "Failed to upload signing template.",
+      );
     } finally {
       setPendingNewTemplate(false);
     }
@@ -261,13 +265,12 @@ export function FrontOfficeProjectsClient(props: {
     setDuplicatePrompt(null);
 
     try {
-      await submitCreateProject(payload, false);
-      event.currentTarget.reset();
+      const saved = await submitCreateProject(payload, false);
+      if (saved) {
+        event.currentTarget.reset();
+      }
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Project could not be created.",
-      });
+      setActionMutation("project", "error", error instanceof Error ? error.message : "Project could not be created.");
     }
   }
 
@@ -276,10 +279,7 @@ export function FrontOfficeProjectsClient(props: {
     try {
       await submitCreateProject(duplicatePrompt.payload, true);
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Project could not be created.",
-      });
+      setActionMutation("project", "error", error instanceof Error ? error.message : "Project could not be created.");
     }
   }
 
@@ -295,7 +295,7 @@ export function FrontOfficeProjectsClient(props: {
 
     if (!confirmed) return;
 
-    setMutation({ kind: "loading", message: `${verb}ing project...` });
+    setActionMutation("manage", "loading", `${verb}ing project...`);
 
     const response = await fetch(`/api/agent/projects/${encodeURIComponent(project.id)}`, {
       method: "PATCH",
@@ -305,17 +305,12 @@ export function FrontOfficeProjectsClient(props: {
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
     if (!response.ok) {
-      setMutation({
-        kind: "error",
-        message: payload.error || `${verb} failed.`,
-      });
+      setActionMutation("manage", "error", payload.error || `${verb} failed.`);
       return;
     }
 
-    setMutation({
-      kind: "success",
-      message: `${verb}d. Refresh to see the updated list.`,
-    });
+    setActionMutation("manage", "success", `${verb}d. The project list is updating.`);
+    router.refresh();
   }
 
   async function handleCreateSession(event: FormEvent<HTMLFormElement>) {
@@ -329,10 +324,7 @@ export function FrontOfficeProjectsClient(props: {
       .filter(Boolean);
 
     if (!projectId || !templateIds.length) {
-      setMutation({
-        kind: "error",
-        message: "Choose a project and at least one template first.",
-      });
+      setActionMutation("session", "error", "Choose a project and at least one template first.");
       return;
     }
 
@@ -355,19 +347,20 @@ export function FrontOfficeProjectsClient(props: {
         ],
       });
       event.currentTarget.reset();
-      setMutation({
-        kind: "success",
-        message:
-          session.mode === "remote"
-            ? "Signing session created. Use Launch existing session > Send remote link to email the recipient."
-            : "Signing session created. Use Launch existing session > Start iPad handoff when the iPad is ready.",
-      });
+      setActionMutation(
+        "session",
+        "success",
+        session.mode === "remote"
+          ? "Signing session created. The launch list is updating; send the remote link next."
+          : "Signing session created. The launch list is updating; start the iPad handoff when ready.",
+      );
       router.refresh();
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Signing session could not be created.",
-      });
+      setActionMutation(
+        "session",
+        "error",
+        error instanceof Error ? error.message : "Signing session could not be created.",
+      );
     }
   }
 
@@ -378,7 +371,7 @@ export function FrontOfficeProjectsClient(props: {
 
     try {
       setRemoteDelivery(null);
-      setMutation({ kind: "loading", message: "Sending links..." });
+      setActionMutation("launch", "loading", "Sending links...");
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/send-remote`, {
         method: "POST",
       });
@@ -401,19 +394,16 @@ export function FrontOfficeProjectsClient(props: {
         });
       }
 
-      setMutation({
-        kind: payload.emailDeliveryWarning ? "error" : "success",
-        message:
-          payload.emailDeliveryWarning ??
+      setActionMutation(
+        "launch",
+        payload.emailDeliveryWarning ? "error" : "success",
+        payload.emailDeliveryWarning ??
           (payload.links?.length
             ? `Remote links sent to saved session recipients: ${payload.links.map((link) => link.email).join(", ")}`
             : "No email recipients were available for this session."),
-      });
+      );
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Remote links could not be sent.",
-      });
+      setActionMutation("launch", "error", error instanceof Error ? error.message : "Remote links could not be sent.");
     }
   }
 
@@ -422,10 +412,7 @@ export function FrontOfficeProjectsClient(props: {
       await navigator.clipboard.writeText(signingUrl);
       setRemoteDelivery((current) => (current ? { ...current, copiedUrl: signingUrl } : current));
     } catch (_error) {
-      setMutation({
-        kind: "error",
-        message: "Copy failed. Select the link field and copy it manually.",
-      });
+      setActionMutation("remoteLinks", "error", "Copy failed. Select the link field and copy it manually.");
     }
   }
 
@@ -436,7 +423,7 @@ export function FrontOfficeProjectsClient(props: {
     const sessionId = String(formData.get("sessionId") ?? "");
 
     try {
-      setMutation({ kind: "loading", message: "Starting handoff..." });
+      setActionMutation("launch", "loading", "Starting handoff...");
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/handoff/start`, {
         method: "POST",
       });
@@ -449,30 +436,14 @@ export function FrontOfficeProjectsClient(props: {
         throw new Error(payload.error || "Handoff could not be started.");
       }
 
-      setMutation({
-        kind: "success",
-        message: payload.handoffUrl ? `Open on iPad: ${payload.handoffUrl}` : "Handoff started.",
-      });
+      setActionMutation("launch", "success", payload.handoffUrl ? `Open on iPad: ${payload.handoffUrl}` : "Handoff started.");
     } catch (error) {
-      setMutation({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Handoff could not be started.",
-      });
+      setActionMutation("launch", "error", error instanceof Error ? error.message : "Handoff could not be started.");
     }
   }
 
   return (
     <section className="front-office-projects-actions">
-      {mutation.message ? (
-        <div
-          className={`office-inline-alert ${
-            mutation.kind === "error" ? "office-inline-alert-danger" : "office-inline-alert-info"
-          }`}
-        >
-          {mutation.message}
-        </div>
-      ) : null}
-
       {duplicatePrompt ? (
         <SectionCard
           className="office-list-card"
@@ -528,6 +499,7 @@ export function FrontOfficeProjectsClient(props: {
           subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields later in the Back Office editor if needed."
           title="Upload signing template"
         >
+          {renderFeedback("template")}
           <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
             <FormField label="Template name">
               <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
@@ -549,6 +521,7 @@ export function FrontOfficeProjectsClient(props: {
         subtitle="Set the project-level archive mailbox list once; signed copies distribute there by default."
         title="Create project"
       >
+        {renderFeedback("project")}
         <form className="office-form-grid" onSubmit={handleCreateProject}>
           <FormField label="Project code">
             <TextInput name="code" placeholder="ASTORIA-RES" required />
@@ -589,6 +562,7 @@ export function FrontOfficeProjectsClient(props: {
           }
           title="Manage projects"
         >
+          {renderFeedback("manage")}
           <div className="office-form-actions">
             {props.includeArchived ? (
               <Link href="/agent/projects">
@@ -640,7 +614,8 @@ export function FrontOfficeProjectsClient(props: {
         subtitle="Create one bundled signing session. Remote emails send only after you click Send remote link."
         title="Create signing session"
       >
-        <form className="office-form-grid" onSubmit={handleCreateSession}>
+        {renderFeedback("session")}
+        <form className="office-form-grid" key={createSessionFormKey} onSubmit={handleCreateSession}>
           <FormField label="Project">
             <SelectInput defaultValue={firstProjectId} name="projectId" required>
               {props.projects.map((project) => (
@@ -684,11 +659,12 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card"
-        subtitle="Remote links use email OTP. iPad handoff links expire in 30 minutes."
+        subtitle="Remote links open directly for the saved recipient. iPad handoff links expire in 30 minutes."
         title="Launch existing session"
       >
+        {renderFeedback("launch")}
         <div className="office-form-grid">
-          <form className="office-form-grid" onSubmit={handleSendRemote}>
+          <form className="office-form-grid" key={`remote:${launchSessionFormKey}`} onSubmit={handleSendRemote}>
             <FormField label="Session">
               <SelectInput defaultValue={firstSessionId} name="sessionId" required>
                 {sessions.map((session) => (
@@ -705,7 +681,7 @@ export function FrontOfficeProjectsClient(props: {
             </div>
           </form>
 
-          <form className="office-form-grid" onSubmit={handleStartHandoff}>
+          <form className="office-form-grid" key={`handoff:${launchSessionFormKey}`} onSubmit={handleStartHandoff}>
             <FormField label="Session">
               <SelectInput defaultValue={firstSessionId} name="sessionId" required>
                 {sessions.map((session) => (
@@ -734,6 +710,7 @@ export function FrontOfficeProjectsClient(props: {
           }
           title="Latest remote links"
         >
+          {renderFeedback("remoteLinks")}
           <div className="office-queue-list">
             {remoteDelivery.links.map((link) => {
               const failure = remoteDelivery.failures.find(

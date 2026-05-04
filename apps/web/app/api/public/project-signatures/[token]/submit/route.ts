@@ -30,10 +30,6 @@ export async function POST(request: NextRequest, routeContext: RouteContext) {
     return NextResponse.json({ error: "Signing token is invalid or expired." }, { status: 404 });
   }
 
-  if (resolved.otpRequired) {
-    return NextResponse.json({ error: "OTP verification required before signing." }, { status: 403 });
-  }
-
   const parsedBody = await parseJsonBody(request, submitBodySchema, {
     error: "Signature payload is invalid.",
   });
@@ -61,4 +57,3 @@ export async function POST(request: NextRequest, routeContext: RouteContext) {
     );
   }
 }
-

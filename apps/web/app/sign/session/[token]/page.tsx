@@ -48,7 +48,6 @@ export default async function ProjectRemoteSigningPage({ params }: PageProps) {
     <main className="project-public-shell">
       <ProjectRemoteSignClient
         signingFields={buildSigningFields(resolved)}
-        otpRequired={resolved.otpRequired}
         recipientName={resolved.recipient.name}
         token={token}
       />
