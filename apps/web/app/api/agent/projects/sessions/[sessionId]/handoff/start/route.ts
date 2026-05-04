@@ -1,7 +1,7 @@
 import { canCreateProjectSigning, startProjectSigningHandoff } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../../lib/auth-session";
-import { getAppBaseUrl } from "../../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../../lib/request-origin";
 
 type RouteContext = {
   params: Promise<{
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, routeContext: RouteContext) {
 
     return NextResponse.json({
       expiresAt: handoff.expiresAt,
-      handoffUrl: `${getAppBaseUrl(request)}/sign/handoff/${encodeURIComponent(handoff.rawToken)}`,
+      handoffUrl: `${getPublicAppBaseUrl()}/sign/handoff/${encodeURIComponent(handoff.rawToken)}`,
     });
   } catch (error) {
     return NextResponse.json(

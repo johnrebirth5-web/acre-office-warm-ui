@@ -7,7 +7,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
-import { getRequestOrigin } from "../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../lib/request-origin";
 import { updateOfficeUserInvitationBodySchema } from "./route.schema";
 
 type RouteContext = {
@@ -20,7 +20,7 @@ type OfficeUserInvitationRouteDependencies = {
   parseJsonBody?: typeof parseJsonBody;
   issueInvitationForMembership?: typeof issueInvitationForMembership;
   revokeInvitationForMembership?: typeof revokeInvitationForMembership;
-  getRequestOrigin?: typeof getRequestOrigin;
+  getPublicAppBaseUrl?: typeof getPublicAppBaseUrl;
 };
 
 export async function handleOfficeUserInvitationPost(
@@ -69,7 +69,7 @@ export async function handleOfficeUserInvitationPost(
       invitationId: result.invitationId,
       invitationUrl: new URL(
         result.invitationPath,
-        (dependencies.getRequestOrigin ?? getRequestOrigin)(request),
+        (dependencies.getPublicAppBaseUrl ?? getPublicAppBaseUrl)(),
       ).toString(),
       expiresAt: result.expiresAt.toISOString()
     });

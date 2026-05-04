@@ -14,6 +14,12 @@ type RequestLike = {
   };
 };
 
+const defaultPublicAppBaseUrl = "https://acresystem.us";
+
+function normalizeBaseUrl(baseUrl: string) {
+  return baseUrl.trim().replace(/\/+$/, "");
+}
+
 export function getRequestOrigin(request: RequestLike) {
   const forwardedHost = request.headers.get("x-forwarded-host");
   const host = forwardedHost ?? request.headers.get("host") ?? request.nextUrl.host;
@@ -26,8 +32,12 @@ export function getAppBaseUrl(request: RequestLike) {
   const configuredBaseUrl = process.env.ACRE_BASE_URL?.trim();
 
   if (configuredBaseUrl) {
-    return configuredBaseUrl.replace(/\/+$/, "");
+    return normalizeBaseUrl(configuredBaseUrl);
   }
 
   return getRequestOrigin(request);
+}
+
+export function getPublicAppBaseUrl() {
+  return normalizeBaseUrl(process.env.ACRE_BASE_URL?.trim() || defaultPublicAppBaseUrl);
 }

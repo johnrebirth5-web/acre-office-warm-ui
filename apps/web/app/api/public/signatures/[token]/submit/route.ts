@@ -2,7 +2,7 @@ import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, get
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../lib/api/parse-body";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
-import { getAppBaseUrl } from "../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../lib/request-origin";
 import {
   buildRateLimitKey,
   consumeRateLimit,
@@ -37,7 +37,7 @@ export const runtime = "nodejs";
 
 type PublicSignatureSubmitRouteDependencies = {
   createTransactionDocument?: typeof createTransactionDocument;
-  getAppBaseUrl?: typeof getAppBaseUrl;
+  getAppBaseUrl?: typeof getPublicAppBaseUrl;
   getPublicSignatureDocumentStorageRecord?: typeof getPublicSignatureDocumentStorageRecord;
   getPublicSignatureRequestSnapshot?: typeof getPublicSignatureRequestSnapshot;
   parseJsonBody?: typeof parseJsonBody;
@@ -107,7 +107,7 @@ export async function handlePublicSignatureSubmitPost(
   const parseBody = dependencies.parseJsonBody ?? parseJsonBody;
   const updateRequest =
     dependencies.updateSignatureRequest ?? updateSignatureRequest;
-  const getBaseUrl = dependencies.getAppBaseUrl ?? getAppBaseUrl;
+  const getBaseUrl = dependencies.getAppBaseUrl ?? getPublicAppBaseUrl;
   const sendRequestEmail =
     dependencies.sendSignatureRequestEmail ?? sendSignatureRequestEmail;
   const readFile = dependencies.readStoredFile ?? readStoredFile;
@@ -236,7 +236,7 @@ export async function handlePublicSignatureSubmitPost(
           );
 
         if (shouldAdvanceStep) {
-          const baseUrl = getBaseUrl(request);
+          const baseUrl = getBaseUrl();
           const senderDisplayName =
             latestSnapshot.request.senderDisplayName || "Acre Signatures";
           const subject =

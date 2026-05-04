@@ -146,7 +146,7 @@ test("handleCreateAccountingStatementPost sends finance a generated statement re
 
   assert.equal(response.status, 201);
   assert.equal(capturedEmailInput?.["organizationId"], "org_1");
-  assert.equal(capturedEmailInput?.["baseUrl"], "http://localhost:3105");
+  assert.equal(capturedEmailInput?.["baseUrl"], "https://acresystem.us");
   assert.deepEqual(await readJson(response), {
     statementId: "statement_1"
   });

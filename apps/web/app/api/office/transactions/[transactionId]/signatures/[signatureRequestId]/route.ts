@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
 import { parseJsonBody } from "../../../../../../../lib/api/parse-body";
 import { isSameOriginRequest } from "../../../../../../../lib/csrf";
-import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../lib/request-origin";
 import {
   buildRateLimitKey,
   consumeRateLimit,
@@ -48,7 +48,7 @@ const DEFAULT_SIGNATURE_SEND_RATE_LIMIT_OPTIONS = {
 type SignatureRequestRouteDependencies = {
   csrf?: typeof isSameOriginRequest;
   createSignatureToken?: typeof createSignatureToken;
-  getAppBaseUrl?: typeof getAppBaseUrl;
+  getAppBaseUrl?: typeof getPublicAppBaseUrl;
   getRequestSessionContext?: typeof getRequestSessionContext;
   getSignatureEditorSnapshot?: typeof getSignatureEditorSnapshot;
   rateLimit?: RateLimitConsumer;
@@ -168,7 +168,7 @@ async function runSignatureRequestAction(
         dependencies.sendSignatureRequestEmail ?? sendSignatureRequestEmail;
       const createToken =
         dependencies.createSignatureToken ?? createSignatureToken;
-      const baseUrl = (dependencies.getAppBaseUrl ?? getAppBaseUrl)(request);
+      const baseUrl = (dependencies.getAppBaseUrl ?? getPublicAppBaseUrl)();
       const snapshot = await loadSignatureEditorSnapshot(
         context.currentOrganization.id,
         transactionId,

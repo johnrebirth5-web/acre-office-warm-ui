@@ -15,7 +15,7 @@ import {
   captureOperationalEmailWarning,
   sendPayoutStatementQuickBooksPostedOperationalEmail
 } from "../../../../../../../lib/operational-email";
-import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../lib/request-origin";
 
 type RouteContext = {
   params: Promise<{
@@ -671,7 +671,7 @@ export async function handlePostAccountingStatementQuickBooksBillPost(
         sendPayoutStatementQuickBooksPostedOperationalEmail
       )({
         organizationId: context.currentOrganization.id,
-        baseUrl: getAppBaseUrl(request),
+        baseUrl: getPublicAppBaseUrl(),
         statement
       });
     });

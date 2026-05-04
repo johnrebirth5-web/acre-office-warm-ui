@@ -1,7 +1,7 @@
 import { canCreateProjectSigning, issueProjectRemoteSigningTokens } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
-import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
+import { getPublicAppBaseUrl } from "../../../../../../../lib/request-origin";
 import { sendSignatureRequestEmail } from "../../../../../../../lib/signature-email";
 
 type RouteContext = {
@@ -12,7 +12,7 @@ type RouteContext = {
 
 type SendProjectRemoteDependencies = {
   canCreateProjectSigning?: typeof canCreateProjectSigning;
-  getAppBaseUrl?: typeof getAppBaseUrl;
+  getAppBaseUrl?: typeof getPublicAppBaseUrl;
   getRequestSessionContext?: typeof getRequestSessionContext;
   issueProjectRemoteSigningTokens?: typeof issueProjectRemoteSigningTokens;
   sendSignatureRequestEmail?: typeof sendSignatureRequestEmail;
@@ -60,7 +60,7 @@ export async function handleSendProjectRemotePost(
   const checkCreateProjectSigning = dependencies.canCreateProjectSigning ?? canCreateProjectSigning;
   const issueRemoteTokens = dependencies.issueProjectRemoteSigningTokens ?? issueProjectRemoteSigningTokens;
   const sendRequestEmail = dependencies.sendSignatureRequestEmail ?? sendSignatureRequestEmail;
-  const resolveBaseUrl = dependencies.getAppBaseUrl ?? getAppBaseUrl;
+  const resolveBaseUrl = dependencies.getAppBaseUrl ?? getPublicAppBaseUrl;
   const context = await resolveSessionContext(request);
 
   if (!context) {
@@ -76,7 +76,7 @@ export async function handleSendProjectRemotePost(
       ...buildProjectSigningContext(context),
       sessionId: params.sessionId,
     });
-    const baseUrl = resolveBaseUrl(request);
+    const baseUrl = resolveBaseUrl();
     const links = tokens.map((token) => ({
       recipientId: token.recipientId,
       email: token.email,

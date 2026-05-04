@@ -240,14 +240,15 @@ ACRE_SESSION_SECRET_SECONDARY="<previous-generated-session-secret>"
 用途：
 
 - 为一次性 provisioning / 邀请批量初始化脚本生成完整 invite URL
-- 为 transaction document 外部签署邮件生成 public signing link 的绝对 base URL fallback
+- 为 email、download、签署、handoff、invite 等 user-facing outbound link 生成 public absolute base URL
 - 当前用于 `scripts/provision-backoffice-initial-accounts.ts`
-- 当前也会在签署邮件 route 中作为 request origin 缺失时的回退值
+- 当前也会在签署邮件、Project Signing 远程链接、签完 PDF 下载、以及 operational email action link 中作为 public base URL
 
 是否必填：
 
 - 非必填
 - 缺失时默认使用 `https://acresystem.us`
+- 这类外发链接不应从本地 request origin、`localhost:3105`、或开发服务器地址派生；本地开发环境发出的邮件也必须指向 public production base URL
 
 示例格式：
 
@@ -259,7 +260,7 @@ ACRE_BASE_URL="https://acresystem.us"
 
 - 脚本仍可运行
 - 但 invite URL 会按默认生产域名拼接
-- 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
+- 外部签署、下载、handoff、invite、operational email action link 会按默认生产域名拼接链接
 
 ### `ACRE_FINANCE_NOTIFICATION_EMAIL`
 
