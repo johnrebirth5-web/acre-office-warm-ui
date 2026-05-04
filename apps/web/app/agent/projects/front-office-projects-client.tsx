@@ -545,7 +545,7 @@ export function FrontOfficeProjectsClient(props: {
       >
         {renderFeedback("templateList")}
         {props.templates.length ? (
-          <div className="office-queue-list">
+          <div className="office-queue-list front-office-compact-list front-office-template-library-list">
             {props.templates.map((template) => (
               <QueueItem
                 action={
@@ -606,68 +606,75 @@ export function FrontOfficeProjectsClient(props: {
         </SectionCard>
       ) : null}
 
-      {props.canCreateTemplate ? (
+      <div className="front-office-admin-grid">
+        {props.canCreateTemplate ? (
+          <SectionCard
+            className="office-list-card front-office-compact-card front-office-upload-card"
+            subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields later in the Back Office editor if needed."
+            title="Upload signing template"
+          >
+            {renderFeedback("template")}
+            <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
+              <FormField label="Template name">
+                <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
+              </FormField>
+              <FormField className="office-detail-field-wide" label="Source PDF">
+                <input accept="application/pdf,.pdf" name="templateFile" required type="file" />
+              </FormField>
+              <div className="office-form-actions">
+                <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
+                  {pendingNewTemplate ? "Uploading..." : "Upload template"}
+                </Button>
+              </div>
+            </form>
+          </SectionCard>
+        ) : null}
+
         <SectionCard
-          className="office-list-card"
-          subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields later in the Back Office editor if needed."
-          title="Upload signing template"
+          className="office-list-card front-office-compact-card"
+          subtitle="Set the project-level archive mailbox list once; signed copies distribute there by default."
+          title="Create project"
         >
-          {renderFeedback("template")}
-          <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
-            <FormField label="Template name">
-              <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
+          {renderFeedback("project")}
+          <form className="office-form-grid" onSubmit={handleCreateProject}>
+            <FormField label="Project code">
+              <TextInput name="code" placeholder="ASTORIA-RES" required />
             </FormField>
-            <FormField className="office-detail-field-wide" label="Source PDF">
-              <input accept="application/pdf,.pdf" name="templateFile" required type="file" />
+            <FormField label="Project name">
+              <TextInput name="name" placeholder="Astoria Reserve" required />
+            </FormField>
+            <FormField label="Address">
+              <TextInput name="address" placeholder="12-34 31st Ave" />
+            </FormField>
+            <FormField label="City">
+              <TextInput name="city" placeholder="Astoria" />
+            </FormField>
+            <FormField label="State">
+              <TextInput name="state" placeholder="NY" />
+            </FormField>
+            <FormField label="ZIP">
+              <TextInput name="zipCode" placeholder="11106" />
+            </FormField>
+            <FormField className="office-form-field-wide" label="Archive recipients">
+              <TextareaInput
+                className="front-office-compact-textarea"
+                name="archiveSinkEmails"
+                placeholder="archive@company.com, ops@company.com"
+                rows={2}
+              />
             </FormField>
             <div className="office-form-actions">
-              <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
-                {pendingNewTemplate ? "Uploading..." : "Upload template"}
+              <Button disabled={mutation.kind === "loading"} type="submit">
+                Create project
               </Button>
             </div>
           </form>
         </SectionCard>
-      ) : null}
-
-      <SectionCard
-        className="office-list-card"
-        subtitle="Set the project-level archive mailbox list once; signed copies distribute there by default."
-        title="Create project"
-      >
-        {renderFeedback("project")}
-        <form className="office-form-grid" onSubmit={handleCreateProject}>
-          <FormField label="Project code">
-            <TextInput name="code" placeholder="ASTORIA-RES" required />
-          </FormField>
-          <FormField label="Project name">
-            <TextInput name="name" placeholder="Astoria Reserve" required />
-          </FormField>
-          <FormField label="Address">
-            <TextInput name="address" placeholder="12-34 31st Ave" />
-          </FormField>
-          <FormField label="City">
-            <TextInput name="city" placeholder="Astoria" />
-          </FormField>
-          <FormField label="State">
-            <TextInput name="state" placeholder="NY" />
-          </FormField>
-          <FormField label="ZIP">
-            <TextInput name="zipCode" placeholder="11106" />
-          </FormField>
-          <FormField className="office-form-field-wide" label="Archive recipients">
-            <TextareaInput name="archiveSinkEmails" placeholder="archive@company.com, ops@company.com" rows={3} />
-          </FormField>
-          <div className="office-form-actions">
-            <Button disabled={mutation.kind === "loading"} type="submit">
-              Create project
-            </Button>
-          </div>
-        </form>
-      </SectionCard>
+      </div>
 
       {props.projects.length || props.archivedProjectCount > 0 ? (
         <SectionCard
-          className="office-list-card"
+          className="office-list-card front-office-compact-card"
           subtitle={
             props.canManage
               ? "Archive hides a project from active lists; sessions and signed archives stay intact and can be restored later."
@@ -691,7 +698,7 @@ export function FrontOfficeProjectsClient(props: {
               </Link>
             ) : null}
           </div>
-          <div className="office-queue-list">
+          <div className="office-queue-list front-office-compact-list front-office-project-manage-list">
             {props.projects.map((project) => {
               const canDeleteProject = project.sessionCount === 0 && project.archivedDocumentCount === 0;
 
@@ -727,108 +734,110 @@ export function FrontOfficeProjectsClient(props: {
         </SectionCard>
       ) : null}
 
-      <SectionCard
-        className="office-list-card"
-        subtitle="Create one bundled signing session. Remote emails send only after you click Send remote link."
-        title="Create signing session"
-      >
-        {renderFeedback("session")}
-        <form className="office-form-grid front-office-session-form" key={createSessionFormKey} onSubmit={handleCreateSession}>
-          <FormField label="Project">
-            <SelectInput defaultValue={firstProjectId} name="projectId" required>
-              {props.projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.code} · {project.name}
-                </option>
-              ))}
-            </SelectInput>
-          </FormField>
-          <FormField label="Mode">
-            <SelectInput name="mode">
-              <option value="remote">Remote</option>
-              <option value="in_person">In-person iPad</option>
-            </SelectInput>
-          </FormField>
-          <div className="office-form-field office-form-field-wide">
-            <span>Templates</span>
-            <div aria-label="Templates" className="front-office-template-choice-list" role="group">
-              {usableTemplates.map((template) => (
-                <label className="front-office-template-choice" key={template.id}>
-                  <input
-                    defaultChecked={template.id === firstTemplateId}
-                    name="templateIds"
-                    type="checkbox"
-                    value={template.id}
-                  />
-                  <span className="front-office-template-choice-copy">
-                    <strong>{template.name}</strong>
-                    <small>
-                      v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <FormField label="Buyer name">
-            <TextInput name="buyerName" required />
-          </FormField>
-          <FormField label="Buyer email">
-            <TextInput name="buyerEmail" required type="email" />
-          </FormField>
-          <FormField label="Buyer phone">
-            <TextInput name="buyerPhone" />
-          </FormField>
-          <div className="office-form-actions">
-            <Button disabled={!firstProjectId || !firstTemplateId || mutation.kind === "loading"} type="submit">
-              Create session
-            </Button>
-          </div>
-        </form>
-      </SectionCard>
-
-      <SectionCard
-        className="office-list-card"
-        subtitle="Remote links open directly for the saved recipient. iPad handoff links expire in 30 minutes."
-        title="Launch existing session"
-      >
-        {renderFeedback("launch")}
-        <div className="office-form-grid">
-          <form className="office-form-grid" key={`remote:${launchSessionFormKey}`} onSubmit={handleSendRemote}>
-            <FormField label="Session">
-              <SelectInput defaultValue={firstSessionId} name="sessionId" required>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.projectLabel} · {session.buyerName} · {session.status}
+      <div className="front-office-session-grid">
+        <SectionCard
+          className="office-list-card front-office-compact-card front-office-session-card"
+          subtitle="Create one bundled signing session. Remote emails send only after you click Send remote link."
+          title="Create signing session"
+        >
+          {renderFeedback("session")}
+          <form className="office-form-grid front-office-session-form" key={createSessionFormKey} onSubmit={handleCreateSession}>
+            <FormField label="Project">
+              <SelectInput defaultValue={firstProjectId} name="projectId" required>
+                {props.projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.code} · {project.name}
                   </option>
                 ))}
               </SelectInput>
             </FormField>
-            <div className="office-form-actions">
-              <Button disabled={!firstSessionId || mutation.kind === "loading"} type="submit" variant="secondary">
-                Send remote link
-              </Button>
-            </div>
-          </form>
-
-          <form className="office-form-grid" key={`handoff:${launchSessionFormKey}`} onSubmit={handleStartHandoff}>
-            <FormField label="Session">
-              <SelectInput defaultValue={firstSessionId} name="sessionId" required>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.projectLabel} · {session.buyerName} · {session.status}
-                  </option>
-                ))}
+            <FormField label="Mode">
+              <SelectInput name="mode">
+                <option value="remote">Remote</option>
+                <option value="in_person">In-person iPad</option>
               </SelectInput>
             </FormField>
-            <div className="office-form-actions">
-              <Button disabled={!firstSessionId || mutation.kind === "loading"} type="submit">
-                Start iPad handoff
+            <div className="office-form-field office-form-field-wide">
+              <span>Templates</span>
+              <div aria-label="Templates" className="front-office-template-picker" role="group">
+                {usableTemplates.map((template) => (
+                  <label className="front-office-template-choice" key={template.id}>
+                    <input
+                      defaultChecked={template.id === firstTemplateId}
+                      name="templateIds"
+                      type="checkbox"
+                      value={template.id}
+                    />
+                    <span className="front-office-template-choice-copy">
+                      <strong>{template.name}</strong>
+                      <small>
+                        v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
+                      </small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <FormField label="Buyer name">
+              <TextInput name="buyerName" required />
+            </FormField>
+            <FormField label="Buyer email">
+              <TextInput name="buyerEmail" required type="email" />
+            </FormField>
+            <FormField label="Buyer phone">
+              <TextInput name="buyerPhone" />
+            </FormField>
+            <div className="office-form-actions front-office-session-submit">
+              <Button disabled={!firstProjectId || !firstTemplateId || mutation.kind === "loading"} type="submit">
+                Create session
               </Button>
             </div>
           </form>
-        </div>
-      </SectionCard>
+        </SectionCard>
+
+        <SectionCard
+          className="office-list-card front-office-compact-card front-office-launch-card"
+          subtitle="Remote links open directly for the saved recipient. iPad handoff links expire in 30 minutes."
+          title="Launch existing session"
+        >
+          {renderFeedback("launch")}
+          <div className="front-office-launch-grid">
+            <form className="office-form-grid" key={`remote:${launchSessionFormKey}`} onSubmit={handleSendRemote}>
+              <FormField label="Session">
+                <SelectInput defaultValue={firstSessionId} name="sessionId" required>
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.projectLabel} · {session.buyerName} · {session.status}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
+              <div className="office-form-actions">
+                <Button disabled={!firstSessionId || mutation.kind === "loading"} type="submit" variant="secondary">
+                  Send remote link
+                </Button>
+              </div>
+            </form>
+
+            <form className="office-form-grid" key={`handoff:${launchSessionFormKey}`} onSubmit={handleStartHandoff}>
+              <FormField label="Session">
+                <SelectInput defaultValue={firstSessionId} name="sessionId" required>
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.projectLabel} · {session.buyerName} · {session.status}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
+              <div className="office-form-actions">
+                <Button disabled={!firstSessionId || mutation.kind === "loading"} type="submit">
+                  Start iPad handoff
+                </Button>
+              </div>
+            </form>
+          </div>
+        </SectionCard>
+      </div>
 
       {remoteDelivery?.links.length ? (
         <SectionCard
