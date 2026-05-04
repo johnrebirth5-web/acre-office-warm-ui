@@ -733,21 +733,12 @@ export function FrontOfficeProjectsClient(props: {
         title="Create signing session"
       >
         {renderFeedback("session")}
-        <form className="office-form-grid" key={createSessionFormKey} onSubmit={handleCreateSession}>
+        <form className="office-form-grid front-office-session-form" key={createSessionFormKey} onSubmit={handleCreateSession}>
           <FormField label="Project">
             <SelectInput defaultValue={firstProjectId} name="projectId" required>
               {props.projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.code} · {project.name}
-                </option>
-              ))}
-            </SelectInput>
-          </FormField>
-          <FormField label="Templates">
-            <SelectInput defaultValue={firstTemplateId ? [firstTemplateId] : []} multiple name="templateIds" required size={Math.min(Math.max(usableTemplates.length, 2), 5)}>
-              {usableTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
                 </option>
               ))}
             </SelectInput>
@@ -758,6 +749,27 @@ export function FrontOfficeProjectsClient(props: {
               <option value="in_person">In-person iPad</option>
             </SelectInput>
           </FormField>
+          <div className="office-form-field office-form-field-wide">
+            <span>Templates</span>
+            <div aria-label="Templates" className="front-office-template-choice-list" role="group">
+              {usableTemplates.map((template) => (
+                <label className="front-office-template-choice" key={template.id}>
+                  <input
+                    defaultChecked={template.id === firstTemplateId}
+                    name="templateIds"
+                    type="checkbox"
+                    value={template.id}
+                  />
+                  <span className="front-office-template-choice-copy">
+                    <strong>{template.name}</strong>
+                    <small>
+                      v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
           <FormField label="Buyer name">
             <TextInput name="buyerName" required />
           </FormField>
