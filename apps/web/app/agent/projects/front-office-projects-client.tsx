@@ -104,6 +104,7 @@ export function FrontOfficeProjectsClient(props: {
   const [remoteDelivery, setRemoteDelivery] = useState<RemoteDeliveryState | null>(null);
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
   const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
+  const [selectedTemplateFileName, setSelectedTemplateFileName] = useState("");
   const firstProjectId = props.projects[0]?.id ?? "";
   const sessions = props.projects.flatMap((project) =>
     project.sessions.map((session) => ({
@@ -277,6 +278,7 @@ export function FrontOfficeProjectsClient(props: {
       }
 
       formElement.reset();
+      setSelectedTemplateFileName("");
       setActionMutation(
         "template",
         "success",
@@ -648,7 +650,7 @@ export function FrontOfficeProjectsClient(props: {
           title="No PDF-ready templates yet"
         >
           {props.canCreateTemplate ? (
-            <p>Use the &quot;Upload signing template&quot; form below.</p>
+            <p>Use the &quot;Upload template&quot; form below.</p>
           ) : (
             <p>
               Templates can be uploaded by anyone with project signing create permission, or managed in the Back
@@ -662,16 +664,31 @@ export function FrontOfficeProjectsClient(props: {
         {props.canCreateTemplate ? (
           <SectionCard
             className="office-list-card front-office-compact-card front-office-upload-card"
-            subtitle="Pick a name, attach a source PDF, and the template appears in the project signing library above. Refine recipients and fields later in the Back Office editor if needed."
-            title="Upload signing template"
+            subtitle="Add a PDF-backed template to the Project Signing library."
+            title="Upload template"
           >
             {renderFeedback("template")}
             <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
               <FormField label="Template name">
                 <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
               </FormField>
-              <FormField className="office-detail-field-wide" label="Source PDF">
-                <input accept="application/pdf,.pdf" name="templateFile" required type="file" />
+              <FormField className="office-detail-field-wide front-office-file-field" label="Source PDF">
+                <input
+                  accept="application/pdf,.pdf"
+                  className="front-office-file-input"
+                  name="templateFile"
+                  onChange={(event) => setSelectedTemplateFileName(event.currentTarget.files?.[0]?.name ?? "")}
+                  required
+                  type="file"
+                />
+                <span className={`front-office-file-picker${selectedTemplateFileName ? " is-selected" : ""}`}>
+                  <span className="front-office-file-badge">PDF</span>
+                  <span className="front-office-file-copy">
+                    <strong>{selectedTemplateFileName || "Choose source PDF"}</strong>
+                    <small>{selectedTemplateFileName ? "Ready to upload" : "No file selected"}</small>
+                  </span>
+                  <span className="front-office-file-action">Browse</span>
+                </span>
               </FormField>
               <div className="office-form-actions">
                 <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">

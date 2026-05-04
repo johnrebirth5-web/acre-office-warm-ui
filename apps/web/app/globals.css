@@ -5704,6 +5704,130 @@ a {
   grid-template-columns: 1fr;
 }
 
+.front-office-upload-card .office-form-grid {
+  grid-template-rows: auto minmax(132px, 1fr) auto;
+  align-content: stretch;
+}
+
+.front-office-upload-card .office-form-field {
+  align-content: start;
+}
+
+.front-office-file-field {
+  position: relative;
+  grid-template-rows: auto minmax(132px, 1fr);
+  height: 100%;
+}
+
+.front-office-upload-card .front-office-file-field {
+  align-content: stretch;
+}
+
+.front-office-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.front-office-file-picker {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  height: 100%;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px dashed color-mix(in srgb, var(--office-border-strong) 72%, var(--office-accent));
+  border-radius: var(--office-radius-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 253, 0.88)),
+    color-mix(in srgb, var(--office-accent-soft) 18%, #ffffff);
+  color: var(--office-text);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.front-office-file-field:hover .front-office-file-picker,
+.front-office-file-input:focus-visible + .front-office-file-picker {
+  border-color: var(--office-accent);
+  background:
+    linear-gradient(180deg, #ffffff, rgba(241, 246, 253, 0.94)),
+    color-mix(in srgb, var(--office-accent-soft) 36%, #ffffff);
+  box-shadow: var(--office-focus-ring);
+}
+
+.front-office-file-picker.is-selected {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--office-success) 48%, var(--office-border-strong));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 249, 246, 0.9)),
+    color-mix(in srgb, var(--office-success-soft) 44%, #ffffff);
+}
+
+.front-office-file-badge {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--office-accent-soft) 72%, #ffffff);
+  color: var(--office-accent-strong);
+  font-size: var(--office-text-meta-size);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.front-office-file-picker.is-selected .front-office-file-badge {
+  background: color-mix(in srgb, var(--office-success-soft) 72%, #ffffff);
+  color: var(--office-success);
+}
+
+.front-office-file-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.front-office-file-copy strong,
+.front-office-file-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.front-office-file-copy strong {
+  color: var(--office-text);
+  font-size: var(--office-text-body-size);
+  line-height: var(--office-line-tight);
+}
+
+.front-office-file-copy small {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: var(--office-line-body);
+}
+
+.front-office-file-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--office-border-strong);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--office-accent-strong);
+  font-size: var(--office-text-inline-action-size);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .front-office-launch-grid {
   display: grid;
   gap: 12px;
