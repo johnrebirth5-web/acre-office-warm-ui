@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 
 type ProjectRecord = {
@@ -75,7 +75,6 @@ type SigningSessionResponse = {
 };
 
 type CreateProjectPayload = {
-  code: string;
   name: string;
   address: string;
   city: string;
@@ -106,7 +105,6 @@ export function FrontOfficeProjectsClient(props: {
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null);
   const [pendingNewTemplate, setPendingNewTemplate] = useState(false);
   const firstProjectId = props.projects[0]?.id ?? "";
-  const firstTemplateId = props.templates.find((template) => template.hasPdfSource)?.id ?? "";
   const sessions = props.projects.flatMap((project) =>
     project.sessions.map((session) => ({
       ...session,
@@ -117,9 +115,51 @@ export function FrontOfficeProjectsClient(props: {
     () => props.templates.filter((template) => template.hasPdfSource),
     [props.templates],
   );
+  const firstTemplateId = usableTemplates[0]?.id ?? "";
+  const [selectedLibraryTemplateId, setSelectedLibraryTemplateId] = useState(firstTemplateId || props.templates[0]?.id || "");
+  const [selectedSessionTemplateIds, setSelectedSessionTemplateIds] = useState<string[]>(() =>
+    firstTemplateId ? [firstTemplateId] : [],
+  );
+  const selectedLibraryTemplate =
+    props.templates.find((template) => template.id === selectedLibraryTemplateId) ?? props.templates[0] ?? null;
+  const selectedSessionTemplates = usableTemplates.filter((template) => selectedSessionTemplateIds.includes(template.id));
+  const sessionTemplateSummary =
+    selectedSessionTemplates.length === 0
+      ? "No templates selected"
+      : selectedSessionTemplates.length === 1
+        ? selectedSessionTemplates[0]?.name ?? "1 template selected"
+        : `${selectedSessionTemplates.length} templates selected`;
+  const sessionTemplateMeta =
+    selectedSessionTemplates.length === 0
+      ? "At least one PDF-ready template is required"
+      : selectedSessionTemplates.map((template) => template.name).join(", ");
   const firstSessionId = sessions[0]?.id ?? "";
   const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${usableTemplates.length}`;
   const launchSessionFormKey = sessions.map((session) => session.id).join(":");
+
+  useEffect(() => {
+    setSelectedLibraryTemplateId((current) =>
+      props.templates.some((template) => template.id === current) ? current : props.templates[0]?.id ?? "",
+    );
+    setSelectedSessionTemplateIds((current) => {
+      const usableTemplateIds = new Set(usableTemplates.map((template) => template.id));
+      const valid = current.filter((templateId) => usableTemplateIds.has(templateId));
+
+      if (valid.length || current.length === 0) {
+        return valid;
+      }
+
+      return firstTemplateId ? [firstTemplateId] : [];
+    });
+  }, [firstTemplateId, props.templates, usableTemplates]);
+
+  function toggleSessionTemplate(templateId: string) {
+    setSelectedSessionTemplateIds((current) =>
+      current.includes(templateId)
+        ? current.filter((currentTemplateId) => currentTemplateId !== templateId)
+        : [...current, templateId],
+    );
+  }
 
   function setActionMutation(scope: NonNullable<MutationState["scope"]>, kind: MutationState["kind"], message: string) {
     setMutation({ kind, message, scope });
@@ -259,7 +299,6 @@ export function FrontOfficeProjectsClient(props: {
     setRemoteDelivery(null);
     const formData = new FormData(event.currentTarget);
     const payload: CreateProjectPayload = {
-      code: String(formData.get("code") ?? "").trim(),
       name: String(formData.get("name") ?? "").trim(),
       address: String(formData.get("address") ?? ""),
       city: String(formData.get("city") ?? ""),
@@ -413,6 +452,7 @@ export function FrontOfficeProjectsClient(props: {
         ],
       });
       event.currentTarget.reset();
+      setSelectedSessionTemplateIds(firstTemplateId ? [firstTemplateId] : []);
       setActionMutation(
         "session",
         "success",
@@ -513,7 +553,7 @@ export function FrontOfficeProjectsClient(props: {
       {duplicatePrompt ? (
         <SectionCard
           className="office-list-card"
-          subtitle="A project with the same code or name already exists in this office. Confirm only if this is intentional."
+          subtitle="A similar project already exists in this office. Confirm only if this is intentional."
           title="Duplicate project detected"
         >
           <div className="office-queue-list">
@@ -544,38 +584,50 @@ export function FrontOfficeProjectsClient(props: {
         title="Active templates"
       >
         {renderFeedback("templateList")}
-        {props.templates.length ? (
-          <div className="office-queue-list front-office-compact-list front-office-template-library-list">
-            {props.templates.map((template) => (
+        {props.templates.length > 0 && selectedLibraryTemplate ? (
+          <div className="front-office-template-library">
+            <FormField label="Template">
+              <SelectInput value={selectedLibraryTemplate.id} onChange={(event) => setSelectedLibraryTemplateId(event.currentTarget.value)}>
+                {props.templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} · v{template.version} · {template.hasPdfSource ? "PDF ready" : "Missing PDF"}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+            <div className="office-queue-list front-office-template-library-detail">
               <QueueItem
                 action={
                   props.canCreateTemplate ? (
                     <Button
                       disabled={mutation.kind === "loading"}
-                      onClick={() => handleDeleteTemplate(template)}
+                      onClick={() => handleDeleteTemplate(selectedLibraryTemplate)}
                       size="sm"
                       type="button"
-                      variant={template.canDelete ? "danger" : "secondary"}
+                      variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
                     >
-                      {template.canDelete ? "Delete" : "Deactivate"}
+                      {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
                     </Button>
                   ) : null
                 }
-                badgeLabel={template.hasPdfSource ? "PDF ready" : "Missing PDF"}
-                badgeTone={template.hasPdfSource ? "success" : "warning"}
-                description={template.description || template.pdfFileName || "No description"}
-                key={template.id}
+                badgeLabel={selectedLibraryTemplate.hasPdfSource ? "PDF ready" : "Missing PDF"}
+                badgeTone={selectedLibraryTemplate.hasPdfSource ? "success" : "warning"}
+                description={
+                  selectedLibraryTemplate.description || selectedLibraryTemplate.pdfFileName || "No description"
+                }
                 meta={
                   <>
-                    <span>v{template.version}</span>
-                    <span>{template.recipientCount} recipients</span>
-                    <span>{template.fieldCount} fields</span>
-                    <span>{template.usageCount ? `${template.usageCount} uses` : "unused"}</span>
+                    <span>v{selectedLibraryTemplate.version}</span>
+                    <span>{selectedLibraryTemplate.recipientCount} recipients</span>
+                    <span>{selectedLibraryTemplate.fieldCount} fields</span>
+                    <span>
+                      {selectedLibraryTemplate.usageCount ? `${selectedLibraryTemplate.usageCount} uses` : "unused"}
+                    </span>
                   </>
                 }
-                title={template.name}
+                title={selectedLibraryTemplate.name}
               />
-            ))}
+            </div>
           </div>
         ) : (
           <EmptyState
@@ -606,7 +658,7 @@ export function FrontOfficeProjectsClient(props: {
         </SectionCard>
       ) : null}
 
-      <div className="front-office-admin-grid">
+      <div className="front-office-admin-grid office-card-equal-grid">
         {props.canCreateTemplate ? (
           <SectionCard
             className="office-list-card front-office-compact-card front-office-upload-card"
@@ -637,10 +689,7 @@ export function FrontOfficeProjectsClient(props: {
         >
           {renderFeedback("project")}
           <form className="office-form-grid" onSubmit={handleCreateProject}>
-            <FormField label="Project code">
-              <TextInput name="code" placeholder="ASTORIA-RES" required />
-            </FormField>
-            <FormField label="Project name">
+            <FormField className="office-form-field-wide" label="Project name">
               <TextInput name="name" placeholder="Astoria Reserve" required />
             </FormField>
             <FormField label="Address">
@@ -734,7 +783,7 @@ export function FrontOfficeProjectsClient(props: {
         </SectionCard>
       ) : null}
 
-      <div className="front-office-session-grid">
+      <div className="front-office-session-grid office-card-equal-grid">
         <SectionCard
           className="office-list-card front-office-compact-card front-office-session-card"
           subtitle="Create one bundled signing session. Remote emails send only after you click Send remote link."
@@ -759,24 +808,33 @@ export function FrontOfficeProjectsClient(props: {
             </FormField>
             <div className="office-form-field office-form-field-wide">
               <span>Templates</span>
-              <div aria-label="Templates" className="front-office-template-picker" role="group">
-                {usableTemplates.map((template) => (
-                  <label className="front-office-template-choice" key={template.id}>
-                    <input
-                      defaultChecked={template.id === firstTemplateId}
-                      name="templateIds"
-                      type="checkbox"
-                      value={template.id}
-                    />
-                    <span className="front-office-template-choice-copy">
-                      <strong>{template.name}</strong>
-                      <small>
-                        v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
-                      </small>
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <details className="front-office-template-dropdown">
+                <summary>
+                  <span className="front-office-template-dropdown-summary">
+                    <strong>{sessionTemplateSummary}</strong>
+                    <small>{sessionTemplateMeta}</small>
+                  </span>
+                </summary>
+                <div aria-label="Templates" className="front-office-template-dropdown-panel" role="group">
+                  {usableTemplates.map((template) => (
+                    <label className="front-office-template-choice" key={template.id}>
+                      <input
+                        checked={selectedSessionTemplateIds.includes(template.id)}
+                        name="templateIds"
+                        onChange={() => toggleSessionTemplate(template.id)}
+                        type="checkbox"
+                        value={template.id}
+                      />
+                      <span className="front-office-template-choice-copy">
+                        <strong>{template.name}</strong>
+                        <small>
+                          v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </details>
             </div>
             <FormField label="Buyer name">
               <TextInput name="buyerName" required />

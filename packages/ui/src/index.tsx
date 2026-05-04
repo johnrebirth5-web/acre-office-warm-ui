@@ -241,7 +241,7 @@ export function ListPageSplit(props: {
   className?: string;
   children: ReactNode;
 }) {
-  return <div className={cx("office-list-page-split", props.className)}>{props.children}</div>;
+  return <div className={cx("office-list-page-split", "office-card-equal-grid", props.className)}>{props.children}</div>;
 }
 
 export function Panel(props: { title?: string; subtitle?: string; actions?: ReactNode; className?: string; children: ReactNode }) {
