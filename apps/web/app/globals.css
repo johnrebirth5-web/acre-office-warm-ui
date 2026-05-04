@@ -6872,6 +6872,34 @@ a {
   gap: 6px;
 }
 
+.office-signatures-queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.office-signatures-queue-action {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(194, 205, 220, 0.82);
+  color: var(--office-text);
+  box-shadow: none;
+}
+
+.office-signatures-queue-action:hover {
+  background: rgba(245, 248, 252, 0.96);
+  color: var(--office-accent-strong);
+}
+
+.office-signatures-queue-action:focus-visible {
+  outline: 2px solid rgba(24, 67, 143, 0.24);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .office-signatures-filter-actions {
   width: 100%;
   align-items: center;

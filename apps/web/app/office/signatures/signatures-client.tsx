@@ -246,10 +246,11 @@ function buildQueueAction(
   t: TranslateFn,
 ) {
   const actions: ReactNode[] = [];
+  const actionClassName = "office-button-secondary office-button-sm office-signatures-queue-action";
 
   if (canManageSignatures && row.primaryActionHref) {
     actions.push(
-      <Link className="office-button-secondary office-button-sm" href={row.primaryActionHref} key={`${row.id}-primary`}>
+      <Link className={actionClassName} href={row.primaryActionHref} key={`${row.id}-primary`}>
         {getPrimaryActionLabel(row.primaryActionLabel, t)}
       </Link>
     );
@@ -257,7 +258,7 @@ function buildQueueAction(
 
   if (row.transactionHref) {
     actions.push(
-      <Link className="office-button-secondary office-button-sm" href={row.transactionHref} key={`${row.id}-transaction`}>
+      <Link className={actionClassName} href={row.transactionHref} key={`${row.id}-transaction`}>
         {t((messages) => messages.officeSignatures.transactionAction)}
       </Link>
     );
@@ -266,7 +267,7 @@ function buildQueueAction(
   if (row.completedDocumentHref) {
     actions.push(
       <Link
-        className="office-button-secondary office-button-sm"
+        className={actionClassName}
         href={row.completedDocumentHref}
         key={`${row.id}-document`}
         target="_blank"
@@ -279,6 +280,7 @@ function buildQueueAction(
   if (row.driveSyncStatus === "failed" && canManageSignatures) {
     actions.push(
       <Button
+        className="office-signatures-queue-action"
         disabled={pendingRetryId === row.id}
         key={`${row.id}-retry-drive`}
         onClick={() => retryDriveSync(row.id)}
@@ -296,7 +298,7 @@ function buildQueueAction(
     return null;
   }
 
-  return <>{actions}</>;
+  return <div className="office-signatures-queue-actions">{actions}</div>;
 }
 
 function buildQueueMeta(row: OfficeSignatureWorkspaceRow, t: TranslateFn) {
