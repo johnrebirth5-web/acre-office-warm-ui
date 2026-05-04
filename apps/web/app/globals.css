@@ -5705,8 +5705,8 @@ a {
 }
 
 .front-office-upload-card .office-form-grid {
-  grid-template-rows: auto minmax(132px, 1fr) auto;
-  align-content: stretch;
+  align-content: start;
+  gap: 12px;
 }
 
 .front-office-upload-card .office-form-field {
@@ -5715,12 +5715,6 @@ a {
 
 .front-office-file-field {
   position: relative;
-  grid-template-rows: auto minmax(132px, 1fr);
-  height: 100%;
-}
-
-.front-office-upload-card .front-office-file-field {
-  align-content: stretch;
 }
 
 .front-office-file-input {
@@ -5734,17 +5728,14 @@ a {
 
 .front-office-file-picker {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  height: 100%;
-  min-height: 132px;
-  padding: 16px;
-  border: 1px dashed color-mix(in srgb, var(--office-border-strong) 72%, var(--office-accent));
-  border-radius: var(--office-radius-md);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 253, 0.88)),
-    color-mix(in srgb, var(--office-accent-soft) 18%, #ffffff);
+  min-height: 56px;
+  padding: 10px 10px;
+  border: 1px solid var(--office-border-strong);
+  border-radius: 10px;
+  background: #ffffff;
   color: var(--office-text);
   cursor: pointer;
   transition:
@@ -5756,30 +5747,25 @@ a {
 
 .front-office-file-field:hover .front-office-file-picker,
 .front-office-file-input:focus-visible + .front-office-file-picker {
-  border-color: var(--office-accent);
-  background:
-    linear-gradient(180deg, #ffffff, rgba(241, 246, 253, 0.94)),
-    color-mix(in srgb, var(--office-accent-soft) 36%, #ffffff);
+  border-color: color-mix(in srgb, var(--office-accent) 44%, var(--office-border-strong));
+  background: color-mix(in srgb, var(--office-accent-soft) 24%, #ffffff);
   box-shadow: var(--office-focus-ring);
 }
 
 .front-office-file-picker.is-selected {
-  border-style: solid;
   border-color: color-mix(in srgb, var(--office-success) 48%, var(--office-border-strong));
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 249, 246, 0.9)),
-    color-mix(in srgb, var(--office-success-soft) 44%, #ffffff);
+  background: color-mix(in srgb, var(--office-success-soft) 52%, #ffffff);
 }
 
 .front-office-file-badge {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--office-accent-soft) 72%, #ffffff);
   color: var(--office-accent-strong);
-  font-size: var(--office-text-meta-size);
+  font-size: 0.7rem;
   font-weight: 900;
   letter-spacing: 0.04em;
 }
@@ -5791,7 +5777,7 @@ a {
 
 .front-office-file-copy {
   display: grid;
-  gap: 3px;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -5804,7 +5790,7 @@ a {
 
 .front-office-file-copy strong {
   color: var(--office-text);
-  font-size: var(--office-text-body-size);
+  font-size: 0.86rem;
   line-height: var(--office-line-tight);
 }
 
@@ -5817,11 +5803,11 @@ a {
 .front-office-file-action {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 11px;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--office-border-strong);
   border-radius: 999px;
-  background: #ffffff;
+  background: color-mix(in srgb, var(--office-surface-muted) 72%, #ffffff);
   color: var(--office-accent-strong);
   font-size: var(--office-text-inline-action-size);
   font-weight: 800;
