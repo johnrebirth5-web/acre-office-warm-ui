@@ -6400,6 +6400,40 @@ a {
   justify-content: center;
 }
 
+.project-kiosk-signature-form {
+  display: grid;
+  gap: 16px;
+}
+
+.project-kiosk-signature-heading {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.project-kiosk-signature-heading strong {
+  font-size: 1.05rem;
+}
+
+.project-kiosk-signature-heading span,
+.project-kiosk-field span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.project-kiosk-field-list {
+  display: grid;
+  gap: 12px;
+}
+
+.project-kiosk-field {
+  display: grid;
+  gap: 8px;
+}
+
 @media (max-width: 900px) {
   .front-office-admin-grid,
   .front-office-session-grid {
