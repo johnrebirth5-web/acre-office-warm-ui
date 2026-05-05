@@ -619,16 +619,8 @@ const transactionReportSortSelect = {
 } satisfies Prisma.TransactionSelect;
 
 const transactionReportSummarySelect = {
-  askingPrice: true,
   purchasedPrice: true,
-  price: true,
-  grossCommission: true,
-  financeFees: {
-    select: {
-      feeType: true,
-      amount: true
-    }
-  }
+  price: true
 } satisfies Prisma.TransactionSelect;
 
 const reportStatusFilterMap: Record<string, TransactionStatus> = {
@@ -2271,7 +2263,7 @@ async function loadReportTransactionsByIds(transactionIds: string[]) {
 }
 
 async function loadReportSummary(where: Prisma.TransactionWhereInput): Promise<OfficeTransactionReportsSummary> {
-  const [aggregates, summaryTransactions] = await Promise.all([
+  const [aggregates, summaryTransactions, feeGroups] = await Promise.all([
     prisma.transaction.aggregate({
       where,
       _count: {
@@ -2285,36 +2277,43 @@ async function loadReportSummary(where: Prisma.TransactionWhereInput): Promise<O
     prisma.transaction.findMany({
       where,
       select: transactionReportSummarySelect
+    }),
+    prisma.transactionFinanceFee.groupBy({
+      by: ["feeType"],
+      where: {
+        feeType: {
+          in: ["rebate", "client_referral", "external_referral", "company_referral", "reimbursement"]
+        },
+        transaction: {
+          is: where
+        }
+      },
+      _sum: {
+        amount: true
+      }
     })
   ]);
 
-  const totals = summaryTransactions.reduce(
-    (accumulator, transaction) => {
-      const { rebateAmount, referralAmount, reimbursementAmount } = getFeeTotals(transaction.financeFees);
-
-      return {
-        purchasedPrice: accumulator.purchasedPrice + Number(getPurchasedPriceValue(transaction) ?? 0),
-        rebate: accumulator.rebate + rebateAmount,
-        referral: accumulator.referral + referralAmount,
-        reimbursement: accumulator.reimbursement + reimbursementAmount
-      };
-    },
-    {
-      purchasedPrice: 0,
-      rebate: 0,
-      referral: 0,
-      reimbursement: 0
-    }
+  const purchasedPriceTotal = summaryTransactions.reduce(
+    (sum, transaction) => sum + Number(getPurchasedPriceValue(transaction) ?? 0),
+    0
   );
+  const feeTotalByType = new Map(
+    feeGroups.map((group) => [group.feeType, Number(group._sum.amount ?? 0)] as const)
+  );
+  const referralTotal =
+    (feeTotalByType.get("client_referral") ?? 0) +
+    (feeTotalByType.get("external_referral") ?? 0) +
+    (feeTotalByType.get("company_referral") ?? 0);
 
   return {
     totalTransactions: aggregates._count._all,
     totalAskingPrice: formatCurrencyTotal(Number(aggregates._sum.askingPrice ?? 0)),
-    totalPurchasedPrice: formatCurrencyTotal(totals.purchasedPrice),
+    totalPurchasedPrice: formatCurrencyTotal(purchasedPriceTotal),
     totalGrossCommission: formatCurrencyTotal(Number(aggregates._sum.grossCommission ?? 0)),
-    totalRebate: formatCurrencyTotal(totals.rebate),
-    totalReferral: formatCurrencyTotal(totals.referral),
-    totalReimbursement: formatCurrencyTotal(totals.reimbursement)
+    totalRebate: formatCurrencyTotal(feeTotalByType.get("rebate") ?? 0),
+    totalReferral: formatCurrencyTotal(referralTotal),
+    totalReimbursement: formatCurrencyTotal(feeTotalByType.get("reimbursement") ?? 0)
   };
 }
 
