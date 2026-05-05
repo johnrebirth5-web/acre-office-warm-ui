@@ -7,7 +7,7 @@ import {
   getTransactionOverdueReferenceDate,
   getTransactionOverdueSinceDate,
   isTransactionOverdue,
-  reconcileOfficeNotificationReminders,
+  reconcileOfficeNotificationRemindersForDashboard,
 } from "./notifications";
 
 export type OfficeDashboardStatusMetric = {
@@ -262,7 +262,7 @@ function mapDashboardOverdueTransaction(transaction: {
 export async function getOfficeDashboardBusinessSnapshot(
   input: GetOfficeDashboardBusinessSnapshotInput
 ): Promise<OfficeDashboardBusinessSnapshot> {
-  await reconcileOfficeNotificationReminders({
+  await reconcileOfficeNotificationRemindersForDashboard({
     organizationId: input.organizationId,
     officeId: input.officeId ?? null,
     membershipId: input.viewerMembershipId,

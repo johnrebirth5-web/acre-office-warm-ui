@@ -45,7 +45,7 @@ import {
   type FrontOfficeSharedResourceInteractionSnapshot,
 } from "./front-office-resources";
 import { resolveLeaseReminderDates } from "./lease-reminders";
-import { reconcileOfficeNotificationReminders } from "./notifications";
+import { reconcileOfficeNotificationRemindersForDashboard } from "./notifications";
 import {
   buildTeamMembershipHierarchyMap,
   isLeaderTeamMembershipRole,
@@ -1430,7 +1430,7 @@ export async function getFrontOfficeDashboardSnapshot(
   input: GetFrontOfficeDashboardSnapshotInput,
 ): Promise<FrontOfficeDashboardSnapshot> {
   if (!input.skipNotificationReminderReconciliation) {
-    await reconcileOfficeNotificationReminders({
+    await reconcileOfficeNotificationRemindersForDashboard({
       organizationId: input.organizationId,
       officeId: input.officeId ?? null,
       membershipId: input.viewerMembershipId,
