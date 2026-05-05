@@ -77,7 +77,7 @@ The intended FO workflow is:
 Developer-sales document signing lives in `Front Office` as the `/agent/projects` module.
 
 - `/agent/projects` is the only project signing product entry. Do not add a parallel `/office/projects` route.
-- The page must filter by role on the server: admins see the organization-wide project archive, managers see assigned/team scope, and agents or staff see projects they created or are assigned to.
+- The page must filter by role on the server: owners, office admins, and office managers see the organization-wide project archive; team leads and delegated managers see assigned/team scope; agents or staff see projects they created or are assigned to.
 - External signers never enter the Front Office shell. Remote signers use `/sign/session/[token]`; in-person handoff uses `/sign/handoff/[token]` with an expiring token-only link and no agent exit PIN.
 - Remote send keeps the generated secure links visible to the initiating agent, so email delivery failures can be handled manually without reissuing the session.
 - Project-sales templates expose `/agent/projects/templates/[templateId]/fields` for setting reusable PDF field placement before a session is created; remote and handoff signer links render the full PDF packet, overlay only the fields assigned to the active signer, and require the signer to save required fields before confirming. Signature fields open a handwritten signing pad so customers can review the contract content before signing in place.
