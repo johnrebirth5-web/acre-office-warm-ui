@@ -325,6 +325,7 @@ export {
   markOfficeNotificationRead,
   markOfficeNotificationUnread,
   openOfficeNotification,
+  reconcileOfficeNotificationReminders,
   upsertNotificationForMemberships,
 } from "./notifications";
 export {

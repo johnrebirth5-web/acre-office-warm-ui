@@ -3,6 +3,7 @@ import {
   buildFrontOfficeCleanupDigest,
   getFrontOfficeActivitySnapshot,
   getFrontOfficeDashboardSnapshot,
+  reconcileOfficeNotificationReminders,
 } from "@acre/db";
 import { SectionCard } from "@acre/ui";
 import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
@@ -54,19 +55,27 @@ export default async function AgentNotificationsPage(
     );
   }
 
+  const snapshotInput = {
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone,
+    skipNotificationReminderReconciliation: true,
+  };
+
+  await reconcileOfficeNotificationReminders({
+    organizationId: context.currentOrganization.id,
+    officeId: context.currentOffice?.id ?? null,
+    membershipId: context.currentMembership.id,
+  });
+
   const [snapshot, dashboardSnapshot, cleanupDigest] = await Promise.all([
     getFrontOfficeActivitySnapshot({
-      organizationId: context.currentOrganization.id,
-      viewerMembershipId: context.currentMembership.id,
-      officeId: context.currentOffice?.id ?? null,
-      timeZone: context.currentUser.timezone,
+      ...snapshotInput,
     }),
     getFrontOfficeDashboardSnapshot({
-      organizationId: context.currentOrganization.id,
-      viewerMembershipId: context.currentMembership.id,
+      ...snapshotInput,
       viewerRole: context.currentMembership.role,
-      officeId: context.currentOffice?.id ?? null,
-      timeZone: context.currentUser.timezone,
     }),
     buildFrontOfficeCleanupDigest({
       organizationId: context.currentOrganization.id,

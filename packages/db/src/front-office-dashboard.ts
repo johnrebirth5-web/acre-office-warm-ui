@@ -697,6 +697,7 @@ type GetFrontOfficeDashboardSnapshotInput = {
   officeId?: string | null;
   timeZone?: string | null;
   canUseAi?: boolean;
+  skipNotificationReminderReconciliation?: boolean;
 };
 
 const openFollowUpStatuses: TaskStatus[] = [
@@ -1428,11 +1429,13 @@ async function getLeadershipScopeMembershipIds(input: {
 export async function getFrontOfficeDashboardSnapshot(
   input: GetFrontOfficeDashboardSnapshotInput,
 ): Promise<FrontOfficeDashboardSnapshot> {
-  await reconcileOfficeNotificationReminders({
-    organizationId: input.organizationId,
-    officeId: input.officeId ?? null,
-    membershipId: input.viewerMembershipId,
-  });
+  if (!input.skipNotificationReminderReconciliation) {
+    await reconcileOfficeNotificationReminders({
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      membershipId: input.viewerMembershipId,
+    });
+  }
 
   const now = new Date();
   const startOfToday = new Date(
