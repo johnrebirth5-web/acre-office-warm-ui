@@ -521,6 +521,36 @@ function getJsonObject(value: NotificationMetadataValue) {
   return value as Record<string, Prisma.InputJsonValue>;
 }
 
+function normalizeJsonForStableCompare(value: unknown): unknown {
+  if (!value || value === Prisma.JsonNull) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeJsonForStableCompare(entry));
+  }
+
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([key, entry]) => [key, normalizeJsonForStableCompare(entry)]),
+    );
+  }
+
+  return value;
+}
+
+function areNotificationMetadataEqual(
+  left: unknown,
+  right: unknown,
+) {
+  return (
+    JSON.stringify(normalizeJsonForStableCompare(left)) ===
+    JSON.stringify(normalizeJsonForStableCompare(right))
+  );
+}
+
 function readMetadataString(metadata: NotificationMetadataValue, key: string) {
   const value = getJsonObject(metadata)?.[key];
   return typeof value === "string" ? value : "";
@@ -952,31 +982,59 @@ export async function upsertNotificationForMemberships(db: NotificationDbClient,
       },
       select: {
         id: true,
-        metadata: true
+        officeId: true,
+        followUpTaskId: true,
+        eventId: true,
+        category: true,
+        severity: true,
+        metadata: true,
+        title: true,
+        body: true,
+        actionUrl: true,
+        readAt: true
       }
     });
 
     if (existing) {
-      await db.notification.update({
-        where: {
-          id: existing.id
-        },
-        data: {
-          officeId: input.officeId ?? null,
-          followUpTaskId: input.followUpTaskId ?? null,
-          eventId: input.eventId ?? null,
-          category: input.category ?? null,
-          severity: input.severity ?? null,
-          metadata: buildOfficeNotificationMetadata({
-            metadata: input.metadata ?? existing.metadata,
-            archivedAt: null
-          }),
-          title: input.title,
-          body: input.body,
-          actionUrl: getRelativeUrl(input.actionUrl) || null,
-          ...(input.resetReadState === false ? {} : { readAt: null })
-        }
+      const nextMetadata = buildOfficeNotificationMetadata({
+        metadata: input.metadata ?? existing.metadata,
+        archivedAt: null
       });
+      const nextActionUrl = getRelativeUrl(input.actionUrl) || null;
+      const shouldResetReadState = Boolean(
+        input.resetReadState !== false && existing.readAt,
+      );
+      const shouldUpdate =
+        shouldResetReadState ||
+        existing.officeId !== (input.officeId ?? null) ||
+        existing.followUpTaskId !== (input.followUpTaskId ?? null) ||
+        existing.eventId !== (input.eventId ?? null) ||
+        existing.category !== (input.category ?? null) ||
+        existing.severity !== (input.severity ?? null) ||
+        !areNotificationMetadataEqual(existing.metadata, nextMetadata) ||
+        existing.title !== input.title ||
+        existing.body !== input.body ||
+        existing.actionUrl !== nextActionUrl;
+
+      if (shouldUpdate) {
+        await db.notification.update({
+          where: {
+            id: existing.id
+          },
+          data: {
+            officeId: input.officeId ?? null,
+            followUpTaskId: input.followUpTaskId ?? null,
+            eventId: input.eventId ?? null,
+            category: input.category ?? null,
+            severity: input.severity ?? null,
+            metadata: nextMetadata,
+            title: input.title,
+            body: input.body,
+            actionUrl: nextActionUrl,
+            ...(input.resetReadState === false ? {} : { readAt: null })
+          }
+        });
+      }
     } else {
       await db.notification.create({
         data: {

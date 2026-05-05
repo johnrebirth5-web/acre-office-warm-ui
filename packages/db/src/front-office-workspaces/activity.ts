@@ -40,11 +40,13 @@ import { getFrontOfficeResourcesSnapshot } from "./resources";
 export async function getFrontOfficeActivitySnapshot(
   input: FrontOfficeWorkspaceInput,
 ): Promise<FrontOfficeActivitySnapshot> {
-  await reconcileOfficeNotificationReminders({
-    organizationId: input.organizationId,
-    officeId: input.officeId ?? null,
-    membershipId: input.viewerMembershipId,
-  });
+  if (!input.skipNotificationReminderReconciliation) {
+    await reconcileOfficeNotificationReminders({
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      membershipId: input.viewerMembershipId,
+    });
+  }
 
   const now = new Date();
   const startOfToday = new Date(

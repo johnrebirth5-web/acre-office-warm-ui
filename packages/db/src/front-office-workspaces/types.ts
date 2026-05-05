@@ -46,6 +46,7 @@ export type FrontOfficeWorkspaceInput = {
   timeZone?: string | null;
   targetClientId?: string | null;
   targetAppointmentId?: string | null;
+  skipNotificationReminderReconciliation?: boolean;
 };
 
 
