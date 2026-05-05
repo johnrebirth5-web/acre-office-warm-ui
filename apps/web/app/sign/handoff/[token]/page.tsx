@@ -26,6 +26,7 @@ function buildSigningFieldsForRecipient(
         fieldType: field.fieldType,
         label: field.label,
         documentTitle: document.title,
+        defaultValue: field.defaultValue ?? "",
       }));
   });
 }
