@@ -23,9 +23,23 @@ type ProjectRecord = {
     recipientCount: number;
     createdAtLabel: string;
   }>;
+  recentDocuments: Array<{
+    id: string;
+    title: string;
+    documentType: string;
+    buyerName: string;
+    buyerEmail: string;
+    archivedAtLabel: string;
+    contentSha256: string;
+  }>;
 };
 
 type SessionRow = ProjectRecord["sessions"][number] & {
+  projectLabel: string;
+};
+
+type ArchivedDocumentRow = ProjectRecord["recentDocuments"][number] & {
+  projectId: string;
   projectLabel: string;
 };
 
@@ -146,6 +160,17 @@ export function FrontOfficeProjectsClient(props: {
       return true;
     });
   }, [baseSessions, createdSessions]);
+  const archivedDocuments = useMemo<ArchivedDocumentRow[]>(
+    () =>
+      props.projects.flatMap((project) =>
+        project.recentDocuments.map((document) => ({
+          ...document,
+          projectId: project.id,
+          projectLabel: `${project.code} · ${project.name}`,
+        })),
+      ),
+    [props.projects],
+  );
   const usableTemplates = useMemo(
     () => props.templates.filter((template) => template.hasPdfSource),
     [props.templates],
@@ -1049,6 +1074,48 @@ export function FrontOfficeProjectsClient(props: {
           )}
         </SectionCard>
       </div>
+
+      <SectionCard
+        className="office-list-card front-office-compact-card front-office-signed-archive-card"
+        subtitle="Completed PDFs are archived under the project after all required signers submit."
+        title="Signed archive"
+      >
+        {archivedDocuments.length ? (
+          <div className="office-queue-list front-office-compact-list front-office-signed-archive-list">
+            {archivedDocuments.map((document) => (
+              <QueueItem
+                action={
+                  <Link
+                    href={`/api/agent/projects/${encodeURIComponent(document.projectId)}/documents/${encodeURIComponent(document.id)}/file`}
+                    target="_blank"
+                  >
+                    <Button size="sm" type="button" variant="secondary">
+                      Open PDF
+                    </Button>
+                  </Link>
+                }
+                badgeLabel={document.documentType || "signed"}
+                badgeTone="success"
+                description={document.buyerEmail || document.buyerName || "No buyer snapshot"}
+                key={document.id}
+                meta={
+                  <>
+                    <span>{document.projectLabel}</span>
+                    <span>{document.archivedAtLabel}</span>
+                    {document.contentSha256 ? <span>SHA {document.contentSha256.slice(0, 8)}</span> : null}
+                  </>
+                }
+                title={document.title}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            description="Once a project signing session completes, the signed PDFs will be available here."
+            title="No signed project files yet"
+          />
+        )}
+      </SectionCard>
 
       {props.projects.length || props.archivedProjectCount > 0 ? (
         <SectionCard

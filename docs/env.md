@@ -249,7 +249,7 @@ ACRE_SESSION_SECRET_SECONDARY="<previous-generated-session-secret>"
 - 非必填
 - 缺失时默认使用 `https://acresystem.us`
 - 生产环境外发链接不应从本地 request origin、`localhost:3105`、或开发服务器地址派生
-- 本地开发环境如果使用本地数据库，不应发送指向生产域名的 remote signing email；这会生成“生产 URL + 本地 token”的无效链接。`send-remote` API 会阻止 loopback request origin + public base URL 这个组合，请改到 `https://acresystem.us/agent/projects` 线上页面发送正式签署邮件
+- 本地开发环境如果使用本地数据库，不应发送指向生产域名的 remote signing email；这会生成“生产 URL + 本地 token”的无效链接。`send-remote` API 会阻止 loopback / `0.0.0.0` / 私网或 Tailscale request origin + public base URL 这个组合；本地测试请把 `ACRE_BASE_URL` 设为当前本地 app origin 并重启 dev，正式签署邮件请改到 `https://acresystem.us/agent/projects` 线上页面发送
 
 示例格式：
 

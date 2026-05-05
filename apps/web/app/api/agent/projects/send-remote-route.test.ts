@@ -121,6 +121,27 @@ test("handleSendProjectRemotePost blocks local tokens from being sent with produ
   assert.match(String(payload.error), /local-only token/);
 });
 
+test("handleSendProjectRemotePost blocks private-network local origins from production links", async () => {
+  for (const origin of ["http://0.0.0.0:3105", "http://100.96.36.58:3105"]) {
+    let tokenIssued = false;
+
+    const response = await handleSendProjectRemotePost(createRequest(origin), { sessionId: "session_1" }, {
+      canCreateProjectSigning: () => true,
+      getAppBaseUrl: () => "https://acresystem.us",
+      getRequestSessionContext: async () => createSessionContext(),
+      issueProjectRemoteSigningTokens: async () => {
+        tokenIssued = true;
+        return [createRemoteToken()];
+      },
+    });
+    const payload = await readJson(response);
+
+    assert.equal(response.status, 409);
+    assert.equal(tokenIssued, false);
+    assert.match(String(payload.error), /local-only token/);
+  }
+});
+
 test("handleSendProjectRemotePost returns generated links when email delivery fails", async () => {
   const response = await handleSendProjectRemotePost(
     createRequest("https://acre.example.test"),
@@ -158,4 +179,26 @@ test("handleSendProjectRemotePost returns generated links when email delivery fa
     },
   ]);
   assert.match(String(payload.emailDeliveryWarning), /Remote links were created/);
+});
+
+test("handleSendProjectRemotePost returns the domain error when a completed session cannot be resent", async () => {
+  const response = await handleSendProjectRemotePost(
+    createRequest("https://acre.example.test"),
+    { sessionId: "session_1" },
+    {
+      canCreateProjectSigning: () => true,
+      getAppBaseUrl: () => "https://acre.example.test",
+      getRequestSessionContext: async () => createSessionContext(),
+      issueProjectRemoteSigningTokens: async () => {
+        throw new Error("This signing session already has submitted signatures. Create a new session before sending another link.");
+      },
+    },
+  );
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 400);
+  assert.equal(
+    payload.error,
+    "This signing session already has submitted signatures. Create a new session before sending another link.",
+  );
 });

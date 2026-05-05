@@ -177,6 +177,16 @@ export type ProjectSigningTemplatePdfStorageRecord = {
   fileSizeBytes: number;
 };
 
+export type SalesProjectDocumentStorageRecord = {
+  id: string;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  storageKey: string;
+  contentSha256: string | null;
+};
+
 export type CreateProjectSigningSessionInput = ProjectSigningActorContext & {
   projectId: string;
   mode: ProjectSigningSessionMode;
@@ -1163,6 +1173,40 @@ export async function getProjectSigningTemplatePdfStorageRecord(
   };
 }
 
+export async function getSalesProjectDocumentStorageRecord(
+  input: ProjectSigningActorContext & {
+    projectId: string;
+    documentId: string;
+  },
+): Promise<SalesProjectDocumentStorageRecord | null> {
+  if (!canViewProjectSigning({ role: input.viewerRole, permissions: input.viewerPermissions })) {
+    throw new Error("Project signing view access required.");
+  }
+
+  const project = await getAccessibleSalesProject(input);
+
+  if (!project) {
+    return null;
+  }
+
+  return prisma.salesProjectDocument.findFirst({
+    where: {
+      id: input.documentId,
+      organizationId: input.organizationId,
+      projectId: project.id,
+    },
+    select: {
+      id: true,
+      title: true,
+      fileName: true,
+      mimeType: true,
+      fileSizeBytes: true,
+      storageKey: true,
+      contentSha256: true,
+    },
+  });
+}
+
 export async function saveProjectSigningTemplateFields(
   input: SaveProjectSigningTemplateFieldsInput,
 ): Promise<ProjectSigningTemplateFieldEditorSnapshot> {
@@ -1771,11 +1815,30 @@ export async function issueProjectRemoteSigningTokens(input: IssueProjectRemoteT
       recipients: {
         orderBy: [{ routingStep: "asc" }, { sortOrder: "asc" }],
       },
+      documents: {
+        select: {
+          status: true,
+        },
+      },
     },
   });
 
   if (!session) {
     throw new Error("Signing session not found.");
+  }
+
+  const hasSubmittedSigningProgress =
+    Boolean(session.completedAt) ||
+    projectSigningTerminalSessionStatuses.includes(session.status) ||
+    session.recipients.some((recipient) => recipient.status === SignatureRecipientStatus.acted) ||
+    session.documents.some(
+      (document) =>
+        document.status === SignatureRequestStatus.signed ||
+        projectSigningTerminalRequestStatuses.includes(document.status),
+    );
+
+  if (hasSubmittedSigningProgress) {
+    throw new Error("This signing session already has submitted signatures. Create a new session before sending another link.");
   }
 
   const project = await getAccessibleSalesProject({
