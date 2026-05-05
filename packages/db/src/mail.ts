@@ -1537,28 +1537,21 @@ export async function getOfficeMailUnreadCount(input: {
   membershipId: string;
 }) {
   const actor = await getMailActor(input.organizationId, input.membershipId);
-  const participants = await prisma.officeMailParticipant.findMany({
-    where: {
-      organizationId: input.organizationId,
-      membershipId: actor.membershipId,
-      archivedAt: null,
-    },
-    select: {
-      lastReadAt: true,
-      thread: {
-        select: {
-          latestMessageAt: true,
-        },
-      },
-    },
-  });
+  const [row] = await prisma.$queryRaw<Array<{ unread_count: bigint | number | string }>>(Prisma.sql`
+    SELECT COUNT(*)::int AS unread_count
+    FROM "OfficeMailParticipant" participant
+    INNER JOIN "OfficeMailThread" thread
+      ON thread."id" = participant."threadId"
+    WHERE participant."organizationId" = ${input.organizationId}
+      AND participant."membershipId" = ${actor.membershipId}
+      AND participant."archivedAt" IS NULL
+      AND (
+        participant."lastReadAt" IS NULL
+        OR participant."lastReadAt" < thread."latestMessageAt"
+      )
+  `);
 
-  return participants.filter(
-    (participant) =>
-      !participant.lastReadAt ||
-      participant.lastReadAt.getTime() <
-        participant.thread.latestMessageAt.getTime(),
-  ).length;
+  return Number(row?.unread_count ?? 0);
 }
 
 export async function replyToOfficeMailThread(

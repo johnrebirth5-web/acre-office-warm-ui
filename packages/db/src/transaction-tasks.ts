@@ -1935,11 +1935,14 @@ export async function listTaskListViews(input: {
 
 export async function listOfficeTasks(input: ListOfficeTasksInput): Promise<OfficeTaskListSnapshot> {
   const limit = input.limit ?? defaultTaskListLimit;
-  const viewOptions = await listTaskListViews({
+  const viewOptionsPromise = listTaskListViews({
     organizationId: input.organizationId,
     officeId: input.officeId,
     membershipId: input.membershipId
   });
+  const assigneeOptionsPromise = listOfficeTaskAssigneeOptions(input.organizationId, input.officeId);
+  const transactionOptionsPromise = listOfficeTaskTransactionOptions(input.organizationId, input.officeId);
+  const viewOptions = await viewOptionsPromise;
   const selectedView =
     viewOptions.find((view) => view.key === input.view || view.id === input.view) ??
     viewOptions.find((view) => view.key === "requires-attention") ??
@@ -2041,8 +2044,8 @@ export async function listOfficeTasks(input: ListOfficeTasksInput): Promise<Offi
       where,
       include: transactionTaskInclude
     }),
-    listOfficeTaskAssigneeOptions(input.organizationId, input.officeId),
-    listOfficeTaskTransactionOptions(input.organizationId, input.officeId)
+    assigneeOptionsPromise,
+    transactionOptionsPromise
   ]);
 
   const mappedTasks = sortOfficeTasks(tasks.map(mapTransactionTask)).slice(0, limit);

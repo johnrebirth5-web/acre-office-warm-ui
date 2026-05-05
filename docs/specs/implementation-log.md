@@ -9,6 +9,11 @@
 
 ## Recently completed major work
 
+- 2026-05-05: `30-user hot-path performance hardening` reduced read pressure without changing Office behavior:
+  - updated [packages/db/prisma/schema.prisma](../../packages/db/prisma/schema.prisma) and added [packages/db/prisma/migrations/20260505190000_performance_hot_path_indexes/migration.sql](../../packages/db/prisma/migrations/20260505190000_performance_hot_path_indexes/migration.sql) with focused composite indexes for transactions, tasks, activity log, mail unread lookup, library documents, offers, signatures, and incoming updates
+  - updated [packages/db/src/mail.ts](../../packages/db/src/mail.ts) so the Office nav unread badge now counts unread mail in PostgreSQL instead of loading every participant row into Node memory
+  - updated [packages/db/src/transaction-tasks.ts](../../packages/db/src/transaction-tasks.ts) so task view metadata, assignee options, transaction options, and task rows are fetched concurrently where they are independent, while preserving the existing filters, sorting, limit, and summary behavior
+
 - 2026-04-29: `Acre Admin GPT Codex CLI chat` replaced the external-link-only assistant page with an in-Acre chat surface backed by server-side Codex CLI OAuth:
   - added [apps/web/app/office/admin-assistant/admin-assistant-chat-client.tsx](../../apps/web/app/office/admin-assistant/admin-assistant-chat-client.tsx), updated [apps/web/app/office/admin-assistant/page.tsx](../../apps/web/app/office/admin-assistant/page.tsx), and updated [apps/web/app/globals.css](../../apps/web/app/globals.css) so `owner / office_admin` users with `ai:use` can chat directly in Back Office, drag screenshots into the composer, and see a longer operational chat panel
   - added [apps/web/app/api/admin-gpt/chat/route.ts](../../apps/web/app/api/admin-gpt/chat/route.ts) and [apps/web/lib/admin-gpt/codex-gateway.ts](../../apps/web/lib/admin-gpt/codex-gateway.ts) so Acre validates admin session, CSRF, rate limit, single-flight Codex concurrency, text length, image MIME, and image size before calling `codex exec` with strict read-only admin-help instructions
