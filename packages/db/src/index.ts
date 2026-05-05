@@ -140,6 +140,7 @@ export {
   getFrontOfficeProjectSigningSnapshot,
   getProjectSigningTemplateFieldEditorSnapshot,
   getProjectSigningTemplatePdfStorageRecord,
+  getSalesProjectDocumentStorageRecord,
   hashProjectSigningToken,
   issueProjectRemoteSigningTokens,
   markProjectRecipientOtpVerified,
@@ -169,6 +170,7 @@ export {
   type ProjectSigningRecipientInput,
   type SaveProjectSigningTemplateFieldsInput,
   type SaveSalesProjectArchiveSinksInput,
+  type SalesProjectDocumentStorageRecord,
   type StartProjectHandoffInput,
 } from "./project-signing";
 export {

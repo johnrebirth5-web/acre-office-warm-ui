@@ -34,8 +34,48 @@ function buildSigningLink(baseUrl: string, token: ProjectRemoteToken) {
   return `${baseUrl}/sign/session/${encodeURIComponent(token.rawToken)}`;
 }
 
+function normalizeHostname(hostname: string) {
+  return hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
+}
+
 function isLoopbackHost(hostname: string) {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const normalized = normalizeHostname(hostname);
+
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized === "127.0.0.1" ||
+    normalized === "0.0.0.0" ||
+    normalized === "::1"
+  );
+}
+
+function isPrivateIpv4Host(hostname: string) {
+  const parts = normalizeHostname(hostname).split(".").map((part) => Number(part));
+
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  const [first = 0, second = 0] = parts;
+
+  return (
+    first === 10 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 100 && second >= 64 && second <= 127)
+  );
+}
+
+function isLocalDevelopmentHost(hostname: string) {
+  const normalized = normalizeHostname(hostname);
+
+  return (
+    isLoopbackHost(normalized) ||
+    isPrivateIpv4Host(normalized) ||
+    normalized === "host.docker.internal" ||
+    normalized === "host.orb.internal"
+  );
 }
 
 function isCrossEnvironmentSigningBaseUrl(input: {
@@ -46,7 +86,7 @@ function isCrossEnvironmentSigningBaseUrl(input: {
     const baseUrl = new URL(input.baseUrl);
     const requestOrigin = new URL(input.requestOrigin);
 
-    return isLoopbackHost(requestOrigin.hostname) && !isLoopbackHost(baseUrl.hostname);
+    return isLocalDevelopmentHost(requestOrigin.hostname) && !isLocalDevelopmentHost(baseUrl.hostname);
   } catch {
     return false;
   }
@@ -97,7 +137,7 @@ export async function handleSendProjectRemotePost(
       return NextResponse.json(
         {
           error:
-            "Remote signing email was not sent because this local request would create a production URL backed by a local-only token. Open https://acresystem.us/agent/projects and send the remote link from production.",
+            "Remote signing email was not sent because this local request would create a production URL backed by a local-only token. Set ACRE_BASE_URL to this local app origin and restart dev, or open https://acresystem.us/agent/projects and send the remote link from production.",
         },
         { status: 409 },
       );
