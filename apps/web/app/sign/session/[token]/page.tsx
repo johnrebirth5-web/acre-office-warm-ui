@@ -33,6 +33,7 @@ function buildSigningDocuments(
         width: field.width,
         height: field.height,
         defaultValue: field.defaultValue ?? "",
+        required: field.required,
       }));
 
     return {
