@@ -643,7 +643,13 @@ export function FrontOfficeProjectsClient(props: {
         throw new Error(payload.error || "Handoff could not be started.");
       }
 
-      setActionMutation("launch", "success", payload.handoffUrl ? `Open on iPad: ${payload.handoffUrl}` : "Handoff started.");
+      if (payload.handoffUrl) {
+        setActionMutation("launch", "success", "Opening iPad handoff...");
+        window.location.assign(payload.handoffUrl);
+        return;
+      }
+
+      setActionMutation("launch", "success", "Handoff started.");
     } catch (error) {
       setActionMutation("launch", "error", error instanceof Error ? error.message : "Handoff could not be started.");
     }
