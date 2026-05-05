@@ -19090,6 +19090,11 @@ body,
   gap: 12px;
 }
 
+.public-signature-sidebar-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .public-signature-meta p {
   display: grid;
   gap: 4px;
@@ -19264,6 +19269,14 @@ body,
   padding: 8px 10px;
   font: inherit;
   color: #0f172a;
+}
+
+.public-signature-checkbox {
+  align-self: center;
+  justify-self: center;
+  width: min(22px, 80%);
+  height: min(22px, 80%);
+  margin: auto;
 }
 
 .public-signature-sign-button {
