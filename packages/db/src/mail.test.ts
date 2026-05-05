@@ -381,9 +381,9 @@ test("appointment internal mail thread response keeps the continuity contract ex
   );
   assert.match(
     response.continuity.detail,
-    /continuity stays inside the workspace/,
+    /continuity stays inside Acre/,
   );
-  assert.equal(response.continuity.returnToLabel, "Return to writeback");
+  assert.equal(response.continuity.returnToLabel, "Return to update form");
   assert.equal(
     response.continuity.returnToUrl,
     "/agent/calendar?appointmentId=apt_123",

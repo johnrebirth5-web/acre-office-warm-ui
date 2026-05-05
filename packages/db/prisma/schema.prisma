@@ -1416,6 +1416,9 @@ model Transaction {
   @@index([organizationId, officeId])
   @@index([organizationId, officeId, updatedAt])
   @@index([organizationId, officeId, closingDate])
+  @@index([organizationId, officeId, status, updatedAt], map: "Transaction_org_office_status_updated_idx")
+  @@index([organizationId, officeId, status, closingDate], map: "Transaction_org_office_status_closing_idx")
+  @@index([organizationId, officeId, status, moveInDate], map: "Transaction_org_office_status_moveIn_idx")
   @@index([organizationId, ownerMembershipId])
   @@index([organizationId, primaryClientId])
   @@index([organizationId, isSystemArchiveAnchor])
@@ -2012,6 +2015,10 @@ model TransactionTask {
   @@index([organizationId, dueAt])
   @@index([organizationId, complianceStatus])
   @@index([organizationId, reviewStatus])
+  @@index([organizationId, status, dueAt], map: "TransactionTask_org_status_dueAt_idx")
+  @@index([organizationId, assigneeMembershipId, status, dueAt], map: "TransactionTask_org_assignee_status_dueAt_idx")
+  @@index([organizationId, reviewStatus, status, dueAt], map: "TransactionTask_org_review_status_dueAt_idx")
+  @@index([organizationId, requiresSecondaryApproval, status, dueAt], map: "TransactionTask_org_secondary_status_dueAt_idx")
 }
 
 model TaskListView {
@@ -2121,6 +2128,7 @@ model OfficeMailParticipant {
   @@unique([threadId, membershipId])
   @@index([organizationId, membershipId, archivedAt])
   @@index([organizationId, membershipId, lastReadAt])
+  @@index([organizationId, membershipId, archivedAt, threadId], map: "OfficeMailParticipant_org_member_archived_thread_idx")
 }
 
 model OfficeMailMessage {
@@ -2298,6 +2306,7 @@ model LibraryDocument {
   @@index([organizationId, officeId, category])
   @@index([organizationId, officeId, visibility])
   @@index([organizationId, officeId, updatedAt])
+  @@index([organizationId, officeId, sortOrder, updatedAt], map: "LibraryDocument_org_office_sort_updated_idx")
 }
 
 model AuditLog {
@@ -2314,6 +2323,8 @@ model AuditLog {
 
   @@index([organizationId, entityType])
   @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, createdAt], map: "AuditLog_org_entity_createdAt_idx")
+  @@index([organizationId, membershipId, createdAt], map: "AuditLog_org_membership_createdAt_idx")
 }
 
 model TransactionDocument {
@@ -2561,6 +2572,7 @@ model SignatureRequest {
   @@index([organizationId, templateId])
   @@index([organizationId, offerId])
   @@index([organizationId, expiresAt])
+  @@index([organizationId, officeId, status, sentAt], map: "SignatureRequest_org_office_status_sentAt_idx")
 }
 
 model SignatureRecipient {
@@ -3023,6 +3035,7 @@ model IncomingUpdate {
   @@index([organizationId, status])
   @@index([organizationId, transactionId])
   @@index([organizationId, officeId, receivedAt])
+  @@index([organizationId, officeId, status, receivedAt], map: "IncomingUpdate_org_office_status_received_idx")
 }
 
 model Offer {
@@ -3061,6 +3074,8 @@ model Offer {
 
   @@index([organizationId, transactionId, status])
   @@index([organizationId, officeId, createdAt])
+  @@index([organizationId, officeId, status, updatedAt], map: "Offer_org_office_status_updated_idx")
+  @@index([organizationId, officeId, status, expirationAt], map: "Offer_org_office_status_expiration_idx")
   @@index([organizationId, expirationAt])
   @@index([organizationId, createdByMembershipId])
 }
