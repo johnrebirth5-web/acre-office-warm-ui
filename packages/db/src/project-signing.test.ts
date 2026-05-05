@@ -150,7 +150,7 @@ test("project signing role tier helpers map roles to admin or manager scopes", (
   assert.equal(isProjectSigningAdmin("owner"), true);
   assert.equal(isProjectSigningAdmin("office_admin"), true);
   assert.equal(isProjectSigningAdmin("team_lead"), false);
-  assert.equal(isProjectSigningAdmin("office_manager"), false);
+  assert.equal(isProjectSigningAdmin("office_manager"), true);
   assert.equal(isProjectSigningAdmin("agent"), false);
 
   function makeContext(overrides: Partial<ProjectSigningActorContext> = {}): ProjectSigningActorContext {

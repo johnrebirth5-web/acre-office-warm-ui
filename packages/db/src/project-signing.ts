@@ -317,7 +317,7 @@ export function parseProjectSigningTokenPayload(token: string): ProjectSigningTo
 }
 
 export function isProjectSigningAdmin(role: UserRole) {
-  return role === "owner" || role === "office_admin";
+  return role === "owner" || role === "office_admin" || role === "office_manager";
 }
 
 export function isProjectSigningManager(context: ProjectSigningActorContext) {
