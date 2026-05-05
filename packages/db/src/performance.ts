@@ -125,6 +125,12 @@ type PerformanceTransactionRecord = {
   }>;
 };
 
+type PerformanceTransactionDateRecord = {
+  ownerMembershipId: string | null;
+  closingDate: Date | null;
+  moveInDate: Date | null;
+};
+
 type PerformanceMembershipRecord = {
   id: string;
   role: UserRole;
@@ -146,6 +152,10 @@ type PerformanceCompanyConfig = {
 
 type TableAccumulator = Map<string, Map<string, number>>;
 type LeaderboardAccumulator = Map<string, number>;
+type PerformanceDateRange = {
+  start: Date;
+  end: Date;
+};
 
 const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const salesRoles = ["agent", "team_lead"] satisfies UserRole[];
@@ -246,7 +256,9 @@ function calculateTransactionPerformance(transaction: PerformanceTransactionReco
   return Number(transaction.grossCommission ?? 0) - rebateAmount - referralAmount - reimbursementAmount;
 }
 
-function getPerformanceAttributionDate(transaction: PerformanceTransactionRecord) {
+function getPerformanceAttributionDate(
+  transaction: Pick<PerformanceTransactionRecord, "closingDate" | "moveInDate">
+) {
   return transaction.moveInDate ?? transaction.closingDate;
 }
 
@@ -260,6 +272,94 @@ function getUtcMonth(value: Date) {
 
 function getUtcQuarter(value: Date) {
   return Math.floor(value.getUTCMonth() / 3) + 1;
+}
+
+function buildUtcYearRange(year: number): PerformanceDateRange {
+  return {
+    start: new Date(Date.UTC(year, 0, 1)),
+    end: new Date(Date.UTC(year + 1, 0, 1)),
+  };
+}
+
+function buildUtcMonthRange(year: string, month: string): PerformanceDateRange {
+  const numericYear = Number.parseInt(year, 10);
+  const numericMonth = Number.parseInt(month, 10);
+
+  return {
+    start: new Date(Date.UTC(numericYear, numericMonth - 1, 1)),
+    end: new Date(Date.UTC(numericYear, numericMonth, 1)),
+  };
+}
+
+function buildUtcQuarterRange(year: string, quarter: string): PerformanceDateRange {
+  const numericYear = Number.parseInt(year, 10);
+  const numericQuarter = Number.parseInt(quarter, 10);
+  const startMonth = (numericQuarter - 1) * 3;
+
+  return {
+    start: new Date(Date.UTC(numericYear, startMonth, 1)),
+    end: new Date(Date.UTC(numericYear, startMonth + 3, 1)),
+  };
+}
+
+function normalizePerformanceDateRanges(ranges: PerformanceDateRange[]) {
+  const sortedRanges = ranges
+    .filter(
+      (range) =>
+        Number.isFinite(range.start.getTime()) &&
+        Number.isFinite(range.end.getTime()) &&
+        range.start.getTime() < range.end.getTime(),
+    )
+    .sort((left, right) => left.start.getTime() - right.start.getTime());
+  const mergedRanges: PerformanceDateRange[] = [];
+
+  for (const range of sortedRanges) {
+    const previousRange = mergedRanges.at(-1);
+
+    if (!previousRange || range.start.getTime() > previousRange.end.getTime()) {
+      mergedRanges.push({
+        start: range.start,
+        end: range.end,
+      });
+      continue;
+    }
+
+    if (range.end.getTime() > previousRange.end.getTime()) {
+      previousRange.end = range.end;
+    }
+  }
+
+  return mergedRanges;
+}
+
+function buildPerformanceAttributionDateWhere(
+  ranges: PerformanceDateRange[],
+): Prisma.TransactionWhereInput {
+  const normalizedRanges = normalizePerformanceDateRanges(ranges);
+
+  if (normalizedRanges.length === 0) {
+    return {
+      id: "__no_performance_date_range__",
+    };
+  }
+
+  return {
+    OR: normalizedRanges.flatMap((range) => [
+      {
+        moveInDate: {
+          gte: range.start,
+          lt: range.end,
+        },
+      },
+      {
+        moveInDate: null,
+        closingDate: {
+          gte: range.start,
+          lt: range.end,
+        },
+      },
+    ]),
+  };
 }
 
 function getMonthKey(value: Date) {
@@ -447,6 +547,38 @@ function buildSelectedRangeLabel(filters: {
   }
 
   return `Annual performance · ${filters.yearStart}-${filters.yearEnd}`;
+}
+
+function buildPerformanceTableDateRange(filters: {
+  period: OfficePerformancePeriod;
+  year: string;
+  yearStart: string;
+  yearEnd: string;
+}) {
+  if (filters.period === "year") {
+    return {
+      start: new Date(Date.UTC(Number.parseInt(filters.yearStart, 10), 0, 1)),
+      end: new Date(Date.UTC(Number.parseInt(filters.yearEnd, 10) + 1, 0, 1)),
+    };
+  }
+
+  return buildUtcYearRange(Number.parseInt(filters.year, 10));
+}
+
+function buildPerformanceTransactionDateRanges(filters: {
+  period: OfficePerformancePeriod;
+  year: string;
+  month: string;
+  quarter: string;
+  yearStart: string;
+  yearEnd: string;
+}) {
+  return normalizePerformanceDateRanges([
+    buildPerformanceTableDateRange(filters),
+    buildUtcMonthRange(filters.year, filters.month),
+    buildUtcQuarterRange(filters.year, filters.quarter),
+    buildUtcYearRange(Number.parseInt(filters.year, 10)),
+  ]);
 }
 
 function buildLeaderboardTitle(period: "month" | "quarter" | "year", filters: {
@@ -644,10 +776,9 @@ export async function getOfficePerformanceWorkspace(
   const company = normalizeCompanyValue(input.company, companyOptions);
   const companyOfficeIds = resolveCompanyOfficeIds(company, offices, input.officeId ?? null);
   const companyLabel = companyOptions.find((option) => option.id === company)?.label ?? performanceCompanyConfigs.ny.label;
-  const companyTransactions =
+  const companyTransactionWhere: Prisma.TransactionWhereInput | null =
     companyOfficeIds.length > 0
-      ? await prisma.transaction.findMany({
-          where: {
+      ? {
             organizationId: input.organizationId,
             officeId: {
               in: companyOfficeIds
@@ -658,26 +789,28 @@ export async function getOfficePerformanceWorkspace(
             ownerMembershipId: {
               not: null
             }
-          },
+          }
+      : null;
+  const companyTransactionDateRecords: PerformanceTransactionDateRecord[] =
+    companyTransactionWhere
+      ? await prisma.transaction.findMany({
+          where: companyTransactionWhere,
           select: {
             ownerMembershipId: true,
-            officeId: true,
-            grossCommission: true,
             closingDate: true,
-            moveInDate: true,
-            financeFees: {
-              select: {
-                feeType: true,
-                amount: true
-              }
-            }
+            moveInDate: true
           }
         })
       : [];
-  const attributionYears = companyTransactions
+  const attributionYears = companyTransactionDateRecords
     .map((transaction) => getPerformanceAttributionDate(transaction))
     .filter((value): value is Date => Boolean(value))
     .map((value) => getUtcYear(value));
+  const companyOwnerMembershipIds = new Set(
+    companyTransactionDateRecords
+      .map((transaction) => transaction.ownerMembershipId)
+      .filter((membershipId): membershipId is string => Boolean(membershipId)),
+  );
   const currentDate = new Date();
   const currentYear = getUtcYear(currentDate);
   const currentMonth = String(getUtcMonth(currentDate)).padStart(2, "0");
@@ -723,14 +856,37 @@ export async function getOfficePerformanceWorkspace(
   const monthLeaderboardTotals: LeaderboardAccumulator = new Map();
   const quarterLeaderboardTotals: LeaderboardAccumulator = new Map();
   const yearLeaderboardTotals: LeaderboardAccumulator = new Map();
-  const companyOwnerMembershipIds = new Set<string>();
+  const performanceTransactions: PerformanceTransactionRecord[] =
+    companyTransactionWhere
+      ? await prisma.transaction.findMany({
+          where: {
+            AND: [
+              companyTransactionWhere,
+              buildPerformanceAttributionDateWhere(
+                buildPerformanceTransactionDateRanges(filters),
+              ),
+            ],
+          },
+          select: {
+            ownerMembershipId: true,
+            officeId: true,
+            grossCommission: true,
+            closingDate: true,
+            moveInDate: true,
+            financeFees: {
+              select: {
+                feeType: true,
+                amount: true,
+              },
+            },
+          },
+        })
+      : [];
 
-  for (const transaction of companyTransactions) {
+  for (const transaction of performanceTransactions) {
     if (!transaction.ownerMembershipId) {
       continue;
     }
-
-    companyOwnerMembershipIds.add(transaction.ownerMembershipId);
 
     const attributionDate = getPerformanceAttributionDate(transaction);
 
