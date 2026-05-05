@@ -28,6 +28,22 @@ type NotificationPreferenceField =
   | "taskRemindersEnabled"
   | "offerAlertsEnabled"
   | "messageAlertsEnabled";
+type OfficeNotificationReminderReconciliationInput = {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+};
+type DashboardNotificationReminderReconciliationState = {
+  inFlight?: Promise<void>;
+  lastAttemptedAt: number;
+};
+
+const dashboardNotificationReminderReconciliationCooldownMs = 60 * 1000;
+const dashboardNotificationReminderReconciliationMaxEntries = 500;
+const dashboardNotificationReminderReconciliationState = new Map<
+  string,
+  DashboardNotificationReminderReconciliationState
+>();
 
 export type OfficeNotificationReadFilter = "all" | "unread" | "read";
 export type OfficeNotificationView = "inbox" | "archived";
@@ -1204,11 +1220,35 @@ function buildTransactionOwnerLabel(input: {
     : "Unassigned";
 }
 
-export async function reconcileOfficeNotificationReminders(input: {
-  organizationId: string;
-  officeId?: string | null;
-  membershipId: string;
-}) {
+function getDashboardNotificationReminderReconciliationKey(
+  input: OfficeNotificationReminderReconciliationInput,
+) {
+  return [
+    input.organizationId,
+    input.officeId ?? "all-offices",
+    input.membershipId,
+  ].join(":");
+}
+
+function pruneDashboardNotificationReminderReconciliationState() {
+  while (
+    dashboardNotificationReminderReconciliationState.size >
+    dashboardNotificationReminderReconciliationMaxEntries
+  ) {
+    const nextKey =
+      dashboardNotificationReminderReconciliationState.keys().next().value;
+
+    if (!nextKey) {
+      break;
+    }
+
+    dashboardNotificationReminderReconciliationState.delete(nextKey);
+  }
+}
+
+export async function reconcileOfficeNotificationReminders(
+  input: OfficeNotificationReminderReconciliationInput,
+) {
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),
@@ -1833,6 +1873,51 @@ export async function reconcileOfficeNotificationReminders(input: {
       });
     }
   });
+}
+
+export async function reconcileOfficeNotificationRemindersForDashboard(
+  input: OfficeNotificationReminderReconciliationInput,
+) {
+  const key = getDashboardNotificationReminderReconciliationKey(input);
+  const now = Date.now();
+  const existingState =
+    dashboardNotificationReminderReconciliationState.get(key);
+
+  if (existingState?.inFlight) {
+    return;
+  }
+
+  if (
+    existingState &&
+    now - existingState.lastAttemptedAt <
+      dashboardNotificationReminderReconciliationCooldownMs
+  ) {
+    return;
+  }
+
+  const nextState: DashboardNotificationReminderReconciliationState = {
+    lastAttemptedAt: now,
+  };
+  const inFlight = reconcileOfficeNotificationReminders(input)
+    .catch((error: unknown) => {
+      console.warn(
+        "[acre] Dashboard notification reminder reconciliation failed",
+        error,
+      );
+    })
+    .finally(() => {
+      const state = dashboardNotificationReminderReconciliationState.get(key);
+
+      if (state) {
+        delete state.inFlight;
+      }
+    });
+
+  nextState.inFlight = inFlight;
+  dashboardNotificationReminderReconciliationState.set(key, nextState);
+  pruneDashboardNotificationReminderReconciliationState();
+
+  await inFlight;
 }
 
 export async function listOfficeNotifications(input: ListOfficeNotificationsInput): Promise<OfficeNotificationsSnapshot> {
