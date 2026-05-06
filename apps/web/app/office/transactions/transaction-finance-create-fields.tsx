@@ -11,6 +11,7 @@ import {
   transactionFinanceCalculatorFieldDefinitions as calculatorFieldDefinitions,
   type TransactionFinanceCalculatorFieldKey
 } from "./transaction-finance-calculator-config";
+import { translateCommissionCopy } from "../_utils/commission-copy";
 
 export type TransactionFinanceCreateDraft = {
   grossCommission: string;
@@ -115,12 +116,12 @@ export function TransactionFinanceCreateFields({
     setPreview(null);
 
     if (!draft.grossCommission.trim()) {
-      setPreviewError("Gross Commission is required before calculation.");
+      setPreviewError("请先填写总佣金再计算。");
       return;
     }
 
     if (!ownerMembershipId?.trim()) {
-      setPreviewError("Select an agent owner before calculating commission.");
+      setPreviewError("请先选择负责人经纪人再计算佣金。");
       return;
     }
 
@@ -148,12 +149,12 @@ export function TransactionFinanceCreateFields({
         | null;
 
       if (!response.ok || !body?.preview) {
-        throw new Error(body?.error ?? "Failed to preview commission.");
+        throw new Error(body?.error ?? "无法预览佣金。");
       }
 
       setPreview(body.preview);
     } catch (error) {
-      setPreviewError(error instanceof Error ? error.message : "Failed to preview commission.");
+      setPreviewError(translateCommissionCopy(error instanceof Error ? error.message : "无法预览佣金。", true));
     } finally {
       setIsCalculating(false);
     }
@@ -164,19 +165,19 @@ export function TransactionFinanceCreateFields({
       <div className="office-transaction-finance-calculator-shell">
         <div className="office-transaction-finance-panel-head office-transaction-finance-calculator-intro">
           <div>
-            <h4>Commission calculator</h4>
-            <p>Enter each deduction by amount or rate, calculate the final agent net, and keep one unified note for context.</p>
+            <h4>佣金计算器</h4>
+            <p>按金额或比例录入每项扣减，预览经纪人最终净额，并保留一条统一备注。</p>
           </div>
         </div>
 
         <div className="office-transaction-finance-calculator-grid">
           <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
-            <span>Gross Commission</span>
+            <span>总佣金</span>
             <input
               disabled={readOnly}
               inputMode="decimal"
               onChange={(event) => setTextField("grossCommission", event.target.value)}
-              placeholder="Required"
+              placeholder="必填"
               type="text"
               value={draft.grossCommission}
             />
@@ -190,7 +191,7 @@ export function TransactionFinanceCreateFields({
               <span>{field.feeTypeLabel}</span>
               <div className="office-transaction-finance-calculator-pair">
                 <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                  <span>Amount</span>
+                  <span>金额</span>
                   <input
                     disabled={readOnly}
                     inputMode="decimal"
@@ -201,7 +202,7 @@ export function TransactionFinanceCreateFields({
                   />
                 </label>
                 <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                  <span>Rate %</span>
+                  <span>比例 %</span>
                   <input
                     disabled={readOnly}
                     inputMode="decimal"
@@ -217,26 +218,26 @@ export function TransactionFinanceCreateFields({
 
           <div className="office-transaction-finance-calculator-action">
             <Button disabled={readOnly || isCalculating} onClick={handleCalculate} type="button">
-              {isCalculating ? "Calculating..." : "Calculate"}
+              {isCalculating ? "计算中..." : "计算"}
             </Button>
           </div>
         </div>
 
         <div className="office-transaction-finance-calculator-footer">
           <div className="office-inline-callout">
-            <strong>Calculator note</strong>
+            <strong>计算说明</strong>
             <p>
-              For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
+              每项费用可填写金额或比例；填写总佣金后，另一项会自动换算。
             </p>
           </div>
 
           <div className={`office-kpi-card office-transaction-finance-calculator-result${preview ? " office-kpi-card-accent is-active" : ""}`}>
-            <span>Final Agent Net</span>
+            <span>经纪人最终净额</span>
             <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
             <p>
               {preview
-                ? `Gross ${preview.grossCommissionLabel} · Pre-Split ${preview.preSplitTotalLabel} · Post-Split ${preview.postSplitTotalLabel}`
-                : "Click Calculate to preview the current commission result using the existing fee and split rules."}
+                ? `总佣金 ${preview.grossCommissionLabel} · 拆分前 ${preview.preSplitTotalLabel} · 拆分后 ${preview.postSplitTotalLabel}`
+                : "点击计算，可按现有费用和拆分规则预览当前佣金结果。"}
             </p>
           </div>
         </div>
@@ -246,12 +247,12 @@ export function TransactionFinanceCreateFields({
       {preview?.blockingIssues.length ? (
         <ul className="office-transaction-finance-blocker-list">
           {preview.blockingIssues.map((issue) => (
-            <li key={issue}>{issue}</li>
+            <li key={issue}>{translateCommissionCopy(issue, true)}</li>
           ))}
         </ul>
       ) : null}
 
-      <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="Note">
+      <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="备注">
         <TextareaInput
           className="office-transaction-finance-note-textarea"
           disabled={readOnly}

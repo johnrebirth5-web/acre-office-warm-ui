@@ -52,6 +52,10 @@ export function translateCommissionCopy(value: string, isZh: boolean): string {
     "Flat net": "固定净额",
     Flat: "固定金额",
     Percentage: "百分比",
+    Rebate: "返佣",
+    "Internal Referral": "内部推荐",
+    "External Referral": "外部推荐",
+    "Company Referral": "公司推荐",
     "Open-ended": "长期有效",
     Review: "待复核",
     "Legacy commission item": "旧佣金项目",
@@ -96,6 +100,8 @@ export function translateCommissionCopy(value: string, isZh: boolean): string {
     "Enter a valid identifier.": "请输入有效标识。",
     "Enter at least one stakeholder override row.": "请至少输入一行参与方调整。",
     "Some internal allocations are hidden for your current commission access level.": "按你当前的佣金访问权限，部分内部分配已隐藏。",
+    "Internal Referral requires a signed and approved Agent Referral Form before calculation.": "内部推荐需要先签署并批准 Agent Referral Form，才能计算。",
+    "Rebate requires a signed Rebate Agreement and submitted Rebate Google Form before calculation.": "返佣需要先签署 Rebate Agreement 并提交 Rebate Google Form，才能计算。",
     "Post-split fees require a transaction owner and split chain before calculation.": "拆分后费用需要先有交易负责人和拆分链，才能计算。",
     "Post-split deductions exceed the owner agent share for this transaction.": "拆分后扣减已超过此交易负责人经纪人的份额。"
   };
@@ -117,6 +123,10 @@ export function translateCommissionCopy(value: string, isZh: boolean): string {
     .replace(
       /^(.+) \((.+)\) is missing a default split\. Configure the member default split before calculating commission\.$/,
       (_match, member: string, role: string): string => `${member}（${translateCommissionCopy(role, true)}）缺少默认拆分。请先配置该成员的默认拆分，再计算佣金。`
+    )
+    .replace(
+      /^(.+) exceeds the allowed rate and must be approved before calculation\.$/,
+      (_match, fee: string): string => `${translateCommissionCopy(fee, true)} 超过允许比例，需要先批准后才能计算。`
     )
     .replace(
       /^(\d+) legacy plan\(s\) still use fee or sliding-scale rules and should be reviewed in Advanced settings\.$/,

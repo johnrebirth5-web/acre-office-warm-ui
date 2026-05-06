@@ -65,9 +65,9 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
   return (
     <OfficeDetailPageShell className="office-signature-page">
       <OfficeDetailPageHeader
-        description="Step 1 configures recipients and delivery. Step 2 places the PDF fields and binds each field to the right signer."
-        eyebrow="Transaction signatures"
-        title={`Prepare signature · ${document.title}`}
+        description="第 1 步配置收件人与发送方式；第 2 步放置 PDF 字段，并把每个字段绑定到正确签署人。"
+        eyebrow="交易签名"
+        title={`准备签名 · ${document.title}`}
       />
 
       <SignatureRequestEditor
