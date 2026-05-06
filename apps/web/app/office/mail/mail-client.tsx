@@ -19,6 +19,7 @@ import {
   TextareaInput
 } from "@acre/ui";
 import type { OfficeMailRecipientOption, OfficeMailWorkspaceSnapshot } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeMailClientProps = {
   snapshot: OfficeMailWorkspaceSnapshot;
@@ -39,14 +40,14 @@ function buildComposeState(): ComposeState {
   };
 }
 
-function getMailViewLabel(view: OfficeMailWorkspaceSnapshot["filters"]["view"]) {
+function getMailViewLabel(view: OfficeMailWorkspaceSnapshot["filters"]["view"], isZh: boolean) {
   switch (view) {
     case "unread":
-      return "未读";
+      return isZh ? "未读" : "unread";
     case "archived":
-      return "已归档";
+      return isZh ? "已归档" : "archived";
     default:
-      return "收件箱";
+      return isZh ? "收件箱" : "inbox";
   }
 }
 
@@ -94,6 +95,8 @@ function notifyMailUnreadChanged() {
 export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeState, setComposeState] = useState<ComposeState>(buildComposeState);
   const [composeFiles, setComposeFiles] = useState<File[]>([]);
@@ -151,7 +154,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error ?? "无法加载站内信收件人。");
+          throw new Error(body?.error ?? (isZh ? "无法加载站内信收件人。" : "Failed to load mail recipients."));
         }
 
         const body = (await response.json()) as { recipients?: OfficeMailRecipientOption[] };
@@ -162,7 +165,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
         }
       } catch (loadError) {
         if (isActive) {
-          setRecipientLoadError(loadError instanceof Error ? loadError.message : "无法加载站内信收件人。");
+          setRecipientLoadError(loadError instanceof Error ? loadError.message : isZh ? "无法加载站内信收件人。" : "Failed to load mail recipients.");
         }
       }
     }
@@ -172,7 +175,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
     return () => {
       isActive = false;
     };
-  }, [snapshot.canSend]);
+  }, [isZh, snapshot.canSend]);
 
   async function handleComposeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -199,7 +202,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "无法创建站内信线程。");
+        throw new Error(body?.error ?? (isZh ? "无法创建站内信线程。" : "Failed to create mail thread."));
       }
 
       const body = (await response.json()) as { thread?: { id: string } };
@@ -218,7 +221,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
       );
       router.refresh();
     } catch (composeError) {
-      setError(composeError instanceof Error ? composeError.message : "无法创建站内信线程。");
+      setError(composeError instanceof Error ? composeError.message : isZh ? "无法创建站内信线程。" : "Failed to create mail thread.");
     } finally {
       setPendingAction(null);
     }
@@ -249,7 +252,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "无法发送回复。");
+        throw new Error(body?.error ?? (isZh ? "无法发送回复。" : "Failed to send reply."));
       }
 
       setReplyBody("");
@@ -257,7 +260,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
       setReplyFileInputNonce((value) => value + 1);
       router.refresh();
     } catch (replyError) {
-      setError(replyError instanceof Error ? replyError.message : "无法发送回复。");
+      setError(replyError instanceof Error ? replyError.message : isZh ? "无法发送回复。" : "Failed to send reply.");
     } finally {
       setPendingAction(null);
     }
@@ -282,13 +285,13 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "无法更新站内信线程。");
+        throw new Error(body?.error ?? (isZh ? "无法更新站内信线程。" : "Failed to update mail thread."));
       }
 
       notifyMailUnreadChanged();
       router.refresh();
     } catch (threadError) {
-      setError(threadError instanceof Error ? threadError.message : "无法更新站内信线程。");
+      setError(threadError instanceof Error ? threadError.message : isZh ? "无法更新站内信线程。" : "Failed to update mail thread.");
     } finally {
       setPendingAction(null);
     }
@@ -297,50 +300,50 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
   return (
     <>
       <section className="office-mail-summary-grid">
-        <StatCard hint="仍在收件箱里的未读线程。" label="未读" value={snapshot.summary.unreadCount} />
-        <StatCard hint="归档筛选前的可见活动线程。" label="活动线程" value={snapshot.summary.activeCount} />
-        <StatCard hint="当前邮箱视图里的个人归档线程。" label="已归档" value={snapshot.summary.archivedCount} />
-        <StatCard hint={`当前${getMailViewLabel(snapshot.filters.view)}视图中统计到的附件。`} label="当前附件" value={snapshot.summary.attachmentsInView} />
+        <StatCard hint={isZh ? "仍在收件箱里的未读线程。" : "Unread threads still in the inbox."} label={isZh ? "未读" : "Unread"} value={snapshot.summary.unreadCount} />
+        <StatCard hint={isZh ? "归档筛选前的可见活动线程。" : "Visible active threads before archive filtering."} label={isZh ? "活动线程" : "Active threads"} value={snapshot.summary.activeCount} />
+        <StatCard hint={isZh ? "当前邮箱视图里的个人归档线程。" : "Personal archived threads in the current mail view."} label={isZh ? "已归档" : "Archived"} value={snapshot.summary.archivedCount} />
+        <StatCard hint={isZh ? `当前${getMailViewLabel(snapshot.filters.view, isZh)}视图中统计到的附件。` : `Attachments counted in the current ${getMailViewLabel(snapshot.filters.view, isZh)} view.`} label={isZh ? "当前附件" : "Current attachments"} value={snapshot.summary.attachmentsInView} />
       </section>
 
       <section className="office-mail-toolbar-row">
         <SectionCard
           className="office-list-card office-mail-toolbar-card"
-          subtitle="按主题、参与人姓名和最近消息内容搜索。"
-          title="邮箱控制"
+          subtitle={isZh ? "按主题、参与人姓名和最近消息内容搜索。" : "Search by subject, participant name, and recent message content."}
+          title={isZh ? "邮箱控制" : "Mail controls"}
         >
           <FilterBar as="form" className="office-mail-filter-grid office-list-filters" method="get">
             <input name="mode" type="hidden" value={snapshot.mode} />
-            <FilterField label="搜索">
-              <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="主题、人员、最近预览..." />
+            <FilterField label={isZh ? "搜索" : "Search"}>
+              <TextInput defaultValue={snapshot.filters.q} name="q" placeholder={isZh ? "主题、人员、最近预览..." : "Subject, people, recent preview..."} />
             </FilterField>
 
-            <FilterField label="视图">
+            <FilterField label={isZh ? "视图" : "View"}>
               <SelectInput defaultValue={snapshot.filters.view} name="view">
-                <option value="all">收件箱</option>
-                <option value="unread">未读</option>
-                <option value="archived">已归档</option>
+                <option value="all">{isZh ? "收件箱" : "Inbox"}</option>
+                <option value="unread">{isZh ? "未读" : "Unread"}</option>
+                <option value="archived">{isZh ? "已归档" : "Archived"}</option>
               </SelectInput>
             </FilterField>
 
             <div className="office-mail-filter-actions">
-              <Button type="submit">应用</Button>
+              <Button type="submit">{isZh ? "应用" : "Apply"}</Button>
               <Link className="office-button-secondary" href={buildMailHref({ pathname, mode: snapshot.mode })}>
-                重置
+                {isZh ? "重置" : "Reset"}
               </Link>
               {snapshot.canAudit ? (
-                <div className="office-mail-mode-toggle" role="tablist" aria-label="站内信模式">
+                <div className="office-mail-mode-toggle" role="tablist" aria-label={isZh ? "站内信模式" : "Mail mode"}>
                   <Link
                     className={`office-button-secondary office-mail-mode-button${snapshot.mode === "mine" ? " is-active" : ""}`}
                     href={modeToggleLinks.mine}
                   >
-                    我的站内信
+                    {isZh ? "我的站内信" : "My mail"}
                   </Link>
                   <Link
                     className={`office-button-secondary office-mail-mode-button${snapshot.mode === "audit" ? " is-active" : ""}`}
                     href={modeToggleLinks.audit}
                   >
-                    审计视图
+                    {isZh ? "审计视图" : "Audit view"}
                   </Link>
                 </div>
               ) : null}
@@ -358,16 +361,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
               className="office-list-card office-mail-compose-card"
               actions={
                 <Button onClick={() => setIsComposeOpen((current) => !current)} size="sm" type="button" variant="secondary">
-                  {isComposeOpen ? "关闭撰写" : "撰写"}
+                  {isComposeOpen ? (isZh ? "关闭撰写" : "Close compose") : isZh ? "撰写" : "Compose"}
                 </Button>
               }
-              subtitle="收件人必须是同一组织内启用的后台成员。"
-              title="新消息"
+              subtitle={isZh ? "收件人必须是同一组织内启用的后台成员。" : "Recipients must be active Back Office members in the same organization."}
+              title={isZh ? "新消息" : "New message"}
             >
               {isComposeOpen ? (
                 <form className="office-mail-compose-form" onSubmit={handleComposeSubmit}>
                   <div className="office-form-grid office-form-grid-2">
-                    <FormField className="office-mail-compose-field-wide" label="主题">
+                    <FormField className="office-mail-compose-field-wide" label={isZh ? "主题" : "Subject"}>
                       <TextInput
                         onChange={(event) => setComposeState((current) => ({ ...current, subject: event.target.value }))}
                         required
@@ -375,7 +378,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       />
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" helper="按住 Command/Ctrl 可选择多个收件人。" label="收件人">
+                    <FormField className="office-mail-compose-field-wide" helper={isZh ? "按住 Command/Ctrl 可选择多个收件人。" : "Hold Command/Ctrl to choose multiple recipients."} label={isZh ? "收件人" : "Recipients"}>
                       <SelectInput
                         multiple
                         onChange={(event) =>
@@ -396,16 +399,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       </SelectInput>
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" label="消息">
+                    <FormField className="office-mail-compose-field-wide" label={isZh ? "消息" : "Message"}>
                       <TextareaInput
                         onChange={(event) => setComposeState((current) => ({ ...current, body: event.target.value }))}
-                        placeholder="写下这个线程的第一条消息..."
+                        placeholder={isZh ? "写下这个线程的第一条消息..." : "Write the first message in this thread..."}
                         rows={6}
                         value={composeState.body}
                       />
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" helper="单个文件最多 10 MB，每条消息合计最多 25 MB。" label="附件">
+                    <FormField className="office-mail-compose-field-wide" helper={isZh ? "单个文件最多 10 MB，每条消息合计最多 25 MB。" : "Each file can be up to 10 MB, with 25 MB total per message."} label={isZh ? "附件" : "Attachments"}>
                       <TextInput
                         className="office-file-input"
                         key={fileInputNonce}
@@ -420,20 +423,20 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                   <div className="office-mail-compose-actions">
                     <Button disabled={pendingAction === "compose"} type="submit">
-                      {pendingAction === "compose" ? "发送中..." : "发送消息"}
+                      {pendingAction === "compose" ? (isZh ? "发送中..." : "Sending...") : isZh ? "发送消息" : "Send message"}
                     </Button>
                   </div>
                 </form>
               ) : (
-                <p className="office-form-helper">与一位或多位同事开启线程，并把完整对话保留在后台内。</p>
+                <p className="office-form-helper">{isZh ? "与一位或多位同事开启线程，并把完整对话保留在后台内。" : "Start a thread with one or more teammates and keep the full conversation inside Back Office."}</p>
               )}
             </SectionCard>
           ) : null}
 
           <SectionCard
             className="office-list-card office-mail-thread-list-card"
-            subtitle={`当前视图中有 ${snapshot.summary.threadsInView} 个线程`}
-            title={snapshot.mode === "audit" ? "组织站内信线程" : "收件箱线程"}
+            subtitle={isZh ? `当前视图中有 ${snapshot.summary.threadsInView} 个线程` : `${snapshot.summary.threadsInView} threads in the current view`}
+            title={snapshot.mode === "audit" ? (isZh ? "组织站内信线程" : "Organization mail threads") : isZh ? "收件箱线程" : "Inbox threads"}
           >
             {snapshot.threads.length ? (
               <div className="office-queue-list office-mail-thread-list">
@@ -449,7 +452,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                   return (
                     <Link className="office-mail-thread-link" href={href} key={thread.id}>
                       <QueueItem
-                        badgeLabel={thread.isUnread ? "未读" : thread.isArchived ? "已归档" : "打开"}
+                        badgeLabel={thread.isUnread ? (isZh ? "未读" : "Unread") : thread.isArchived ? (isZh ? "已归档" : "Archived") : isZh ? "打开" : "Open"}
                         badgeTone={thread.isUnread ? "accent" : thread.isArchived ? "neutral" : "success"}
                         className={`office-mail-thread-item${thread.id === selectedThreadId ? " is-selected" : ""}`}
                         context={`${thread.latestSenderName} · ${thread.latestMessageAtLabel}`}
@@ -461,9 +464,9 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                         }
                         meta={
                           <>
-                            <span>{thread.messageCount} 条消息</span>
-                            <span>{thread.participantCount} 位参与人</span>
-                            {thread.hasAttachments ? <span>{thread.attachmentCount} 个附件</span> : null}
+                            <span>{isZh ? `${thread.messageCount} 条消息` : `${thread.messageCount} ${thread.messageCount === 1 ? "message" : "messages"}`}</span>
+                            <span>{isZh ? `${thread.participantCount} 位参与人` : `${thread.participantCount} ${thread.participantCount === 1 ? "participant" : "participants"}`}</span>
+                            {thread.hasAttachments ? <span>{isZh ? `${thread.attachmentCount} 个附件` : `${thread.attachmentCount} ${thread.attachmentCount === 1 ? "attachment" : "attachments"}`}</span> : null}
                           </>
                         }
                         title={thread.subject}
@@ -477,16 +480,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                 action={
                   canCompose ? (
                     <Button onClick={() => setIsComposeOpen(true)} type="button">
-                      撰写第一条消息
+                      {isZh ? "撰写第一条消息" : "Compose first message"}
                     </Button>
                   ) : undefined
                 }
                 description={
                   snapshot.mode === "audit"
-                    ? "当前审计筛选下没有匹配的内部站内信线程。"
-                    : "当前收件箱筛选下没有匹配的内部站内信线程。"
+                    ? isZh ? "当前审计筛选下没有匹配的内部站内信线程。" : "No internal mail threads match the current audit filters."
+                    : isZh ? "当前收件箱筛选下没有匹配的内部站内信线程。" : "No internal mail threads match the current inbox filters."
                 }
-                title="这个邮箱视图里没有内容"
+                title={isZh ? "这个邮箱视图里没有内容" : "Nothing in this mail view"}
               />
             )}
           </SectionCard>
@@ -496,27 +499,27 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
           {selectedThread ? (
             <SectionCard
               className="office-list-card office-mail-detail-card"
-              subtitle={selectedThread.auditedByAdmin ? "审计模式为只读，会绕过参与人身份检查。" : "v1 中线程参与人创建后固定。"}
+              subtitle={selectedThread.auditedByAdmin ? (isZh ? "审计模式为只读，会绕过参与人身份检查。" : "Audit mode is read-only and bypasses participant identity checks.") : isZh ? "v1 中线程参与人创建后固定。" : "Thread participants are fixed after creation in v1."}
               title={selectedThread.subject}
             >
               <div className="office-mail-detail-head">
                 <div className="office-mail-detail-meta">
                   <StatusBadge tone={selectedThread.isUnread ? "accent" : "neutral"}>
-                    {selectedThread.isUnread ? "未读" : "已读"}
+                    {selectedThread.isUnread ? (isZh ? "未读" : "Unread") : isZh ? "已读" : "Read"}
                   </StatusBadge>
                   <StatusBadge tone={selectedThread.isArchived ? "warning" : "success"}>
-                    {selectedThread.isArchived ? "已归档" : "收件箱"}
+                    {selectedThread.isArchived ? (isZh ? "已归档" : "Archived") : isZh ? "收件箱" : "Inbox"}
                   </StatusBadge>
-                  {selectedThread.auditedByAdmin ? <Badge tone="warning">审计视图</Badge> : null}
+                  {selectedThread.auditedByAdmin ? <Badge tone="warning">{isZh ? "审计视图" : "Audit view"}</Badge> : null}
                   <span>{selectedThread.latestMessageAtLabel}</span>
-                  <span>{selectedThread.attachmentCount} 个附件</span>
+                  <span>{isZh ? `${selectedThread.attachmentCount} 个附件` : `${selectedThread.attachmentCount} ${selectedThread.attachmentCount === 1 ? "attachment" : "attachments"}`}</span>
                 </div>
 
                 {snapshot.mode === "mine" ? (
                   <div className="office-mail-detail-actions">
                     {selectedThread.actionUrl ? (
                       <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
-                        {selectedThread.actionLabel || "打开"}
+                        {selectedThread.actionLabel || (isZh ? "打开" : "Open")}
                       </Link>
                     ) : null}
                     <Button
@@ -526,7 +529,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       type="button"
                       variant="secondary"
                     >
-                      {selectedThread.isUnread ? "标记已读" : "标记未读"}
+                      {selectedThread.isUnread ? (isZh ? "标记已读" : "Mark read") : isZh ? "标记未读" : "Mark unread"}
                     </Button>
                     <Button
                       disabled={pendingAction === "archive" || pendingAction === "unarchive"}
@@ -535,20 +538,20 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       type="button"
                       variant="secondary"
                     >
-                      {selectedThread.isArchived ? "取消归档" : "归档"}
+                      {selectedThread.isArchived ? (isZh ? "取消归档" : "Unarchive") : isZh ? "归档" : "Archive"}
                     </Button>
                   </div>
                 ) : selectedThread.actionUrl ? (
                   <div className="office-mail-detail-actions">
                     <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
-                      {selectedThread.actionLabel || "打开"}
+                      {selectedThread.actionLabel || (isZh ? "打开" : "Open")}
                     </Link>
                   </div>
                 ) : null}
               </div>
 
               <div className="office-mail-participant-strip">
-                <span className="office-mail-participant-label">参与人</span>
+                <span className="office-mail-participant-label">{isZh ? "参与人" : "Participants"}</span>
                 <div className="office-mail-participant-list">
                   {selectedThread.participants.map((participant) => (
                     <span className="office-mail-participant-pill" key={participant.membershipId}>
@@ -558,7 +561,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                     </span>
                   ))}
                 </div>
-                <p className="office-form-helper">组织范围：{scopeLabel}</p>
+                <p className="office-form-helper">{isZh ? "组织范围：" : "Organization scope: "}{scopeLabel}</p>
               </div>
 
               <div className="office-mail-message-list">
@@ -572,7 +575,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       <span>{message.createdAtLabel}</span>
                     </header>
 
-                    <p className="office-mail-message-body">{message.body || "仅附件消息"}</p>
+                    <p className="office-mail-message-body">{message.body || (isZh ? "仅附件消息" : "Attachment-only message")}</p>
 
                     {message.attachments.length ? (
                       <div className="office-mail-attachment-list">
@@ -592,22 +595,22 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                 <form className="office-mail-reply-form" onSubmit={handleReplySubmit}>
                   <div className="office-mail-reply-head">
                     <div>
-                      <strong>回复线程</strong>
-                      <p>回复会发送给这个线程中已有的所有参与人。</p>
+                      <strong>{isZh ? "回复线程" : "Reply to thread"}</strong>
+                      <p>{isZh ? "回复会发送给这个线程中已有的所有参与人。" : "Replies go to all existing participants in this thread."}</p>
                     </div>
-                    <Badge tone="neutral">回复全部</Badge>
+                    <Badge tone="neutral">{isZh ? "回复全部" : "Reply all"}</Badge>
                   </div>
 
-                  <FormField label="消息">
+                  <FormField label={isZh ? "消息" : "Message"}>
                     <TextareaInput
                       onChange={(event) => setReplyBody(event.target.value)}
-                      placeholder="写下你的回复..."
+                      placeholder={isZh ? "写下你的回复..." : "Write your reply..."}
                       rows={5}
                       value={replyBody}
                     />
                   </FormField>
 
-                  <FormField helper="单个文件最多 10 MB，每条回复合计最多 25 MB。" label="附件">
+                  <FormField helper={isZh ? "单个文件最多 10 MB，每条回复合计最多 25 MB。" : "Each file can be up to 10 MB, with 25 MB total per reply."} label={isZh ? "附件" : "Attachments"}>
                     <TextInput
                       className="office-file-input"
                       key={replyFileInputNonce}
@@ -619,22 +622,22 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                   <div className="office-mail-compose-actions">
                     <Button disabled={pendingAction === "reply"} type="submit">
-                      {pendingAction === "reply" ? "发送中..." : "发送回复"}
+                      {pendingAction === "reply" ? (isZh ? "发送中..." : "Sending...") : isZh ? "发送回复" : "Send reply"}
                     </Button>
                   </div>
                 </form>
               ) : selectedThread.auditedByAdmin ? (
                 <div className="office-mail-audit-note">
-                  <Badge tone="warning">审计视图</Badge>
-                  <p>在审计模式查看组织站内信时，回复功能会被停用。</p>
+                  <Badge tone="warning">{isZh ? "审计视图" : "Audit view"}</Badge>
+                  <p>{isZh ? "在审计模式查看组织站内信时，回复功能会被停用。" : "Replies are disabled when viewing organization mail in audit mode."}</p>
                 </div>
               ) : null}
             </SectionCard>
           ) : (
-            <SectionCard className="office-list-card office-mail-detail-card" title="线程详情">
+            <SectionCard className="office-list-card office-mail-detail-card" title={isZh ? "线程详情" : "Thread detail"}>
               <EmptyState
-                description="从左侧选择一个线程；如果邮箱为空，也可以新建一个线程。"
-                title="尚未选择线程"
+                description={isZh ? "从左侧选择一个线程；如果邮箱为空，也可以新建一个线程。" : "Select a thread from the left, or create a new one if the inbox is empty."}
+                title={isZh ? "尚未选择线程" : "No thread selected"}
               />
             </SectionCard>
           )}

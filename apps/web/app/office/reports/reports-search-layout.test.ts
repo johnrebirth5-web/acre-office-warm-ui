@@ -80,13 +80,26 @@ test("buildReportsHref preserves selected composite financial filters", () => {
 test("status sort defaults to workflow order", () => {
   assert.equal(getDefaultReportSortDirection("status"), "asc");
   assert.deepEqual(getReportSortDirectionOptions("status"), [
-    { value: "asc", label: "流程顺序" },
-    { value: "desc", label: "反向流程顺序" }
+    { value: "asc", label: "Workflow order" },
+    { value: "desc", label: "Reverse workflow order" }
   ]);
 });
 
 test("report sort summary exposes user-facing labels", () => {
   assert.deepEqual(getReportSortSummary("gross_commission", "desc"), {
+    sortLabel: "Gross Commission",
+    directionLabel: "Highest first",
+    shortLabel: "Gross Commission · Highest first",
+    sentenceLabel: "Gross Commission (Highest first)"
+  });
+});
+
+test("report sort helpers expose Chinese labels when requested", () => {
+  assert.deepEqual(getReportSortDirectionOptions("status", true), [
+    { value: "asc", label: "流程顺序" },
+    { value: "desc", label: "反向流程顺序" }
+  ]);
+  assert.deepEqual(getReportSortSummary("gross_commission", "desc", true), {
     sortLabel: "总佣金",
     directionLabel: "从高到低",
     shortLabel: "总佣金 · 从高到低",

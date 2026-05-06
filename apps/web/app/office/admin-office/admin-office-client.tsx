@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Button, TextInput, TextareaInput } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 
 type SubmitState = {
   error: string;
@@ -22,6 +23,7 @@ async function sendJson<T>(
   input: {
     method?: string;
     body?: Record<string, unknown>;
+    fallbackError?: string;
   } = {},
 ): Promise<T> {
   const response = await fetch(url, {
@@ -41,7 +43,7 @@ async function sendJson<T>(
     throw new Error(
       errorMessage
         ? errorMessage
-        : "请求失败。",
+        : input.fallbackError ?? "Request failed.",
     );
   }
 
@@ -67,6 +69,8 @@ function useSubmitState() {
 export function AdminEmailRequestForm() {
   const router = useRouter();
   const submit = useSubmitState();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,32 +84,33 @@ export function AdminEmailRequestForm() {
             preferredEmailPrefix: readText(formData, "preferredEmailPrefix"),
             notes: readText(formData, "notes"),
           },
+          fallbackError: isZh ? "创建邮箱申请失败。" : "Failed to create email request.",
         },
       );
       router.push(`/office/admin-office/email-requests/${result.emailRequest.id}`);
       router.refresh();
     } catch (error) {
-      submit.setError(error, "创建邮箱申请失败。");
+      submit.setError(error, isZh ? "创建邮箱申请失败。" : "Failed to create email request.");
     }
   }
 
   return (
     <form className="office-form-section-body" onSubmit={handleSubmit}>
       <label className="office-form-field">
-        <span>姓名</span>
+        <span>{isZh ? "姓名" : "Full name"}</span>
         <TextInput name="fullName" required />
       </label>
       <label className="office-form-field">
-        <span>首选前缀</span>
+        <span>{isZh ? "首选前缀" : "Preferred prefix"}</span>
         <TextInput name="preferredEmailPrefix" required />
       </label>
       <label className="office-form-field office-detail-field-wide">
-        <span>备注</span>
+        <span>{isZh ? "备注" : "Notes"}</span>
         <TextareaInput name="notes" rows={3} />
       </label>
       {submit.state.error ? <p className="office-form-error">{submit.state.error}</p> : null}
       <div className="office-button-row">
-        <Button type="submit">创建申请</Button>
+        <Button type="submit">{isZh ? "创建申请" : "Create request"}</Button>
       </div>
     </form>
   );
@@ -114,6 +119,8 @@ export function AdminEmailRequestForm() {
 export function AdminEmailStatusForm(props: { requestId: string }) {
   const router = useRouter();
   const submit = useSubmitState();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,33 +132,34 @@ export function AdminEmailStatusForm(props: { requestId: string }) {
           status: readText(formData, "status"),
           notes: readText(formData, "notes"),
         },
+        fallbackError: isZh ? "更新申请失败。" : "Failed to update request.",
       });
-      submit.setMessage("状态已更新。");
+      submit.setMessage(isZh ? "状态已更新。" : "Status updated.");
       router.refresh();
     } catch (error) {
-      submit.setError(error, "更新申请失败。");
+      submit.setError(error, isZh ? "更新申请失败。" : "Failed to update request.");
     }
   }
 
   return (
     <form className="office-form-section-body" onSubmit={handleSubmit}>
       <label className="office-form-field">
-        <span>状态</span>
+        <span>{isZh ? "状态" : "Status"}</span>
         <select name="status">
-          <option value="approved">已批准</option>
-          <option value="completed">已完成</option>
-          <option value="rejected">已拒绝</option>
-          <option value="pending">待处理</option>
+          <option value="approved">{isZh ? "已批准" : "Approved"}</option>
+          <option value="completed">{isZh ? "已完成" : "Completed"}</option>
+          <option value="rejected">{isZh ? "已拒绝" : "Rejected"}</option>
+          <option value="pending">{isZh ? "待处理" : "Pending"}</option>
         </select>
       </label>
       <label className="office-form-field office-detail-field-wide">
-        <span>备注</span>
+        <span>{isZh ? "备注" : "Notes"}</span>
         <TextareaInput name="notes" rows={3} />
       </label>
       {submit.state.error ? <p className="office-form-error">{submit.state.error}</p> : null}
       {submit.state.message ? <p>{submit.state.message}</p> : null}
       <div className="office-button-row">
-        <Button type="submit">更新状态</Button>
+        <Button type="submit">{isZh ? "更新状态" : "Update status"}</Button>
       </div>
     </form>
   );
@@ -160,6 +168,8 @@ export function AdminEmailStatusForm(props: { requestId: string }) {
 export function AdminEventForm() {
   const router = useRouter();
   const submit = useSubmitState();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -182,62 +192,63 @@ export function AdminEventForm() {
             signupClosesAt: readText(formData, "signupClosesAt"),
             capacity: capacity ? Number(capacity) : null,
           },
+          fallbackError: isZh ? "创建活动失败。" : "Failed to create event.",
         },
       );
       router.push(`/office/admin-office/signups/${result.event.id}`);
       router.refresh();
     } catch (error) {
-      submit.setError(error, "创建活动失败。");
+      submit.setError(error, isZh ? "创建活动失败。" : "Failed to create event.");
     }
   }
 
   return (
     <form className="office-form-section-body" onSubmit={handleSubmit}>
       <label className="office-form-field">
-        <span>标题</span>
+        <span>{isZh ? "标题" : "Title"}</span>
         <TextInput name="title" required />
       </label>
       <label className="office-form-field">
-        <span>类型</span>
+        <span>{isZh ? "类型" : "Type"}</span>
         <select name="eventType">
-          <option value="activity">活动</option>
-          <option value="meeting">会议</option>
-          <option value="training">培训</option>
-          <option value="broker_tour">经纪人看房团</option>
-          <option value="other">其他</option>
+          <option value="activity">{isZh ? "活动" : "Activity"}</option>
+          <option value="meeting">{isZh ? "会议" : "Meeting"}</option>
+          <option value="training">{isZh ? "培训" : "Training"}</option>
+          <option value="broker_tour">{isZh ? "经纪人看房团" : "Broker Tour"}</option>
+          <option value="other">{isZh ? "其他" : "Other"}</option>
         </select>
       </label>
       <label className="office-form-field">
-        <span>开始时间</span>
+        <span>{isZh ? "开始时间" : "Starts at"}</span>
         <TextInput name="startsAt" required type="datetime-local" />
       </label>
       <label className="office-form-field">
-        <span>结束时间</span>
+        <span>{isZh ? "结束时间" : "Ends at"}</span>
         <TextInput name="endsAt" type="datetime-local" />
       </label>
       <label className="office-form-field">
-        <span>地点</span>
+        <span>{isZh ? "地点" : "Location"}</span>
         <TextInput name="location" />
       </label>
       <label className="office-form-field">
-        <span>容量</span>
+        <span>{isZh ? "容量" : "Capacity"}</span>
         <TextInput name="capacity" type="number" min="1" />
       </label>
       <label className="office-detail-field-checkbox">
         <input name="signupRequired" type="checkbox" />
-        <span>需要报名</span>
+        <span>{isZh ? "需要报名" : "Signup required"}</span>
       </label>
       <label className="office-detail-field-checkbox">
         <input name="isOnline" type="checkbox" />
-        <span>线上活动</span>
+        <span>{isZh ? "线上活动" : "Online event"}</span>
       </label>
       <label className="office-form-field office-detail-field-wide">
-        <span>说明</span>
+        <span>{isZh ? "说明" : "Description"}</span>
         <TextareaInput name="description" rows={3} />
       </label>
       {submit.state.error ? <p className="office-form-error">{submit.state.error}</p> : null}
       <div className="office-button-row">
-        <Button type="submit">创建活动</Button>
+        <Button type="submit">{isZh ? "创建活动" : "Create event"}</Button>
       </div>
     </form>
   );
@@ -249,6 +260,8 @@ export function AdminSignupButton(props: {
 }) {
   const router = useRouter();
   const submit = useSubmitState();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   async function handleClick() {
     try {
@@ -257,19 +270,19 @@ export function AdminSignupButton(props: {
       }).then(async (response) => {
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "报名失败。");
+          throw new Error(payload?.error ?? (isZh ? "报名失败。" : "Signup failed."));
         }
       });
       router.refresh();
     } catch (error) {
-      submit.setError(error, "报名失败。");
+      submit.setError(error, isZh ? "报名失败。" : "Signup failed.");
     }
   }
 
   return (
     <span className="office-button-row">
       <Button onClick={handleClick} size="sm" type="button" variant={props.isSignedUp ? "secondary" : "primary"}>
-        {props.isSignedUp ? "取消报名" : "报名"}
+        {props.isSignedUp ? (isZh ? "取消报名" : "Cancel signup") : isZh ? "报名" : "Sign up"}
       </Button>
       {submit.state.error ? <span className="office-form-error">{submit.state.error}</span> : null}
     </span>

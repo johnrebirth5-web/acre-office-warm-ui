@@ -25,25 +25,25 @@ export const transactionFinanceCalculatorFieldDefinitions: TransactionFinanceCal
   {
     fieldKey: "rebate",
     feeTypeValue: "rebate",
-    feeTypeLabel: "返佣",
+    feeTypeLabel: "Rebate",
     selectedCalculationTypeValue: "pre_split"
   },
   {
     fieldKey: "clientReferral",
     feeTypeValue: "client_referral",
-    feeTypeLabel: "内部推荐",
+    feeTypeLabel: "Internal Referral",
     selectedCalculationTypeValue: "pre_split"
   },
   {
     fieldKey: "externalReferral",
     feeTypeValue: "external_referral",
-    feeTypeLabel: "外部推荐",
+    feeTypeLabel: "External Referral",
     selectedCalculationTypeValue: "post_split"
   },
   {
     fieldKey: "companyReferral",
     feeTypeValue: "company_referral",
-    feeTypeLabel: "公司推荐",
+    feeTypeLabel: "Company Referral",
     selectedCalculationTypeValue: "post_split"
   }
 ];

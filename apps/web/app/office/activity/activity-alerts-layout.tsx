@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ActivityAlertSectionKey, ActivityLogViewMode, OfficeOperationalAlertsSnapshot } from "@acre/db";
 import { Button, EmptyState, SectionCard, StatusBadge } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 
 type ActivitySearchParams = {
   view: string;
@@ -23,21 +24,21 @@ type ActivityAlertsLayoutProps = {
   activityStream: ReactNode;
 };
 
-const alertSectionLabels: Record<ActivityAlertSectionKey, string> = {
-  all: "全部提醒",
-  "offers-awaiting-review": "等待审核的报价",
-  "offers-expiring-soon": "即将到期的报价",
-  "tasks-awaiting-your-review": "等待你审核的任务",
-  "tasks-awaiting-second-review": "等待二级审核的任务",
-  "rejected-tasks-needing-action": "被拒后需要处理的任务",
-  "transaction-closing-soon": "即将成交的交易",
-  "overdue-transaction-tasks": "逾期交易任务",
-  "contacts-follow-up-soon": "即将需要跟进的联系人",
-  "overdue-follow-up-tasks": "逾期跟进任务",
-  "transaction-finance-incomplete": "交易财务信息不完整",
-  "missing-required-documents": "缺少必需文件",
-  "signature-pending": "待签署",
-  "incoming-updates-awaiting-review": "等待审核的传入更新"
+const alertSectionLabels: Record<ActivityAlertSectionKey, { en: string; zh: string }> = {
+  all: { en: "All alerts", zh: "全部提醒" },
+  "offers-awaiting-review": { en: "Offers awaiting review", zh: "等待审核的报价" },
+  "offers-expiring-soon": { en: "Offers expiring soon", zh: "即将到期的报价" },
+  "tasks-awaiting-your-review": { en: "Tasks awaiting your review", zh: "等待你审核的任务" },
+  "tasks-awaiting-second-review": { en: "Tasks awaiting second review", zh: "等待二级审核的任务" },
+  "rejected-tasks-needing-action": { en: "Rejected tasks needing action", zh: "被拒后需要处理的任务" },
+  "transaction-closing-soon": { en: "Transactions closing soon", zh: "即将成交的交易" },
+  "overdue-transaction-tasks": { en: "Overdue transaction tasks", zh: "逾期交易任务" },
+  "contacts-follow-up-soon": { en: "Contacts needing follow-up soon", zh: "即将需要跟进的联系人" },
+  "overdue-follow-up-tasks": { en: "Overdue follow-up tasks", zh: "逾期跟进任务" },
+  "transaction-finance-incomplete": { en: "Incomplete transaction finance", zh: "交易财务信息不完整" },
+  "missing-required-documents": { en: "Missing required documents", zh: "缺少必需文件" },
+  "signature-pending": { en: "Signature pending", zh: "待签署" },
+  "incoming-updates-awaiting-review": { en: "Incoming updates awaiting review", zh: "等待审核的传入更新" }
 };
 
 function buildActivityHref(currentSearchParams: ActivitySearchParams, nextSearchParams: Partial<ActivitySearchParams>) {
@@ -112,6 +113,8 @@ function AlertsLoadingState(props: { copy: string }) {
 }
 
 export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const shouldLoadAlerts = props.selectedView !== "activity";
   const [snapshot, setSnapshot] = useState<OfficeOperationalAlertsSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(shouldLoadAlerts);
@@ -142,7 +145,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
 
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "加载运营提醒失败。");
+          throw new Error(payload?.error ?? (isZh ? "加载运营提醒失败。" : "Failed to load operational alerts."));
         }
 
         const nextSnapshot = (await response.json()) as OfficeOperationalAlertsSnapshot;
@@ -152,7 +155,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
           return;
         }
 
-        setError(loadError instanceof Error ? loadError.message : "加载运营提醒失败。");
+        setError(loadError instanceof Error ? loadError.message : isZh ? "加载运营提醒失败。" : "Failed to load operational alerts.");
       } finally {
         if (!abortController.signal.aborted) {
           setIsLoading(false);
@@ -170,12 +173,15 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
     props.currentSearchParams.endDate,
     props.currentSearchParams.objectType,
     props.currentSearchParams.startDate,
+    isZh,
     reloadCount,
     shouldLoadAlerts
   ]);
 
   const selectedAlertSection = snapshot?.alertSelectedSection ?? normalizeAlertSection(props.currentSearchParams.alertSection);
-  const selectedAlertSectionLabel = snapshot?.alertSelectedSectionLabel ?? alertSectionLabels[selectedAlertSection];
+  const selectedAlertSectionLabel = isZh
+    ? alertSectionLabels[selectedAlertSection].zh
+    : snapshot?.alertSelectedSectionLabel ?? alertSectionLabels[selectedAlertSection].en;
   const alertSections = snapshot?.alertSections ?? [];
   const alerts = snapshot?.alerts ?? [];
 
@@ -187,18 +193,20 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
         <SectionCard
           className="office-activity-sections-card"
           subtitle={
-            shouldLoadAlerts ? "从当前系统状态实时推导的提醒" : "切换到“全部”或“仅提醒”即可加载实时提醒。"
+            shouldLoadAlerts
+              ? isZh ? "从当前系统状态实时推导的提醒" : "Alerts derived live from current system state"
+              : isZh ? "切换到“全部”或“仅提醒”即可加载实时提醒。" : "Switch to All or Alerts only to load live alerts."
           }
-          title="运营提醒"
+          title={isZh ? "运营提醒" : "Operational alerts"}
         >
           {shouldLoadAlerts ? (
             isLoading ? (
-              <AlertsLoadingState copy="正在加载当前运营提醒..." />
+              <AlertsLoadingState copy={isZh ? "正在加载当前运营提醒..." : "Loading current operational alerts..."} />
             ) : error ? (
               <div className="office-activity-alerts-feedback">
                 <p className="office-form-error">{error}</p>
                 <Button onClick={() => setReloadCount((count) => count + 1)} size="sm" type="button" variant="secondary">
-                  重试提醒
+                  {isZh ? "重试提醒" : "Retry alerts"}
                 </Button>
               </div>
             ) : (
@@ -213,7 +221,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
                     })}
                     key={section.key}
                   >
-                    <strong>{section.label}</strong>
+                    <strong>{isZh ? alertSectionLabels[section.key]?.zh ?? section.label : section.label}</strong>
                     <span>{section.count}</span>
                   </Link>
                 ))}
@@ -221,7 +229,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
             )
           ) : (
             <div className="office-activity-alerts-feedback">
-              <p>当前视图包含实时运营提醒时，提醒会按需加载。</p>
+              <p>{isZh ? "当前视图包含实时运营提醒时，提醒会按需加载。" : "Alerts load on demand when the current view includes live operational alerts."}</p>
             </div>
           )}
         </SectionCard>
@@ -234,22 +242,24 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
           <SectionCard
             className="office-activity-log-card office-alerts-card"
             subtitle={
-              isLoading ? "正在加载当前提醒" : `显示 ${alerts.length} 条当前提醒`
+              isLoading
+                ? isZh ? "正在加载当前提醒" : "Loading current alerts"
+                : isZh ? `显示 ${alerts.length} 条当前提醒` : `Showing ${alerts.length} current alerts`
             }
-            title={props.selectedView === "alerts" ? selectedAlertSectionLabel : "运营提醒"}
+            title={props.selectedView === "alerts" ? selectedAlertSectionLabel : isZh ? "运营提醒" : "Operational alerts"}
           >
             <div className="office-activity-records">
               {isLoading ? (
-                <AlertsLoadingState copy="正在加载当前运营提醒..." />
+                <AlertsLoadingState copy={isZh ? "正在加载当前运营提醒..." : "Loading current operational alerts..."} />
               ) : error ? (
                 <EmptyState
                   action={
                     <Button onClick={() => setReloadCount((count) => count + 1)} size="sm" type="button" variant="secondary">
-                      重试提醒
+                      {isZh ? "重试提醒" : "Retry alerts"}
                     </Button>
                   }
                   description={error}
-                  title="无法加载运营提醒"
+                  title={isZh ? "无法加载运营提醒" : "Unable to load operational alerts"}
                 />
               ) : alerts.length ? (
                 alerts.map((alert) => (
@@ -290,8 +300,8 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
                 ))
               ) : (
                 <EmptyState
-                  description="根据当前实时工作流状态，这个范围暂无需要处理的提醒。"
-                  title="当前范围没有活动中的实时运营提醒。"
+                  description={isZh ? "根据当前实时工作流状态，这个范围暂无需要处理的提醒。" : "Based on current live workflow state, there are no alerts to handle in this scope."}
+                  title={isZh ? "当前范围没有活动中的实时运营提醒。" : "No active live operational alerts in this scope."}
                 />
               )}
             </div>

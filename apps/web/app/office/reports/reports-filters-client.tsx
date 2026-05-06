@@ -1019,7 +1019,8 @@ export function ReportsFiltersClient({
   pageSize,
   searchLayout
 }: ReportsFiltersClientProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const pathname = usePathname();
   const [searchFilters, setSearchFilters] = useState<ReportSearchFilterState>(() =>
@@ -1063,8 +1064,8 @@ export function ReportsFiltersClient({
   const wideSelectedFields = orderedSelectedFields.filter((field) =>
     isWideReportSearchField(field.key)
   );
-  const sortOptions = getReportSortOptions();
-  const sortDirectionOptions = getReportSortDirectionOptions(searchFilters.sortBy);
+  const sortOptions = getReportSortOptions(isZh);
+  const sortDirectionOptions = getReportSortDirectionOptions(searchFilters.sortBy, isZh);
 
   function updateFilters(updater: (current: ReportSearchFilterState) => ReportSearchFilterState) {
     setSearchFilters((current) => updater(current));

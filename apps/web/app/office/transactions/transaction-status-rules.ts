@@ -33,7 +33,7 @@ export function isCreateTransactionStatusValue(value: string): value is CreateTr
   return createTransactionStatusValues.includes(value as CreateTransactionStatusValue);
 }
 
-export function getCreateTransactionStatusFieldPolicy(canManageStatus: boolean): TransactionStatusFieldPolicy {
+export function getCreateTransactionStatusFieldPolicy(canManageStatus: boolean, isZh = false): TransactionStatusFieldPolicy {
   if (canManageStatus) {
     return {
       canEdit: true,
@@ -45,11 +45,11 @@ export function getCreateTransactionStatusFieldPolicy(canManageStatus: boolean):
     canEdit: false,
     allowedValues: createTransactionStatusValues,
     enforcedValue: "pending",
-    helperText: "只有管理员可以修改状态。新交易默认进入待处理状态。"
+    helperText: isZh ? "只有管理员可以修改状态。新交易默认进入待处理状态。" : "Only admins can change status. New transactions default to Pending."
   };
 }
 
-export function getEditTransactionStatusFieldPolicy(canManageStatus: boolean): TransactionStatusFieldPolicy {
+export function getEditTransactionStatusFieldPolicy(canManageStatus: boolean, isZh = false): TransactionStatusFieldPolicy {
   if (canManageStatus) {
     return {
       canEdit: true,
@@ -60,6 +60,6 @@ export function getEditTransactionStatusFieldPolicy(canManageStatus: boolean): T
   return {
     canEdit: false,
     allowedValues: allTransactionStatusValues,
-    helperText: "只有管理员可以修改状态。"
+    helperText: isZh ? "只有管理员可以修改状态。" : "Only admins can change status."
   };
 }

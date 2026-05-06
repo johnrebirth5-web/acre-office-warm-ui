@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { OfficeCreateTransactionCommissionPreview } from "@acre/db";
 import { Button, FormField, TextareaInput } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 import {
   createEmptyTransactionFinanceCalculatorValues,
   deriveTransactionFinanceCalculatorAmount,
@@ -67,6 +68,8 @@ export function TransactionFinanceCreateFields({
   readOnly = false,
   onChange
 }: TransactionFinanceCreateFieldsProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [preview, setPreview] = useState<OfficeCreateTransactionCommissionPreview | null>(null);
   const [previewError, setPreviewError] = useState("");
   const [isCalculating, setIsCalculating] = useState(false);
@@ -116,12 +119,12 @@ export function TransactionFinanceCreateFields({
     setPreview(null);
 
     if (!draft.grossCommission.trim()) {
-      setPreviewError("请先填写总佣金再计算。");
+      setPreviewError(isZh ? "请先填写总佣金再计算。" : "Gross Commission is required before calculation.");
       return;
     }
 
     if (!ownerMembershipId?.trim()) {
-      setPreviewError("请先选择负责人经纪人再计算佣金。");
+      setPreviewError(isZh ? "请先选择负责人经纪人再计算佣金。" : "Select an agent owner before calculating commission.");
       return;
     }
 
@@ -149,12 +152,12 @@ export function TransactionFinanceCreateFields({
         | null;
 
       if (!response.ok || !body?.preview) {
-        throw new Error(body?.error ?? "无法预览佣金。");
+        throw new Error(body?.error ?? (isZh ? "无法预览佣金。" : "Failed to preview commission."));
       }
 
       setPreview(body.preview);
     } catch (error) {
-      setPreviewError(translateCommissionCopy(error instanceof Error ? error.message : "无法预览佣金。", true));
+      setPreviewError(translateCommissionCopy(error instanceof Error ? error.message : isZh ? "无法预览佣金。" : "Failed to preview commission.", isZh));
     } finally {
       setIsCalculating(false);
     }
@@ -165,19 +168,19 @@ export function TransactionFinanceCreateFields({
       <div className="office-transaction-finance-calculator-shell">
         <div className="office-transaction-finance-panel-head office-transaction-finance-calculator-intro">
           <div>
-            <h4>佣金计算器</h4>
-            <p>按金额或比例录入每项扣减，预览经纪人最终净额，并保留一条统一备注。</p>
+            <h4>{isZh ? "佣金计算器" : "Commission calculator"}</h4>
+            <p>{isZh ? "按金额或比例录入每项扣减，预览经纪人最终净额，并保留一条统一备注。" : "Enter each deduction by amount or rate, calculate the final agent net, and keep one unified note for context."}</p>
           </div>
         </div>
 
         <div className="office-transaction-finance-calculator-grid">
           <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
-            <span>总佣金</span>
+            <span>{isZh ? "总佣金" : "Gross Commission"}</span>
             <input
               disabled={readOnly}
               inputMode="decimal"
               onChange={(event) => setTextField("grossCommission", event.target.value)}
-              placeholder="必填"
+              placeholder={isZh ? "必填" : "Required"}
               type="text"
               value={draft.grossCommission}
             />
@@ -188,10 +191,10 @@ export function TransactionFinanceCreateFields({
               className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-fee-field"
               key={field.fieldKey}
             >
-              <span>{field.feeTypeLabel}</span>
+              <span>{translateCommissionCopy(field.feeTypeLabel, isZh)}</span>
               <div className="office-transaction-finance-calculator-pair">
                 <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                  <span>金额</span>
+                  <span>{isZh ? "金额" : "Amount"}</span>
                   <input
                     disabled={readOnly}
                     inputMode="decimal"
@@ -202,7 +205,7 @@ export function TransactionFinanceCreateFields({
                   />
                 </label>
                 <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                  <span>比例 %</span>
+                  <span>{isZh ? "比例 %" : "Rate %"}</span>
                   <input
                     disabled={readOnly}
                     inputMode="decimal"
@@ -218,26 +221,32 @@ export function TransactionFinanceCreateFields({
 
           <div className="office-transaction-finance-calculator-action">
             <Button disabled={readOnly || isCalculating} onClick={handleCalculate} type="button">
-              {isCalculating ? "计算中..." : "计算"}
+              {isCalculating ? (isZh ? "计算中..." : "Calculating...") : isZh ? "计算" : "Calculate"}
             </Button>
           </div>
         </div>
 
         <div className="office-transaction-finance-calculator-footer">
           <div className="office-inline-callout">
-            <strong>计算说明</strong>
+            <strong>{isZh ? "计算说明" : "Calculator note"}</strong>
             <p>
-              每项费用可填写金额或比例；填写总佣金后，另一项会自动换算。
+              {isZh
+                ? "每项费用可填写金额或比例；填写总佣金后，另一项会自动换算。"
+                : "For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills."}
             </p>
           </div>
 
           <div className={`office-kpi-card office-transaction-finance-calculator-result${preview ? " office-kpi-card-accent is-active" : ""}`}>
-            <span>经纪人最终净额</span>
+            <span>{isZh ? "经纪人最终净额" : "Final Agent Net"}</span>
             <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
             <p>
               {preview
-                ? `总佣金 ${preview.grossCommissionLabel} · 拆分前 ${preview.preSplitTotalLabel} · 拆分后 ${preview.postSplitTotalLabel}`
-                : "点击计算，可按现有费用和拆分规则预览当前佣金结果。"}
+                ? isZh
+                  ? `总佣金 ${preview.grossCommissionLabel} · 拆分前 ${preview.preSplitTotalLabel} · 拆分后 ${preview.postSplitTotalLabel}`
+                  : `Gross ${preview.grossCommissionLabel} · Pre-Split ${preview.preSplitTotalLabel} · Post-Split ${preview.postSplitTotalLabel}`
+                : isZh
+                  ? "点击计算，可按现有费用和拆分规则预览当前佣金结果。"
+                  : "Click Calculate to preview the current commission result using the existing fee and split rules."}
             </p>
           </div>
         </div>
@@ -247,12 +256,12 @@ export function TransactionFinanceCreateFields({
       {preview?.blockingIssues.length ? (
         <ul className="office-transaction-finance-blocker-list">
           {preview.blockingIssues.map((issue) => (
-            <li key={issue}>{translateCommissionCopy(issue, true)}</li>
+            <li key={issue}>{translateCommissionCopy(issue, isZh)}</li>
           ))}
         </ul>
       ) : null}
 
-      <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="备注">
+      <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label={isZh ? "备注" : "Note"}>
         <TextareaInput
           className="office-transaction-finance-note-textarea"
           disabled={readOnly}
