@@ -219,14 +219,6 @@ function getNavGroups(
           href: "/office/account",
         },
         {
-          label: t((messages) => messages.officeNav.items.billing),
-          href: "/office/billing",
-        },
-        {
-          label: t((messages) => messages.officeNav.items.addOns),
-          kind: "muted" as const,
-        },
-        {
           label: t((messages) => messages.officeNav.items.signOut),
           kind: "submit" as const,
           formAction: "/api/auth/logout",
