@@ -12,6 +12,7 @@ import {
 import { getOfficeActivityLogSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { ActivityAlertsLayout } from "./activity-alerts-layout";
 import { ActivityCommentComposer } from "./activity-comment-composer";
@@ -100,6 +101,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
 
   const selectedView = snapshot.selectedView;
   const currentPage = normalizePage(searchParams.page);
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
   const normalizedSearchParams = {
     view: selectedView === "all" ? "" : selectedView,
     activitySection: selectedView === "activity" ? snapshot.activitySelectedSection : "",
@@ -121,16 +126,24 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   const activityPageStartLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + 1;
   const activityPageEndLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + paginatedActivityEvents.length;
   const activitySubtitle = totalActivityRecords
-    ? `显示 ${activityPageStartLabel}-${activityPageEndLabel} / 共 ${totalActivityRecords} 条审计记录`
-    : "显示 0 条审计记录";
+    ? isZh
+      ? `显示 ${activityPageStartLabel}-${activityPageEndLabel} / 共 ${totalActivityRecords} 条审计记录`
+      : `Showing ${activityPageStartLabel}-${activityPageEndLabel} of ${totalActivityRecords} audit records`
+    : isZh
+      ? "显示 0 条审计记录"
+      : "Showing 0 audit records";
   const liveAlertsSummaryValue =
-    selectedView === "activity" ? "按需加载" : selectedView === "alerts" ? "仅提醒" : "下方包含";
+    selectedView === "activity"
+      ? isZh ? "按需加载" : "On demand"
+      : selectedView === "alerts"
+        ? isZh ? "仅提醒" : "Alerts only"
+        : isZh ? "下方包含" : "Included below";
   const activityPaginationBaseHref = buildActivityHref(normalizedSearchParams, { page: "" });
   const activitySidebar = (
     <SectionCard
       className="office-activity-sections-card"
-      subtitle="统计最近 200 条审计记录窗口"
-      title="活动日志"
+      subtitle={isZh ? "统计最近 200 条审计记录窗口" : "Counts from the latest 200 audit records"}
+      title={isZh ? "活动日志" : "Activity log"}
     >
       <nav className="office-activity-section-list">
         {snapshot.activitySections.map((section) => (
@@ -156,7 +169,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
       <SectionCard
         className="office-activity-log-card"
         subtitle={activitySubtitle}
-        title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "活动日志"}
+        title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : isZh ? "活动日志" : "Activity log"}
       >
         <div className="office-activity-records">
           {paginatedActivityEvents.length ? (
@@ -193,7 +206,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               </article>
             ))
           ) : (
-            <EmptyState description="可以尝试扩大日期范围，或使用更宽的视图筛选。" title="当前范围内没有可用的审计事件。" />
+            <EmptyState
+              description={isZh ? "可以尝试扩大日期范围，或使用更宽的视图筛选。" : "Try widening the date range or using a broader view filter."}
+              title={isZh ? "当前范围内没有可用的审计事件。" : "No audit events are available in this scope."}
+            />
           )}
         </div>
         {totalActivityRecords > ACTIVITY_PAGE_SIZE ? (
@@ -205,18 +221,18 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
                   page: activityPage - 1 > 1 ? String(activityPage - 1) : ""
                 })}
               >
-                上一页
+                {isZh ? "上一页" : "Previous"}
               </Link>
             ) : (
-              <span className="office-list-page-button is-disabled">上一页</span>
+              <span className="office-list-page-button is-disabled">{isZh ? "上一页" : "Previous"}</span>
             )}
 
             <form action={activityPaginationBaseHref} className="office-activity-page-jump" method="get">
               <label className="office-activity-page-jump-label" htmlFor="activity-page-jump-input">
-                页码
+                {isZh ? "页码" : "Page"}
               </label>
               <input
-                aria-label="跳转到页码"
+                aria-label={isZh ? "跳转到页码" : "Jump to page"}
                 className="office-input office-activity-page-jump-input"
                 defaultValue={activityPage}
                 id="activity-page-jump-input"
@@ -227,7 +243,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               />
               <span className="office-list-page-indicator">/ {totalActivityPages}</span>
               <Button size="sm" type="submit" variant="secondary">
-                跳转
+                {isZh ? "跳转" : "Go"}
               </Button>
             </form>
 
@@ -238,10 +254,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
                   page: String(activityPage + 1)
                 })}
               >
-                下一页
+                {isZh ? "下一页" : "Next"}
               </Link>
             ) : (
-              <span className="office-list-page-button is-disabled">下一页</span>
+              <span className="office-list-page-button is-disabled">{isZh ? "下一页" : "Next"}</span>
             )}
           </div>
         ) : null}
@@ -257,16 +273,16 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             scopeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
           />
         }
-        description="以审计记录为准；运营提醒则从当前交易、任务和联系人状态实时推导。"
-        eyebrow="账户活动"
+        description={isZh ? "以审计记录为准；运营提醒则从当前交易、任务和联系人状态实时推导。" : "Audit records are durable; operational alerts are derived live from current transaction, task, and contact state."}
+        eyebrow={isZh ? "账户活动" : "Account activity"}
         summary={
           <>
-            <SummaryChip label="办公室范围" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="审计窗口" tone="accent" value={snapshot.latestWindowCount} />
-            <SummaryChip label="实时提醒" value={liveAlertsSummaryValue} />
+            <SummaryChip label={isZh ? "办公室范围" : "Office scope"} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={isZh ? "审计窗口" : "Audit window"} tone="accent" value={snapshot.latestWindowCount} />
+            <SummaryChip label={isZh ? "实时提醒" : "Live alerts"} value={liveAlertsSummaryValue} />
           </>
         }
-        title="账户活动"
+        title={isZh ? "账户活动" : "Account activity"}
       />
 
       <FilterBar as="form" className="office-activity-filter-bar office-activity-toolbar-card" method="get">
@@ -280,7 +296,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            全部
+            {isZh ? "全部" : "All"}
           </Link>
           <Link
             className={`office-toggle-link office-button-sm${selectedView === "activity" ? " is-active" : ""}`}
@@ -290,7 +306,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            仅活动
+            {isZh ? "仅活动" : "Activity only"}
           </Link>
           <Link
             className={`office-toggle-link office-button-sm${selectedView === "alerts" ? " is-active" : ""}`}
@@ -300,14 +316,14 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            仅提醒
+            {isZh ? "仅提醒" : "Alerts only"}
           </Link>
         </div>
 
         <div className="office-activity-filter-grid">
-          <FilterField className="office-activity-filter-field" label="操作人（仅活动）">
+          <FilterField className="office-activity-filter-field" label={isZh ? "操作人（仅活动）" : "Actor (activity only)"}>
             <select defaultValue={snapshot.filters.actorMembershipId} disabled={selectedView === "alerts"} name="actorMembershipId">
-              <option value="">全部操作人</option>
+              <option value="">{isZh ? "全部操作人" : "All actors"}</option>
               {snapshot.filters.actorOptions.map((actor) => (
                 <option key={actor.id} value={actor.id}>
                   {actor.label}
@@ -316,25 +332,25 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             </select>
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="对象类型">
+          <FilterField className="office-activity-filter-field" label={isZh ? "对象类型" : "Object type"}>
             <select defaultValue={snapshot.filters.objectType} name="objectType">
-              <option value="all">全部对象</option>
-              <option value="transaction">交易</option>
-              <option value="contact">联系人</option>
-              <option value="task">任务</option>
-              <option value="agent">经纪人 / 团队</option>
-              <option value="document">文件 / 表单</option>
-              <option value="accounting">财务</option>
-              <option value="comment">评论</option>
-              <option value="auth">认证</option>
+              <option value="all">{isZh ? "全部对象" : "All objects"}</option>
+              <option value="transaction">{isZh ? "交易" : "Transaction"}</option>
+              <option value="contact">{isZh ? "联系人" : "Contact"}</option>
+              <option value="task">{isZh ? "任务" : "Task"}</option>
+              <option value="agent">{isZh ? "经纪人 / 团队" : "Agent / team"}</option>
+              <option value="document">{isZh ? "文件 / 表单" : "Document / form"}</option>
+              <option value="accounting">{isZh ? "财务" : "Accounting"}</option>
+              <option value="comment">{isZh ? "评论" : "Comment"}</option>
+              <option value="auth">{isZh ? "认证" : "Auth"}</option>
             </select>
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="开始日期">
+          <FilterField className="office-activity-filter-field" label={isZh ? "开始日期" : "Start date"}>
             <input defaultValue={snapshot.filters.startDate} name="startDate" type="date" />
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="结束日期">
+          <FilterField className="office-activity-filter-field" label={isZh ? "结束日期" : "End date"}>
             <input defaultValue={snapshot.filters.endDate} name="endDate" type="date" />
           </FilterField>
 
@@ -347,10 +363,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               <input name="alertSection" type="hidden" value={normalizedSearchParams.alertSection} />
             ) : null}
             <Button type="submit" variant="secondary">
-              应用筛选
+              {isZh ? "应用筛选" : "Apply filters"}
             </Button>
             <Link className="office-button-secondary" href="/office/activity">
-              重置
+              {isZh ? "重置" : "Reset"}
             </Link>
           </div>
         </div>

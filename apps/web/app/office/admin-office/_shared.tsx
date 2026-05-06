@@ -5,14 +5,15 @@ import { usePathname } from "next/navigation";
 import { Children, cloneElement, isValidElement } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { DataTable, StatusBadge } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 
 type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
 
 const adminOfficeNavItems = [
-  { href: "/office/admin-office", label: "摘要" },
-  { href: "/office/admin-office/email-requests", label: "邮箱申请" },
-  { href: "/office/admin-office/calendar", label: "日历" },
-  { href: "/office/admin-office/signups", label: "报名" },
+  { href: "/office/admin-office", enLabel: "Summary", zhLabel: "摘要" },
+  { href: "/office/admin-office/email-requests", enLabel: "Email requests", zhLabel: "邮箱申请" },
+  { href: "/office/admin-office/calendar", enLabel: "Calendar", zhLabel: "日历" },
+  { href: "/office/admin-office/signups", enLabel: "Signups", zhLabel: "报名" },
 ];
 
 const adminOfficeBadgeLabels: Record<string, string> = {
@@ -42,9 +43,11 @@ function isActivePath(pathname: string, href: string) {
 
 export function AdminOfficeModuleNav() {
   const pathname = usePathname();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   return (
-    <nav className="office-filter-bar" aria-label="行政导航">
+    <nav className="office-filter-bar" aria-label={isZh ? "行政导航" : "Admin Office navigation"}>
       {adminOfficeNavItems.map((item) => {
         const isActive = isActivePath(pathname, item.href);
         return (
@@ -54,7 +57,7 @@ export function AdminOfficeModuleNav() {
             href={item.href}
             key={item.href}
           >
-            {item.label}
+            {isZh ? item.zhLabel : item.enLabel}
           </Link>
         );
       })}
@@ -63,7 +66,8 @@ export function AdminOfficeModuleNav() {
 }
 
 export function AdminOfficeStatusBadge(props: { children: ReactNode; tone?: BadgeTone }) {
-  const label = typeof props.children === "string" ? adminOfficeBadgeLabels[props.children] ?? props.children : props.children;
+  const { locale } = useI18n();
+  const label = locale === "zh-CN" && typeof props.children === "string" ? adminOfficeBadgeLabels[props.children] ?? props.children : props.children;
   return <StatusBadge tone={props.tone ?? "neutral"}>{label}</StatusBadge>;
 }
 
