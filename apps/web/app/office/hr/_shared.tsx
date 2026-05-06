@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Children, cloneElement, isValidElement } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { DataTable, StatusBadge } from "@acre/ui";
 
 type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
@@ -26,14 +27,34 @@ export function HrDataTable(props: {
   gridTemplateColumns: string;
   children: ReactNode;
 }) {
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns: props.gridTemplateColumns,
+  };
+
   return (
-    <DataTable style={{ gridTemplateColumns: props.gridTemplateColumns }}>
-      <div className="office-table-header" role="row">
+    <DataTable>
+      <div className="office-table-header" role="row" style={gridStyle}>
         {props.columns.map((column) => (
           <span key={column} role="columnheader">{column}</span>
         ))}
       </div>
-      {props.children}
+      {Children.map(props.children, (child) => {
+        if (!isValidElement<{ className?: string; style?: CSSProperties }>(child)) {
+          return child;
+        }
+
+        const className = child.props.className ?? "";
+        if (!className.includes("office-table-row")) {
+          return child;
+        }
+
+        return cloneElement(child, {
+          style: {
+            ...child.props.style,
+            ...gridStyle,
+          },
+        });
+      })}
     </DataTable>
   );
 }

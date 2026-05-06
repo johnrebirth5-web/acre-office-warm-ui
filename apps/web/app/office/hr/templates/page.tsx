@@ -29,7 +29,10 @@ export default async function HrTemplatesPage() {
           <HrDataTable columns={["Template", "Type", "Company", "Sync", ""]} gridTemplateColumns="minmax(260px, 2fr) 170px 150px 130px 90px">
             {snapshot.templates.map((template) => (
               <div className="office-table-row" key={template.id} role="row">
-                <strong>{template.name}<span>{template.sourceUrl}</span></strong>
+                <div className="office-list-table-main office-hr-template-main">
+                  <strong>{template.name}</strong>
+                  <p>{template.sourceUrl || template.driveFileId || "No source"}</p>
+                </div>
                 <span>{template.type}</span>
                 <span>{template.company || "—"}</span>
                 <HrStatusBadge>{template.syncState}</HrStatusBadge>
@@ -43,7 +46,10 @@ export default async function HrTemplatesPage() {
         <HrDataTable columns={["Template", "Type", "Company", ""]} gridTemplateColumns="minmax(260px, 2fr) 170px 150px 90px">
           {snapshot.defaults.map((template) => (
             <div className="office-table-row" key={template.driveFileId} role="row">
-              <strong>{template.name}<span>{template.driveFileId}</span></strong>
+              <div className="office-list-table-main office-hr-template-main">
+                <strong>{template.name}</strong>
+                <p>{template.driveFileId}</p>
+              </div>
               <span>{template.type}</span>
               <span>{template.company}</span>
               <a href={template.sourceUrl} rel="noreferrer" target="_blank">Open</a>
