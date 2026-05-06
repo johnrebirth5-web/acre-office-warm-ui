@@ -38,6 +38,10 @@ Provide a real Back Office task list for transaction workflow, approvals, compli
   - fully signed
   - complete
   - reopened
+- HR checklist execution is a separate lightweight workflow:
+  - it can reuse `ChecklistTemplate` / `ChecklistTemplateItem` as a template source
+  - runtime state is stored in `HrChecklistInstance` / `HrChecklistInstanceItem`
+  - HR onboarding / offboarding checklists do not create or mutate transaction-only `TransactionTask` rows
 
 ## Current gaps
 

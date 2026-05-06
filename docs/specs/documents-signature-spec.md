@@ -41,6 +41,12 @@ Provide a real document workflow with structured documents, unsorted docs, inter
   - completion email delivery to every signature participant plus the configured reply-to inbox, including the finalized signed PDF as an attachment
   - immediate Google Drive sync attempt for original + signed copy, with visible failure state and manual retry
   - signature audit timeline alongside internal `Activity Log`
+- non-transaction signature contexts now support module-owned signing flows:
+  - `SignatureRequest.transactionId` is nullable
+  - existing transaction signing continues to use `transactionId`
+  - HR signing requests use `contextType + contextId`
+  - supported HR context values are `hr_onboarding`, `hr_offboarding`, and `hr_offer`
+  - public signing tokens reuse the existing no-login signing path
 - signature requests now support statuses:
   - draft
   - pending_send
@@ -71,7 +77,8 @@ Provide a real document workflow with structured documents, unsorted docs, inter
 
 - file storage is local filesystem MVP
 - external signing currently supports:
-  - transaction-first authoring only
+  - transaction-first authoring for the transaction detail workspace
+  - module-owned non-transaction authoring for HR contexts
   - PDF documents only
   - synchronous request-time email send, PDF finalization, and Drive sync
   - Step 1 can save a request before any fields exist, but send still requires at least one PDF field and clear signer assignment for multi-recipient requests
@@ -80,12 +87,12 @@ Provide a real document workflow with structured documents, unsorted docs, inter
 - no email ingestion workflow
 - no queue/worker-backed retry pipeline for email delivery, PDF finalization, or Drive sync
 - no OTP / extra signer identity verification beyond high-entropy link token + expiry + terminal-state invalidation
-- `SignatureRequest` is still transaction-scoped in the schema, so center/templates/subject membership metadata already exist but a fully generic non-transaction create flow is still follow-up work
+- there is not yet a broad standalone create-anything signature wizard outside module-specific entry points
 
 ## Future direction
 
 - replace storage with object storage
-- add a truly generic create flow outside transaction detail
+- add a broader generic create flow outside transaction detail and module-specific HR entry points
 - improve template management
 - add queue-backed retries / webhooks if the deployment model grows beyond synchronous request-time work
 - add future integration adapters without redesigning current models

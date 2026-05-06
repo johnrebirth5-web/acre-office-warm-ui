@@ -10,6 +10,7 @@ import {
   SignatureAuditEventType,
   SignatureDriveSyncStatus,
   SignatureFieldType,
+  SignatureArtifactKind,
   SignatureRecipientRole,
   SignatureRecipientStatus,
   SignatureRequestStatus,
@@ -352,7 +353,7 @@ export function mapSignatureAuditEntry(entry: SignatureAuditEntryRecord): Office
 
 export function mapSignatureRequest(request: {
   id: string;
-  transactionId: string;
+  transactionId: string | null;
   templateId?: string | null;
   formId: string | null;
   documentId: string | null;
@@ -439,6 +440,7 @@ export function mapSignatureRequest(request: {
 
   return {
     id: request.id,
+    transactionId: request.transactionId,
     templateId: request.templateId ?? request.template?.id ?? null,
     formId: request.formId,
     documentId: request.documentId,
@@ -1307,13 +1309,39 @@ export function buildLegacyPublicRecipient(request: OfficeSignatureRequest): Off
   };
 }
 
+function getOriginalSignatureArtifact(
+  request: {
+    artifacts?: Array<{
+      id: string;
+      kind: string;
+      title: string;
+      fileName: string;
+      mimeType: string;
+      fileSizeBytes: number;
+      storageKey: string;
+      storageUrl?: string | null;
+    }>;
+  },
+) {
+  return (
+    request.artifacts?.find((artifact) => artifact.kind === SignatureArtifactKind.original) ??
+    null
+  );
+}
+
 
 
 export async function getPublicSignatureRequestSnapshot(token: string): Promise<PublicSignatureRequestSnapshot | null> {
   let access = await getPublicSignatureRequestRecord(token);
   let request = access?.request ?? null;
 
-  if (!request?.document) {
+  if (!request) {
+    return null;
+  }
+
+  const originalArtifact = getOriginalSignatureArtifact(request);
+
+  if (!request.document && !originalArtifact) {
     return null;
   }
 
@@ -1328,6 +1356,9 @@ export async function getPublicSignatureRequestSnapshot(token: string): Promise<
     });
     access = await getPublicSignatureRequestRecord(token);
     request = access?.request ?? null;
+    if (!request) {
+      return null;
+    }
   } else {
     const currentRecipient =
       access?.currentRecipientId ? request.recipients.find((recipient) => recipient.id === access.currentRecipientId) ?? null : null;
@@ -1342,10 +1373,15 @@ export async function getPublicSignatureRequestSnapshot(token: string): Promise<
       });
       access = await getPublicSignatureRequestRecord(token);
       request = access?.request ?? null;
+      if (!request) {
+        return null;
+      }
     }
   }
 
-  if (!request?.document) {
+  const refreshedOriginalArtifact = getOriginalSignatureArtifact(request);
+
+  if (!request.document && !refreshedOriginalArtifact) {
     return null;
   }
 
@@ -1360,10 +1396,10 @@ export async function getPublicSignatureRequestSnapshot(token: string): Promise<
     submittedValues: collectSubmittedFieldValues(request.recipients),
     auditEntries: request.auditEntries.map(mapSignatureAuditEntry),
     document: {
-      id: request.document.id,
-      title: request.document.title,
-      fileName: request.document.fileName,
-      mimeType: request.document.mimeType
+      id: request.document?.id ?? refreshedOriginalArtifact!.id,
+      title: request.document?.title ?? refreshedOriginalArtifact!.title,
+      fileName: request.document?.fileName ?? refreshedOriginalArtifact!.fileName,
+      mimeType: request.document?.mimeType ?? refreshedOriginalArtifact!.mimeType
     }
   };
 }
@@ -1374,7 +1410,13 @@ export async function getPublicSignatureDocumentStorageRecord(token: string) {
   const access = await getPublicSignatureRequestRecord(token);
   const request = access?.request ?? null;
 
-  if (!request?.document) {
+  if (!request) {
+    return null;
+  }
+
+  const originalArtifact = getOriginalSignatureArtifact(request);
+
+  if (!request.document && !originalArtifact) {
     return null;
   }
 
@@ -1391,13 +1433,14 @@ export async function getPublicSignatureDocumentStorageRecord(token: string) {
     organizationId: request.organizationId,
     officeId: request.officeId,
     transactionId: request.transactionId,
-    documentId: request.document.id,
-    title: request.document.title,
-    fileName: request.document.fileName,
-    mimeType: request.document.mimeType,
-    storageKey: request.document.storageKey,
-    documentType: request.document.documentType,
-    linkedTaskId: request.document.linkedTaskId,
+    sourceKind: request.document ? "transaction_document" : "signature_artifact",
+    documentId: request.document?.id ?? originalArtifact!.id,
+    title: request.document?.title ?? originalArtifact!.title,
+    fileName: request.document?.fileName ?? originalArtifact!.fileName,
+    mimeType: request.document?.mimeType ?? originalArtifact!.mimeType,
+    storageKey: request.document?.storageKey ?? originalArtifact!.storageKey,
+    documentType: request.document?.documentType ?? "signature",
+    linkedTaskId: request.document?.linkedTaskId ?? null,
     offerId: request.offerId,
     fields: request.fields.map(mapSignatureField),
     submittedValues: collectSubmittedFieldValues(request.recipients)

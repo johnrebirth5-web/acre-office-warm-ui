@@ -92,11 +92,17 @@ export function normalizeSignatureRecipients(input: CreateSignatureRequestInput)
 
 
 export async function createSignatureRequest(input: CreateSignatureRequestInput): Promise<OfficeSignatureRequest | null> {
+  const transactionId = input.transactionId?.trim();
+
+  if (!transactionId) {
+    throw new Error("Transaction ID is required for transaction signature requests.");
+  }
+
   const signatureRequestId = await prisma.$transaction(async (tx) => {
     const [transaction, form, document, linkedOffer, existingRequest] = await Promise.all([
       tx.transaction.findFirst({
         where: {
-          id: input.transactionId,
+          id: transactionId,
           organizationId: input.organizationId
         },
         select: {
@@ -112,7 +118,7 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
         ? tx.transactionForm.findFirst({
             where: {
               id: input.formId,
-              transactionId: input.transactionId,
+              transactionId,
               organizationId: input.organizationId
             }
           })
@@ -121,19 +127,19 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
         ? tx.transactionDocument.findFirst({
             where: {
               id: input.documentId,
-              transactionId: input.transactionId,
+              transactionId,
               organizationId: input.organizationId
             }
           })
         : Promise.resolve(null),
-      getValidatedOfferLink(tx, input.organizationId, input.transactionId, input.offerId)
+      getValidatedOfferLink(tx, input.organizationId, transactionId, input.offerId)
       ,
       input.signatureRequestId
         ? tx.signatureRequest.findFirst({
             where: {
               id: input.signatureRequestId,
               organizationId: input.organizationId,
-              transactionId: input.transactionId
+              transactionId
             }
           })
         : Promise.resolve(null)
@@ -220,7 +226,7 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
           data: recipients.map((recipient, index) => ({
             organizationId: input.organizationId,
             officeId: payload.officeId,
-            transactionId: input.transactionId,
+            transactionId,
             signatureRequestId: existingRequest.id,
             role: recipient.role,
             name: recipient.name,
@@ -240,7 +246,7 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
       data: {
         organizationId: input.organizationId,
         officeId: payload.officeId,
-        transactionId: input.transactionId,
+        transactionId,
         offerId: payload.offerId,
         formId: payload.formId,
         documentId: payload.documentId,
@@ -268,7 +274,7 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
         data: recipients.map((recipient, index) => ({
           organizationId: input.organizationId,
           officeId: payload.officeId,
-          transactionId: input.transactionId,
+          transactionId,
           signatureRequestId: created.id,
           role: recipient.role,
           name: recipient.name,
@@ -343,8 +349,8 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
     const existing = await tx.signatureRequest.findFirst({
       where: {
         id: input.signatureRequestId,
-        transactionId: input.transactionId,
-        organizationId: input.organizationId
+        organizationId: input.organizationId,
+        ...(input.transactionId ? { transactionId: input.transactionId } : {})
       },
       include: {
         transaction: {
@@ -396,7 +402,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       throw new Error("A public signing token is required before sending the signature email.");
     }
 
-    if (input.action === "completed" && !input.completedDocumentId?.trim()) {
+    if (input.action === "completed" && existing.transactionId && !input.completedDocumentId?.trim()) {
       throw new Error("A completed signed PDF document is required before marking the request completed.");
     }
 
@@ -581,11 +587,13 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
         nextStatus = SignatureRequestStatus.completed;
         updateData.status = nextStatus;
         updateData.completedAt = now;
-        updateData.completedDocument = {
-          connect: {
-            id: input.completedDocumentId!
-          }
-        };
+        if (input.completedDocumentId?.trim()) {
+          updateData.completedDocument = {
+            connect: {
+              id: input.completedDocumentId
+            }
+          };
+        }
         break;
       case "declined":
         if (existing.recipients.length > 0) {
@@ -693,9 +701,11 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       entityId: saved.id,
       action,
       payload: {
-        officeId: existing.transaction.officeId,
-        transactionId: input.transactionId,
-        transactionLabel: buildTransactionObjectLabel(existing.transaction),
+        officeId: existing.transaction?.officeId ?? existing.officeId ?? null,
+        transactionId: existing.transactionId ?? undefined,
+        transactionLabel: existing.transaction
+          ? buildTransactionObjectLabel(existing.transaction)
+          : undefined,
         objectLabel: existing.document?.title ?? existing.form?.name ?? "Signature request",
         details: [
           `Recipient: ${saved.recipientName}`,
@@ -703,11 +713,13 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
           `Status: ${signatureStatusLabelMap[saved.status]}`
         ],
         changes: buildChanges(signatureStatusLabelMap[effectiveStatus], signatureStatusLabelMap[saved.status], "Signature status"),
-        contextHref: `/office/transactions/${input.transactionId}#transaction-forms-signatures`
+        contextHref: existing.transactionId
+          ? `/office/transactions/${existing.transactionId}#transaction-forms-signatures`
+          : undefined
       }
     });
 
-    if (input.action === "send" || input.action === "resend" || input.action === "advance" || input.action === "completed") {
+    if (existing.transaction && (input.action === "send" || input.action === "resend" || input.action === "advance" || input.action === "completed")) {
       const notificationType =
         input.action === "send" || input.action === "resend" || input.action === "advance"
           ? NotificationType.signature_pending
@@ -733,7 +745,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
         entityId: saved.id,
         title: notificationTitle,
         body: notificationBody,
-        actionUrl: `/office/transactions/${input.transactionId}#transaction-forms-signatures`
+        actionUrl: `/office/transactions/${existing.transactionId}#transaction-forms-signatures`
       });
     }
 
@@ -808,13 +820,15 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       });
     }
 
-    await reconcileLinkedWorkflowTasks(tx, {
-      organizationId: input.organizationId,
-      transactionId: input.transactionId,
-      actorMembershipId: input.actorMembershipId ?? null,
-      taskIds: [existing.form?.linkedTaskId ?? null, existing.document?.linkedTaskId ?? null],
-      reason: "Task workflow re-evaluated after a linked signature request changed."
-    });
+    if (existing.transactionId) {
+      await reconcileLinkedWorkflowTasks(tx, {
+        organizationId: input.organizationId,
+        transactionId: existing.transactionId,
+        actorMembershipId: input.actorMembershipId ?? null,
+        taskIds: [existing.form?.linkedTaskId ?? null, existing.document?.linkedTaskId ?? null],
+        reason: "Task workflow re-evaluated after a linked signature request changed."
+      });
+    }
 
     return saved.id;
   });

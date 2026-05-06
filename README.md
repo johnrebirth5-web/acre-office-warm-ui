@@ -3,7 +3,7 @@
 `Acre` 是一个面向房地产经纪公司内部团队的 Web 工作台。当前仓库实现的是 `Acre Agent OS` 的第一版工程骨架，服务对象是：
 
 - `Agent`：一线经纪人，使用 listings、轻 CRM、活动通知、资源库、AI 工具
-- `Office Team`：运营/管理人员，当前重点是 `Back Office`，参考 `Brokermint` 的 `Dashboard / Pipeline / Transactions / Contacts / Reports / Mail / Notifications / Account / Billing / Activity / Library / Accounting`
+- `Office Team`：运营/管理人员，当前重点是 `Back Office`，参考 `Brokermint` 的 `Dashboard / Pipeline / Transactions / Contacts / Reports / Mail / Notifications / Account / Billing / Activity / Library / Accounting / HR / Admin Office`
 - `Listing Studio`：面向 agent 的外部房源采集与客户材料工作台，通过 Chrome Extension 从 `StreetEasy / Zillow` 房源页一键保存进 Acre
 
 这不是客户前台网站。客户前台后续会是独立 surface，复用这里的 listings 和后台数据能力。
@@ -92,6 +92,8 @@
   - `Notifications`
   - `Account / My Profile`
   - `Billing / My Billing`
+  - `HR`
+  - `Admin Office`
   - `Activity`
   - `Library`
   - `Accounting`
@@ -108,10 +110,22 @@
     - 三个共享同一套代码的 company scope：
       - `Acre NY Realty Inc`
       - `Acre NY Rentals LLC`
-      - `Acre NJ LLC`
+    - `Acre NJ LLC`
     - `owner / office_admin / office_manager` 默认可切全部公司
     - 其他用户的 company access 由管理员在 `Settings > Users` 里配置
     - 业务数据继续按当前 company scope 读写，organization 级角色模板 / SMTP / Signature Drive 等配置仍共享
+- `HR` 是新的 Back Office 模块：
+  - 路由：`/office/hr`
+  - 覆盖 candidates、interviews、offer templates、onboarding、offboarding、HR checklist、HR signatures
+  - 公开入职窗口为 `/onboarding/[token]`，使用不可遍历 token hash，不要求登录
+  - HR 记录使用 `organizationId + officeId`，其中 `officeId = null` 表示 organization-wide / 跨公司 / 全员可见
+  - Google Calendar / Meet / Drive / Sheets 同步失败不会阻断主流程，只会记录 `sync_failed` 并允许后续重试
+  - AI 邮件和 termination letter 只生成草稿，不会后台自动发送
+- `Admin Office` 是新的 Back Office 行政模块：
+  - 路由：`/office/admin-office`
+  - 覆盖公司邮箱申请、全员 calendar、活动接龙、名单查看和 CSV export
+  - calendar / signup 复用现有 `Event` / `EventRsvp`，不新建平行 Calendar 系统
+  - 这个模块不复用也不修改 `/office/admin-assistant`；后者仍是 AI Admin Assistant 入口
 - `Dashboard` 当前保留原有高保真布局，但业务指标已改为真实数据库查询：
   - `Goal Tracking`
   - 当前登录用户 / 角色 / office access 摘要

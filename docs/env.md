@@ -12,11 +12,14 @@
 - transaction detail 下的 checklist/tasks 也已经依赖 `DATABASE_URL`
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
 - `/office/signatures` 中心和模板库也依赖 `DATABASE_URL`
+- `/office/hr`、`/office/admin-office` 和 `/onboarding/[token]` 也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
 - transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
+- HR 的 Google Calendar / Meet / Drive / Sheets 同步需要 `ACRE_GOOGLE_OAUTH_CLIENT_ID`、`ACRE_GOOGLE_OAUTH_CLIENT_SECRET`、`ACRE_GOOGLE_OAUTH_REDIRECT_URL`
 - `Settings > Signature Drive` 保存的 Google Drive service account 私钥也会使用系统设置加密 secret 做加密 / 解密；当前没有单独的 `GOOGLE_*` env 变量要求
 - `Settings > QuickBooks` 的 OAuth token 也会使用系统设置加密 secret 做加密 / 解密；QuickBooks client id / secret 仍来自环境变量，可使用 `QUICKBOOKS_*` 或 `ACRE_QUICKBOOKS_*`
+- HR Google OAuth refresh token 使用同一套设置加密 secret 加密后存储，不允许明文落库
 - `Office Accounting` 的 `Post to QuickBooks` payout statement 动作额外依赖 QuickBooks Online OAuth 和账户映射环境变量；缺失时不会创建本地“已同步”状态
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
@@ -54,6 +57,7 @@
 - 对 `/office/tasks` 也是必填
 - 对 `/office/accounting` 也是必填
 - 对 `/office/signatures` 和 `/office/signatures/templates` 也是必填
+- 对 `/office/hr`、`/office/admin-office` 和 `/onboarding/[token]` 也是必填
 - 对 transaction detail 下的 checklist/tasks 读写也是必填
 - 对 `/api/office/reports/export` 也是必填
 - 对 transaction detail 下的 finance 读写也是必填
@@ -100,6 +104,9 @@ Prisma 连接池调优补充：
 - `/office/accounting` 会失败
 - `/office/signatures` 会失败
 - `/office/signatures/templates` 会失败
+- `/office/hr` 会失败
+- `/office/admin-office` 会失败
+- `/onboarding/[token]` 会失败
 - `/login`、`/invite/[token]`、`/change-password` 和需要 session context 的 server-side 查询会失败
 - `/office/settings/users` 以及其邀请 / 解锁写接口会失败
 - transaction detail 下的 checklist/tasks route 会失败
@@ -262,6 +269,43 @@ ACRE_BASE_URL="https://acresystem.us"
 - 脚本仍可运行
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署、下载、handoff、invite、operational email action link 会按默认生产域名拼接链接
+
+### HR Google OAuth
+
+用途：
+
+- 启用 HR 模块的 Google Calendar / Meet / Drive / Sheets 同步
+- Calendar 用于面试 event create / update
+- Meet link 用于线上二面
+- Drive 用于 HR folder / upload / template references
+- Sheets 用于把面试记录追加到 `HR Tracker 2026`
+
+变量：
+
+```env
+ACRE_GOOGLE_OAUTH_CLIENT_ID="<google-oauth-client-id>"
+ACRE_GOOGLE_OAUTH_CLIENT_SECRET="<google-oauth-client-secret>"
+ACRE_GOOGLE_OAUTH_REDIRECT_URL="https://acresystem.us/api/office/settings/google/callback"
+```
+
+是否必填：
+
+- 只有需要连接 Google 同步时必填
+- 缺失时 HR 主流程仍可创建 candidate / interview / onboarding / offboarding
+- Google 同步动作会降级为未配置或失败状态，不会伪造 `synced`
+
+加密与安全：
+
+- Google refresh token 加密后写入 `OrganizationGoogleIntegration`
+- 加密优先使用 `ACRE_SETTINGS_ENCRYPTION_SECRET`
+- 缺失时可回退 `ACRE_SESSION_SECRET`
+- 不要把真实 client secret、refresh token 或授权 code 写进文档、PR、issue、聊天记录或 commit
+
+Google OAuth redirect：
+
+- 生产 Google app 应登记：
+  `https://acresystem.us/api/office/settings/google/callback`
+- 本地测试如果使用本地 callback，需要在 Google app 中额外登记当前本地地址
 
 ### `ACRE_FINANCE_NOTIFICATION_EMAIL`
 

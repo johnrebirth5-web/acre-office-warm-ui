@@ -3,6 +3,7 @@ import {
   IncomingUpdateStatus,
   OfferStatus,
   Prisma,
+  SignatureContextType,
   SignatureRequestStatus,
   TaskStatus,
   TransactionDocumentStatus,
@@ -33,6 +34,30 @@ export const activityLogActions = {
   agentOnboardingTemplateApplied: "agent.onboarding_template_applied",
   agentGoalCreated: "agent.goal_created",
   agentGoalUpdated: "agent.goal_updated",
+  hrCandidateCreated: "hr.candidate_created",
+  hrCandidateUpdated: "hr.candidate_updated",
+  hrCandidateStatusChanged: "hr.candidate_status_changed",
+  hrInterviewCreated: "hr.interview_created",
+  hrInterviewUpdated: "hr.interview_updated",
+  hrGoogleSyncSucceeded: "hr.google_sync_succeeded",
+  hrGoogleSyncFailed: "hr.google_sync_failed",
+  hrGoogleSyncRetried: "hr.google_sync_retried",
+  hrOnboardingCaseCreated: "hr.onboarding_case_created",
+  hrOnboardingDocumentUploaded: "hr.onboarding_document_uploaded",
+  hrOffboardingCaseCreated: "hr.offboarding_case_created",
+  hrChecklistItemCompleted: "hr.checklist_item_completed",
+  hrChecklistItemReopened: "hr.checklist_item_reopened",
+  hrSignatureRequestCreated: "hr.signature_request_created",
+  hrAiDraftGenerated: "hr.ai_draft_generated",
+  adminEmailRequestCreated: "admin_office.email_request_created",
+  adminEmailRequestApproved: "admin_office.email_request_approved",
+  adminEmailRequestCompleted: "admin_office.email_request_completed",
+  adminEmailRequestRejected: "admin_office.email_request_rejected",
+  adminOfficeEventCreated: "admin_office.event_created",
+  adminOfficeEventUpdated: "admin_office.event_updated",
+  adminOfficeEventSignupCreated: "admin_office.event_signup_created",
+  adminOfficeEventSignupCanceled: "admin_office.event_signup_canceled",
+  adminOfficeEventSignupExported: "admin_office.event_signup_exported",
   authBootstrapAdminCreated: "auth.bootstrap_admin_created",
   settingsUserIdentityChanged: "settings.user_identity_changed",
   settingsUserRoleChanged: "settings.user_role_changed",
@@ -216,6 +241,14 @@ export type ActivityLogEntityType =
   | "team"
   | "agent_onboarding_item"
   | "agent_goal"
+  | "hr_candidate"
+  | "hr_interview"
+  | "hr_onboarding_case"
+  | "hr_onboarding_document"
+  | "hr_offboarding_case"
+  | "hr_checklist_instance_item"
+  | "admin_email_request"
+  | "admin_office_event"
   | "membership"
   | "user_credential"
   | "invitation"
@@ -511,6 +544,30 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "agent.onboarding_template_applied": "Onboarding template applied",
   "agent.goal_created": "Goal created",
   "agent.goal_updated": "Goal updated",
+  "hr.candidate_created": "HR candidate created",
+  "hr.candidate_updated": "HR candidate updated",
+  "hr.candidate_status_changed": "HR candidate status changed",
+  "hr.interview_created": "HR interview created",
+  "hr.interview_updated": "HR interview updated",
+  "hr.google_sync_succeeded": "Google sync succeeded",
+  "hr.google_sync_failed": "Google sync failed",
+  "hr.google_sync_retried": "Google sync retried",
+  "hr.onboarding_case_created": "Onboarding case created",
+  "hr.onboarding_document_uploaded": "Onboarding document uploaded",
+  "hr.offboarding_case_created": "Offboarding case created",
+  "hr.checklist_item_completed": "HR checklist item completed",
+  "hr.checklist_item_reopened": "HR checklist item reopened",
+  "hr.signature_request_created": "HR signature request created",
+  "hr.ai_draft_generated": "AI draft generated",
+  "admin_office.email_request_created": "Email request created",
+  "admin_office.email_request_approved": "Email request approved",
+  "admin_office.email_request_completed": "Email request completed",
+  "admin_office.email_request_rejected": "Email request rejected",
+  "admin_office.event_created": "Admin Office event created",
+  "admin_office.event_updated": "Admin Office event updated",
+  "admin_office.event_signup_created": "Event signup created",
+  "admin_office.event_signup_canceled": "Event signup canceled",
+  "admin_office.event_signup_exported": "Event signup exported",
   "settings.user_identity_changed": "User identity updated",
   "settings.user_role_changed": "User role changed",
   "settings.user_activated": "User activated",
@@ -723,6 +780,30 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.agentOnboardingTemplateApplied ||
       action === activityLogActions.agentGoalCreated ||
       action === activityLogActions.agentGoalUpdated ||
+      action === activityLogActions.hrCandidateCreated ||
+      action === activityLogActions.hrCandidateUpdated ||
+      action === activityLogActions.hrCandidateStatusChanged ||
+      action === activityLogActions.hrInterviewCreated ||
+      action === activityLogActions.hrInterviewUpdated ||
+      action === activityLogActions.hrGoogleSyncSucceeded ||
+      action === activityLogActions.hrGoogleSyncFailed ||
+      action === activityLogActions.hrGoogleSyncRetried ||
+      action === activityLogActions.hrOnboardingCaseCreated ||
+      action === activityLogActions.hrOnboardingDocumentUploaded ||
+      action === activityLogActions.hrOffboardingCaseCreated ||
+      action === activityLogActions.hrChecklistItemCompleted ||
+      action === activityLogActions.hrChecklistItemReopened ||
+      action === activityLogActions.hrSignatureRequestCreated ||
+      action === activityLogActions.hrAiDraftGenerated ||
+      action === activityLogActions.adminEmailRequestCreated ||
+      action === activityLogActions.adminEmailRequestApproved ||
+      action === activityLogActions.adminEmailRequestCompleted ||
+      action === activityLogActions.adminEmailRequestRejected ||
+      action === activityLogActions.adminOfficeEventCreated ||
+      action === activityLogActions.adminOfficeEventUpdated ||
+      action === activityLogActions.adminOfficeEventSignupCreated ||
+      action === activityLogActions.adminOfficeEventSignupCanceled ||
+      action === activityLogActions.adminOfficeEventSignupExported ||
       action === activityLogActions.authBootstrapAdminCreated ||
       action === activityLogActions.settingsUserInvited ||
       action === activityLogActions.settingsUserInvitationRevoked ||
@@ -2897,6 +2978,20 @@ async function listOperationalAlerts(input: {
 
   for (const request of pendingSignatureRequests) {
     const referenceDate = request.sentAt ?? request.createdAt;
+    const objectLabel =
+      request.document?.title ??
+      request.form?.name ??
+      request.contextLabel ??
+      request.transaction?.title ??
+      "Signature request";
+    const href =
+      request.transactionId
+        ? `/office/transactions/${request.transactionId}#transaction-forms-signatures`
+        : request.contextType === SignatureContextType.hr_onboarding && request.contextId
+          ? `/office/hr/onboarding/${request.contextId}`
+          : request.contextType === SignatureContextType.hr_offboarding && request.contextId
+            ? `/office/hr/offboarding/${request.contextId}`
+            : "/office/signatures";
 
     alerts.push({
       id: `alert-signature-pending-${request.id}`,
@@ -2910,11 +3005,8 @@ async function listOperationalAlerts(input: {
       objectType: "document",
       title: "Signature request is still pending",
       summary: `${request.recipientName} has not completed signature yet.`,
-      objectLabel:
-        request.document?.title ??
-        request.form?.name ??
-        request.transaction.title,
-      href: `/office/transactions/${request.transactionId}#transaction-forms-signatures`,
+      objectLabel,
+      href,
       referenceLabel: buildAlertReferenceLabel("Sent", referenceDate),
       detailSummary: [
         `Recipient: ${request.recipientName}`,

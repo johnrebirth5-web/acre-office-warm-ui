@@ -136,6 +136,8 @@ export const enUSMessages = {
       transactions: "Transactions",
       offers: "Offers",
       contacts: "Contacts",
+      hr: "HR",
+      adminOffice: "Admin Office",
       reports: "Reports",
       performance: "Performance",
       activity: "Activity",

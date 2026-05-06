@@ -20,7 +20,7 @@ export type SignatureDriveSyncArtifactJob = {
 export type SignatureDriveSyncJob = {
   signatureRequestId: string;
   organizationId: string;
-  transactionId: string;
+  transactionId: string | null;
   contextType: string;
   contextLabel: string | null;
   templateCategory: "hr" | "finance" | "admin" | "transaction" | "project_sales" | "" | null;

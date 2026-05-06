@@ -37,6 +37,17 @@ export const databaseModules = [
   "vendors",
   "library_folders",
   "library_documents",
+  "hr_candidates",
+  "hr_interviews",
+  "hr_onboarding_cases",
+  "hr_onboarding_documents",
+  "hr_offboarding_cases",
+  "hr_document_templates",
+  "hr_identity_checklist_mappings",
+  "hr_checklist_instances",
+  "hr_checklist_instance_items",
+  "admin_email_requests",
+  "organization_google_integrations",
   "audit_logs",
   "transactions",
   "transaction_membership_links",
@@ -1292,3 +1303,96 @@ export type {
   OfficeTransactionOwnerOption,
   UpdateTransactionStatusInput,
 } from "./transactions";
+export {
+  getHrHomeSnapshot,
+  getHrCandidateDetail,
+  listHrCandidates,
+  createHrCandidate,
+  updateHrCandidate,
+  type HrCandidateDetailSnapshot,
+  type HrCandidateListSnapshot,
+  type HrCandidateRecord,
+} from "./hr-candidates";
+export {
+  listHrInterviews,
+  createHrInterview,
+  retryHrInterviewGoogleSync,
+  type CreateHrInterviewInput,
+  type HrInterviewRecord,
+} from "./hr-interviews";
+export {
+  ACRE_ONBOARDING_FORM_URL,
+  createHrOnboardingCase,
+  createHrOnboardingDocument,
+  createHrOnboardingToken,
+  hashHrOnboardingToken,
+  getHrOnboardingCaseDetail,
+  issueHrOnboardingToken,
+  listHrOnboardingCases,
+  resolveHrOnboardingToken,
+  submitHrOnboardingCase,
+  type HrOnboardingCaseRecord,
+  type PublicOnboardingSnapshot,
+} from "./hr-onboarding";
+export {
+  ACRE_OFFBOARDING_FORM_URL,
+  createHrOffboardingCase,
+  getHrOffboardingCaseDetail,
+  listHrOffboardingCases,
+  updateHrOffboardingCase,
+  type HrOffboardingCaseRecord,
+} from "./hr-offboarding";
+export {
+  defaultHrTemplateLinks,
+  getHrDocumentTemplate,
+  listHrDocumentTemplates,
+  renderHrDocumentTemplateBody,
+  saveHrDocumentTemplate,
+} from "./hr-document-templates";
+export {
+  createHrChecklistInstance,
+  defaultHrOffboardingChecklistItems,
+  defaultHrOnboardingChecklistItems,
+  updateHrChecklistItemStatus,
+} from "./hr-checklists";
+export {
+  generateOfflineInterviewConfirmationEmail,
+  generateTerminationLetterDraft,
+  generateWelcomeEmail,
+  type HrAiDraft,
+} from "./hr-ai";
+export {
+  createAdminEmailRequest,
+  getAdminEmailRequest,
+  listAdminEmailRequests,
+  updateAdminEmailRequestStatus,
+  type AdminEmailRequestRecord,
+} from "./admin-email-requests";
+export {
+  cancelAdminOfficeEventSignup,
+  createAdminOfficeEvent,
+  exportAdminOfficeEventSignupsCsv,
+  getAdminOfficeEventSignupSnapshot,
+  listAdminOfficeEvents,
+  signupForAdminOfficeEvent,
+  updateAdminOfficeEvent,
+  type AdminOfficeEventRecord,
+} from "./admin-office-events";
+export {
+  appendGoogleSheetRow,
+  buildGoogleAuthorizationUrl,
+  connectOrganizationGoogleIntegration,
+  createGoogleCalendarEvent,
+  createGoogleDriveFolder,
+  decryptGoogleSecret,
+  encryptGoogleSecret,
+  getOrganizationGoogleIntegration,
+  updateGoogleIntegrationFolders,
+  uploadGoogleDriveFile,
+} from "./google-integration";
+export {
+  createContextSignatureRequest,
+  createStandaloneSignatureArtifact,
+  type CreateContextSignatureRequestInput,
+  type CreateStandaloneSignatureArtifactInput,
+} from "./signature-context";

@@ -183,6 +183,42 @@ This file is the high-level product map for the current `Office / Back Office` s
   - thread participant changes only if the workflow genuinely needs re-openable group membership
   - external delivery only if a true email bridge is later implemented
 
+### HR
+
+- What it is for:
+  - Back Office HR workspace for candidates, interviews, offers, onboarding, employee documents, offboarding, HR checklist execution, and HR-specific signature requests.
+- Current maturity:
+  - `MVP`
+- Current notable behavior:
+  - `/office/hr` is a new Back Office module, not a Front Office route.
+  - HR records use `organizationId + officeId`; `officeId = null` means organization-wide / cross-company visibility.
+  - candidate, interview, onboarding, offboarding, document template, and HR checklist state live in dedicated Prisma models instead of overloading transaction-only workflow rows.
+  - onboarding exposes a no-login `/onboarding/[token]` upload window with hashed public tokens and shared document storage.
+  - Google OAuth wrappers support Calendar / Meet / Drive / Sheets sync; failures mark `sync_failed` and do not block the HR workflow.
+  - HR signatures use `SignatureRequest.contextType + contextId` with nullable `transactionId`, while existing transaction signatures continue using `transactionId`.
+  - AI helpers generate draft emails / letters only and never send in the background.
+- Follow-up work:
+  - richer Google retry queues once a background worker exists
+  - deeper template variable management
+  - optional HR-specific reporting after real usage settles
+
+### Admin Office
+
+- What it is for:
+  - Back Office administration workspace for company email requests, all-staff calendar events, event signups, attendee lists, and CSV export.
+- Current maturity:
+  - `MVP`
+- Current notable behavior:
+  - `/office/admin-office` is a new module and intentionally separate from `/office/admin-assistant`.
+  - company email requests support `pending / approved / completed / rejected`.
+  - Admin Office calendar reuses `Event` and `EventRsvp` with minimal extensions for signup requirements, capacity, signup close time, and export metadata.
+  - org-wide / all-staff events use `officeId = null`.
+  - existing `/agent/calendar`, `/api/agent/events`, and RSVP behavior remain on the same Event/Rsvp foundation.
+- Follow-up work:
+  - richer recurring-event support only if the shared Event model grows it
+  - optional notification reminders for signup deadlines
+  - stronger export filtering if operations needs it
+
 ### Account / My Profile
 
 - What it is for:
@@ -283,10 +319,11 @@ This file is the high-level product map for the current `Office / Back Office` s
   - transaction signature authoring now starts with `Recipients and delivery`, then unlocks the PDF field-placement step after the request draft is saved, so multi-signer ownership is configured before fields are mapped.
   - `/office/signatures/templates` stores reusable signature templates, but the current authoring flow still starts from a configured signature request instead of a standalone blank-canvas designer.
   - `Settings > Signature Drive` stores one organization-level Google Drive service account configuration and folder mapping; completed requests synchronously attempt to upload original and signed copies, and failed sync can be retried from the center page.
-  - first-phase creation is still transaction-first under the hood even when the request is tagged as `HR / Finance / Admin / Generic`, so the center currently acts more as a unified operations / template / archive workspace than a fully generic create-anywhere entry point.
+  - `SignatureRequest.transactionId` is now nullable for non-transaction contexts. Existing transaction signatures still use `transactionId`; HR signatures use `contextType + contextId` for `hr_onboarding`, `hr_offboarding`, and `hr_offer`.
+  - the center still acts as the unified tracking / template / archive workspace, while module-specific create flows can create context-bound signature requests.
 - Follow-up work:
   - object storage replacement for local file storage
-  - a truly generic non-transaction create flow
+  - a broader user-facing generic create flow outside module-specific entry points
   - richer template management
   - queue-backed retries / stronger signer verification
   - future vendor integrations

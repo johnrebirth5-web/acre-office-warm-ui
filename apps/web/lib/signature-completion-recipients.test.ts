@@ -6,6 +6,7 @@ import { listSignatureCompletionRecipients } from "./signature-completion-recipi
 function buildSignatureRequest(overrides: Partial<OfficeSignatureRequest> = {}): OfficeSignatureRequest {
   return {
     id: overrides.id ?? "request-1",
+    transactionId: overrides.transactionId ?? "tx-1",
     templateId: overrides.templateId ?? null,
     formId: overrides.formId ?? null,
     documentId: overrides.documentId ?? "document-1",

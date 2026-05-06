@@ -17,6 +17,7 @@ import {
   canViewOfficeChecklists,
   canViewOfficeContacts,
   canViewOfficeFields,
+  canViewOfficeHr,
   canViewOfficeLibrary,
   canViewOfficeOffers,
   canViewOfficeReports,
@@ -24,6 +25,7 @@ import {
   canViewOfficeTeams,
   canViewOfficeTransactions,
   canViewOfficeUsers,
+  canViewAdminOffice,
   type PermissionSubject,
 } from "@acre/auth";
 import {
@@ -76,6 +78,16 @@ function getNavGroups(
           label: t((messages) => messages.officeNav.items.contacts),
           href: "/office/contacts",
           isVisible: canViewOfficeContacts,
+        },
+        {
+          label: t((messages) => messages.officeNav.items.hr),
+          href: "/office/hr",
+          isVisible: canViewOfficeHr,
+        },
+        {
+          label: t((messages) => messages.officeNav.items.adminOffice),
+          href: "/office/admin-office",
+          isVisible: canViewAdminOffice,
         },
         {
           label: t((messages) => messages.officeNav.items.reports),

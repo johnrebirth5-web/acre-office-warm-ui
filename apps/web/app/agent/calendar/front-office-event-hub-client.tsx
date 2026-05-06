@@ -19,7 +19,7 @@ type FrontOfficeEventHubClientProps = {
 type EventFormState = {
   title: string;
   description: string;
-  eventType: "activity" | "training" | "admin";
+  eventType: "activity" | "meeting" | "training" | "admin" | "broker_tour" | "other";
   visibility: "all_agents" | "office_only" | "invite_only";
   startsAt: string;
   endsAt: string;
@@ -1279,8 +1279,11 @@ export function FrontOfficeEventHubClient({
                     value={formState.eventType}
                   >
                     <option value="activity">Activity</option>
+                    <option value="meeting">Meeting</option>
                     <option value="training">Training</option>
                     <option value="admin">Admin</option>
+                    <option value="broker_tour">Broker Tour</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
