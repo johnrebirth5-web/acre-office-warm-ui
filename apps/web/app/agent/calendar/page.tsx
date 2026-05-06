@@ -68,7 +68,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     : targetAppointmentId || calendarViewFromFilters !== "all"
       ? calendarViewFromFilters
       : "month";
-  const activeCalendarViewConfig = getCalendarViewConfig(activeCalendarView);
+  const activeCalendarViewConfig = getCalendarViewConfig(activeCalendarView, isZh);
   const activeCalendarViewPatch = hasExplicitCalendarView
     ? getCalendarViewRoutePatch(activeCalendarView)
     : null;

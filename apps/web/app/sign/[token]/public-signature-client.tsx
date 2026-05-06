@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, FormField, TextInput } from "@acre/ui";
 import type { OfficeSignatureField, PublicSignatureRequestSnapshot } from "@acre/db";
 import { usePdfPreview } from "../../../components/signature/use-pdf-preview";
+import { useI18n } from "../../../lib/i18n/client";
 import { getRecipientEditableFields } from "../../../lib/public-signature-access";
 import { SignatureStatusCallout } from "./signature-status-callout";
 
@@ -63,7 +64,7 @@ type CalloutState =
     }
   | null;
 
-function formatStatusDate(value: string | null | undefined) {
+function formatStatusDate(value: string | null | undefined, isZh: boolean) {
   if (!value) {
     return "";
   }
@@ -73,7 +74,7 @@ function formatStatusDate(value: string | null | undefined) {
     return value.slice(0, 10);
   }
 
-  return parsed.toLocaleDateString("en-US", {
+  return parsed.toLocaleDateString(isZh ? "zh-CN" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -89,30 +90,34 @@ function buildMailtoHref(address: string | null | undefined, subject: string, bo
   return `mailto:${address?.trim() || ""}?${params.toString()}`;
 }
 
-function buildSignedCopyAction(token: string) {
+function buildSignedCopyAction(token: string, isZh: boolean) {
   return {
-    label: "下载已签署副本",
+    label: isZh ? "下载已签署副本" : "Download signed copy",
     href: `/api/public/signatures/${encodeURIComponent(token)}/document`,
     download: true
   };
 }
 
-function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: string): CalloutState {
-  const senderDisplayName = snapshot.request.senderDisplayName || "发送人";
+function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: string, isZh: boolean): CalloutState {
+  const senderDisplayName = snapshot.request.senderDisplayName || (isZh ? "发送人" : "sender");
   const requestNewLinkAction = {
-    label: "请求新链接",
+    label: isZh ? "请求新链接" : "Request new link",
     href: buildMailtoHref(
       snapshot.request.senderReplyTo,
-      `Request a new signing link for ${snapshot.document.title}`,
-      `Hi ${senderDisplayName},\n\nThis signing link expired. Please send me a new link for "${snapshot.document.title}".\n\nThank you.`
+      isZh ? `请求新的签署链接：${snapshot.document.title}` : `Request a new signing link for ${snapshot.document.title}`,
+      isZh
+        ? `${senderDisplayName}，你好：\n\n这个签署链接已过期。请重新发送 "${snapshot.document.title}" 的签署链接。\n\n谢谢。`
+        : `Hi ${senderDisplayName},\n\nThis signing link expired. Please send me a new link for "${snapshot.document.title}".\n\nThank you.`
     )
   };
   const contactSenderAction = {
-    label: "联系发送人",
+    label: isZh ? "联系发送人" : "Contact sender",
     href: buildMailtoHref(
       snapshot.request.senderReplyTo,
-      `Question about ${snapshot.document.title}`,
-      `Hi ${senderDisplayName},\n\nI need help with the signing request for "${snapshot.document.title}".\n\nThank you.`
+      isZh ? `关于 ${snapshot.document.title} 的问题` : `Question about ${snapshot.document.title}`,
+      isZh
+        ? `${senderDisplayName}，你好：\n\n我需要协助处理 "${snapshot.document.title}" 的签署请求。\n\n谢谢。`
+        : `Hi ${senderDisplayName},\n\nI need help with the signing request for "${snapshot.document.title}".\n\nThank you.`
     )
   };
 
@@ -120,8 +125,10 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "success",
       icon: "check",
-      title: `你已在 ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt) || "之前访问时"} 签署过这个文件。`,
-      action: buildSignedCopyAction(token)
+      title: isZh
+        ? `你已在 ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt, isZh) || "之前访问时"} 签署过这个文件。`
+        : `You signed this file on ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt, isZh) || "an earlier visit"}.`,
+      action: buildSignedCopyAction(token, isZh)
     };
   }
 
@@ -133,7 +140,7 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "x",
-      title: "发送人已取消这个签署请求。",
+      title: isZh ? "发送人已取消这个签署请求。" : "The sender canceled this signing request.",
       action: contactSenderAction
     };
   }
@@ -142,7 +149,9 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "warning",
       icon: "clock",
-      title: `这个链接已在 ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt) || "较早日期"} 过期。`,
+      title: isZh
+        ? `这个链接已在 ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt, isZh) || "较早日期"} 过期。`
+        : `This link expired on ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt, isZh) || "an earlier date"}.`,
       action: requestNewLinkAction
     };
   }
@@ -151,8 +160,8 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "x",
-      title: "这个签署请求已被拒签。",
-      description: "如果仍需查看这个文件，请联系发送人。",
+      title: isZh ? "这个签署请求已被拒签。" : "This signing request was declined.",
+      description: isZh ? "如果仍需查看这个文件，请联系发送人。" : "Contact the sender if you still need to view this file.",
       action: contactSenderAction
     };
   }
@@ -161,8 +170,8 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "timer",
-      title: "这个签署步骤尚未激活。",
-      description: "请等待发送人激活你的签署顺序。"
+      title: isZh ? "这个签署步骤尚未激活。" : "This signing step is not active yet.",
+      description: isZh ? "请等待发送人激活你的签署顺序。" : "Wait for the sender to activate your signing order."
     };
   }
 
@@ -170,15 +179,15 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "timer",
-      title: "这个签署请求尚未准备好。",
-      description: "发送人仍需完成这个文件的准备。"
+      title: isZh ? "这个签署请求尚未准备好。" : "This signing request is not ready yet.",
+      description: isZh ? "发送人仍需完成这个文件的准备。" : "The sender still needs to finish preparing this file."
     };
   }
 
   return null;
 }
 
-function buildInlineErrorCallout(errorMessage: string): CalloutState {
+function buildInlineErrorCallout(errorMessage: string, isZh: boolean): CalloutState {
   if (!errorMessage.trim()) {
     return null;
   }
@@ -187,14 +196,14 @@ function buildInlineErrorCallout(errorMessage: string): CalloutState {
     return {
       tone: "info",
       icon: "timer",
-      title: "尝试次数过多，请几分钟后再试。"
+      title: isZh ? "尝试次数过多，请几分钟后再试。" : "Too many attempts. Please try again in a few minutes."
     };
   }
 
   return {
     tone: "error",
     icon: "x",
-    title: "暂时无法完成该操作。",
+    title: isZh ? "暂时无法完成该操作。" : "This action cannot be completed right now.",
     description: errorMessage
   };
 }
@@ -218,6 +227,8 @@ function resetSignatureCanvas(canvas: HTMLCanvasElement | null) {
 }
 
 export function PublicSignatureClient({ token, snapshot }: PublicSignatureClientProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const { pages, isLoading, error: previewError } = usePdfPreview(`/api/public/signatures/${token}/document`);
   const [values, setValues] = useState<SignatureValueMap>(() => buildInitialValues(snapshot));
   const [activeSignatureFieldId, setActiveSignatureFieldId] = useState("");
@@ -229,11 +240,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const [completed, setCompleted] = useState(snapshot.request.statusKey === "completed");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const statusCallout = useMemo(() => buildStatusCallout(snapshot, token), [snapshot, token]);
-  const submitErrorCallout = useMemo(() => buildInlineErrorCallout(submitError), [submitError]);
-  const previewErrorCallout = useMemo(() => buildInlineErrorCallout(previewError), [previewError]);
-  const senderDisplayName = snapshot.request.senderDisplayName || "Your Acre agent";
-  const expiresLabel = formatStatusDate(snapshot.request.expiresAt);
+  const statusCallout = useMemo(() => buildStatusCallout(snapshot, token, isZh), [isZh, snapshot, token]);
+  const submitErrorCallout = useMemo(() => buildInlineErrorCallout(submitError, isZh), [isZh, submitError]);
+  const previewErrorCallout = useMemo(() => buildInlineErrorCallout(previewError, isZh), [isZh, previewError]);
+  const senderDisplayName = snapshot.request.senderDisplayName || (isZh ? "你的 Acre 经纪人" : "Your Acre agent");
+  const expiresLabel = formatStatusDate(snapshot.request.expiresAt, isZh);
   const signatureAccessContext = useMemo(
     () => ({
       fields: snapshot.fields,
@@ -391,7 +402,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
     const imageDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("无法读取签名图片。"));
+      reader.onerror = () => reject(new Error(isZh ? "无法读取签名图片。" : "Unable to read the signature image."));
       reader.readAsDataURL(file);
     });
 
@@ -420,12 +431,12 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error ?? "无法签署这个文件。");
+        throw new Error(payload?.error ?? (isZh ? "无法签署这个文件。" : "Unable to sign this file."));
       }
 
       setCompleted(true);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "无法签署这个文件。");
+      setSubmitError(error instanceof Error ? error.message : isZh ? "无法签署这个文件。" : "Unable to sign this file.");
     } finally {
       setPendingSubmit(false);
     }
@@ -435,51 +446,53 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
     <div className="public-signature-shell">
       <aside className="public-signature-sidebar">
         <div className="public-signature-sidebar-summary">
-          <p className="public-signature-eyebrow">Acre 签署请求</p>
+          <p className="public-signature-eyebrow">{isZh ? "Acre 签署请求" : "Acre signing request"}</p>
           <h1>{snapshot.document.title}</h1>
-          <p className="public-signature-sidebar-description">{senderDisplayName} 邀请你签署这个文件。</p>
+          <p className="public-signature-sidebar-description">
+            {isZh ? `${senderDisplayName} 邀请你签署这个文件。` : `${senderDisplayName} invited you to sign this file.`}
+          </p>
         </div>
 
         <div className="public-signature-meta">
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>收件人</strong>
+            <strong>{isZh ? "收件人" : "Recipient"}</strong>
             <span>{snapshot.currentRecipient.name}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>发送人</strong>
+            <strong>{isZh ? "发送人" : "Sender"}</strong>
             <span>{senderDisplayName}</span>
           </p>
           {expiresLabel ? (
             <p className="public-signature-meta-item public-signature-meta-item-primary">
-              <strong>过期时间</strong>
+              <strong>{isZh ? "过期时间" : "Expires"}</strong>
               <span>{expiresLabel}</span>
             </p>
           ) : null}
           <p className="public-signature-meta-item public-signature-meta-item-secondary">
-            <strong>邮箱</strong>
+            <strong>{isZh ? "邮箱" : "Email"}</strong>
             <span>{snapshot.currentRecipient.email}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-secondary">
-            <strong>角色</strong>
+            <strong>{isZh ? "角色" : "Role"}</strong>
             <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
           </p>
         </div>
 
         <details className="public-signature-sidebar-details">
-          <summary>详情</summary>
+          <summary>{isZh ? "详情" : "Details"}</summary>
           <div className="public-signature-sidebar-details-body">
-            <p>{senderDisplayName} 邀请你签署这个文件。</p>
+            <p>{isZh ? `${senderDisplayName} 邀请你签署这个文件。` : `${senderDisplayName} invited you to sign this file.`}</p>
             <div className="public-signature-sidebar-details-list">
               <div className="public-signature-sidebar-details-item">
-                <strong>邮箱</strong>
+                <strong>{isZh ? "邮箱" : "Email"}</strong>
                 <span>{snapshot.currentRecipient.email}</span>
               </div>
               <div className="public-signature-sidebar-details-item">
-                <strong>角色</strong>
+                <strong>{isZh ? "角色" : "Role"}</strong>
                 <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
               </div>
             </div>
-            {!completed && !statusCallout ? <p className="public-signature-helper">文件上只显示分配给你的字段。</p> : null}
+            {!completed && !statusCallout ? <p className="public-signature-helper">{isZh ? "文件上只显示分配给你的字段。" : "The file only shows fields assigned to you."}</p> : null}
           </div>
         </details>
 
@@ -495,9 +508,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         ) : null}
         {completed && !statusCallout ? (
           <SignatureStatusCallout
-            action={buildSignedCopyAction(token)}
+            action={buildSignedCopyAction(token, isZh)}
             icon="check"
-            title="文件已成功签署。"
+            title={isZh ? "文件已成功签署。" : "The file was signed successfully."}
             tone="success"
           />
         ) : null}
@@ -510,11 +523,21 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
             tone={submitErrorCallout.tone}
           />
         ) : null}
-        {!completed && !statusCallout ? <p className="public-signature-helper public-signature-sidebar-helper-desktop">文件上只显示分配给你的字段。</p> : null}
+        {!completed && !statusCallout ? <p className="public-signature-helper public-signature-sidebar-helper-desktop">{isZh ? "文件上只显示分配给你的字段。" : "The file only shows fields assigned to you."}</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
-            {pendingSubmit ? "提交中..." : snapshot.currentRecipient.roleKey === "approver" && editableFieldCount === 0 ? "批准此步骤" : "提交签名"}
+            {pendingSubmit
+              ? isZh
+                ? "提交中..."
+                : "Submitting..."
+              : snapshot.currentRecipient.roleKey === "approver" && editableFieldCount === 0
+                ? isZh
+                  ? "批准此步骤"
+                  : "Approve this step"
+                : isZh
+                  ? "提交签名"
+                  : "Submit signature"}
           </Button>
         ) : null}
       </aside>
@@ -530,7 +553,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
             tone={statusCallout.tone}
           />
         ) : null}
-        {isLoading ? <p className="public-signature-helper">正在加载文件预览...</p> : null}
+        {isLoading ? <p className="public-signature-helper">{isZh ? "正在加载文件预览..." : "Loading file preview..."}</p> : null}
         {previewErrorCallout ? (
           <SignatureStatusCallout
             action={previewErrorCallout.action}
@@ -544,9 +567,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         <div className="public-signature-pages">
           {pages.map((page) => (
             <section className="public-signature-page" key={page.pageNumber}>
-              <div className="public-signature-page-label">第 {page.pageNumber} 页</div>
+              <div className="public-signature-page-label">{isZh ? `第 ${page.pageNumber} 页` : `Page ${page.pageNumber}`}</div>
               <div className="public-signature-page-frame">
-                <img alt={`可签署文件第 ${page.pageNumber} 页`} height={page.height} src={page.imageUrl} width={page.width} />
+                <img alt={isZh ? `可签署文件第 ${page.pageNumber} 页` : `Signable file page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
                 {editableFields
                   .filter((field) => field.page === page.pageNumber)
                   .map((field) => {
@@ -607,9 +630,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         <div className="public-signature-modal" onClick={closeSignatureModal}>
           <div className="public-signature-modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="public-signature-modal-head">
-              <h2>添加签名</h2>
+              <h2>{isZh ? "添加签名" : "Add signature"}</h2>
               <button onClick={closeSignatureModal} type="button">
-                关闭
+                {isZh ? "关闭" : "Close"}
               </button>
             </div>
 
@@ -621,7 +644,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                   onClick={() => setSignatureMode(mode)}
                   type="button"
                 >
-                  {mode === "draw" ? "手写" : mode === "type" ? "输入" : "上传"}
+                  {mode === "draw" ? (isZh ? "手写" : "Draw") : mode === "type" ? (isZh ? "输入" : "Type") : isZh ? "上传" : "Upload"}
                 </button>
               ))}
             </div>
@@ -641,11 +664,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      清除签名
+                      {isZh ? "清除签名" : "Clear signature"}
                     </Button>
                   ) : null}
                   <Button onClick={closeSignatureModal} type="button" variant="secondary">
-                    完成
+                    {isZh ? "完成" : "Done"}
                   </Button>
                 </div>
               </div>
@@ -653,18 +676,18 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
             {signatureMode === "type" ? (
               <div className="public-signature-type-panel">
-                <FormField label="输入签名">
+                <FormField label={isZh ? "输入签名" : "Typed signature"}>
                   <TextInput onChange={(event) => setTypedSignature(event.target.value)} value={typedSignature} />
                 </FormField>
                 <div className="public-signature-typed-preview public-signature-typed-preview-large">{typedSignature}</div>
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      清除签名
+                      {isZh ? "清除签名" : "Clear signature"}
                     </Button>
                   ) : null}
                   <Button onClick={applyTypedSignature} type="button">
-                    使用输入签名
+                    {isZh ? "使用输入签名" : "Use typed signature"}
                   </Button>
                 </div>
               </div>
@@ -682,7 +705,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      清除签名
+                      {isZh ? "清除签名" : "Clear signature"}
                     </Button>
                   ) : null}
                 </div>

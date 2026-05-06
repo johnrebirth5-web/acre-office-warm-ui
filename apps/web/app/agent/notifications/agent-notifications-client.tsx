@@ -345,6 +345,39 @@ function translateNotificationCopy(label: string, isZh: boolean) {
     All: "全部",
     "Unread only": "仅未读",
     "Read only": "仅已读",
+    "Follow-up that is already due for your own clients.": "你自己客户中已经到期的跟进。",
+    "Appointment updates that still need confirmation, reschedule, or a saved next step.": "仍需要确认、改期或保存下一步的预约更新。",
+    "Tracked sends that never opened or went quiet after the last signal.": "已追踪分享从未打开，或最后一次信号后陷入沉默。",
+    "Clients that have gone quiet long enough to need a recovery pass.": "沉默时间已经足够长、需要重新唤回的客户。",
+    "Possible duplicates that should be resolved before more work lands on the wrong client record.": "可能重复的记录，需要在更多工作落到错误客户档案前处理。",
+    "Appointments waiting on an explicit confirmation deadline.": "正在等待明确确认截止时间的预约。",
+    "Clients asked to move the meeting and now need the next follow-up touch.": "客户要求调整会议时间，现在需要下一次跟进触达。",
+    "Follow-up pressure is coming from the promised next touch, not just the meeting start.": "跟进压力来自承诺的下一次触达，而不只是会议开始时间。",
+    "Near-term meetings surfacing because the calendar commitment itself is approaching.": "近期会议因日历承诺临近而浮到前面。",
+    "Use these when the next step still belongs with the agent.": "下一步仍由经纪人处理时使用这些通知。",
+    "Use these when the next action belongs in the formal transaction or operations workflow.": "下一步属于正式交易或运营工作流时使用这些通知。",
+    "Use these for office-wide updates that do not belong in your personal follow-up list.": "用于办公室范围更新，不放入你的个人跟进列表。",
+    "Use these for information you may want to see without turning it into a task.": "用于你可能需要看到、但不需要转成任务的信息。",
+    "Shared follow-up tasks that have already slipped past the promised due time.": "已经超过承诺到期时间的共享跟进任务。",
+    "Tracked sends that stayed unopened or opened once and then went quiet.": "已追踪分享保持未打开，或打开一次后陷入沉默。",
+    "Clients with enough inactivity to need leadership attention.": "活动停滞到需要负责人关注的客户。",
+    "Calendar follow-up view": "日历跟进视图",
+    "Listing share view": "房源分享视图",
+    "Recovery view": "唤回视图",
+    "Follow-up view": "跟进视图",
+    "Calendar follow-up": "日历跟进",
+    "Stay on this cleanup view": "留在此清理视图",
+    "Open this cleanup view": "打开此清理视图",
+    "Stay on this team view": "留在此团队视图",
+    "Open this team view": "打开此团队视图",
+    "Stay on this reminder focus": "留在此提醒重点",
+    "Open this reminder focus": "打开此提醒重点",
+    "Stay on this notice view": "留在此通知视图",
+    "Open this notice view": "打开此通知视图",
+    "Open the cleanup view and resolve the next touch.": "打开清理视图并处理下一次触达。",
+    "Open the team view and decide where to intervene.": "打开团队视图并判断该介入哪里。",
+    "Open the reminder focus and resolve the next touch.": "打开提醒重点并处理下一次触达。",
+    "Open the notice view and review the next notice.": "打开通知视图并查看下一条通知。",
   };
 
   return copyMap[label] ?? label;
@@ -1134,8 +1167,8 @@ export function AgentNotificationsClient({
 
       return {
         key: track.key,
-        label: track.label,
-        description: track.description,
+        label: translateNotificationCopy(track.label, isZh),
+        description: translateNotificationCopy(track.description, isZh),
         count,
         tone:
           activeActivityView === "personal_cleanup" &&
@@ -1160,12 +1193,12 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "personal_cleanup" &&
           activeCleanupFilter === track.key
-            ? "Stay on this cleanup view"
-            : "Open this cleanup view",
+            ? translateNotificationCopy("Stay on this cleanup view", isZh)
+            : translateNotificationCopy("Open this cleanup view", isZh),
         nextStepLabel:
           matchingItems[0]?.nextStepLabel ??
-          "Open the cleanup view and resolve the next touch.",
-        sectionLabel,
+          translateNotificationCopy("Open the cleanup view and resolve the next touch.", isZh),
+        sectionLabel: translateNotificationCopy(sectionLabel, isZh),
         meta: [
           `Target · ${sectionLabel}`,
           `${count} item(s) in scope`,
@@ -1186,8 +1219,8 @@ export function AgentNotificationsClient({
 
       return {
         key: group.key,
-        label: group.label,
-        description: group.description,
+        label: translateNotificationCopy(group.label, isZh),
+        description: translateNotificationCopy(group.description, isZh),
         count,
         tone:
           activeActivityView === "team_cleanup" &&
@@ -1207,12 +1240,12 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "team_cleanup" &&
           activeLeadershipFilter === group.key
-            ? "Stay on this team view"
-            : "Open this team view",
+            ? translateNotificationCopy("Stay on this team view", isZh)
+            : translateNotificationCopy("Open this team view", isZh),
         nextStepLabel:
           nextItem?.nextStepLabel ??
-          "Open the team view and decide where to intervene.",
-        sectionLabel: group.label,
+          translateNotificationCopy("Open the team view and decide where to intervene.", isZh),
+        sectionLabel: translateNotificationCopy(group.label, isZh),
         meta: [
           `Target · ${group.label}`,
           count > matchingItems.length && matchingItems.length > 0
@@ -1241,8 +1274,8 @@ export function AgentNotificationsClient({
 
       return {
         key: group.key,
-        label: group.label,
-        description: group.description,
+        label: translateNotificationCopy(group.label, isZh),
+        description: translateNotificationCopy(group.description, isZh),
         count: matchingCards.length,
         tone:
           activeActivityView === "appointment_reminders" &&
@@ -1264,12 +1297,12 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "appointment_reminders" &&
           activeReminderFilter === group.key
-            ? "Stay on this reminder focus"
-            : "Open this reminder focus",
+            ? translateNotificationCopy("Stay on this reminder focus", isZh)
+            : translateNotificationCopy("Open this reminder focus", isZh),
         nextStepLabel:
           nextCard?.nextStepLabel ??
-          "Open the reminder focus and resolve the next touch.",
-        sectionLabel: nextCard?.sectionLabel ?? "Calendar follow-up",
+          translateNotificationCopy("Open the reminder focus and resolve the next touch.", isZh),
+        sectionLabel: translateNotificationCopy(nextCard?.sectionLabel ?? "Calendar follow-up", isZh),
         meta: [
           `Target · ${nextCard?.sectionLabel ?? "Calendar follow-up"}`,
           `${matchingCards.length} notice(s) in scope`,
@@ -1297,8 +1330,8 @@ export function AgentNotificationsClient({
 
       return {
         key: group.key,
-        label: group.label,
-        description: group.description,
+        label: translateNotificationCopy(group.label, isZh),
+        description: translateNotificationCopy(group.description, isZh),
         count: matchingCards.length,
         tone:
           activeActivityView === "general_notices" &&
@@ -1320,12 +1353,12 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "general_notices" &&
           activeNoticeStreamFilter === group.key
-            ? "Stay on this notice view"
-            : "Open this notice view",
+            ? translateNotificationCopy("Stay on this notice view", isZh)
+            : translateNotificationCopy("Open this notice view", isZh),
         nextStepLabel:
           nextCard?.nextStepLabel ??
-          "Open the notice view and review the next notice.",
-        sectionLabel: nextCard?.sectionLabel ?? "Notices",
+          translateNotificationCopy("Open the notice view and review the next notice.", isZh),
+        sectionLabel: translateNotificationCopy(nextCard?.sectionLabel ?? "Notices", isZh),
         meta: [
           `Target · ${nextCard?.sectionLabel ?? "Notices"}`,
           `${matchingCards.length} notice(s) in scope`,

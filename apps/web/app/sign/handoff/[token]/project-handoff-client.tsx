@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@acre/ui";
+import { useI18n } from "../../../../lib/i18n/client";
 import {
   ProjectSigningExperience,
   type ProjectSigningDocument,
@@ -38,6 +39,8 @@ export function ProjectHandoffClient(props: {
   projectName: string;
   recipients: Recipient[];
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [recipients, setRecipients] = useState(props.recipients);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(() => getAutoSelectedRecipientId(props.recipients));
   const [message, setMessage] = useState("");
@@ -49,7 +52,7 @@ export function ProjectHandoffClient(props: {
 
   async function submitForSelectedRecipient(values: ProjectSigningSubmitValue[]) {
     if (!selectedRecipient) {
-      throw new Error("未找到签署人。");
+      throw new Error(isZh ? "未找到签署人。" : "Signer was not found.");
     }
 
     const response = await fetch(`/api/public/project-handoff/${encodeURIComponent(props.token)}/submit`, {
@@ -60,7 +63,7 @@ export function ProjectHandoffClient(props: {
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
     if (!response.ok) {
-      throw new Error(payload.error || "无法提交签名。");
+      throw new Error(payload.error || (isZh ? "无法提交签名。" : "Unable to submit the signature."));
     }
 
     const nextRecipients = recipients.map((recipient) =>
@@ -69,7 +72,15 @@ export function ProjectHandoffClient(props: {
     const nextSelectedRecipientId = getAutoSelectedRecipientId(nextRecipients);
     setRecipients(nextRecipients);
     setSelectedRecipientId(nextSelectedRecipientId);
-    setMessage(nextSelectedRecipientId ? "已签署。请把 iPad 交给下一位签署人。" : "已签署。所有签署人都已完成。");
+    setMessage(
+      nextSelectedRecipientId
+        ? isZh
+          ? "已签署。请把 iPad 交给下一位签署人。"
+          : "Signed. Please hand the iPad to the next signer."
+        : isZh
+          ? "已签署。所有签署人都已完成。"
+          : "Signed. All signers are complete."
+    );
   }
 
   async function exitHandoff(event: FormEvent<HTMLFormElement>) {
@@ -83,12 +94,12 @@ export function ProjectHandoffClient(props: {
       const payload = (await response.json().catch(() => ({}))) as { error?: string; redirectTo?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error || "无法退出交接模式。");
+        throw new Error(payload.error || (isZh ? "无法退出交接模式。" : "Unable to exit handoff mode."));
       }
 
       window.location.href = payload.redirectTo ?? "/agent/projects";
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "无法退出交接模式。");
+      setMessage(error instanceof Error ? error.message : isZh ? "无法退出交接模式。" : "Unable to exit handoff mode.");
     } finally {
       setIsBusy(false);
     }
@@ -97,16 +108,20 @@ export function ProjectHandoffClient(props: {
   if (!allComplete && selectedRecipient) {
     return (
       <ProjectSigningExperience
-        backLabel="签署人列表"
-        completeMessage="已签署。请把 iPad 交给下一位签署人。"
-        description="查看完整 PDF，填写每个高亮字段，保存字段后再确认该签署人。"
+        backLabel={isZh ? "签署人列表" : "Signer list"}
+        completeMessage={isZh ? "已签署。请把 iPad 交给下一位签署人。" : "Signed. Please hand the iPad to the next signer."}
+        description={
+          isZh
+            ? "查看完整 PDF，填写每个高亮字段，保存字段后再确认该签署人。"
+            : "Review the full PDF, complete each highlighted field, save fields, then confirm this signer."
+        }
         documents={selectedRecipient.documents}
-        eyebrow="Acre 项目签署"
+        eyebrow={isZh ? "Acre 项目签署" : "Acre project signing"}
         key={selectedRecipient.id}
         onBack={activeRecipients.length > 1 ? () => setSelectedRecipientId(null) : undefined}
         onSubmit={submitForSelectedRecipient}
         recipientName={selectedRecipient.name}
-        submitLabel="确认签名"
+        submitLabel={isZh ? "确认签名" : "Confirm signature"}
         title={props.projectName}
       />
     );
@@ -115,12 +130,16 @@ export function ProjectHandoffClient(props: {
   return (
     <main className="project-kiosk-shell">
       <section className="project-kiosk-panel">
-        <p className="office-eyebrow">Acre 项目签署</p>
+        <p className="office-eyebrow">{isZh ? "Acre 项目签署" : "Acre project signing"}</p>
         <h1>{props.projectName}</h1>
         <p>
           {allComplete
-            ? "所有签署人都已完成。准备好后即可退出自助签署模式。"
-            : "点击你的姓名，打开完整文件签署页面。"}
+            ? isZh
+              ? "所有签署人都已完成。准备好后即可退出自助签署模式。"
+              : "All signers are complete. Exit self-service signing mode when ready."
+            : isZh
+              ? "点击你的姓名，打开完整文件签署页面。"
+              : "Select your name to open the full document signing page."}
         </p>
         {message ? <p className="project-public-message">{message}</p> : null}
 
@@ -138,7 +157,13 @@ export function ProjectHandoffClient(props: {
                   type="button"
                   variant={recipient.status === "acted" ? "secondary" : "primary"}
                 >
-                  {recipient.status === "acted" ? `${recipient.name} 已签署` : `我是 ${recipient.name}（${fieldCount} 个字段）`}
+                  {recipient.status === "acted"
+                    ? isZh
+                      ? `${recipient.name} 已签署`
+                      : `${recipient.name} signed`
+                    : isZh
+                      ? `我是 ${recipient.name}（${fieldCount} 个字段）`
+                      : `I am ${recipient.name} (${fieldCount} field${fieldCount === 1 ? "" : "s"})`}
                 </Button>
               );
             })}
@@ -146,7 +171,7 @@ export function ProjectHandoffClient(props: {
         ) : (
           <form className="project-public-otp" onSubmit={exitHandoff}>
             <Button disabled={isBusy} type="submit">
-              退出自助签署
+              {isZh ? "退出自助签署" : "Exit self-service signing"}
             </Button>
           </form>
         )}

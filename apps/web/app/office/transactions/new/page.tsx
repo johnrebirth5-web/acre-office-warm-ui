@@ -13,6 +13,7 @@ import {
 import { SectionCard, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import {
   OfficeDetailPageHeader,
   OfficeDetailPageShell,
@@ -90,11 +91,15 @@ const handoffIssueDescriptionMap: Record<string, string> = {
     "此交接未带有 Front Office 负责人分配。创建正式交易前，请确认 Back Office 负责人。"
 };
 
-function translateHandoffTitle(value: string) {
-  return handoffTitleMap[value] ?? value;
+function translateHandoffTitle(value: string, isZh: boolean) {
+  return isZh ? handoffTitleMap[value] ?? value : value;
 }
 
-function translateHandoffDescription(value: string) {
+function translateHandoffDescription(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
   const exactDescription = handoffDescriptionMap[value];
 
   if (exactDescription) {
@@ -120,15 +125,19 @@ function translateHandoffDescription(value: string) {
   return value;
 }
 
-function translateHandoffIssueLabel(value: string) {
-  return handoffIssueLabelMap[value] ?? value;
+function translateHandoffIssueLabel(value: string, isZh: boolean) {
+  return isZh ? handoffIssueLabelMap[value] ?? value : value;
 }
 
-function translateHandoffIssueDescription(value: string) {
-  return handoffIssueDescriptionMap[value] ?? value;
+function translateHandoffIssueDescription(value: string, isZh: boolean) {
+  return isZh ? handoffIssueDescriptionMap[value] ?? value : value;
 }
 
-function translateHandoffDisplayValue(value: string) {
+function translateHandoffDisplayValue(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
   if (value === "Areas not captured") {
     return "未填写区域";
   }
@@ -140,7 +149,11 @@ function translateHandoffDisplayValue(value: string) {
   return value;
 }
 
-function translateHandoffAcknowledgementLabel(value: string | undefined) {
+function translateHandoffAcknowledgementLabel(value: string | undefined, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
   if (
     value ===
     "I reviewed the missing or inferred client details and still want to create the formal Back Office transaction."
@@ -151,76 +164,81 @@ function translateHandoffAcknowledgementLabel(value: string | undefined) {
   return value;
 }
 
-function buildPageTitle(handoffPrefill: FrontOfficeHandoffPrefillState | null) {
+function buildPageTitle(handoffPrefill: FrontOfficeHandoffPrefillState | null, isZh: boolean) {
   if (!handoffPrefill || handoffPrefill.kind === "missing") {
-    return "新建交易";
+    return isZh ? "新建交易" : "New transaction";
   }
 
   if (handoffPrefill.kind === "available") {
-    return `新建交易 · ${handoffPrefill.clientName}`;
+    return isZh ? `新建交易 · ${handoffPrefill.clientName}` : `New transaction · ${handoffPrefill.clientName}`;
   }
 
   if (handoffPrefill.kind === "committed") {
-    return "Front Office 交接已完成";
+    return isZh ? "Front Office 交接已完成" : "Front Office handoff completed";
   }
 
   if (handoffPrefill.kind === "submitting") {
-    return "Front Office 交接正在提交";
+    return isZh ? "Front Office 交接正在提交" : "Front Office handoff is submitting";
   }
 
   if (handoffPrefill.kind === "unsupported_target") {
-    return "Front Office 交接不可用";
+    return isZh ? "Front Office 交接不可用" : "Front Office handoff unavailable";
   }
 
-  return "新建交易";
+  return isZh ? "新建交易" : "New transaction";
 }
 
 function buildPageDescription(
   handoffPrefill: FrontOfficeHandoffPrefillState | null,
+  isZh: boolean,
 ) {
   if (!handoffPrefill) {
-    return "在此创建交易。Office 管理员可按需调整录入字段。";
+    return isZh ? "在此创建交易。Office 管理员可按需调整录入字段。" : "Create a transaction here. Office admins can adjust intake fields as needed.";
   }
 
   if (handoffPrefill.kind === "available") {
-    return `已从 Front Office 为 ${handoffPrefill.clientName} 预填。${translateHandoffDescription(handoffPrefill.feedbackDescription)}`;
+    return isZh
+      ? `已从 Front Office 为 ${handoffPrefill.clientName} 预填。${translateHandoffDescription(handoffPrefill.feedbackDescription, isZh)}`
+      : `Pre-filled from Front Office for ${handoffPrefill.clientName}. ${handoffPrefill.feedbackDescription}`;
   }
 
-  return translateHandoffDescription(handoffPrefill.feedbackDescription);
+  return translateHandoffDescription(handoffPrefill.feedbackDescription, isZh);
 }
 
 function buildCreateLeadIn(
   handoffPrefill: FrontOfficeHandoffPrefillState | null,
+  isZh: boolean,
 ): TransactionCreateLeadIn | undefined {
   if (!handoffPrefill || handoffPrefill.kind !== "available") {
     return undefined;
   }
 
   return {
-    badgeLabel: "Front Office 交接",
+    badgeLabel: isZh ? "Front Office 交接" : "Front Office handoff",
     badgeTone: handoffPrefill.isComplete ? "accent" : "warning",
-    title: translateHandoffTitle(handoffPrefill.feedbackTitle),
-    description: translateHandoffDescription(handoffPrefill.feedbackDescription),
+    title: translateHandoffTitle(handoffPrefill.feedbackTitle, isZh),
+    description: translateHandoffDescription(handoffPrefill.feedbackDescription, isZh),
     items: handoffPrefill.issues.map(
-      (issue) => `${translateHandoffIssueLabel(issue.label)}：${translateHandoffIssueDescription(issue.description)}`,
+      (issue) => `${translateHandoffIssueLabel(issue.label, isZh)}${isZh ? "：" : ": "}${translateHandoffIssueDescription(issue.description, isZh)}`,
     ),
   };
 }
 
 function buildHandoffSummaryValue(
   handoffPrefill: Exclude<FrontOfficeHandoffPrefillState, null>,
+  isZh: boolean,
 ) {
   switch (handoffPrefill.kind) {
     case "available":
-      return translateHandoffDisplayValue(handoffPrefill.stageLabel);
+      return translateHandoffDisplayValue(handoffPrefill.stageLabel, isZh);
     case "committed":
-      return "已交接";
+      return isZh ? "已交接" : "Handed off";
     case "submitting":
-      return "提交中";
+      return isZh ? "提交中" : "Submitting";
     case "canceled":
-      return "已取消";
+      return isZh ? "已取消" : "Canceled";
     case "unsupported_target":
-      return "其他流程";
+      return isZh ? "其他流程" : "Other workflow";
     default:
       return "";
   }
@@ -234,6 +252,10 @@ export default async function OfficeTransactionCreatePage(
   const canManageTransactionStatus = canManageOfficeTransactionStatus(
     context.currentMembership,
   );
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
   const searchParams = (await props.searchParams) ?? {};
   const handoffId = readSearchParamValue(searchParams.handoffId)?.trim() || "";
 
@@ -268,7 +290,7 @@ export default async function OfficeTransactionCreatePage(
 
   const shouldShowCreateForm =
     !handoffPrefill || handoffPrefill.kind === "available";
-  const createLeadIn = buildCreateLeadIn(handoffPrefill);
+  const createLeadIn = buildCreateLeadIn(handoffPrefill, isZh);
   const clientWorkspaceHref =
     handoffPrefill && handoffPrefill.kind !== "missing"
       ? handoffPrefill.clientWorkspaceHref
@@ -281,21 +303,21 @@ export default async function OfficeTransactionCreatePage(
   return (
     <OfficeDetailPageShell className="office-transaction-create-page">
       <OfficeDetailPageHeader
-        description={buildPageDescription(handoffPrefill)}
+        description={buildPageDescription(handoffPrefill, isZh)}
         summary={
           <>
             <Link
               className="office-button-secondary"
               href="/office/transactions"
             >
-              返回交易列表
+              {isZh ? "返回交易列表" : "Back to transactions"}
             </Link>
             {clientWorkspaceHref ? (
               <Link
                 className="office-button-secondary office-button-sm"
                 href={clientWorkspaceHref}
               >
-                打开 Front Office 客户
+                {isZh ? "打开 Front Office 客户" : "Open Front Office client"}
               </Link>
             ) : null}
             {committedTransactionHref ? (
@@ -303,32 +325,32 @@ export default async function OfficeTransactionCreatePage(
                 className="office-button-secondary office-button-sm"
                 href={committedTransactionHref}
               >
-                打开 Back Office 记录
+                {isZh ? "打开 Back Office 记录" : "Open Back Office record"}
               </Link>
             ) : null}
             {handoffPrefill && handoffPrefill.kind !== "missing" ? (
               <SummaryChip
-                label="FO 交接"
+                label={isZh ? "FO 交接" : "FO handoff"}
                 tone={handoffPrefill.kind === "available" ? "accent" : "default"}
-                value={buildHandoffSummaryValue(handoffPrefill)}
+                value={buildHandoffSummaryValue(handoffPrefill, isZh)}
               />
             ) : null}
             {handoffPrefill?.kind === "available" ? (
               <SummaryChip
-                label="预填"
+                label={isZh ? "预填" : "Prefill"}
                 tone={handoffPrefill.isComplete ? "accent" : "default"}
-                value={handoffPrefill.isComplete ? "就绪" : "需审核"}
+                value={handoffPrefill.isComplete ? (isZh ? "就绪" : "Ready") : isZh ? "需审核" : "Needs review"}
               />
             ) : null}
             {handoffPrefill && handoffPrefill.kind !== "missing" ? (
-              <SummaryChip label="区域" value={translateHandoffDisplayValue(handoffPrefill.preferredAreasLabel)} />
+              <SummaryChip label={isZh ? "区域" : "Areas"} value={translateHandoffDisplayValue(handoffPrefill.preferredAreasLabel, isZh)} />
             ) : null}
             {handoffPrefill && handoffPrefill.kind !== "missing" ? (
-              <SummaryChip label="预算" value={translateHandoffDisplayValue(handoffPrefill.budgetLabel)} />
+              <SummaryChip label={isZh ? "预算" : "Budget"} value={translateHandoffDisplayValue(handoffPrefill.budgetLabel, isZh)} />
             ) : null}
           </>
         }
-        title={buildPageTitle(handoffPrefill)}
+        title={buildPageTitle(handoffPrefill, isZh)}
       />
 
       {shouldShowCreateForm ? (
@@ -341,7 +363,7 @@ export default async function OfficeTransactionCreatePage(
                   requiresAcknowledgement:
                     handoffPrefill.requiresAcknowledgement,
                   acknowledgementLabel:
-                    translateHandoffAcknowledgementLabel(handoffPrefill.acknowledgementLabel),
+                    translateHandoffAcknowledgementLabel(handoffPrefill.acknowledgementLabel, isZh),
                 }
               : undefined
           }
@@ -361,6 +383,7 @@ export default async function OfficeTransactionCreatePage(
           ownerAssignment={ownerAssignment}
           statusFieldPolicy={getCreateTransactionStatusFieldPolicy(
             canManageTransactionStatus,
+            isZh,
           )}
         />
       ) : handoffPrefill ? (
@@ -371,28 +394,34 @@ export default async function OfficeTransactionCreatePage(
                 className="office-button-secondary office-button-sm"
                 href="/office/transactions/new"
               >
-                手动新建
+                {isZh ? "手动新建" : "Create manually"}
               </Link>
               {clientWorkspaceHref ? (
                 <Link
                   className="office-button-secondary office-button-sm"
                   href={clientWorkspaceHref}
                 >
-                  重新打开 Front Office 档案
+                  {isZh ? "重新打开 Front Office 档案" : "Reopen Front Office profile"}
                 </Link>
               ) : null}
             </>
           }
           className="office-new-transaction-card office-new-transaction-live-card"
-          title={translateHandoffTitle(handoffPrefill.feedbackTitle)}
-          subtitle={translateHandoffDescription(handoffPrefill.feedbackDescription)}
+          title={translateHandoffTitle(handoffPrefill.feedbackTitle, isZh)}
+          subtitle={translateHandoffDescription(handoffPrefill.feedbackDescription, isZh)}
         >
           <p>
             {handoffPrefill.kind === "committed"
-              ? "Front Office 已经交接此记录。请在关联的 Back Office 记录中继续正式交易流程，不要从此 URL 创建第二份文件。"
+              ? isZh
+                ? "Front Office 已经交接此记录。请在关联的 Back Office 记录中继续正式交易流程，不要从此 URL 创建第二份文件。"
+                : "Front Office already handed off this record. Continue the formal transaction workflow in the linked Back Office record instead of creating a second file from this URL."
               : handoffPrefill.kind === "submitting"
-                ? "此交接已有 Back Office 创建请求正在处理中。请等待该请求完成后刷新页面，再判断是否需要其他操作。"
-                : "此交接当前不能用于 Back Office 创建流程。如需刷新交接，请重新打开客户档案；也可以不使用此交接链接，明确手动新建。"}
+                ? isZh
+                  ? "此交接已有 Back Office 创建请求正在处理中。请等待该请求完成后刷新页面，再判断是否需要其他操作。"
+                  : "This handoff already has a Back Office create request in progress. Wait for that request to finish, then reload this page before deciding whether anything else is needed."
+                : isZh
+                  ? "此交接当前不能用于 Back Office 创建流程。如需刷新交接，请重新打开客户档案；也可以不使用此交接链接，明确手动新建。"
+                  : "This handoff cannot currently be used for Back Office creation. Reopen the client profile if you need to refresh the handoff, or clearly create manually without this handoff link."}
           </p>
         </SectionCard>
       ) : null}

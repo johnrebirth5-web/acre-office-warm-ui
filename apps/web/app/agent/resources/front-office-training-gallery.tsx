@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { FrontOfficeResourceRecord } from "@acre/db";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
+import { useI18n } from "../../../lib/i18n/client";
 
 const interactionEndpoint = "/api/resources/interactions";
 
@@ -278,10 +279,11 @@ function recordResourceOpen(resourceId: string) {
 }
 
 function TrainingCard(props: {
+  isZh: boolean;
   resource: FrontOfficeResourceRecord;
   onPlay: (video: VideoPlayerState) => void;
 }) {
-  const { resource, onPlay } = props;
+  const { isZh, resource, onPlay } = props;
   const thumbnailHref = buildThumbnailHref(resource.href);
 
   return (
@@ -305,7 +307,7 @@ function TrainingCard(props: {
             style={coverImageStyle}
           />
         ) : (
-          <div style={fallbackCoverStyle}>视频封面</div>
+          <div style={fallbackCoverStyle}>{isZh ? "视频封面" : "Video cover"}</div>
         )}
       </div>
       <div style={cardMetaStyle}>
@@ -321,6 +323,8 @@ function TrainingCard(props: {
 export function FrontOfficeTrainingGallery(props: {
   resources: FrontOfficeResourceRecord[];
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [activeVideo, setActiveVideo] = useState<VideoPlayerState | null>(null);
   const [gridColumnCount, setGridColumnCount] = useState(4);
 
@@ -377,6 +381,7 @@ export function FrontOfficeTrainingGallery(props: {
         >
           {props.resources.map((resource) => (
             <TrainingCard
+              isZh={isZh}
               key={resource.id}
               onPlay={handlePlay}
               resource={resource}
@@ -438,14 +443,14 @@ export function FrontOfficeTrainingGallery(props: {
                     resourceId: activeVideo.id,
                   }}
                 >
-                  在 YouTube 打开
+                  {isZh ? "在 YouTube 打开" : "Open on YouTube"}
                 </FrontOfficeTrackedLink>
                 <button
                   className="office-button office-button-sm"
                   onClick={() => setActiveVideo(null)}
                   type="button"
                 >
-                  关闭
+                  {isZh ? "关闭" : "Close"}
                 </button>
               </div>
             </div>
@@ -472,7 +477,7 @@ export function FrontOfficeTrainingGallery(props: {
                     }}
                   >
                     <strong style={{ fontSize: "1.15rem" }}>
-                      无法嵌入这个视频。
+                      {isZh ? "无法嵌入这个视频。" : "Unable to embed this video."}
                     </strong>
                     <FrontOfficeTrackedLink
                       className="office-button"
@@ -482,7 +487,7 @@ export function FrontOfficeTrainingGallery(props: {
                         resourceId: activeVideo.id,
                       }}
                     >
-                      在 YouTube 打开
+                      {isZh ? "在 YouTube 打开" : "Open on YouTube"}
                     </FrontOfficeTrackedLink>
                   </div>
                 </div>

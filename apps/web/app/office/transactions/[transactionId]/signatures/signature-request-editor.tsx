@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, CheckboxField, FormField, SelectInput, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
+import { useI18n } from "../../../../../lib/i18n/client";
 import type {
   OfficeSignatureAuditEntry,
   OfficeSignatureField,
@@ -100,44 +101,44 @@ const placementFieldTools: OfficeSignatureField["fieldType"][] = [
   "dropdown"
 ];
 
-const signatureStatusLabelMap: Record<OfficeSignatureRequest["statusKey"], string> = {
-  draft: "草稿",
-  pending_send: "待发送",
-  sent: "已发送",
-  viewed: "已查看",
-  signed: "已签署",
-  completed: "已完成",
-  declined: "已拒绝",
-  canceled: "已取消",
-  voided: "已作废",
-  expired: "已过期"
+const signatureStatusLabelMap: Record<OfficeSignatureRequest["statusKey"], { en: string; zh: string }> = {
+  draft: { en: "Draft", zh: "草稿" },
+  pending_send: { en: "Pending send", zh: "待发送" },
+  sent: { en: "Sent", zh: "已发送" },
+  viewed: { en: "Viewed", zh: "已查看" },
+  signed: { en: "Signed", zh: "已签署" },
+  completed: { en: "Completed", zh: "已完成" },
+  declined: { en: "Declined", zh: "已拒绝" },
+  canceled: { en: "Canceled", zh: "已取消" },
+  voided: { en: "Voided", zh: "已作废" },
+  expired: { en: "Expired", zh: "已过期" }
 };
 
-const signatureRoleKeyLabelMap: Record<SignatureRecipientDraft["roleKey"], string> = {
-  signer: "签署人",
-  approver: "审批人",
-  cc: "抄送"
+const signatureRoleKeyLabelMap: Record<SignatureRecipientDraft["roleKey"], { en: string; zh: string }> = {
+  signer: { en: "Signer", zh: "签署人" },
+  approver: { en: "Approver", zh: "审批人" },
+  cc: { en: "CC", zh: "抄送" }
 };
 
-const signatureFieldTypeLabelMap: Record<OfficeSignatureField["fieldType"], string> = {
-  signature: "签名",
-  date: "日期",
-  initials: "姓名首字母",
-  name: "全名",
-  text: "文本",
-  email: "邮箱",
-  title: "职务",
-  company: "公司",
-  checkbox: "复选框",
-  dropdown: "下拉选项"
+const signatureFieldTypeLabelMap: Record<OfficeSignatureField["fieldType"], { en: string; zh: string }> = {
+  signature: { en: "Signature", zh: "签名" },
+  date: { en: "Date", zh: "日期" },
+  initials: { en: "Initials", zh: "姓名首字母" },
+  name: { en: "Full Name", zh: "全名" },
+  text: { en: "Text", zh: "文本" },
+  email: { en: "Email", zh: "邮箱" },
+  title: { en: "Title", zh: "职务" },
+  company: { en: "Company", zh: "公司" },
+  checkbox: { en: "Checkbox", zh: "复选框" },
+  dropdown: { en: "Dropdown", zh: "下拉选项" }
 };
 
-const templateCategoryLabelMap: Record<SignatureTemplateCategoryKey, string> = {
-  transaction: "交易",
-  hr: "人事",
-  finance: "财务",
-  admin: "行政",
-  project_sales: "项目销售"
+const templateCategoryLabelMap: Record<SignatureTemplateCategoryKey, { en: string; zh: string }> = {
+  transaction: { en: "Transaction", zh: "交易" },
+  hr: { en: "HR", zh: "人事" },
+  finance: { en: "Finance", zh: "财务" },
+  admin: { en: "Admin", zh: "行政" },
+  project_sales: { en: "Project sales", zh: "项目销售" }
 };
 
 const signatureEditorMessageMap: Record<string, string> = {
@@ -177,15 +178,21 @@ function clampFieldMetric(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function getSignatureStatusLabel(statusKey: OfficeSignatureRequest["statusKey"]) {
-  return signatureStatusLabelMap[statusKey] ?? statusKey;
+function getSignatureStatusLabel(statusKey: OfficeSignatureRequest["statusKey"], isZh: boolean) {
+  const label = signatureStatusLabelMap[statusKey];
+  return label ? (isZh ? label.zh : label.en) : statusKey;
 }
 
-function getRecipientRoleKeyLabel(roleKey: SignatureRecipientDraft["roleKey"]) {
-  return signatureRoleKeyLabelMap[roleKey] ?? roleKey;
+function getRecipientRoleKeyLabel(roleKey: SignatureRecipientDraft["roleKey"], isZh: boolean) {
+  const label = signatureRoleKeyLabelMap[roleKey];
+  return label ? (isZh ? label.zh : label.en) : roleKey;
 }
 
-function translateRecipientRoleValue(value: string) {
+function translateRecipientRoleValue(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
   const roleMap: Record<string, string> = {
     Signer: "签署人",
     Approver: "审批人",
@@ -195,11 +202,16 @@ function translateRecipientRoleValue(value: string) {
   return roleMap[value] ?? value;
 }
 
-function getFieldTypeLabel(fieldType: OfficeSignatureField["fieldType"]) {
-  return signatureFieldTypeLabelMap[fieldType] ?? fieldDefaults[fieldType].label;
+function getFieldTypeLabel(fieldType: OfficeSignatureField["fieldType"], isZh: boolean) {
+  const label = signatureFieldTypeLabelMap[fieldType];
+  return label ? (isZh ? label.zh : label.en) : fieldDefaults[fieldType].label;
 }
 
-function translateTemplateCategoryLabel(label: string) {
+function translateTemplateCategoryLabel(label: string, isZh: boolean) {
+  if (!isZh) {
+    return label;
+  }
+
   const categoryMap: Record<string, string> = {
     Transaction: "交易",
     HR: "人事",
@@ -211,12 +223,12 @@ function translateTemplateCategoryLabel(label: string) {
   return categoryMap[label] ?? label;
 }
 
-function translateSignatureEditorCopy(value: string) {
-  return signatureEditorMessageMap[value] ?? value;
+function translateSignatureEditorCopy(value: string, isZh: boolean) {
+  return isZh ? signatureEditorMessageMap[value] ?? value : value;
 }
 
-function getSignatureEditorErrorMessage(error: unknown, fallback: string) {
-  return translateSignatureEditorCopy(error instanceof Error ? error.message : fallback);
+function getSignatureEditorErrorMessage(error: unknown, fallback: string, isZh: boolean) {
+  return translateSignatureEditorCopy(error instanceof Error ? error.message : fallback, isZh);
 }
 
 function createRecipientDraft(
@@ -362,17 +374,19 @@ function isRecipientRowComplete(recipient: SignatureRecipientDraft) {
   return Boolean(recipient.name.trim() && recipient.email.trim() && recipient.recipientRole.trim());
 }
 
-function getRecipientBindingSummary(recipient: SignatureRecipientDraft | null) {
+function getRecipientBindingSummary(recipient: SignatureRecipientDraft | null, isZh: boolean) {
   if (!recipient) {
     return {
-      badge: "未分配",
-      detail: "请选择签署人或审批人"
+      badge: isZh ? "未分配" : "Unassigned",
+      detail: isZh ? "请选择签署人或审批人" : "Choose a signer or approver"
     };
   }
 
   return {
-    badge: `${getRecipientRoleKeyLabel(recipient.roleKey)} · 第 ${recipient.routingStep || "1"} 步`,
-    detail: recipient.name || recipient.email || translateRecipientRoleValue(recipient.recipientRole) || "收件人"
+    badge: isZh
+      ? `${getRecipientRoleKeyLabel(recipient.roleKey, isZh)} · 第 ${recipient.routingStep || "1"} 步`
+      : `${getRecipientRoleKeyLabel(recipient.roleKey, isZh)} · Step ${recipient.routingStep || "1"}`,
+    detail: recipient.name || recipient.email || translateRecipientRoleValue(recipient.recipientRole, isZh) || (isZh ? "收件人" : "Recipient")
   };
 }
 
@@ -387,6 +401,8 @@ export function SignatureRequestEditor({
   availableTemplates = [],
   initialTemplate = null
 }: SignatureRequestEditorProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const { pages, isLoading, error: previewError } = usePdfPreview(document.storageUrl);
   const [requestId, setRequestId] = useState(initialRequest?.id ?? "");
@@ -732,17 +748,17 @@ export function SignatureRequestEditor({
     try {
       validRecipients = validateRecipients();
     } catch (validationError) {
-      setError(getSignatureEditorErrorMessage(validationError, "Signature request could not be saved."));
+      setError(getSignatureEditorErrorMessage(validationError, "Signature request could not be saved.", isZh));
       return;
     }
 
     if (options.requireFields && !fields.length) {
-      setError(translateSignatureEditorCopy("Add at least one signature field before saving this step."));
+      setError(translateSignatureEditorCopy("Add at least one signature field before saving this step.", isZh));
       return;
     }
 
     if (options.requireFields && validRecipients.length > 1 && fields.some((field) => !field.assignedRecipientId)) {
-      setError(translateSignatureEditorCopy("Assign every field to a specific signer or approver before saving a multi-recipient request."));
+      setError(translateSignatureEditorCopy("Assign every field to a specific signer or approver before saving a multi-recipient request.", isZh));
       return;
     }
 
@@ -875,7 +891,7 @@ export function SignatureRequestEditor({
       setSuccessMessage(options.successMessage);
       router.refresh();
     } catch (saveError) {
-      setError(getSignatureEditorErrorMessage(saveError, "Signature draft could not be saved."));
+      setError(getSignatureEditorErrorMessage(saveError, "Signature draft could not be saved.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -885,7 +901,7 @@ export function SignatureRequestEditor({
     await persistSignatureRequest({
       action: sendAfterSave ? "send" : "save-fields",
       requireFields: true,
-      successMessage: translateSignatureEditorCopy(sendAfterSave ? "Signature request email sent." : "Signature field layout saved.")
+      successMessage: translateSignatureEditorCopy(sendAfterSave ? "Signature request email sent." : "Signature field layout saved.", isZh)
     });
   }
 
@@ -918,14 +934,14 @@ export function SignatureRequestEditor({
       setRequestStatus(payload.signatureRequest.statusKey);
       setSuccessMessage(
         action === "resend"
-          ? translateSignatureEditorCopy("Signature request email resent.")
+          ? translateSignatureEditorCopy("Signature request email resent.", isZh)
           : action === "expire"
-            ? translateSignatureEditorCopy("Signature request marked expired.")
-            : translateSignatureEditorCopy("Signature request canceled.")
+            ? translateSignatureEditorCopy("Signature request marked expired.", isZh)
+            : translateSignatureEditorCopy("Signature request canceled.", isZh)
       );
       router.refresh();
     } catch (actionError) {
-      setError(getSignatureEditorErrorMessage(actionError, "Signature request update failed."));
+      setError(getSignatureEditorErrorMessage(actionError, "Signature request update failed.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -933,12 +949,12 @@ export function SignatureRequestEditor({
 
   async function handleSaveTemplate() {
     if (!templateDraft.name.trim()) {
-      setError(translateSignatureEditorCopy("Template name is required before saving."));
+      setError(translateSignatureEditorCopy("Template name is required before saving.", isZh));
       return;
     }
 
     if (draftState.recipients.length === 0 || fields.length === 0) {
-      setError(translateSignatureEditorCopy("Add recipients and fields before saving this request as a template."));
+      setError(translateSignatureEditorCopy("Add recipients and fields before saving this request as a template.", isZh));
       return;
     }
 
@@ -1013,9 +1029,9 @@ export function SignatureRequestEditor({
         description: payload.template.description,
         category: payload.template.category
       });
-      setSuccessMessage(translateSignatureEditorCopy("Signature template saved."));
+      setSuccessMessage(translateSignatureEditorCopy("Signature template saved.", isZh));
     } catch (templateError) {
-      setError(getSignatureEditorErrorMessage(templateError, "Signature template could not be saved."));
+      setError(getSignatureEditorErrorMessage(templateError, "Signature template could not be saved.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -1039,10 +1055,14 @@ export function SignatureRequestEditor({
         <section className="office-detail-card office-signature-stepper-card">
           <div className="office-card-head">
             <div>
-              <h3>签名请求流程</h3>
-              <span>先保存收件人，再在 PDF 上放置签名字段，并绑定到正确签署人。</span>
+              <h3>{isZh ? "签名请求流程" : "Signature Request Flow"}</h3>
+              <span>
+                {isZh
+                  ? "先保存收件人，再在 PDF 上放置签名字段，并绑定到正确签署人。"
+                  : "Save recipients first, then place signature fields on the PDF and bind them to the right signer."}
+              </span>
             </div>
-            {requestId ? <StatusBadge tone={getRequestTone(requestStatus)}>{getSignatureStatusLabel(requestStatus)}</StatusBadge> : null}
+            {requestId ? <StatusBadge tone={getRequestTone(requestStatus)}>{getSignatureStatusLabel(requestStatus, isZh)}</StatusBadge> : null}
           </div>
 
           <div className="office-signature-stepper">
@@ -1051,9 +1071,13 @@ export function SignatureRequestEditor({
               onClick={() => openStep("recipients")}
               type="button"
             >
-              <span className="office-signature-step-index">第 1 步</span>
-              <strong>收件人与发送设置</strong>
-              <span>选择签署人、审批人、抄送、签署顺序和邀请邮件内容。</span>
+              <span className="office-signature-step-index">{isZh ? "第 1 步" : "Step 1"}</span>
+              <strong>{isZh ? "收件人与发送设置" : "Recipients & Send Settings"}</strong>
+              <span>
+                {isZh
+                  ? "选择签署人、审批人、抄送、签署顺序和邀请邮件内容。"
+                  : "Choose signers, approvers, CC recipients, routing order, and invitation email content."}
+              </span>
             </button>
 
             <button
@@ -1062,15 +1086,21 @@ export function SignatureRequestEditor({
               onClick={() => openStep("fields")}
               type="button"
             >
-              <span className="office-signature-step-index">第 2 步</span>
-              <strong>PDF 字段放置</strong>
-              <span>在 PDF 上放置字段，并把每个字段分配给一位签署人或审批人。</span>
+              <span className="office-signature-step-index">{isZh ? "第 2 步" : "Step 2"}</span>
+              <strong>{isZh ? "PDF 字段放置" : "PDF Field Placement"}</strong>
+              <span>
+                {isZh
+                  ? "在 PDF 上放置字段，并把每个字段分配给一位签署人或审批人。"
+                  : "Place fields on the PDF and assign each one to a signer or approver."}
+              </span>
             </button>
           </div>
 
           {!canAccessFieldStep ? (
             <p className="office-signature-helper">
-              请先保存第 1 步。请求创建后，第 2 步会解锁，签名字段就可以分配给正确签署人。
+              {isZh
+                ? "请先保存第 1 步。请求创建后，第 2 步会解锁，签名字段就可以分配给正确签署人。"
+                : "Save Step 1 first. Once the request is created, Step 2 unlocks so signature fields can be assigned to the right signer."}
             </p>
           ) : null}
         </section>
@@ -1080,36 +1110,40 @@ export function SignatureRequestEditor({
             <section className="office-detail-card">
               <div className="office-card-head">
                 <div>
-                  <h3>第 1 步 · 收件人与发送设置</h3>
-                  <span>先配置参与人。保存此步骤后，PDF 字段放置阶段会解锁。</span>
+                  <h3>{isZh ? "第 1 步 · 收件人与发送设置" : "Step 1 · Recipients & Send Settings"}</h3>
+                  <span>
+                    {isZh
+                      ? "先配置参与人。保存此步骤后，PDF 字段放置阶段会解锁。"
+                      : "Configure participants first. After saving this step, PDF field placement will unlock."}
+                  </span>
                 </div>
               </div>
 
               <div className="office-signature-summary-list">
                 <p>
-                  <strong>需要操作的收件人</strong>
+                  <strong>{isZh ? "需要操作的收件人" : "Action Recipients"}</strong>
                 </p>
                 {draftState.recipients.map((recipient) => (
                   <p key={recipient.id}>
-                    {getRecipientRoleKeyLabel(recipient.roleKey)} · 第 {recipient.routingStep || "1"} 步 · {recipient.name || "新收件人"}
+                    {getRecipientRoleKeyLabel(recipient.roleKey, isZh)} · {isZh ? `第 ${recipient.routingStep || "1"} 步` : `Step ${recipient.routingStep || "1"}`} · {recipient.name || (isZh ? "新收件人" : "New recipient")}
                   </p>
                 ))}
                 {draftState.ccRecipients.length > 0 ? (
                   <p>
-                    <strong>抄送收件人</strong> · {draftState.ccRecipients.length}
+                    <strong>{isZh ? "抄送收件人" : "CC Recipients"}</strong> · {draftState.ccRecipients.length}
                   </p>
                 ) : null}
               </div>
 
               <div className="office-signature-section-actions office-signature-add-actions">
                 <Button onClick={() => addRecipient("signer")} variant="secondary">
-                  添加签署人
+                  {isZh ? "添加签署人" : "Add Signer"}
                 </Button>
                 <Button onClick={() => addRecipient("approver")} variant="secondary">
-                  添加审批人
+                  {isZh ? "添加审批人" : "Add Approver"}
                 </Button>
                 <Button onClick={() => addRecipient("cc")} variant="secondary">
-                  添加抄送
+                  {isZh ? "添加抄送" : "Add CC"}
                 </Button>
               </div>
 
@@ -1117,38 +1151,38 @@ export function SignatureRequestEditor({
                 {draftState.recipients.map((recipient) => (
                   <article className="office-signature-audit-row" key={recipient.id}>
                     <div className="office-signature-audit-head">
-                      <strong>{getRecipientRoleKeyLabel(recipient.roleKey)}</strong>
-                      <span>第 {recipient.routingStep || "1"} 步</span>
+                      <strong>{getRecipientRoleKeyLabel(recipient.roleKey, isZh)}</strong>
+                      <span>{isZh ? `第 ${recipient.routingStep || "1"} 步` : `Step ${recipient.routingStep || "1"}`}</span>
                     </div>
                     <div className="office-signature-recipient-grid">
-                      <FormField label="角色">
+                      <FormField label={isZh ? "角色" : "Role"}>
                         <SelectInput
                           onChange={(event) =>
                             updateRecipient("recipients", recipient.id, "roleKey", event.target.value as SignatureRecipientDraft["roleKey"])
                           }
                           value={recipient.roleKey}
                         >
-                          <option value="signer">签署人</option>
-                          <option value="approver">审批人</option>
+                          <option value="signer">{isZh ? "签署人" : "Signer"}</option>
+                          <option value="approver">{isZh ? "审批人" : "Approver"}</option>
                         </SelectInput>
                       </FormField>
-                      <FormField label="姓名">
+                      <FormField label={isZh ? "姓名" : "Name"}>
                         <TextInput onChange={(event) => updateRecipient("recipients", recipient.id, "name", event.target.value)} value={recipient.name} />
                       </FormField>
-                      <FormField label="邮箱">
+                      <FormField label={isZh ? "邮箱" : "Email"}>
                         <TextInput
                           onChange={(event) => updateRecipient("recipients", recipient.id, "email", event.target.value)}
                           type="email"
                           value={recipient.email}
                         />
                       </FormField>
-                      <FormField label="收件人身份">
+                      <FormField label={isZh ? "收件人身份" : "Recipient Role"}>
                         <TextInput
                           onChange={(event) => updateRecipient("recipients", recipient.id, "recipientRole", event.target.value)}
                           value={recipient.recipientRole}
                         />
                       </FormField>
-                      <FormField label="签署顺序">
+                      <FormField label={isZh ? "签署顺序" : "Routing Step"}>
                         <TextInput
                           inputMode="numeric"
                           onChange={(event) => updateRecipient("recipients", recipient.id, "routingStep", event.target.value)}
@@ -1158,7 +1192,7 @@ export function SignatureRequestEditor({
                     </div>
                     <div className="office-signature-recipient-actions">
                       <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
-                        移除
+                        {isZh ? "移除" : "Remove"}
                       </Button>
                     </div>
                   </article>
@@ -1167,21 +1201,21 @@ export function SignatureRequestEditor({
                 {draftState.ccRecipients.map((recipient) => (
                   <article className="office-signature-audit-row" key={recipient.id}>
                     <div className="office-signature-audit-head">
-                      <strong>抄送</strong>
-                      <span>只读副本</span>
+                      <strong>{isZh ? "抄送" : "CC"}</strong>
+                      <span>{isZh ? "只读副本" : "Read-only copy"}</span>
                     </div>
                     <div className="office-signature-recipient-grid">
-                      <FormField label="姓名">
+                      <FormField label={isZh ? "姓名" : "Name"}>
                         <TextInput onChange={(event) => updateRecipient("ccRecipients", recipient.id, "name", event.target.value)} value={recipient.name} />
                       </FormField>
-                      <FormField label="邮箱">
+                      <FormField label={isZh ? "邮箱" : "Email"}>
                         <TextInput
                           onChange={(event) => updateRecipient("ccRecipients", recipient.id, "email", event.target.value)}
                           type="email"
                           value={recipient.email}
                         />
                       </FormField>
-                      <FormField label="收件人身份">
+                      <FormField label={isZh ? "收件人身份" : "Recipient Role"}>
                         <TextInput
                           onChange={(event) => updateRecipient("ccRecipients", recipient.id, "recipientRole", event.target.value)}
                           value={recipient.recipientRole}
@@ -1190,7 +1224,7 @@ export function SignatureRequestEditor({
                     </div>
                     <div className="office-signature-recipient-actions">
                       <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
-                        移除
+                        {isZh ? "移除" : "Remove"}
                       </Button>
                     </div>
                   </article>
@@ -1198,23 +1232,27 @@ export function SignatureRequestEditor({
               </div>
 
               <div className="office-document-upload-grid">
-                <FormField label="到期日期">
+                <FormField label={isZh ? "到期日期" : "Expiration Date"}>
                   <TextInput onChange={(event) => updateDraftField("expiresAt", event.target.value)} type="date" value={draftState.expiresAt} />
                 </FormField>
-                <FormField className="office-form-grid-span-2" label="邮件主题">
+                <FormField className="office-form-grid-span-2" label={isZh ? "邮件主题" : "Email Subject"}>
                   <TextInput onChange={(event) => updateDraftField("emailSubject", event.target.value)} value={draftState.emailSubject} />
                 </FormField>
-                <FormField className="office-form-grid-span-2" label="发件人显示名">
+                <FormField className="office-form-grid-span-2" label={isZh ? "发件人显示名" : "Sender Display Name"}>
                   <TextInput onChange={(event) => updateDraftField("senderDisplayName", event.target.value)} value={draftState.senderDisplayName} />
                 </FormField>
                 <FormField
                   className="office-form-grid-span-2"
-                  helper="邀请邮件的回复会发送到此地址；最终签署完成的 PDF 通知也会同时抄送给此地址和所有签署参与人。"
-                  label="回复邮箱"
+                  helper={
+                    isZh
+                      ? "邀请邮件的回复会发送到此地址；最终签署完成的 PDF 通知也会同时抄送给此地址和所有签署参与人。"
+                      : "Replies to the invitation email go to this address. Final signed PDF notifications are also copied to this address and all signing participants."
+                  }
+                  label={isZh ? "回复邮箱" : "Reply Email"}
                 >
                   <TextInput onChange={(event) => updateDraftField("senderReplyTo", event.target.value)} type="email" value={draftState.senderReplyTo} />
                 </FormField>
-                <FormField className="office-form-grid-span-4" label="邮件正文">
+                <FormField className="office-form-grid-span-4" label={isZh ? "邮件正文" : "Email Body"}>
                   <TextareaInput onChange={(event) => updateDraftField("emailBody", event.target.value)} rows={5} value={draftState.emailBody} />
                 </FormField>
               </div>
@@ -1227,11 +1265,17 @@ export function SignatureRequestEditor({
                       action: "save-recipients",
                       requireFields: false,
                       continueToFieldStep: true,
-                      successMessage: translateSignatureEditorCopy("Recipients saved. Continue to PDF field placement.")
+                      successMessage: translateSignatureEditorCopy("Recipients saved. Continue to PDF field placement.", isZh)
                     })
                   }
                 >
-                  {pendingAction === "save-recipients" ? "保存中..." : "保存收件人并继续"}
+                  {pendingAction === "save-recipients"
+                    ? isZh
+                      ? "保存中..."
+                      : "Saving..."
+                    : isZh
+                      ? "保存收件人并继续"
+                      : "Save Recipients and Continue"}
                 </Button>
               </div>
             </section>
@@ -1239,29 +1283,33 @@ export function SignatureRequestEditor({
             <section className="office-detail-card office-signature-delivery-card">
               <div className="office-card-head">
                 <div>
-                  <h3>模板库</h3>
-                  <span>把已保存模板应用到此文档，或把当前收件人和字段映射保存为可复用模板。</span>
+                  <h3>{isZh ? "模板库" : "Template Library"}</h3>
+                  <span>
+                    {isZh
+                      ? "把已保存模板应用到此文档，或把当前收件人和字段映射保存为可复用模板。"
+                      : "Apply a saved template to this document, or save the current recipient and field mapping as a reusable template."}
+                  </span>
                 </div>
               </div>
 
               <div className="office-document-upload-grid">
-                <FormField label="应用模板">
+                <FormField label={isZh ? "应用模板" : "Apply Template"}>
                   <SelectInput onChange={(event) => handleTemplateSelection(event.target.value)} value={initialTemplate?.id ?? ""}>
-                    <option value="">不使用模板</option>
+                    <option value="">{isZh ? "不使用模板" : "Do not use a template"}</option>
                     {availableTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
-                        {template.name} · {translateTemplateCategoryLabel(template.categoryLabel)}
+                        {template.name} · {translateTemplateCategoryLabel(template.categoryLabel, isZh)}
                       </option>
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="模板名称">
+                <FormField label={isZh ? "模板名称" : "Template Name"}>
                   <TextInput
                     onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
                     value={templateDraft.name}
                   />
                 </FormField>
-                <FormField label="模板分类">
+                <FormField label={isZh ? "模板分类" : "Template Category"}>
                   <SelectInput
                     onChange={(event) =>
                       setTemplateDraft((current) => ({
@@ -1271,14 +1319,14 @@ export function SignatureRequestEditor({
                     }
                     value={templateDraft.category}
                   >
-                    <option value="transaction">{templateCategoryLabelMap.transaction}</option>
-                    <option value="hr">{templateCategoryLabelMap.hr}</option>
-                    <option value="finance">{templateCategoryLabelMap.finance}</option>
-                    <option value="admin">{templateCategoryLabelMap.admin}</option>
-                    <option value="project_sales">{templateCategoryLabelMap.project_sales}</option>
+                    <option value="transaction">{isZh ? templateCategoryLabelMap.transaction.zh : templateCategoryLabelMap.transaction.en}</option>
+                    <option value="hr">{isZh ? templateCategoryLabelMap.hr.zh : templateCategoryLabelMap.hr.en}</option>
+                    <option value="finance">{isZh ? templateCategoryLabelMap.finance.zh : templateCategoryLabelMap.finance.en}</option>
+                    <option value="admin">{isZh ? templateCategoryLabelMap.admin.zh : templateCategoryLabelMap.admin.en}</option>
+                    <option value="project_sales">{isZh ? templateCategoryLabelMap.project_sales.zh : templateCategoryLabelMap.project_sales.en}</option>
                   </SelectInput>
                 </FormField>
-                <FormField className="office-form-grid-span-4" label="模板说明">
+                <FormField className="office-form-grid-span-4" label={isZh ? "模板说明" : "Template Description"}>
                   <TextareaInput
                     onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
                     rows={3}
@@ -1289,7 +1337,17 @@ export function SignatureRequestEditor({
 
               <div className="office-signature-section-actions">
                 <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
-                  {pendingAction === "save-template" ? "保存模板中..." : templateDraft.templateId ? "更新模板" : "保存为模板"}
+                  {pendingAction === "save-template"
+                    ? isZh
+                      ? "保存模板中..."
+                      : "Saving template..."
+                    : templateDraft.templateId
+                      ? isZh
+                        ? "更新模板"
+                        : "Update Template"
+                      : isZh
+                        ? "保存为模板"
+                        : "Save as Template"}
                 </Button>
               </div>
             </section>
@@ -1298,18 +1356,24 @@ export function SignatureRequestEditor({
           <section className="office-detail-card office-signature-template-card">
             <div className="office-card-head">
               <div>
-                <h3>第 2 步 · PDF 字段放置</h3>
-                <span>选择字段类型，放到 PDF 上，再分配给需要填写的签署人或审批人。</span>
+                <h3>{isZh ? "第 2 步 · PDF 字段放置" : "Step 2 · PDF Field Placement"}</h3>
+                <span>
+                  {isZh
+                    ? "选择字段类型，放到 PDF 上，再分配给需要填写的签署人或审批人。"
+                    : "Choose a field type, place it on the PDF, then assign it to the signer or approver who needs to complete it."}
+                </span>
               </div>
-              <StatusBadge tone={getRequestTone(requestStatus)}>{getSignatureStatusLabel(requestStatus)}</StatusBadge>
+              <StatusBadge tone={getRequestTone(requestStatus)}>{getSignatureStatusLabel(requestStatus, isZh)}</StatusBadge>
             </div>
 
             <div className="office-signature-step-banner">
               <p>
-                每个签名位置都必须绑定到具体签署人。其他收件人无法在分配给别人的字段中签署或填写。
+                {isZh
+                  ? "每个签名位置都必须绑定到具体签署人。其他收件人无法在分配给别人的字段中签署或填写。"
+                  : "Every signature location must be bound to a specific signer. Other recipients cannot sign or fill fields assigned to someone else."}
               </p>
               <Button onClick={() => openStep("recipients")} variant="secondary">
-                返回第 1 步
+                {isZh ? "返回第 1 步" : "Back to Step 1"}
               </Button>
             </div>
 
@@ -1321,29 +1385,29 @@ export function SignatureRequestEditor({
                   onClick={() => setSelectedTool(fieldType)}
                   type="button"
                 >
-                  {getFieldTypeLabel(fieldType)}
+                  {getFieldTypeLabel(fieldType, isZh)}
                 </button>
               ))}
             </div>
 
-            {isLoading ? <p className="office-signature-helper">正在加载 PDF 预览...</p> : null}
-            {previewError ? <p className="office-form-error">{translateSignatureEditorCopy(previewError)}</p> : null}
+            {isLoading ? <p className="office-signature-helper">{isZh ? "正在加载 PDF 预览..." : "Loading PDF preview..."}</p> : null}
+            {previewError ? <p className="office-form-error">{translateSignatureEditorCopy(previewError, isZh)}</p> : null}
 
             <div className="office-signature-preview-stack">
               {pages.map((page) => (
                 <div className="office-signature-preview-page" key={page.pageNumber}>
-                  <div className="office-signature-preview-label">第 {page.pageNumber} 页</div>
+                  <div className="office-signature-preview-label">{isZh ? `第 ${page.pageNumber} 页` : `Page ${page.pageNumber}`}</div>
                   <div
                     className="office-signature-preview-canvas"
                     onClick={(event) => handleAddField(page.pageNumber, event)}
                     ref={(node) => setPreviewCanvasRef(page.pageNumber, node)}
                   >
-                    <img alt={`文档第 ${page.pageNumber} 页`} height={page.height} src={page.imageUrl} width={page.width} />
+                    <img alt={isZh ? `文档第 ${page.pageNumber} 页` : `Document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
                     {fields
                       .filter((field) => field.page === page.pageNumber)
                       .map((field) => {
                         const assignedRecipient = field.assignedRecipientId ? recipientLookup.get(field.assignedRecipientId) ?? null : null;
-                        const bindingSummary = getRecipientBindingSummary(assignedRecipient);
+                        const bindingSummary = getRecipientBindingSummary(assignedRecipient, isZh);
 
                         return (
                           <div
@@ -1366,7 +1430,7 @@ export function SignatureRequestEditor({
                             <span className="office-signature-field-token-detail">{bindingSummary.detail}</span>
                             {selectedFieldId === field.id ? (
                               <button
-                                aria-label={`调整 ${field.label} 大小`}
+                                aria-label={isZh ? `调整 ${field.label} 大小` : `Resize ${field.label}`}
                                 className="office-signature-field-resize-handle"
                                 onClick={(event) => event.stopPropagation()}
                                 onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
@@ -1383,18 +1447,28 @@ export function SignatureRequestEditor({
 
             <div className="office-signature-section-actions">
               <Button disabled={pendingAction === "save-fields"} onClick={() => saveDraft(false)}>
-                {pendingAction === "save-fields" ? "保存中..." : "保存字段布局"}
+                {pendingAction === "save-fields" ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存字段布局" : "Save Field Layout"}
               </Button>
               <Button disabled={pendingAction === "send"} onClick={() => saveDraft(true)}>
-                {pendingAction === "send" ? "发送中..." : requestStatus === "sent" || requestStatus === "viewed" ? "保存并重新发送" : "保存并发送"}
+                {pendingAction === "send"
+                  ? isZh
+                    ? "发送中..."
+                    : "Sending..."
+                  : requestStatus === "sent" || requestStatus === "viewed"
+                    ? isZh
+                      ? "保存并重新发送"
+                      : "Save and Resend"
+                    : isZh
+                      ? "保存并发送"
+                      : "Save and Send"}
               </Button>
               {requestId ? (
                 <>
                   <Button disabled={pendingAction === "resend"} onClick={() => handleRequestAction("resend")} variant="secondary">
-                    {pendingAction === "resend" ? "重新发送中..." : "重新发送"}
+                    {pendingAction === "resend" ? (isZh ? "重新发送中..." : "Resending...") : isZh ? "重新发送" : "Resend"}
                   </Button>
                   <Button disabled={pendingAction === "canceled"} onClick={() => handleRequestAction("canceled")} variant="danger">
-                    {pendingAction === "canceled" ? "取消中..." : "取消"}
+                    {pendingAction === "canceled" ? (isZh ? "取消中..." : "Canceling...") : isZh ? "取消" : "Cancel"}
                   </Button>
                 </>
               ) : null}
@@ -1408,61 +1482,65 @@ export function SignatureRequestEditor({
           <section className="office-detail-card">
             <div className="office-card-head">
               <div>
-                <h3>已选字段</h3>
-                <span>把此字段绑定到一位签署人，再调整标签、默认值和校验设置。</span>
+                <h3>{isZh ? "已选字段" : "Selected Field"}</h3>
+                <span>
+                  {isZh
+                    ? "把此字段绑定到一位签署人，再调整标签、默认值和校验设置。"
+                    : "Bind this field to a signer, then adjust its label, default value, and validation settings."}
+                </span>
               </div>
             </div>
 
             {selectedField ? (
               <div className="office-signature-field-panel">
                 <div className="office-signature-field-grid">
-                  <FormField className="office-signature-field-panel-span-2" label="分配给">
+                  <FormField className="office-signature-field-panel-span-2" label={isZh ? "分配给" : "Assign To"}>
                     <SelectInput
                       onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
                       value={selectedField.assignedRecipientId ?? ""}
                     >
-                      <option value="">未分配</option>
+                      <option value="">{isZh ? "未分配" : "Unassigned"}</option>
                       {draftState.recipients.map((recipient) => (
                         <option key={recipient.id} value={recipient.id}>
-                          {getRecipientRoleKeyLabel(recipient.roleKey)} · 第 {recipient.routingStep || "1"} 步 ·{" "}
-                          {recipient.name || recipient.email || translateRecipientRoleValue(recipient.recipientRole)}
+                          {getRecipientRoleKeyLabel(recipient.roleKey, isZh)} · {isZh ? `第 ${recipient.routingStep || "1"} 步` : `Step ${recipient.routingStep || "1"}`} ·{" "}
+                          {recipient.name || recipient.email || translateRecipientRoleValue(recipient.recipientRole, isZh)}
                         </option>
                       ))}
                     </SelectInput>
                   </FormField>
-                  <FormField label="标签">
+                  <FormField label={isZh ? "标签" : "Label"}>
                     <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
                   </FormField>
-                  <FormField label="字体样式">
+                  <FormField label={isZh ? "字体样式" : "Font Style"}>
                     <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
                   </FormField>
-                  <FormField label="字段键">
+                  <FormField label={isZh ? "字段键" : "Field Key"}>
                     <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
                   </FormField>
-                  <FormField className="office-signature-field-panel-span-2" label="默认值">
+                  <FormField className="office-signature-field-panel-span-2" label={isZh ? "默认值" : "Default Value"}>
                     <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
                   </FormField>
-                  <FormField label="镜像组">
+                  <FormField label={isZh ? "镜像组" : "Mirror Group"}>
                     <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
                   </FormField>
                 </div>
 
                 <div className="office-signature-field-toggle-grid">
-                  <CheckboxField className="office-signature-toggle-card" label="必填">
+                  <CheckboxField className="office-signature-toggle-card" label={isZh ? "必填" : "Required"}>
                     <input
                       checked={selectedField.required}
                       onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
                       type="checkbox"
                     />
                   </CheckboxField>
-                  <CheckboxField className="office-signature-toggle-card" label="只读">
+                  <CheckboxField className="office-signature-toggle-card" label={isZh ? "只读" : "Read Only"}>
                     <input
                       checked={selectedField.isReadOnly}
                       onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
                       type="checkbox"
                     />
                   </CheckboxField>
-                  <CheckboxField className="office-signature-toggle-card" label="系统预填">
+                  <CheckboxField className="office-signature-toggle-card" label={isZh ? "系统预填" : "System Prefilled"}>
                     <input
                       checked={selectedField.isSystemPrefilled}
                       onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
@@ -1473,30 +1551,40 @@ export function SignatureRequestEditor({
 
                 <div className="office-signature-field-note">
                   <p className="office-signature-helper">
-                    拖动字段可移动位置；拖动右下角手柄可调整大小。未分配给某位签署人的字段，该签署人无法填写。
+                    {isZh
+                      ? "拖动字段可移动位置；拖动右下角手柄可调整大小。未分配给某位签署人的字段，该签署人无法填写。"
+                      : "Drag a field to move it. Drag the lower-right handle to resize it. A signer cannot complete fields that are not assigned to them."}
                   </p>
                 </div>
 
                 <div className="office-signature-section-actions office-signature-field-actions">
                   <Button onClick={() => removeField(selectedField.id)} size="sm" variant="danger">
-                    删除字段
+                    {isZh ? "删除字段" : "Delete Field"}
                   </Button>
                 </div>
               </div>
             ) : (
-              <p className="office-signature-helper">请在 PDF 上选择一个字段，以编辑它的收件人绑定和设置。</p>
+              <p className="office-signature-helper">
+                {isZh ? "请在 PDF 上选择一个字段，以编辑它的收件人绑定和设置。" : "Select a field on the PDF to edit its recipient binding and settings."}
+              </p>
             )}
           </section>
         ) : (
           <section className="office-detail-card">
             <div className="office-card-head">
               <div>
-                <h3>第 2 步预览</h3>
-                <span>第 1 步保存后，你会在这里放置签名字段，并把每个字段分配给具体签署人。</span>
+                <h3>{isZh ? "第 2 步预览" : "Step 2 Preview"}</h3>
+                <span>
+                  {isZh
+                    ? "第 1 步保存后，你会在这里放置签名字段，并把每个字段分配给具体签署人。"
+                    : "After Step 1 is saved, you will place signature fields here and assign each one to a specific signer."}
+                </span>
               </div>
             </div>
             <p className="office-signature-helper">
-              多签署人请求会通过字段绑定保持清晰：每个字段只属于一位签署人，未分配的人会自动被挡在别人的签名位置之外。
+              {isZh
+                ? "多签署人请求会通过字段绑定保持清晰：每个字段只属于一位签署人，未分配的人会自动被挡在别人的签名位置之外。"
+                : "Multi-signer requests stay clear through field bindings: each field belongs to one signer, and unassigned recipients are kept out of someone else's signing area."}
             </p>
           </section>
         )}
@@ -1504,7 +1592,7 @@ export function SignatureRequestEditor({
         <section className="office-detail-card">
           <div className="office-card-head">
             <div>
-              <h3>文档</h3>
+              <h3>{isZh ? "文档" : "Document"}</h3>
               <span>{document.documentType}</span>
             </div>
           </div>
@@ -1517,13 +1605,13 @@ export function SignatureRequestEditor({
             <p>{(document.fileSizeBytes / 1024).toFixed(1)} KB</p>
             <p>
               <Link href={document.storageUrl} target="_blank">
-                打开原始 PDF
+                {isZh ? "打开原始 PDF" : "Open Original PDF"}
               </Link>
             </p>
             {initialRequest?.completedDocumentHref ? (
               <p>
                 <Link href={initialRequest.completedDocumentHref} target="_blank">
-                  下载已签署 PDF
+                  {isZh ? "下载已签署 PDF" : "Download Signed PDF"}
                 </Link>
               </p>
             ) : null}
@@ -1533,8 +1621,12 @@ export function SignatureRequestEditor({
         <section className="office-detail-card">
           <div className="office-card-head">
             <div>
-              <h3>审计记录</h3>
-              <span>请求保存后，内部事件和签署人侧事件都会记录在这里。</span>
+              <h3>{isZh ? "审计记录" : "Audit Log"}</h3>
+              <span>
+                {isZh
+                  ? "请求保存后，内部事件和签署人侧事件都会记录在这里。"
+                  : "After the request is saved, internal events and signer-side events will be recorded here."}
+              </span>
             </div>
           </div>
 
@@ -1554,7 +1646,7 @@ export function SignatureRequestEditor({
               ))}
             </div>
           ) : (
-            <p className="office-signature-helper">请求保存后会开始生成审计记录。</p>
+            <p className="office-signature-helper">{isZh ? "请求保存后会开始生成审计记录。" : "Audit records will begin after the request is saved."}</p>
           )}
         </section>
 

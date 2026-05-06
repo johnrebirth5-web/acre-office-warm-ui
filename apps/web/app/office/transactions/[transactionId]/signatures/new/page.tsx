@@ -2,6 +2,7 @@ import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@a
 import { getOfficeSignatureTemplate, getOfficeSignatureTemplateLibrarySnapshot, getTransactionById } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
+import { getServerI18n } from "../../../../../../lib/i18n/server";
 import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../../_components/office-detail-page-template";
 import { SignatureRequestEditor } from "../signature-request-editor";
 
@@ -17,6 +18,10 @@ type NewSignatureRequestPageProps = {
 
 export default async function NewSignatureRequestPage({ params, searchParams }: NewSignatureRequestPageProps) {
   const context = await requireOfficeSession();
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale
+  });
+  const isZh = locale === "zh-CN";
 
   if (!canManageOfficeSignatures(context.currentMembership)) {
     redirect(`/office/transactions`);
@@ -65,9 +70,9 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
   return (
     <OfficeDetailPageShell className="office-signature-page">
       <OfficeDetailPageHeader
-        description="第 1 步配置收件人与发送方式；第 2 步放置 PDF 字段，并把每个字段绑定到正确签署人。"
-        eyebrow="交易签名"
-        title={`准备签名 · ${document.title}`}
+        description={isZh ? "第 1 步配置收件人与发送方式；第 2 步放置 PDF 字段，并把每个字段绑定到正确签署人。" : "Step 1 configures recipients and sending details; Step 2 places PDF fields and binds each field to the right signer."}
+        eyebrow={isZh ? "交易签名" : "Transaction signatures"}
+        title={isZh ? `准备签名 · ${document.title}` : `Prepare signature · ${document.title}`}
       />
 
       <SignatureRequestEditor
