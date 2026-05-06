@@ -17,6 +17,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { FrontOfficeLink } from "../../_components/front-office-link";
+import { useI18n } from "../../../../lib/i18n/client";
+import { translateFrontOfficeLabel } from "../../_lib/front-office-language";
 
 type FrontOfficeClientExecutionClientProps = {
   contact: OfficeContactDetail;
@@ -71,6 +73,8 @@ export function FrontOfficeClientExecutionClient(
   props: FrontOfficeClientExecutionClientProps,
 ) {
   const { contact } = props;
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
@@ -111,7 +115,11 @@ export function FrontOfficeClientExecutionClient(
         router.refresh();
       } catch (error) {
         setErrorMessage(
-          error instanceof Error ? error.message : "Could not save changes.",
+          error instanceof Error
+            ? error.message
+            : isZh
+              ? "无法保存更改。"
+              : "Could not save changes.",
         );
       }
     });
@@ -121,13 +129,13 @@ export function FrontOfficeClientExecutionClient(
     <>
       <SectionCard
         className="office-list-card"
-        subtitle="Keep only the core requirement and contact execution data visible."
-        title="Client needs & basics"
+        subtitle={isZh ? "只保留核心需求和联系执行信息。" : "Keep only the core requirement and contact execution data visible."}
+        title={isZh ? "客户需求与基础信息" : "Client needs & basics"}
       >
         <div className="office-form-grid">
           <FormField
             className="office-form-grid-span-2"
-            label="Name"
+            label={isZh ? "姓名" : "Name"}
           >
             <TextInput
               disabled={isPending}
@@ -138,18 +146,18 @@ export function FrontOfficeClientExecutionClient(
             />
           </FormField>
 
-          <FormField label="WeChat name">
+          <FormField label={isZh ? "微信名" : "WeChat name"}>
             <TextInput
               disabled={isPending}
               onChange={(event) => {
                 setWechatDisplayName(event.target.value);
               }}
-              placeholder="Optional"
+              placeholder={isZh ? "选填" : "Optional"}
               value={wechatDisplayName}
             />
           </FormField>
 
-          <FormField label="Budget">
+          <FormField label={isZh ? "预算" : "Budget"}>
             <TextInput
               disabled={isPending}
               onChange={(event) => {
@@ -160,7 +168,7 @@ export function FrontOfficeClientExecutionClient(
             />
           </FormField>
 
-          <FormField className="office-form-grid-span-2" label="Target area">
+          <FormField className="office-form-grid-span-2" label={isZh ? "目标区域" : "Target area"}>
             <TextInput
               disabled={isPending}
               onChange={(event) => {
@@ -174,7 +182,7 @@ export function FrontOfficeClientExecutionClient(
 
         <div className="office-queue-meta">
           <StatusBadge tone="accent">
-            Display name: {contact.displayName}
+            {isZh ? "显示名称：" : "Display name: "}{contact.displayName}
           </StatusBadge>
           <Button
             disabled={isPending}
@@ -186,25 +194,25 @@ export function FrontOfficeClientExecutionClient(
                   budgetMax,
                   preferredAreas: areas,
                 },
-                "Client basics saved.",
+                isZh ? "客户基础信息已保存。" : "Client basics saved.",
               );
             }}
             size="sm"
             type="button"
             variant="secondary"
           >
-            Save basics
+            {isZh ? "保存基础信息" : "Save basics"}
           </Button>
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card"
-        subtitle="Track current status, last touch, and the next reminder without opening a heavier workflow form."
-        title="Follow-up control"
+        subtitle={isZh ? "不用打开更重的流程表单，也能维护当前状态、上次跟进和下次提醒。" : "Track current status, last touch, and the next reminder without opening a heavier workflow form."}
+        title={isZh ? "跟进控制" : "Follow-up control"}
       >
         <div className="office-form-grid">
-          <FormField label="Follow-up status">
+          <FormField label={isZh ? "跟进状态" : "Follow-up status"}>
             <SelectInput
               disabled={isPending}
               onChange={(event) => {
@@ -214,32 +222,36 @@ export function FrontOfficeClientExecutionClient(
             >
               {followUpStatusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {translateFrontOfficeLabel(option.label, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FormField>
 
-          <FormField label="Reminder mode">
+          <FormField label={isZh ? "提醒模式" : "Reminder mode"}>
             <TextInput
               disabled
               value={
                 contact.followUpReminderMode ===
                 ClientFollowUpReminderMode.manual
-                  ? "Manual reminder"
-                  : "Auto reminder"
+                  ? isZh
+                    ? "手动提醒"
+                    : "Manual reminder"
+                  : isZh
+                    ? "自动提醒"
+                    : "Auto reminder"
               }
             />
           </FormField>
 
-          <FormField label="Last follow-up">
+          <FormField label={isZh ? "上次跟进" : "Last follow-up"}>
             <TextInput
               disabled
-              value={contact.lastContactAt || "Not followed up yet"}
+              value={contact.lastContactAt || (isZh ? "尚未跟进" : "Not followed up yet")}
             />
           </FormField>
 
-          <FormField label="Next reminder">
+          <FormField label={isZh ? "下次提醒" : "Next reminder"}>
             <TextInput
               disabled={isPending}
               onChange={(event) => {
@@ -254,7 +266,7 @@ export function FrontOfficeClientExecutionClient(
         <div className="office-queue-meta">
           {props.legacyOpenTaskCount > 0 ? (
             <StatusBadge tone="warning">
-              Legacy follow-up tasks still exist ({props.legacyOpenTaskCount})
+              {isZh ? "仍有旧跟进任务" : "Legacy follow-up tasks still exist"} ({props.legacyOpenTaskCount})
             </StatusBadge>
           ) : null}
           <Button
@@ -262,65 +274,65 @@ export function FrontOfficeClientExecutionClient(
             onClick={() => {
               runUpdate(
                 { followUpStatus },
-                "Follow-up status saved.",
+                isZh ? "跟进状态已保存。" : "Follow-up status saved.",
               );
             }}
             size="sm"
             type="button"
             variant="secondary"
           >
-            Save status
+            {isZh ? "保存状态" : "Save status"}
           </Button>
           <Button
             disabled={isPending}
             onClick={() => {
               runUpdate(
                 { nextFollowUpAt: nextReminderValue || null },
-                "Next reminder saved in manual mode.",
+                isZh ? "下次提醒已按手动模式保存。" : "Next reminder saved in manual mode.",
               );
             }}
             size="sm"
             type="button"
             variant="secondary"
           >
-            Save reminder
+            {isZh ? "保存提醒" : "Save reminder"}
           </Button>
           <Button
             disabled={isPending}
             onClick={() => {
               runUpdate(
                 { followUpReminderMode: ClientFollowUpReminderMode.auto },
-                "Auto reminder restored.",
+                isZh ? "已恢复自动提醒。" : "Auto reminder restored.",
               );
             }}
             size="sm"
             type="button"
             variant="ghost"
           >
-            Use auto
+            {isZh ? "使用自动" : "Use auto"}
           </Button>
           <Button
             disabled={isPending}
             onClick={() => {
               runUpdate(
                 { markFollowedUpNow: true },
-                "Last follow-up updated.",
+                isZh ? "上次跟进已更新。" : "Last follow-up updated.",
               );
             }}
             size="sm"
             type="button"
           >
-            Mark followed up
+            {isZh ? "标记已跟进" : "Mark followed up"}
           </Button>
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card"
-        subtitle="Everything else from AI or manual follow-up lives here and remains editable."
-        title="Note"
+        subtitle={isZh ? "AI 或手动跟进中的其他信息都放在这里，并保持可编辑。" : "Everything else from AI or manual follow-up lives here and remains editable."}
+        title={isZh ? "备注" : "Note"}
       >
-        <FormField label="Note">
+        <FormField label={isZh ? "备注" : "Note"}>
           <TextareaInput
             disabled={isPending}
             onChange={(event) => {
@@ -335,41 +347,41 @@ export function FrontOfficeClientExecutionClient(
           <Button
             disabled={isPending}
             onClick={() => {
-              runUpdate({ notes }, "Note saved.");
+              runUpdate({ notes }, isZh ? "备注已保存。" : "Note saved.");
             }}
             size="sm"
             type="button"
             variant="secondary"
           >
-            Save note
+            {isZh ? "保存备注" : "Save note"}
           </Button>
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card"
-        subtitle="Heavy workflow modules are no longer embedded here. Open them only when you truly need them."
-        title="Other tools"
+        subtitle={isZh ? "较重的流程模块不再嵌在这里；只有真正需要时再打开。" : "Heavy workflow modules are no longer embedded here. Open them only when you truly need them."}
+        title={isZh ? "其他工具" : "Other tools"}
       >
         <div className="office-queue-meta">
           <FrontOfficeLink
             className="office-inline-link front-office-inline-link"
             href="/agent/clients"
           >
-            Back to clients queue
+            {isZh ? "返回客户队列" : "Back to clients queue"}
           </FrontOfficeLink>
           <FrontOfficeLink
             className="office-inline-link front-office-inline-link"
             href={`/api/agent/clients/${contact.id}/pdf`}
           >
-            Open PDF summary
+            {isZh ? "打开 PDF 摘要" : "Open PDF summary"}
           </FrontOfficeLink>
           {props.linkedBackOfficeHref ? (
             <FrontOfficeLink
               className="office-inline-link front-office-inline-link"
               href={props.linkedBackOfficeHref}
             >
-              Open Back Office record
+              {isZh ? "打开后台记录" : "Open Back Office record"}
             </FrontOfficeLink>
           ) : null}
         </div>

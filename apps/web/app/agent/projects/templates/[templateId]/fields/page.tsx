@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FrontOfficeAccessNotice } from "../../../../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../../../../_components/front-office-page-template";
 import { requireSessionContext } from "../../../../../../lib/auth-session";
+import { getServerI18n } from "../../../../../../lib/i18n/server";
 import { ProjectSigningTemplateFieldEditor } from "../../../project-signing-template-field-editor";
 
 export default async function ProjectSigningTemplateFieldsPage(props: {
@@ -36,23 +37,27 @@ export default async function ProjectSigningTemplateFieldsPage(props: {
     notFound();
   }
 
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
   const pdfUrl = `/api/agent/projects/templates/${encodeURIComponent(templateId)}/pdf`;
 
   return (
     <FrontOfficePageTemplate
-      description="Set the reusable field layout before creating Project Signing sessions."
-      eyebrow="Project Signing"
+      description={isZh ? "创建项目签署会话前，先设置可复用的字段布局。" : "Set the reusable field layout before creating Project Signing sessions."}
+      eyebrow={isZh ? "项目签署" : "Project Signing"}
       main={
         <>
           {!snapshot.template.hasPdfSource ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Upload a source PDF before placing signature fields."
-              title="PDF source required"
+              subtitle={isZh ? "放置签名字段前，请先上传源 PDF。" : "Upload a source PDF before placing signature fields."}
+              title={isZh ? "需要 PDF 源文件" : "PDF source required"}
             >
               <Link href="/agent/projects">
                 <Button type="button" variant="secondary">
-                  Back to Project Signing
+                  {isZh ? "返回项目签署" : "Back to Project Signing"}
                 </Button>
               </Link>
             </SectionCard>
@@ -63,12 +68,12 @@ export default async function ProjectSigningTemplateFieldsPage(props: {
       }
       summary={
         <>
-          <SummaryChip label="Version" value={`v${snapshot.template.version}`} />
-          <SummaryChip label="Recipients" value={snapshot.template.recipients.length} />
-          <SummaryChip label="Fields" tone={snapshot.template.fields.length ? "accent" : "default"} value={snapshot.template.fields.length} />
+          <SummaryChip label={isZh ? "版本" : "Version"} value={`v${snapshot.template.version}`} />
+          <SummaryChip label={isZh ? "收件人" : "Recipients"} value={snapshot.template.recipients.length} />
+          <SummaryChip label={isZh ? "字段" : "Fields"} tone={snapshot.template.fields.length ? "accent" : "default"} value={snapshot.template.fields.length} />
         </>
       }
-      title={`Set Fields · ${snapshot.template.name}`}
+      title={`${isZh ? "设置字段" : "Set Fields"} · ${snapshot.template.name}`}
     />
   );
 }

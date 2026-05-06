@@ -6,6 +6,11 @@ import { FrontOfficeAccessNotice } from "../../_components/front-office-access-n
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
 import { FrontOfficeClientExecutionClient } from "./front-office-client-execution-client";
 import { requireSessionContext } from "../../../../lib/auth-session";
+import { getServerI18n } from "../../../../lib/i18n/server";
+import {
+  copyForLocale,
+  translateFrontOfficeLabel,
+} from "../../_lib/front-office-language";
 
 type AgentClientDetailPageProps = {
   params: Promise<{
@@ -46,11 +51,23 @@ export default async function AgentClientDetailPage(
   const linkedBackOfficeHref = contact.linkedTransactions[0]
     ? `/office/transactions/${contact.linkedTransactions[0].id}`
     : null;
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
+  const budgetLabel = contact.budgetMax || (isZh ? "预算未设置" : "Budget not set");
+  const areaLabel = contact.areas.join(", ") || (isZh ? "目标区域未设置" : "Target area not set");
+  const notFollowedUpLabel = isZh ? "尚未跟进" : "Not followed up yet";
+  const notSetLabel = isZh ? "未设置" : "Not set";
 
   return (
     <FrontOfficePageTemplate
-      description="This page keeps the client record focused on the next follow-up move, the current reminder clock, and one editable note."
-      eyebrow="Front Office"
+      description={copyForLocale(
+        isZh,
+        "This page keeps the client record focused on the next follow-up move, the current reminder clock, and one editable note.",
+        "这个客户页只聚焦下一步跟进、当前提醒时间和一条可编辑备注。",
+      )}
+      eyebrow={isZh ? "前台" : "Front Office"}
       main={
         <FrontOfficeClientExecutionClient
           contact={contact}
@@ -61,29 +78,29 @@ export default async function AgentClientDetailPage(
       rail={
         <SectionCard
           className="office-list-card"
-          subtitle="Core execution context only."
-          title="Current snapshot"
+          subtitle={isZh ? "只显示核心执行背景。" : "Core execution context only."}
+          title={isZh ? "当前快照" : "Current snapshot"}
         >
           <div className="office-queue-list">
             <QueueItem
               badge={
                 <StatusBadge tone="accent">
-                  {contact.followUpStatusLabel}
+                  {translateFrontOfficeLabel(contact.followUpStatusLabel, isZh)}
                 </StatusBadge>
               }
-              context={contact.followUpReminderModeLabel}
-              description={`${contact.budgetMax || "Budget not set"} · ${contact.areas.join(", ") || "Target area not set"}`}
+              context={translateFrontOfficeLabel(contact.followUpReminderModeLabel, isZh)}
+              description={`${budgetLabel} · ${areaLabel}`}
               meta={
                 <>
                   <span>
-                    Last follow-up:{" "}
-                    {contact.lastContactAt || "Not followed up yet"}
+                    {isZh ? "上次跟进：" : "Last follow-up: "}
+                    {contact.lastContactAt || notFollowedUpLabel}
                   </span>
                   <span>
-                    Next reminder: {contact.nextFollowUpAt || "Not set"}
+                    {isZh ? "下次提醒：" : "Next reminder: "}{contact.nextFollowUpAt || notSetLabel}
                   </span>
                   {legacyOpenTaskCount > 0 ? (
-                    <span>Legacy follow-up tasks: {legacyOpenTaskCount}</span>
+                    <span>{isZh ? "旧跟进任务：" : "Legacy follow-up tasks: "}{legacyOpenTaskCount}</span>
                   ) : null}
                 </>
               }
@@ -95,17 +112,17 @@ export default async function AgentClientDetailPage(
       summary={
         <>
           <SummaryChip
-            label="Follow-up status"
+            label={isZh ? "跟进状态" : "Follow-up status"}
             tone="accent"
-            value={contact.followUpStatusLabel}
+            value={translateFrontOfficeLabel(contact.followUpStatusLabel, isZh)}
           />
           <SummaryChip
-            label="Next reminder"
+            label={isZh ? "下次提醒" : "Next reminder"}
             tone="accent"
-            value={contact.nextFollowUpAt || "Not set"}
+            value={contact.nextFollowUpAt || notSetLabel}
           />
           <SummaryChip
-            label="Legacy tasks"
+            label={isZh ? "旧任务" : "Legacy tasks"}
             tone={legacyOpenTaskCount > 0 ? "accent" : "default"}
             value={legacyOpenTaskCount}
           />

@@ -31,6 +31,8 @@ import {
 } from "./front-office-lead-intake-review";
 import { FrontOfficeLink } from "./front-office-link";
 import type { FrontOfficeLeadIntakeAiExtraction } from "../../../lib/front-office-intake-ai";
+import { useI18n } from "../../../lib/i18n/client";
+import { translateFrontOfficeLabel } from "../_lib/front-office-language";
 
 type FrontOfficeLeadIntakeCardProps = {
   title?: string;
@@ -143,6 +145,39 @@ const supportedAssistFields = new Set([
   "nextFollowUpAt",
 ]);
 
+const assistFieldLabelZh: Record<string, string> = {
+  budgetMax: "预算上限",
+  email: "邮箱",
+  fullName: "姓名",
+  intent: "意向",
+  nextFollowUpAt: "下次跟进",
+  notes: "备注",
+  phone: "电话",
+  preferredAreas: "目标区域",
+  source: "来源",
+  stage: "阶段",
+};
+
+const assistBadgeZh: Record<string, string> = {
+  "High confidence": "高置信度",
+  "Low confidence": "低置信度",
+  "Medium confidence": "中等置信度",
+};
+
+const assistSourceModeZh: Record<FrontOfficeLeadIntakeAssistServerResponse["sourceMode"], string> = {
+  hybrid: "文本 + 图片",
+  image: "图片",
+  text: "文本",
+};
+
+function translateAssistFieldLabel(field: FrontOfficeLeadIntakeAssistField, isZh: boolean) {
+  if (!isZh) {
+    return field.label;
+  }
+
+  return assistFieldLabelZh[field.field] ?? field.label;
+}
+
 function buildEmptyFormState(): LeadFormState {
   return {
     fullName: "",
@@ -242,6 +277,8 @@ function getAssistFieldTone(field: FrontOfficeLeadIntakeAssistField) {
 export function FrontOfficeLeadIntakeCard(
   props: FrontOfficeLeadIntakeCardProps,
 ) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const density = props.density ?? "default";
   const dashboardCompact = props.dashboardCompact ?? false;
   const router = useRouter();
@@ -271,7 +308,7 @@ export function FrontOfficeLeadIntakeCard(
           {
             fullName:
               formState.wechatDisplayName.trim() || formState.fullName.trim(),
-            sourceLabel: "Current intake",
+            sourceLabel: isZh ? "当前录入" : "Current intake",
             preferredAreas: formState.preferredAreas,
             source: assistContactSignals.source,
             email: assistContactSignals.email,
@@ -286,6 +323,7 @@ export function FrontOfficeLeadIntakeCard(
       formState.fullName,
       formState.preferredAreas,
       formState.wechatDisplayName,
+      isZh,
       props.initialDuplicatePreviewCandidates,
     ],
   );
@@ -326,7 +364,7 @@ export function FrontOfficeLeadIntakeCard(
 
   async function handleAssistSubmit() {
     if (!assistTranscript.trim() && !assistImage) {
-      setFeedback("Add a transcript or one screenshot first.");
+      setFeedback(isZh ? "请先添加聊天文本或一张截图。" : "Add a transcript or one screenshot first.");
       return;
     }
 
@@ -352,7 +390,9 @@ export function FrontOfficeLeadIntakeCard(
           | null;
         setFeedback(
           payload?.error ||
-            "Could not extract lead details from the current intake source.",
+            (isZh
+              ? "无法从当前录入内容中提取线索信息。"
+              : "Could not extract lead details from the current intake source."),
         );
         return;
       }
@@ -373,7 +413,11 @@ export function FrontOfficeLeadIntakeCard(
         phone: nextAssistResult.draft.phone?.trim() || "",
         source: nextAssistResult.draft.source?.trim() || "",
       });
-      setFeedback("AI capture is ready. Review it, then apply the draft.");
+      setFeedback(
+        isZh
+          ? "AI 录入已准备好。请先检查，再应用草稿。"
+          : "AI capture is ready. Review it, then apply the draft.",
+      );
     });
   }
 
@@ -402,7 +446,11 @@ export function FrontOfficeLeadIntakeCard(
         rawText: assistRawText,
       }),
     }));
-    setFeedback("AI draft applied. You can edit every field before saving.");
+    setFeedback(
+      isZh
+        ? "AI 草稿已应用。保存前每个字段都可以继续编辑。"
+        : "AI draft applied. You can edit every field before saving.",
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -434,7 +482,7 @@ export function FrontOfficeLeadIntakeCard(
       if (!response.ok) {
         setFieldErrors(payload?.fieldErrors ?? {});
         setDuplicateMatches(payload?.duplicateMatches ?? []);
-        setFeedback(payload?.error || "Could not create the client.");
+        setFeedback(payload?.error || (isZh ? "无法创建客户。" : "Could not create the client."));
         return;
       }
 
@@ -447,8 +495,10 @@ export function FrontOfficeLeadIntakeCard(
       router.refresh();
       setFeedback(
         payload?.contact
-          ? `Client created: ${payload.contact.fullName}`
-          : "Client created.",
+          ? `${isZh ? "客户已创建：" : "Client created: "}${payload.contact.fullName}`
+          : isZh
+            ? "客户已创建。"
+            : "Client created.",
       );
     });
   }
@@ -460,25 +510,31 @@ export function FrontOfficeLeadIntakeCard(
       } ${dashboardCompact ? "is-dashboard-compact" : ""}`}
       subtitle={
         props.subtitle ??
-        "Capture the next live lead without opening a heavier backend form."
+        (isZh
+          ? "不用打开更重的后台表单，也能快速记录新线索。"
+          : "Capture the next live lead without opening a heavier backend form.")
       }
-      title={props.title ?? "Quick intake"}
+      title={props.title ?? (isZh ? "快速录入" : "Quick intake")}
     >
       <form className="front-office-calendar-form" onSubmit={handleSubmit}>
         <SectionCard
           className="office-list-card"
           subtitle={
             dashboardCompact
-              ? "Paste chat text or upload one screenshot. Acre keeps only Name, Budget, Target Area, and Follow-up Status as structured fields; everything else goes into Note."
-              : "Paste a short transcript or upload one screenshot. AI will only keep the four structured fields and move everything else into Note."
+              ? isZh
+                ? "粘贴聊天文本或上传一张截图。Acre 只把姓名、预算、目标区域和跟进状态保留为结构化字段；其他信息进入备注。"
+                : "Paste chat text or upload one screenshot. Acre keeps only Name, Budget, Target Area, and Follow-up Status as structured fields; everything else goes into Note."
+              : isZh
+                ? "粘贴一小段聊天或上传一张截图。AI 只保留四个结构化字段，其余信息移入备注。"
+                : "Paste a short transcript or upload one screenshot. AI will only keep the four structured fields and move everything else into Note."
           }
-          title={dashboardCompact ? "Paste chat or screenshot" : "AI capture"}
+          title={dashboardCompact ? (isZh ? "粘贴聊天或截图" : "Paste chat or screenshot") : isZh ? "AI 录入" : "AI capture"}
         >
           <div className="office-form-grid">
             <FormField
               className="office-form-grid-span-2"
-              helper={assistImage ? `Selected screenshot: ${assistImage.name}` : undefined}
-              label="Screenshot"
+              helper={assistImage ? `${isZh ? "已选择截图：" : "Selected screenshot: "}${assistImage.name}` : undefined}
+              label={isZh ? "截图" : "Screenshot"}
             >
               <input
                 accept="image/*"
@@ -493,14 +549,18 @@ export function FrontOfficeLeadIntakeCard(
 
             <FormField
               className="office-form-grid-span-3"
-              label="Transcript / chat text"
+              label={isZh ? "聊天文本" : "Transcript / chat text"}
             >
               <TextareaInput
                 disabled={isPending}
                 onChange={(event) => {
                   setAssistTranscript(event.target.value);
                 }}
-                placeholder="Buyer from WeChat. Name Annie Chen. Wants LIC or Astoria. Budget up to 6500..."
+                placeholder={
+                  isZh
+                    ? "微信买家。姓名 Annie Chen。想看 LIC 或 Astoria。预算最高 6500..."
+                    : "Buyer from WeChat. Name Annie Chen. Wants LIC or Astoria. Budget up to 6500..."
+                }
                 rows={4}
                 value={assistTranscript}
               />
@@ -515,7 +575,7 @@ export function FrontOfficeLeadIntakeCard(
               }}
               type="button"
             >
-              {isPending ? "Analyzing..." : "Run AI capture"}
+              {isPending ? (isZh ? "分析中..." : "Analyzing...") : isZh ? "运行 AI 录入" : "Run AI capture"}
             </Button>
             <Button
               disabled={isPending}
@@ -523,7 +583,7 @@ export function FrontOfficeLeadIntakeCard(
               type="button"
               variant="secondary"
             >
-              Clear source
+              {isZh ? "清空来源" : "Clear source"}
             </Button>
           </div>
 
@@ -533,7 +593,7 @@ export function FrontOfficeLeadIntakeCard(
                 .filter((field) => supportedAssistFields.has(field.field))
                 .slice(0, 6)
                 .map((field) => (
-                  <QueueAssistField field={field} key={field.field} />
+                  <QueueAssistField field={field} isZh={isZh} key={field.field} />
                 ))}
 
               <div className="office-queue-meta">
@@ -543,19 +603,24 @@ export function FrontOfficeLeadIntakeCard(
                   type="button"
                   variant="secondary"
                 >
-                  Apply draft to form
+                  {isZh ? "应用草稿到表单" : "Apply draft to form"}
                 </Button>
                 {assistServerMeta?.rawText ? (
                   <StatusBadge tone="accent">
-                    Source mode: {assistServerMeta.sourceMode}
+                    {isZh ? "来源模式：" : "Source mode: "}
+                    {isZh ? assistSourceModeZh[assistServerMeta.sourceMode] : assistServerMeta.sourceMode}
                   </StatusBadge>
                 ) : null}
               </div>
             </div>
           ) : (
             <EmptyState
-              description="AI capture stays optional. You can still type the form directly if that is faster."
-              title="No AI draft yet"
+              description={
+                isZh
+                  ? "AI 录入是可选的。如果直接填写更快，也可以手动输入。"
+                  : "AI capture stays optional. You can still type the form directly if that is faster."
+              }
+              title={isZh ? "还没有 AI 草稿" : "No AI draft yet"}
             />
           )}
         </SectionCard>
@@ -563,8 +628,8 @@ export function FrontOfficeLeadIntakeCard(
         {(duplicatePreviewMatches.length || duplicateMatches.length) && (
           <SectionCard
             className="office-list-card"
-            subtitle="Review these records before saving a second client."
-            title="Possible duplicate"
+            subtitle={isZh ? "保存第二个客户前，先检查这些记录。" : "Review these records before saving a second client."}
+            title={isZh ? "可能重复" : "Possible duplicate"}
           >
             <div className="office-queue-list">
               {[...duplicateMatches, ...duplicatePreviewMatches]
@@ -591,7 +656,7 @@ export function FrontOfficeLeadIntakeCard(
                         className="office-inline-link front-office-inline-link"
                         href={match.href}
                       >
-                        Review record
+                        {isZh ? "检查记录" : "Review record"}
                       </FrontOfficeLink>
                     }
                     title={match.fullName}
@@ -605,7 +670,7 @@ export function FrontOfficeLeadIntakeCard(
           <FormField
             className="office-form-grid-span-2"
             helper={fieldErrors.fullName}
-            label="Name"
+            label={isZh ? "姓名" : "Name"}
           >
             <TextInput
               aria-invalid={Boolean(fieldErrors.fullName)}
@@ -619,19 +684,19 @@ export function FrontOfficeLeadIntakeCard(
           </FormField>
 
           {!dashboardCompact ? (
-            <FormField helper={fieldErrors.wechatDisplayName} label="WeChat name">
+            <FormField helper={fieldErrors.wechatDisplayName} label={isZh ? "微信名" : "WeChat name"}>
               <TextInput
                 aria-invalid={Boolean(fieldErrors.wechatDisplayName)}
                 onChange={(event) => {
                   updateField("wechatDisplayName", event.target.value);
                 }}
-                placeholder="Optional"
+                placeholder={isZh ? "选填" : "Optional"}
                 value={formState.wechatDisplayName}
               />
             </FormField>
           ) : null}
 
-          <FormField helper={fieldErrors.budgetMax} label="Budget">
+          <FormField helper={fieldErrors.budgetMax} label={isZh ? "预算" : "Budget"}>
             <TextInput
               aria-invalid={Boolean(fieldErrors.budgetMax)}
               onChange={(event) => {
@@ -645,7 +710,7 @@ export function FrontOfficeLeadIntakeCard(
           <FormField
             className="office-form-grid-span-2"
             helper={fieldErrors.preferredAreas}
-            label="Target area"
+            label={isZh ? "目标区域" : "Target area"}
           >
             <TextInput
               aria-invalid={Boolean(fieldErrors.preferredAreas)}
@@ -657,7 +722,7 @@ export function FrontOfficeLeadIntakeCard(
             />
           </FormField>
 
-          <FormField helper={fieldErrors.followUpStatus} label="Follow-up status">
+          <FormField helper={fieldErrors.followUpStatus} label={isZh ? "跟进状态" : "Follow-up status"}>
             <SelectInput
               aria-invalid={Boolean(fieldErrors.followUpStatus)}
               onChange={(event) => {
@@ -670,7 +735,7 @@ export function FrontOfficeLeadIntakeCard(
             >
               {followUpStatusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {translateFrontOfficeLabel(option.label, isZh)}
                 </option>
               ))}
             </SelectInput>
@@ -679,7 +744,7 @@ export function FrontOfficeLeadIntakeCard(
           <FormField
             className="office-form-grid-span-4"
             helper={fieldErrors.notes}
-            label="Note"
+            label={isZh ? "备注" : "Note"}
           >
             <TextareaInput
               aria-invalid={Boolean(fieldErrors.notes)}
@@ -694,7 +759,7 @@ export function FrontOfficeLeadIntakeCard(
 
         <div className="office-queue-meta">
           <Button disabled={isPending} type="submit">
-            {isPending ? "Saving..." : "Create client"}
+            {isPending ? (isZh ? "保存中..." : "Saving...") : isZh ? "创建客户" : "Create client"}
           </Button>
           <Button
             disabled={isPending}
@@ -702,7 +767,7 @@ export function FrontOfficeLeadIntakeCard(
             type="button"
             variant="secondary"
           >
-            Reset
+            {isZh ? "重置" : "Reset"}
           </Button>
         </div>
 
@@ -714,12 +779,13 @@ export function FrontOfficeLeadIntakeCard(
 
 function QueueAssistField(props: {
   field: FrontOfficeLeadIntakeAssistField;
+  isZh: boolean;
 }) {
   return (
     <QueueItem
       badge={
         <StatusBadge tone={getAssistFieldTone(props.field)}>
-          {props.field.confidenceLabel}
+          {props.isZh ? assistBadgeZh[props.field.confidenceLabel] ?? props.field.confidenceLabel : props.field.confidenceLabel}
         </StatusBadge>
       }
       description={props.field.reasonLabel}
@@ -729,7 +795,7 @@ function QueueAssistField(props: {
           <span>{props.field.evidenceLabel}</span>
         </>
       }
-      title={props.field.label}
+      title={translateAssistFieldLabel(props.field, props.isZh)}
     />
   );
 }
