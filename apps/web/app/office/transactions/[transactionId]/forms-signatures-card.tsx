@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, CheckboxField, EmptyState, FormField, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import type { OfficeFormTemplateOption, OfficeSignatureRequest, OfficeTransactionForm } from "@acre/db";
+import { useI18n } from "../../../../lib/i18n/client";
 
 type TaskOption = {
   id: string;
@@ -41,27 +42,27 @@ type SignatureDraftState = {
   signingOrder: string;
 };
 
-const formStatusOptions: Array<{ value: OfficeTransactionForm["statusKey"]; label: string }> = [
-  { value: "draft", label: "草稿" },
-  { value: "prepared", label: "已准备" },
-  { value: "sent_for_signature", label: "已发送签名" },
-  { value: "partially_signed", label: "部分已签" },
-  { value: "fully_signed", label: "全部已签" },
-  { value: "rejected", label: "已拒绝" },
-  { value: "voided", label: "已作废" }
+const formStatusOptions: Array<{ value: OfficeTransactionForm["statusKey"]; enLabel: string; zhLabel: string }> = [
+  { value: "draft", enLabel: "Draft", zhLabel: "草稿" },
+  { value: "prepared", enLabel: "Prepared", zhLabel: "已准备" },
+  { value: "sent_for_signature", enLabel: "Sent for signature", zhLabel: "已发送签名" },
+  { value: "partially_signed", enLabel: "Partially signed", zhLabel: "部分已签" },
+  { value: "fully_signed", enLabel: "Fully signed", zhLabel: "全部已签" },
+  { value: "rejected", enLabel: "Rejected", zhLabel: "已拒绝" },
+  { value: "voided", enLabel: "Voided", zhLabel: "已作废" }
 ];
 
-const signatureStatusLabelMap: Record<OfficeSignatureRequest["statusKey"], string> = {
-  draft: "草稿",
-  pending_send: "待发送",
-  sent: "已发送",
-  viewed: "已查看",
-  signed: "已签署",
-  completed: "已完成",
-  declined: "已拒绝",
-  canceled: "已取消",
-  voided: "已作废",
-  expired: "已过期"
+const signatureStatusLabelMap: Record<OfficeSignatureRequest["statusKey"], { en: string; zh: string }> = {
+  draft: { en: "Draft", zh: "草稿" },
+  pending_send: { en: "Pending send", zh: "待发送" },
+  sent: { en: "Sent", zh: "已发送" },
+  viewed: { en: "Viewed", zh: "已查看" },
+  signed: { en: "Signed", zh: "已签署" },
+  completed: { en: "Completed", zh: "已完成" },
+  declined: { en: "Declined", zh: "已拒绝" },
+  canceled: { en: "Canceled", zh: "已取消" },
+  voided: { en: "Voided", zh: "已作废" },
+  expired: { en: "Expired", zh: "已过期" }
 };
 
 function buildFormEditState(form: OfficeTransactionForm): FormEditState {
@@ -113,19 +114,21 @@ function getSignatureTone(statusKey: OfficeSignatureRequest["statusKey"]) {
   return "neutral" as const;
 }
 
-function getFormStatusLabel(form: OfficeTransactionForm) {
-  return formStatusOptions.find((option) => option.value === form.statusKey)?.label ?? form.status;
+function getFormStatusLabel(form: OfficeTransactionForm, isZh: boolean) {
+  const option = formStatusOptions.find((entry) => entry.value === form.statusKey);
+  return option ? (isZh ? option.zhLabel : option.enLabel) : form.status;
 }
 
-function getSignatureStatusLabel(request: OfficeSignatureRequest) {
-  return signatureStatusLabelMap[request.statusKey] ?? request.status;
+function getSignatureStatusLabel(request: OfficeSignatureRequest, isZh: boolean) {
+  const label = signatureStatusLabelMap[request.statusKey];
+  return label ? (isZh ? label.zh : label.en) : request.status;
 }
 
-function buildRecipientSummary(request: OfficeSignatureRequest) {
+function buildRecipientSummary(request: OfficeSignatureRequest, isZh: boolean) {
   if (request.recipients.length === 0) {
     return {
       label: `${request.recipientName} · ${request.recipientEmail}`,
-      detail: request.signingOrder ? `顺序 ${request.signingOrder}` : ""
+      detail: request.signingOrder ? (isZh ? `顺序 ${request.signingOrder}` : `Order ${request.signingOrder}`) : ""
     };
   }
 
@@ -139,8 +142,10 @@ function buildRecipientSummary(request: OfficeSignatureRequest) {
     .join(", ");
 
   return {
-    label: actionableLabels || `${signerCount} 位收件人`,
-    detail: `${signerCount} 位签署人 · ${approverCount} 位审批人${ccCount ? ` · ${ccCount} 位抄送` : ""}`
+    label: actionableLabels || (isZh ? `${signerCount} 位收件人` : `${signerCount} ${signerCount === 1 ? "recipient" : "recipients"}`),
+    detail: isZh
+      ? `${signerCount} 位签署人 · ${approverCount} 位审批人${ccCount ? ` · ${ccCount} 位抄送` : ""}`
+      : `${signerCount} ${signerCount === 1 ? "signer" : "signers"} · ${approverCount} ${approverCount === 1 ? "approver" : "approvers"}${ccCount ? ` · ${ccCount} CC` : ""}`
   };
 }
 
@@ -163,6 +168,8 @@ export function TransactionFormsSignaturesCard({
   canManageSignatures,
   canViewDocuments
 }: TransactionFormsSignaturesCardProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const documentSignatureRequests = signatureRequests.filter((request) => !request.formId);
   const [newFormState, setNewFormState] = useState<NewFormState>({
@@ -201,7 +208,7 @@ export function TransactionFormsSignaturesCard({
 
   async function handleCreateForm() {
     if (!newFormState.templateId) {
-      setError("请先选择模板。");
+      setError(isZh ? "请先选择模板。" : "Select a template first.");
       return;
     }
 
@@ -219,7 +226,7 @@ export function TransactionFormsSignaturesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "无法创建表单。");
+        throw new Error(body?.error ?? (isZh ? "无法创建表单。" : "Unable to create form."));
       }
 
       setNewFormState({
@@ -229,7 +236,7 @@ export function TransactionFormsSignaturesCard({
       });
       router.refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "无法创建表单。");
+      setError(createError instanceof Error ? createError.message : isZh ? "无法创建表单。" : "Unable to create form.");
     } finally {
       setPendingAction(null);
     }
@@ -260,12 +267,12 @@ export function TransactionFormsSignaturesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "表单更新失败。");
+        throw new Error(body?.error ?? (isZh ? "表单更新失败。" : "Form update failed."));
       }
 
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "表单更新失败。");
+      setError(saveError instanceof Error ? saveError.message : isZh ? "表单更新失败。" : "Form update failed.");
     } finally {
       setPendingAction(null);
     }
@@ -275,7 +282,7 @@ export function TransactionFormsSignaturesCard({
     const draft = signatureDrafts[formId] ?? buildSignatureDraft();
 
     if (!draft.recipientName.trim() || !draft.recipientEmail.trim()) {
-      setError("收件人姓名和邮箱为必填项。");
+      setError(isZh ? "收件人姓名和邮箱为必填项。" : "Recipient name and email are required.");
       return;
     }
 
@@ -299,7 +306,7 @@ export function TransactionFormsSignaturesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "无法准备签名请求。");
+        throw new Error(body?.error ?? (isZh ? "无法准备签名请求。" : "Unable to prepare signature request."));
       }
 
       setSignatureDrafts((current) => ({
@@ -308,7 +315,7 @@ export function TransactionFormsSignaturesCard({
       }));
       router.refresh();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "无法准备签名请求。");
+      setError(requestError instanceof Error ? requestError.message : isZh ? "无法准备签名请求。" : "Unable to prepare signature request.");
     } finally {
       setPendingAction(null);
     }
@@ -332,12 +339,12 @@ export function TransactionFormsSignaturesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "签名状态更新失败。");
+        throw new Error(body?.error ?? (isZh ? "签名状态更新失败。" : "Signature status update failed."));
       }
 
       router.refresh();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "签名状态更新失败。");
+      setError(actionError instanceof Error ? actionError.message : isZh ? "签名状态更新失败。" : "Signature status update failed.");
     } finally {
       setPendingAction(null);
     }
@@ -347,8 +354,8 @@ export function TransactionFormsSignaturesCard({
     <section className="office-detail-card" id="transaction-forms-signatures">
       <div className="office-card-head">
         <div>
-          <h3>表单与电子签名</h3>
-          <span>从模板生成交易表单，关联到清单任务，并跟踪手动签名状态。</span>
+          <h3>{isZh ? "表单与电子签名" : "Forms & eSignature"}</h3>
+          <span>{isZh ? "从模板生成交易表单，关联到清单任务，并跟踪手动签名状态。" : "Generate transaction forms from templates, link them to checklist tasks, and track manual signature status."}</span>
         </div>
       </div>
 
@@ -356,37 +363,37 @@ export function TransactionFormsSignaturesCard({
         {documentSignatureRequests.length > 0 ? (
           <article className="office-form-row">
             <div className="office-card-head office-card-head-inline">
-              <h3>文档签名请求</h3>
+              <h3>{isZh ? "文档签名请求" : "Document signature requests"}</h3>
             </div>
 
             <div className="office-form-signature-list">
               {documentSignatureRequests.map((request) => {
-                const recipientSummary = buildRecipientSummary(request);
+                const recipientSummary = buildRecipientSummary(request, isZh);
 
                 return (
                 <div className="office-signature-row" key={request.id}>
                   <div className="office-signature-row-copy">
                     <div className="office-document-row-head">
-                      <strong>{request.documentTitle || "签名请求"}</strong>
-                      <StatusBadge tone={getSignatureTone(request.statusKey)}>{getSignatureStatusLabel(request)}</StatusBadge>
+                      <strong>{request.documentTitle || (isZh ? "签名请求" : "Signature request")}</strong>
+                      <StatusBadge tone={getSignatureTone(request.statusKey)}>{getSignatureStatusLabel(request, isZh)}</StatusBadge>
                     </div>
                     <p>{recipientSummary.label}</p>
                     {recipientSummary.detail ? <p>{recipientSummary.detail}</p> : null}
                     <p>
-                      {request.sentAt ? `已发送 ${formatDateLabel(request.sentAt)}` : "尚未发送"}
-                      {request.firstViewedAt ? ` · 已打开 ${formatDateLabel(request.firstViewedAt)}` : ""}
-                      {request.signedAt ? ` · 已签署 ${formatDateLabel(request.signedAt)}` : ""}
-                      {request.completedAt ? ` · 已完成 ${formatDateLabel(request.completedAt)}` : ""}
+                      {request.sentAt ? (isZh ? `已发送 ${formatDateLabel(request.sentAt)}` : `Sent ${formatDateLabel(request.sentAt)}`) : isZh ? "尚未发送" : "Not sent yet"}
+                      {request.firstViewedAt ? (isZh ? ` · 已打开 ${formatDateLabel(request.firstViewedAt)}` : ` · Viewed ${formatDateLabel(request.firstViewedAt)}`) : ""}
+                      {request.signedAt ? (isZh ? ` · 已签署 ${formatDateLabel(request.signedAt)}` : ` · Signed ${formatDateLabel(request.signedAt)}`) : ""}
+                      {request.completedAt ? (isZh ? ` · 已完成 ${formatDateLabel(request.completedAt)}` : ` · Completed ${formatDateLabel(request.completedAt)}`) : ""}
                     </p>
                   </div>
 
                   <div className="office-signature-row-actions">
                     <Link className="office-button-secondary office-inline-action-sm" href={`/office/transactions/${transactionId}/signatures/${request.id}`}>
-                      打开请求
+                      {isZh ? "打开请求" : "Open request"}
                     </Link>
                     {request.completedDocumentHref && canViewDocuments ? (
                       <Link className="office-button-secondary office-inline-action-sm" href={request.completedDocumentHref} target="_blank">
-                        已签 PDF
+                        {isZh ? "已签 PDF" : "Signed PDF"}
                       </Link>
                     ) : null}
                     {canManageSignatures && (request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed" || request.statusKey === "expired" || request.statusKey === "canceled" || request.statusKey === "voided") ? (
@@ -396,7 +403,7 @@ export function TransactionFormsSignaturesCard({
                         size="sm"
                         variant="secondary"
                       >
-                        {pendingAction === `resend:${request.id}` ? "重新发送中..." : "重新发送"}
+                        {pendingAction === `resend:${request.id}` ? (isZh ? "重新发送中..." : "Resending...") : isZh ? "重新发送" : "Resend"}
                       </Button>
                     ) : null}
                     {canManageSignatures && (request.statusKey === "draft" || request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
@@ -406,7 +413,7 @@ export function TransactionFormsSignaturesCard({
                         size="sm"
                         variant="danger"
                       >
-                        {pendingAction === `canceled:${request.id}` ? "取消中..." : "取消"}
+                        {pendingAction === `canceled:${request.id}` ? (isZh ? "取消中..." : "Canceling...") : isZh ? "取消" : "Cancel"}
                       </Button>
                     ) : null}
                   </div>
@@ -428,15 +435,15 @@ export function TransactionFormsSignaturesCard({
                   <div className="office-document-row-copy">
                     <div className="office-document-row-head">
                       <strong>{form.name}</strong>
-                      <StatusBadge tone={getFormTone(form.statusKey)}>{getFormStatusLabel(form)}</StatusBadge>
-                      {form.documentTitle ? <StatusBadge tone="neutral">已生成文档</StatusBadge> : null}
+                      <StatusBadge tone={getFormTone(form.statusKey)}>{getFormStatusLabel(form, isZh)}</StatusBadge>
+                      {form.documentTitle ? <StatusBadge tone="neutral">{isZh ? "已生成文档" : "Document generated"}</StatusBadge> : null}
                     </div>
                     <p>
-                      模板：{form.templateName || "自定义"} · 创建人：{form.createdByName || "系统"}
+                      {isZh ? "模板：" : "Template: "}{form.templateName || (isZh ? "自定义" : "Custom")} · {isZh ? "创建人：" : "Created by: "}{form.createdByName || (isZh ? "系统" : "System")}
                     </p>
                     {form.linkedTaskTitle ? (
                       <p>
-                        关联任务：<Link href={form.linkedTaskHref}>{form.linkedTaskTitle}</Link>
+                        {isZh ? "关联任务：" : "Linked task: "}<Link href={form.linkedTaskHref}>{form.linkedTaskTitle}</Link>
                       </p>
                     ) : null}
                   </div>
@@ -444,7 +451,7 @@ export function TransactionFormsSignaturesCard({
                   <div className="office-document-row-actions">
                     {canViewDocuments && form.documentId ? (
                       <Link className="office-toggle-link" href={`/api/office/transactions/${transactionId}/documents/${form.documentId}/file`} target="_blank">
-                        打开文档
+                        {isZh ? "打开文档" : "Open document"}
                       </Link>
                     ) : null}
                   </div>
@@ -452,18 +459,18 @@ export function TransactionFormsSignaturesCard({
 
                 {canUseForms ? (
                   <div className="office-document-edit-grid">
-                    <FormField label="表单名称">
+                    <FormField label={isZh ? "表单名称" : "Form name"}>
                       <TextInput
                         onChange={(event) => updateFormState(form.id, "name", event.target.value)}
                         value={formState.name}
                       />
                     </FormField>
-                    <FormField label="关联任务">
+                    <FormField label={isZh ? "关联任务" : "Linked task"}>
                       <SelectInput
                         onChange={(event) => updateFormState(form.id, "linkedTaskId", event.target.value)}
                         value={formState.linkedTaskId}
                       >
-                        <option value="">不关联任务</option>
+                        <option value="">{isZh ? "不关联任务" : "No linked task"}</option>
                         {taskOptions.map((task) => (
                           <option key={task.id} value={task.id}>
                             {task.title}
@@ -471,14 +478,14 @@ export function TransactionFormsSignaturesCard({
                         ))}
                       </SelectInput>
                     </FormField>
-                    <FormField label="表单状态">
+                    <FormField label={isZh ? "表单状态" : "Form status"}>
                       <SelectInput
                         onChange={(event) => updateFormState(form.id, "statusKey", event.target.value)}
                         value={formState.statusKey}
                       >
                         {formStatusOptions.map((option) => (
                           <option key={option.value} value={option.value}>
-                            {option.label}
+                            {isZh ? option.zhLabel : option.enLabel}
                           </option>
                         ))}
                       </SelectInput>
@@ -489,7 +496,7 @@ export function TransactionFormsSignaturesCard({
                         onClick={() => handleSaveForm(form.id)}
                         size="sm"
                       >
-                        {pendingAction === `save-form:${form.id}` ? "保存中..." : "保存表单"}
+                        {pendingAction === `save-form:${form.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存表单" : "Save form"}
                       </Button>
                     </div>
                   </div>
@@ -506,26 +513,26 @@ export function TransactionFormsSignaturesCard({
 
                 <div className="office-form-signature-list">
                   <div className="office-card-head office-card-head-inline">
-                    <h3>签名请求</h3>
+                    <h3>{isZh ? "签名请求" : "Signature requests"}</h3>
                   </div>
 
                   {form.signatureRequests.length > 0 ? (
                     form.signatureRequests.map((request) => {
-                      const recipientSummary = buildRecipientSummary(request);
+                      const recipientSummary = buildRecipientSummary(request, isZh);
 
                       return (
                       <div className="office-signature-row" key={request.id}>
                         <div className="office-signature-row-copy">
                           <div className="office-document-row-head">
                             <strong>{request.documentTitle || form.name}</strong>
-                            <StatusBadge tone={getSignatureTone(request.statusKey)}>{getSignatureStatusLabel(request)}</StatusBadge>
+                            <StatusBadge tone={getSignatureTone(request.statusKey)}>{getSignatureStatusLabel(request, isZh)}</StatusBadge>
                           </div>
                           <p>{recipientSummary.label}</p>
                           {recipientSummary.detail ? <p>{recipientSummary.detail}</p> : null}
                           <p>
-                            {request.sentAt ? `已发送 ${formatDateLabel(request.sentAt)}` : "尚未发送"}
-                            {request.completedAt ? ` · 已签署 ${formatDateLabel(request.completedAt)}` : ""}
-                            {request.declinedAt ? ` · 已拒绝 ${formatDateLabel(request.declinedAt)}` : ""}
+                            {request.sentAt ? (isZh ? `已发送 ${formatDateLabel(request.sentAt)}` : `Sent ${formatDateLabel(request.sentAt)}`) : isZh ? "尚未发送" : "Not sent yet"}
+                            {request.completedAt ? (isZh ? ` · 已签署 ${formatDateLabel(request.completedAt)}` : ` · Signed ${formatDateLabel(request.completedAt)}`) : ""}
+                            {request.declinedAt ? (isZh ? ` · 已拒绝 ${formatDateLabel(request.declinedAt)}` : ` · Declined ${formatDateLabel(request.declinedAt)}`) : ""}
                           </p>
                         </div>
 
@@ -537,7 +544,7 @@ export function TransactionFormsSignaturesCard({
                                 onClick={() => handleSignatureAction(request.id, "send")}
                                 size="sm"
                               >
-                                {pendingAction === `send:${request.id}` ? "发送中..." : "发送"}
+                                {pendingAction === `send:${request.id}` ? (isZh ? "发送中..." : "Sending...") : isZh ? "发送" : "Send"}
                               </Button>
                             ) : null}
                             {(request.statusKey === "sent" || request.statusKey === "viewed") ? (
@@ -549,7 +556,7 @@ export function TransactionFormsSignaturesCard({
                                     size="sm"
                                     variant="secondary"
                                   >
-                                    标记已查看
+                                    {isZh ? "标记已查看" : "Mark viewed"}
                                   </Button>
                                 ) : null}
                                 <Button
@@ -557,16 +564,16 @@ export function TransactionFormsSignaturesCard({
                                   onClick={() => handleSignatureAction(request.id, "signed")}
                                   size="sm"
                                 >
-                                  {pendingAction === `signed:${request.id}` ? "保存中..." : "标记已签"}
+                                  {pendingAction === `signed:${request.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "标记已签" : "Mark signed"}
                                 </Button>
                                 <Button
                                   disabled={pendingAction === `declined:${request.id}`}
                                   onClick={() => handleSignatureAction(request.id, "declined")}
                                   size="sm"
-                                  variant="danger"
-                                >
-                                  拒绝
-                                </Button>
+                                variant="danger"
+                              >
+                                  {isZh ? "拒绝" : "Decline"}
+                              </Button>
                               </>
                             ) : null}
                             {(request.statusKey === "draft" || request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
@@ -576,7 +583,7 @@ export function TransactionFormsSignaturesCard({
                                 size="sm"
                                 variant="secondary"
                               >
-                                取消
+                                {isZh ? "取消" : "Cancel"}
                               </Button>
                             ) : null}
                           </div>
@@ -585,35 +592,35 @@ export function TransactionFormsSignaturesCard({
                       );
                     })
                   ) : (
-                    <EmptyState title="还没有签名请求。" />
+                    <EmptyState title={isZh ? "还没有签名请求。" : "No signature requests yet."} />
                   )}
 
                   {canManageSignatures ? (
                     <div className="office-document-upload-panel office-form-signature-create">
                       <div className="office-card-head office-card-head-inline">
-                        <h3>准备签名请求</h3>
+                        <h3>{isZh ? "准备签名请求" : "Prepare signature request"}</h3>
                       </div>
                       <div className="office-document-upload-grid">
-                        <FormField label="收件人姓名">
+                        <FormField label={isZh ? "收件人姓名" : "Recipient name"}>
                           <TextInput
                             onChange={(event) => updateSignatureDraft(form.id, "recipientName", event.target.value)}
                             value={signatureDraft.recipientName}
                           />
                         </FormField>
-                        <FormField label="收件人邮箱">
+                        <FormField label={isZh ? "收件人邮箱" : "Recipient email"}>
                           <TextInput
                             onChange={(event) => updateSignatureDraft(form.id, "recipientEmail", event.target.value)}
                             type="email"
                             value={signatureDraft.recipientEmail}
                           />
                         </FormField>
-                        <FormField label="收件人角色">
+                        <FormField label={isZh ? "收件人角色" : "Recipient role"}>
                           <TextInput
                             onChange={(event) => updateSignatureDraft(form.id, "recipientRole", event.target.value)}
                             value={signatureDraft.recipientRole}
                           />
                         </FormField>
-                        <FormField label="签署顺序">
+                        <FormField label={isZh ? "签署顺序" : "Signing order"}>
                           <TextInput
                             onChange={(event) => updateSignatureDraft(form.id, "signingOrder", event.target.value)}
                             type="number"
@@ -628,7 +635,7 @@ export function TransactionFormsSignaturesCard({
                           onClick={() => handleCreateSignatureRequest(form.id)}
                           size="sm"
                         >
-                          {pendingAction === `create-signature:${form.id}` ? "准备中..." : "准备签名请求"}
+                          {pendingAction === `create-signature:${form.id}` ? (isZh ? "准备中..." : "Preparing...") : isZh ? "准备签名请求" : "Prepare signature request"}
                         </Button>
                       </div>
                     </div>
@@ -639,8 +646,8 @@ export function TransactionFormsSignaturesCard({
           })
         ) : (
           <EmptyState
-            description="使用内置模板准备交易表单，并启动内部签名流程。"
-            title="这笔交易还没有创建表单。"
+            description={isZh ? "使用内置模板准备交易表单，并启动内部签名流程。" : "Use built-in templates to prepare transaction forms and start the internal signature flow."}
+            title={isZh ? "这笔交易还没有创建表单。" : "No forms have been created for this transaction."}
           />
         )}
       </div>
@@ -648,16 +655,16 @@ export function TransactionFormsSignaturesCard({
       {canUseForms ? (
         <div className="office-document-upload-panel">
           <div className="office-card-head office-card-head-inline">
-            <h3>使用表单</h3>
+            <h3>{isZh ? "使用表单" : "Use form"}</h3>
           </div>
 
           <div className="office-document-upload-grid">
-            <FormField label="模板">
+            <FormField label={isZh ? "模板" : "Template"}>
               <SelectInput
                 onChange={(event) => setNewFormState((current) => ({ ...current, templateId: event.target.value }))}
                 value={newFormState.templateId}
               >
-                <option value="">选择模板</option>
+                <option value="">{isZh ? "选择模板" : "Select template"}</option>
                 {formTemplates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -665,12 +672,12 @@ export function TransactionFormsSignaturesCard({
                 ))}
               </SelectInput>
             </FormField>
-            <FormField label="关联任务">
+            <FormField label={isZh ? "关联任务" : "Linked task"}>
               <SelectInput
                 onChange={(event) => setNewFormState((current) => ({ ...current, linkedTaskId: event.target.value }))}
                 value={newFormState.linkedTaskId}
               >
-                <option value="">不关联任务</option>
+                <option value="">{isZh ? "不关联任务" : "No linked task"}</option>
                 {taskOptions.map((task) => (
                   <option key={task.id} value={task.id}>
                     {task.title}
@@ -678,10 +685,10 @@ export function TransactionFormsSignaturesCard({
                 ))}
               </SelectInput>
             </FormField>
-            <FormField label="文档组名称">
+            <FormField label={isZh ? "文档组名称" : "Document group name"}>
               <TextInput
                 onChange={(event) => setNewFormState((current) => ({ ...current, name: event.target.value }))}
-                placeholder="留空则使用默认模板名称"
+                placeholder={isZh ? "留空则使用默认模板名称" : "Leave blank to use the default template name"}
                 value={newFormState.name}
               />
             </FormField>
@@ -689,7 +696,7 @@ export function TransactionFormsSignaturesCard({
 
           <div className="office-document-edit-actions">
             <Button disabled={pendingAction === "create-form"} onClick={handleCreateForm}>
-              {pendingAction === "create-form" ? "创建中..." : "创建表单草稿"}
+              {pendingAction === "create-form" ? (isZh ? "创建中..." : "Creating...") : isZh ? "创建表单草稿" : "Create form draft"}
             </Button>
           </div>
         </div>

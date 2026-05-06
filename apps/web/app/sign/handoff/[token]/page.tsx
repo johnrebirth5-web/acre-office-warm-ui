@@ -1,4 +1,5 @@
 import { resolveProjectHandoffToken } from "@acre/db";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import { ProjectHandoffClient } from "./project-handoff-client";
 
 type PageProps = {
@@ -47,14 +48,16 @@ function buildSigningDocumentsForRecipient(
 
 export default async function ProjectHandoffSigningPage({ params }: PageProps) {
   const { token } = await params;
+  const { locale } = await getServerI18n();
+  const isZh = locale === "zh-CN";
   const session = await resolveProjectHandoffToken(token);
 
   if (!session) {
     return (
       <main className="project-kiosk-shell">
         <section className="project-kiosk-panel">
-          <h1>交接链接已失效</h1>
-          <p>这个 iPad 交接链接无效、已过期，或已被经纪人重置。</p>
+          <h1>{isZh ? "交接链接已失效" : "Handoff link unavailable"}</h1>
+          <p>{isZh ? "这个 iPad 交接链接无效、已过期，或已被经纪人重置。" : "This iPad handoff link is invalid, expired, or was reset by the agent."}</p>
         </section>
       </main>
     );

@@ -37,25 +37,106 @@ export type CalendarViewConfig = {
 const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
   all: {
     description:
+      "Use the full appointment queue, then narrow by coordination or follow-up only when the next move becomes clear.",
+    label: "All appointments",
+    routeCopy: "All appointments",
+  },
+  month: {
+    description:
+      "Use the Event Hub month board to balance shared office events with your appointment commitments.",
+    label: "Month board",
+    routeCopy: "Month board",
+  },
+  day: {
+    description:
+      "Use the Event Hub day board to read appointments and shared events in one daily stack.",
+    label: "Day board",
+    routeCopy: "Day board",
+  },
+  week: {
+    description:
+      "Use the Event Hub week board to keep appointments and shared events visible in one sweep.",
+    label: "Week board",
+    routeCopy: "Week board",
+  },
+  reply_due: {
+    description:
+      "Focus on appointments that are still waiting on an outside reply or fresh response.",
+    label: "Needs reply",
+    routeCopy: "Needs reply",
+  },
+  confirmation_pending: {
+    description:
+      "Focus on scheduled appointments that still need an explicit confirmation back from the outside party.",
+    label: "Awaiting confirmation",
+    routeCopy: "Awaiting confirmation",
+  },
+  confirmed: {
+    description:
+      "Focus on appointments that are already confirmed outside Acre and only need a last-touch checkpoint or a clean confirmed record before start time.",
+    label: "Externally confirmed",
+    routeCopy: "Confirmed",
+  },
+  touch_due: {
+    description:
+      "Focus on appointments where the saved next external touch is already due or overdue.",
+    label: "Touch due",
+    routeCopy: "Touch due",
+  },
+  touch_scheduled: {
+    description:
+      "Focus on appointments where the next external touch is already saved but is not due yet.",
+    label: "Touch scheduled",
+    routeCopy: "Touch scheduled",
+  },
+  missing_next_touch: {
+    description:
+      "Focus on appointments that still need a saved next-touch deadline before the outside thread stays readable.",
+    label: "Missing next touch",
+    routeCopy: "Missing next touch",
+  },
+  reschedule_requested: {
+    description:
+      "Focus on appointments where the outside conversation already asked for a time change or reset.",
+    label: "Reschedule requested",
+    routeCopy: "Reschedule requested",
+  },
+  bridge_logged: {
+    description:
+      "Focus on appointments where an external draft or export was already opened and the next step still needs to be saved here.",
+    label: "Draft opened",
+    routeCopy: "Draft opened",
+  },
+  writeback_pending: {
+    description:
+      "Focus on appointments where an external draft was opened, but no confirmation, reschedule, or next step has been saved yet.",
+    label: "Update not saved",
+    routeCopy: "Update not saved",
+  },
+};
+
+const calendarViewZhConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
+  all: {
+    description:
       "先使用完整预约队列；只有下一步明确后，再按协调或跟进缩小范围。",
     label: "全部预约",
     routeCopy: "全部预约",
   },
   month: {
     description:
-      "使用事件中心月视图，平衡共享办公室活动和你的预约承诺。",
+      "使用 Event Hub 月视图，平衡共享办公室活动和你的预约承诺。",
     label: "月视图",
     routeCopy: "月视图",
   },
   day: {
     description:
-      "使用事件中心日视图，在同一天堆栈中查看预约和共享活动。",
+      "使用 Event Hub 日视图，在同一天堆栈中查看预约和共享活动。",
     label: "日视图",
     routeCopy: "日视图",
   },
   week: {
     description:
-      "使用事件中心周视图，一次性看清预约和共享活动。",
+      "使用 Event Hub 周视图，一次性看清预约和共享活动。",
     label: "周视图",
     routeCopy: "周视图",
   },
@@ -121,8 +202,8 @@ export function resolveCalendarView(value: string | null | undefined) {
     : "all";
 }
 
-export function getCalendarViewConfig(calendarView: CalendarViewKey) {
-  return calendarViewConfigs[calendarView];
+export function getCalendarViewConfig(calendarView: CalendarViewKey, isZh = false) {
+  return (isZh ? calendarViewZhConfigs : calendarViewConfigs)[calendarView];
 }
 
 export function getCalendarViewForExternalWorkflowStatus(

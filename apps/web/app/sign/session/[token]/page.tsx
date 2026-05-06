@@ -1,4 +1,5 @@
 import { resolveProjectRemoteSigningToken } from "@acre/db";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import { ProjectRemoteSignClient } from "./project-remote-sign-client";
 
 type PageProps = {
@@ -47,14 +48,16 @@ function buildSigningDocuments(
 
 export default async function ProjectRemoteSigningPage({ params }: PageProps) {
   const { token } = await params;
+  const { locale } = await getServerI18n();
+  const isZh = locale === "zh-CN";
   const resolved = await resolveProjectRemoteSigningToken(token);
 
   if (!resolved) {
     return (
       <main className="project-public-shell">
         <section className="project-public-panel">
-          <h1>签署链接不可用</h1>
-          <p>这个签署链接无效、已过期，或已被新的链接替换。</p>
+          <h1>{isZh ? "签署链接不可用" : "Signing link unavailable"}</h1>
+          <p>{isZh ? "这个签署链接无效、已过期，或已被新的链接替换。" : "This signing link is invalid, expired, or has been replaced by a newer link."}</p>
         </section>
       </main>
     );

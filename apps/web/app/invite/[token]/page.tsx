@@ -7,6 +7,7 @@ import {
   consumePublicTokenRateLimit,
   PUBLIC_INVITATION_READ_RATE_LIMIT_OPTIONS,
 } from "../../../lib/public-token-rate-limit";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { SignatureStatusCallout } from "../../sign/[token]/signature-status-callout";
 
 type InvitePageProps = {
@@ -18,18 +19,18 @@ type InvitePageProps = {
   }>;
 };
 
-function getErrorMessage(error?: string) {
+function getErrorMessage(error: string | undefined, isZh: boolean) {
   switch (error) {
     case "mismatch":
-      return "两次输入的密码不一致。";
+      return isZh ? "两次输入的密码不一致。" : "The passwords do not match.";
     case "password_length":
-      return "密码太短。";
+      return isZh ? "密码太短。" : "The password is too short.";
     case "missing_password":
-      return "请输入密码后继续。";
+      return isZh ? "请输入密码后继续。" : "Enter a password to continue.";
     case "rate_limited":
-      return "邀请尝试次数过多，请稍后再试。";
+      return isZh ? "邀请尝试次数过多，请稍后再试。" : "Too many invitation attempts. Please try again later.";
     default:
-      return error ? "暂时无法完成这个邀请。" : "";
+      return error ? (isZh ? "暂时无法完成这个邀请。" : "This invitation cannot be completed right now.") : "";
   }
 }
 
@@ -56,15 +57,16 @@ function buildMailtoHref(subject: string, body: string) {
 function getInviteUnavailableCallout(
   status: string,
   email: string,
+  isZh: boolean,
 ): InviteCalloutState {
   if (status === "accepted") {
     return {
       tone: "success",
       icon: "check",
-      title: "这个邀请已被接受。",
-      description: "请使用邮箱和密码登录后继续。",
+      title: isZh ? "这个邀请已被接受。" : "This invitation has already been accepted.",
+      description: isZh ? "请使用邮箱和密码登录后继续。" : "Sign in with your email and password to continue.",
       action: {
-        label: "登录",
+        label: isZh ? "登录" : "Sign in",
         href: "/login",
       },
     };
@@ -74,13 +76,15 @@ function getInviteUnavailableCallout(
     return {
       tone: "warning",
       icon: "clock",
-      title: "这个邀请已过期。",
-      description: "请联系邀请人重新发送链接。",
+      title: isZh ? "这个邀请已过期。" : "This invitation has expired.",
+      description: isZh ? "请联系邀请人重新发送链接。" : "Contact the sender and ask them to send a new link.",
       action: {
-        label: "请求新链接",
+        label: isZh ? "请求新链接" : "Request new link",
         href: buildMailtoHref(
-          "Request a new Acre invitation link",
-          `Hi,\n\nPlease send me a fresh Acre invitation link for ${email || "my account"}.\n\nThank you.`,
+          isZh ? "请求新的 Acre 邀请链接" : "Request a new Acre invitation link",
+          isZh
+            ? `你好，\n\n请为 ${email || "我的账户"} 重新发送一个 Acre 邀请链接。\n\n谢谢。`
+            : `Hi,\n\nPlease send me a fresh Acre invitation link for ${email || "my account"}.\n\nThank you.`,
         ),
       },
     };
@@ -92,24 +96,32 @@ function getInviteUnavailableCallout(
       icon: "x",
       title:
         status === "revoked"
-          ? "这个邀请已被取消。"
-          : "该组织目前无法继续接受这个邀请。",
+          ? isZh
+            ? "这个邀请已被取消。"
+            : "This invitation has been canceled."
+          : isZh
+            ? "该组织目前无法继续接受这个邀请。"
+            : "This organization cannot accept the invitation right now.",
       description:
         status === "revoked"
-          ? "管理员已在接受前撤销这个邀请。"
-          : "请联系发送人或管理员团队获取新的访问方式。",
+          ? isZh
+            ? "管理员已在接受前撤销这个邀请。"
+            : "An admin revoked this invitation before it was accepted."
+          : isZh
+            ? "请联系发送人或管理员团队获取新的访问方式。"
+            : "Contact the sender or admin team for a new access path.",
     };
   }
 
   return {
     tone: "info",
     icon: "question",
-    title: "这个邀请链接无效。",
+    title: isZh ? "这个邀请链接无效。" : "This invitation link is invalid.",
   };
 }
 
-function getInviteFormErrorCallout(error?: string): InviteCalloutState | null {
-  const errorMessage = getErrorMessage(error);
+function getInviteFormErrorCallout(error: string | undefined, isZh: boolean): InviteCalloutState | null {
+  const errorMessage = getErrorMessage(error, isZh);
 
   if (!errorMessage) {
     return null;
@@ -119,14 +131,14 @@ function getInviteFormErrorCallout(error?: string): InviteCalloutState | null {
     return {
       tone: "warning",
       icon: "timer",
-      title: "邀请尝试次数过多，请稍后再试。",
+      title: isZh ? "邀请尝试次数过多，请稍后再试。" : "Too many invitation attempts. Please try again later.",
     };
   }
 
   return {
     tone: "error",
     icon: "x",
-    title: "暂时无法完成这个邀请。",
+    title: isZh ? "暂时无法完成这个邀请。" : "This invitation cannot be completed right now.",
     description: errorMessage,
   };
 }
@@ -147,22 +159,28 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
 
   const snapshot = await getInvitationSnapshot(token);
   const query = (await searchParams) ?? {};
+  const { locale } = await getServerI18n();
+  const isZh = locale === "zh-CN";
   const isReady = snapshot.status === "ready";
   const isInvite = snapshot.requiresActivation;
-  const unavailableCallout = getInviteUnavailableCallout(query.error || snapshot.status, snapshot.email);
-  const formErrorCallout = getInviteFormErrorCallout(query.error);
+  const unavailableCallout = getInviteUnavailableCallout(query.error || snapshot.status, snapshot.email, isZh);
+  const formErrorCallout = getInviteFormErrorCallout(query.error, isZh);
 
   return (
     <main className="auth-shell">
       <section className="auth-layout">
         <section className="auth-card">
           <div className="auth-card-copy">
-            <span className="auth-eyebrow">内部账户</span>
-            <h2>{isInvite ? "接受邀请" : "设置密码"}</h2>
+            <span className="auth-eyebrow">{isZh ? "内部账户" : "Internal account"}</span>
+            <h2>{isInvite ? (isZh ? "接受邀请" : "Accept invitation") : isZh ? "设置密码" : "Set password"}</h2>
             <p>
               {isReady
-                ? `完成 ${snapshot.email} 的账户设置，然后开始使用 Acre 内部工作区。`
-                : "这个邀请链接当前已不可用。"}
+                ? isZh
+                  ? `完成 ${snapshot.email} 的账户设置，然后开始使用 Acre 内部工作区。`
+                  : `Finish account setup for ${snapshot.email}, then start using the Acre internal workspace.`
+                : isZh
+                  ? "这个邀请链接当前已不可用。"
+                  : "This invitation link is not available right now."}
             </p>
           </div>
 
@@ -171,27 +189,27 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
               <input name="token" type="hidden" value={token} />
 
               <label className="auth-field">
-                <span>名</span>
+                <span>{isZh ? "名" : "First name"}</span>
                 <input defaultValue={snapshot.firstName} name="firstName" type="text" />
               </label>
 
               <label className="auth-field">
-                <span>姓</span>
+                <span>{isZh ? "姓" : "Last name"}</span>
                 <input defaultValue={snapshot.lastName} name="lastName" type="text" />
               </label>
 
               <label className="auth-field">
-                <span>邮箱</span>
+                <span>{isZh ? "邮箱" : "Email"}</span>
                 <input disabled value={snapshot.email} />
               </label>
 
               <label className="auth-field">
-                <span>密码</span>
+                <span>{isZh ? "密码" : "Password"}</span>
                 <input autoComplete="new-password" name="password" type="password" />
               </label>
 
               <label className="auth-field">
-                <span>确认密码</span>
+                <span>{isZh ? "确认密码" : "Confirm password"}</span>
                 <input autoComplete="new-password" name="confirmPassword" type="password" />
               </label>
 
@@ -207,7 +225,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
 
               <div className="auth-actions">
                 <Button className="auth-submit" type="submit">
-                  {isInvite ? "接受邀请" : "保存密码"}
+                  {isInvite ? (isZh ? "接受邀请" : "Accept invitation") : isZh ? "保存密码" : "Save password"}
                 </Button>
               </div>
             </form>
@@ -223,7 +241,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
               {snapshot.status !== "accepted" ? (
                 <div className="auth-actions">
                   <Link className="office-button-secondary office-button-sm" href="/login">
-                    前往登录
+                    {isZh ? "前往登录" : "Go to sign in"}
                   </Link>
                 </div>
               ) : null}

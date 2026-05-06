@@ -51,7 +51,7 @@ import {
 } from "../calendar-view";
 
 import { AgendaSection, AppointmentCue, AppointmentFormState, AppointmentMailThreadErrorResponse, AppointmentMailThreadResponse, AppointmentMailThreadSuccessResponse, AppointmentMutationResponse, AppointmentTouchPreset, AppointmentWritebackDraft, BridgeActionResponse, BridgeOutcomeState, FeedbackState, FilterState, FilterUpdate, FocusState, FrontOfficeAppointmentCheckpointSummary, FrontOfficeCalendarClientProps } from "./types";
-import { appendReturnToHref, buildAgendaDateKeys, buildAgendaSections, buildAppointmentCueList, buildCalendarHref, buildDefaultEndValue, buildDefaultStartValue, buildEmptyFormState, buildWritebackDraft, calendarViewOptions, coordinationFilterOptions, coordinationFilterValueSet, didWritebackChange, downloadCalendarExport, externalStatusOptions, followUpFilterOptions, followUpFilterValueSet, formatAgendaDateLabel, formatAgendaTimeLabel, formatDateTimeLocalValue, getAgendaDateKey, hasActiveQueueFilters, isValidHttpUrl, normalizeFilterState, normalizeHttpUrlInput, quickWritebackActions, readFilterState, readOptionLabel, readReturnToLabel, readWritebackDraft, resolveFocusState, sanitizeEnumValue, sanitizeReturnTo, sanitizeScopedValue, statusFilterOptions, statusFilterValueSet, toIsoDateTime, validateAppointmentFormState } from "./helpers";
+import { appendReturnToHref, buildAgendaDateKeys, buildAgendaSections, buildAppointmentCueList, buildCalendarHref, buildDefaultEndValue, buildDefaultStartValue, buildEmptyFormState, buildWritebackDraft, coordinationFilterOptions, coordinationFilterValueSet, didWritebackChange, downloadCalendarExport, externalStatusOptions, followUpFilterOptions, followUpFilterValueSet, formatAgendaDateLabel, formatAgendaTimeLabel, formatDateTimeLocalValue, getAgendaDateKey, hasActiveQueueFilters, isValidHttpUrl, normalizeFilterState, normalizeHttpUrlInput, quickWritebackActions, readFilterState, readOptionLabel, readReturnToLabel, readWritebackDraft, resolveFocusState, sanitizeEnumValue, sanitizeReturnTo, sanitizeScopedValue, statusFilterOptions, statusFilterValueSet, toIsoDateTime, validateAppointmentFormState } from "./helpers";
 import {
   AppointmentsQueueCard,
   FocusAppointmentCard,
@@ -95,6 +95,10 @@ export function FrontOfficeCalendarClient(
     { value: "canceled", label: isZh ? "已取消" : "Canceled" },
     { value: "no_show", label: isZh ? "未到场" : "No-show" },
   ];
+  const calendarViewOptions = calendarViewValues.map((value) => ({
+    value,
+    label: getCalendarViewConfig(value, isZh).label,
+  }));
   const quickWritebackActions = [
     {
       value: "needs_follow_up" as const,

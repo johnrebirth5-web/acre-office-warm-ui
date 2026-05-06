@@ -2,6 +2,7 @@ import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@a
 import { getOfficeSignatureTemplateLibrarySnapshot, getSignatureEditorSnapshot } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
+import { getServerI18n } from "../../../../../../lib/i18n/server";
 import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../../_components/office-detail-page-template";
 import { SignatureRequestEditor } from "../signature-request-editor";
 
@@ -14,6 +15,10 @@ type SignatureRequestPageProps = {
 
 export default async function SignatureRequestPage({ params }: SignatureRequestPageProps) {
   const context = await requireOfficeSession();
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale
+  });
+  const isZh = locale === "zh-CN";
 
   if (!canManageOfficeSignatures(context.currentMembership)) {
     redirect(`/office/transactions`);
@@ -37,9 +42,9 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
   return (
     <OfficeDetailPageShell className="office-signature-page">
       <OfficeDetailPageHeader
-        description="更新收件人或字段位置，确保每个字段都分配给正确签署人；请求准备好后可重新发送。"
-        eyebrow="交易签名"
-        title={`编辑签名请求 · ${snapshot.document.title}`}
+        description={isZh ? "更新收件人或字段位置，确保每个字段都分配给正确签署人；请求准备好后可重新发送。" : "Update recipients or field placement, keep every field assigned to the right signer, and resend once the request is ready."}
+        eyebrow={isZh ? "交易签名" : "Transaction signatures"}
+        title={isZh ? `编辑签名请求 · ${snapshot.document.title}` : `Edit signature request · ${snapshot.document.title}`}
       />
 
       <SignatureRequestEditor

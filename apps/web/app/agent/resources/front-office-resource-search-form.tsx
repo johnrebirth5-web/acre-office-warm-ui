@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { FilterBar, FilterField, TextInput } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 
 const interactionEndpoint = "/api/resources/interactions";
 
@@ -51,6 +52,9 @@ export function FrontOfficeResourceSearchForm(props: {
   tab: FrontOfficeResourceSearchTab;
   placeholder?: string;
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const query = `${formData.get("q") ?? ""}`.trim();
@@ -65,27 +69,29 @@ export function FrontOfficeResourceSearchForm(props: {
   return (
     <FilterBar as="form" method="GET" onSubmit={handleSubmit}>
       <input name="tab" type="hidden" value={props.tab} />
-      <FilterField className="office-form-grid-span-2" label="搜索">
+      <FilterField className="office-form-grid-span-2" label={isZh ? "搜索" : "Search"}>
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
           placeholder={
             props.placeholder ??
-            "搜索标题、摘要、标签或供应商名称"
+            (isZh
+              ? "搜索标题、摘要、标签或供应商名称"
+              : "Search titles, summaries, tags, or vendor names")
           }
           type="search"
         />
       </FilterField>
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
-          搜索
+          {isZh ? "搜索" : "Search"}
         </button>
         {props.initialQuery ? (
           <a
             className="office-button-secondary"
             href={buildResourcesHref(props.tab)}
           >
-            清除
+            {isZh ? "清除" : "Clear"}
           </a>
         ) : null}
       </div>
