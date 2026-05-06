@@ -66,10 +66,11 @@ type BodyFieldRecord =
     };
 
 const maxVisibleOwnerSuggestions = 20;
+const ownerSummaryLabel = "交易负责人";
 const ownerSelectionError =
-  "Select an agent owner before creating the transaction.";
+  "创建交易前请选择一位经纪人负责人。";
 const transactionIdentityError =
-  "Enter a Transaction Name or Address before saving.";
+  "保存前请填写交易名称或地址。";
 
 type TransactionIntakeFieldErrors = Record<string, string>;
 
@@ -88,7 +89,22 @@ function joinDescribedByIds(...ids: Array<string | false | undefined>) {
 }
 
 function buildRequiredFieldsSummary(labels: string[]) {
-  return `Complete required fields: ${labels.join(", ")}.`;
+  return `请填写必填字段：${labels.join("、")}。`;
+}
+
+const transactionIntakeErrorMessageMap: Record<string, string> = {
+  "Failed to save transaction intake.": "无法保存交易录入。",
+  "Select an agent owner before creating the transaction.": ownerSelectionError
+};
+
+function translateTransactionIntakeErrorMessage(value: string) {
+  const requiredFieldMatch = value.match(/^(.+) is required\.$/);
+
+  if (requiredFieldMatch) {
+    return `${requiredFieldMatch[1]}为必填项。`;
+  }
+
+  return transactionIntakeErrorMessageMap[value] ?? value;
 }
 
 function buildInitialFieldValues(
@@ -261,8 +277,8 @@ export function TransactionIntakeWorkspace({
   const canSearchOwners =
     mode === "create" && ownerAssignment?.canSelectDifferentOwner;
   const ownerHelperText = canSearchOwners
-    ? "Search and select the transaction owner before saving."
-    : "This transaction will be assigned to your account.";
+    ? "保存前请搜索并选择交易负责人。"
+    : "此交易将分配给你的账户。";
   const pristineFinanceDraft = useMemo(
     () => createTransactionFinanceCreateDraft(),
     [],
@@ -514,7 +530,7 @@ export function TransactionIntakeWorkspace({
         addFieldError(
           field.inputName,
           field.label,
-          `${field.label} is required.`,
+          translateTransactionIntakeErrorMessage(`${field.label} is required.`),
         );
       }
     }
@@ -526,11 +542,11 @@ export function TransactionIntakeWorkspace({
     if (ownerAssignment && ownerFieldInputName && !hasAssignedOwner) {
       addFieldError(
         ownerFieldInputName,
-        "Agent Owner",
+        ownerSummaryLabel,
         ownerSelectionError,
       );
     } else if (ownerAssignment && !hasAssignedOwner) {
-      summaryLabels.push("Agent Owner");
+      summaryLabels.push(ownerSummaryLabel);
     }
 
     const transactionNameField =
@@ -551,14 +567,14 @@ export function TransactionIntakeWorkspace({
       if (identityField && !nextErrors[identityField.inputName]) {
         addFieldError(
           identityField.inputName,
-          "Transaction Name or Address",
+          "交易名称或地址",
           transactionIdentityError,
         );
       }
     }
 
     const isOnlyOwnerError =
-      summaryLabels.length === 1 && summaryLabels[0] === "Agent Owner";
+      summaryLabels.length === 1 && summaryLabels[0] === ownerSummaryLabel;
 
     return {
       errors: nextErrors,
@@ -614,7 +630,7 @@ export function TransactionIntakeWorkspace({
 
     if (
       typeof window !== "undefined" &&
-      window.confirm("Discard unsaved transaction changes?")
+      window.confirm("要放弃未保存的交易改动吗？")
     ) {
       onClose();
     }
@@ -709,8 +725,8 @@ export function TransactionIntakeWorkspace({
               }}
               placeholder={
                 canSearchOwners
-                  ? "Search an agent or team lead..."
-                  : ownerAssignment?.currentOwnerLabel || "Assigned owner"
+                  ? "搜索经纪人或团队负责人..."
+                  : ownerAssignment?.currentOwnerLabel || "已分配负责人"
               }
               readOnly={!canSearchOwners}
               type="text"
@@ -742,7 +758,7 @@ export function TransactionIntakeWorkspace({
                   ))
                 ) : (
                   <div className="office-transaction-owner-empty">
-                    No matching sales members.
+                    没有匹配的销售成员。
                   </div>
                 )}
               </div>
@@ -762,7 +778,7 @@ export function TransactionIntakeWorkspace({
             }
             value={fieldValues[field.inputName] ?? ""}
           >
-            <option value="">Select...</option>
+            <option value="">请选择...</option>
             {field.options.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -847,7 +863,11 @@ export function TransactionIntakeWorkspace({
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error ?? "Failed to save transaction intake.");
+        throw new Error(
+          translateTransactionIntakeErrorMessage(
+            body?.error ?? "Failed to save transaction intake.",
+          ),
+        );
       }
 
       const body = (await response.json()) as { transaction?: { id?: string } };
@@ -895,8 +915,8 @@ export function TransactionIntakeWorkspace({
     } catch (error) {
       setSubmitError(
         error instanceof Error
-          ? error.message
-          : "Failed to save transaction intake.",
+          ? translateTransactionIntakeErrorMessage(error.message)
+          : translateTransactionIntakeErrorMessage("Failed to save transaction intake."),
       );
     } finally {
       setIsSubmitting(false);
@@ -917,7 +937,7 @@ export function TransactionIntakeWorkspace({
             {useOfficeCreateModalChrome && modalEyebrow ? (
               <span className="office-create-modal-kicker">{modalEyebrow}</span>
             ) : null}
-            <h3>{title ?? "NEW TRANSACTION"}</h3>
+            <h3>{title ?? "新建交易"}</h3>
             {useOfficeCreateModalChrome && modalDescription ? (
               <p>{modalDescription}</p>
             ) : null}
@@ -928,17 +948,17 @@ export function TransactionIntakeWorkspace({
               {onClose ? (
                 useOfficeCreateModalChrome ? (
                   <Button
-                    aria-label="Close transaction intake"
+                    aria-label="关闭交易录入"
                     onClick={requestClose}
                     size="sm"
                     type="button"
                     variant="ghost"
                   >
-                    Close
+                    关闭
                   </Button>
                 ) : (
                   <button
-                    aria-label="Close transaction intake"
+                    aria-label="关闭交易录入"
                     onClick={requestClose}
                     type="button"
                   >
@@ -963,10 +983,9 @@ export function TransactionIntakeWorkspace({
         {useOfficeCreateModalChrome ? (
           <section className="office-create-modal-section office-transaction-create-section">
             <div className="office-create-modal-section-head">
-              <h4>Core transaction details</h4>
+              <h4>交易核心信息</h4>
               <p>
-                Set the deal type, workflow status, representation, owner, and
-                property basics before saving the record into the pipeline.
+                保存到管线前，请设置交易类型、流程状态、代表方、负责人和房源基础信息。
               </p>
             </div>
 
@@ -1013,7 +1032,7 @@ export function TransactionIntakeWorkspace({
                         }
                         value={fieldValues[field.inputName] ?? ""}
                       >
-                        <option value="">Select...</option>
+                        <option value="">请选择...</option>
                         {field.selectOptions
                           .filter((option) => {
                             if (
@@ -1118,7 +1137,7 @@ export function TransactionIntakeWorkspace({
                         }
                         value={fieldValues[field.inputName] ?? ""}
                       >
-                        <option value="">select</option>
+                        <option value="">请选择</option>
                         {field.selectOptions
                           .filter((option) => {
                             if (
@@ -1184,10 +1203,9 @@ export function TransactionIntakeWorkspace({
           useOfficeCreateModalChrome ? (
             <section className="office-create-modal-section office-transaction-create-section">
               <div className="office-create-modal-section-head">
-                <h4>Commission calculator</h4>
+                <h4>佣金计算器</h4>
                 <p>
-                  Capture gross commission, fee deductions, and one shared note
-                  so the new transaction starts with structured finance data.
+                  记录总佣金、费用扣除和一条共享备注，让新交易从一开始就具备结构化财务数据。
                 </p>
               </div>
               <TransactionFinanceCreateFields
@@ -1219,19 +1237,19 @@ export function TransactionIntakeWorkspace({
           {useOfficeCreateModalChrome ? (
             <div className="office-create-modal-footer-copy">
               <strong>
-                {modalFooterTitle ?? "Review the intake before saving"}
+                {modalFooterTitle ?? "保存前请检查录入信息"}
               </strong>
               <p>
                 {modalFooterDescription ??
-                  "This step creates the transaction and prepares it for the next workflow actions."}
+                  "此步骤会创建交易，并为后续流程动作做好准备。"}
               </p>
             </div>
           ) : (
             <span>
               {stepLabel ??
                 (chrome === "modal"
-                  ? "step 1 of 4"
-                  : "Schema-driven transaction intake")}
+                  ? "第 1 步，共 4 步"
+                  : "由字段架构驱动的交易录入")}
             </span>
           )}
           <div className="office-modal-actions">
@@ -1242,7 +1260,7 @@ export function TransactionIntakeWorkspace({
             ) : null}
             {useOfficeCreateModalChrome ? (
               <Button disabled={isSubmitting || !canEditValues} type="submit">
-                {isSubmitting ? "Saving..." : submitLabel}
+                {isSubmitting ? "保存中..." : submitLabel}
               </Button>
             ) : (
               <button
@@ -1250,7 +1268,7 @@ export function TransactionIntakeWorkspace({
                 disabled={isSubmitting || !canEditValues}
                 type="submit"
               >
-                {isSubmitting ? "Saving..." : submitLabel}
+                {isSubmitting ? "保存中..." : submitLabel}
               </button>
             )}
           </div>
