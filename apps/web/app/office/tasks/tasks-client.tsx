@@ -13,6 +13,8 @@ import type {
   OfficeTransactionTaskStatus
 } from "@acre/db";
 import { KpiStrip } from "../../_components/kpi-strip";
+import { useI18n } from "../../../lib/i18n/client";
+import { formatOfficeDateTimeLabel, translateOfficeTaskCopy } from "../_utils/task-copy";
 
 type OfficeTasksClientProps = {
   snapshot: OfficeTaskListSnapshot;
@@ -40,20 +42,20 @@ type CreateTaskState = TaskEditState & {
 
 const taskStatusOptions: OfficeTransactionTaskStatus[] = ["Todo", "In progress", "Review requested", "Completed", "Reopened"];
 const dueWindowOptions = [
-  { value: "", label: "Any due date" },
-  { value: "past_due", label: "Past due" },
-  { value: "today", label: "Today" },
-  { value: "current_week", label: "Current week" },
-  { value: "next_week", label: "Next week" },
-  { value: "next_2_weeks", label: "Next 2 weeks" }
+  { value: "", label: "Any due date", zhLabel: "全部到期时间" },
+  { value: "past_due", label: "Past due", zhLabel: "已逾期" },
+  { value: "today", label: "Today", zhLabel: "今天到期" },
+  { value: "current_week", label: "Current week", zhLabel: "本周到期" },
+  { value: "next_week", label: "Next week", zhLabel: "下周到期" },
+  { value: "next_2_weeks", label: "Next 2 weeks", zhLabel: "未来两周" }
 ] as const;
-const reviewStatusOptions: Array<{ value: OfficeTaskReviewFilter; label: string }> = [
-  { value: "", label: "Any review state" },
-  { value: "Pending", label: "Pending" },
-  { value: "Review requested", label: "Review requested" },
-  { value: "Second review", label: "Second review requested" },
-  { value: "Approved", label: "Approved" },
-  { value: "Rejected", label: "Rejected" }
+const reviewStatusOptions: Array<{ value: OfficeTaskReviewFilter; label: string; zhLabel: string }> = [
+  { value: "", label: "Any review state", zhLabel: "全部审核状态" },
+  { value: "Pending", label: "Pending", zhLabel: "待处理" },
+  { value: "Review requested", label: "Review requested", zhLabel: "等待审核" },
+  { value: "Second review", label: "Second review requested", zhLabel: "等待二级审核" },
+  { value: "Approved", label: "Approved", zhLabel: "已通过" },
+  { value: "Rejected", label: "Rejected", zhLabel: "已退回" }
 ];
 const complianceStatusOptions: OfficeTransactionTaskComplianceStatus[] = ["Pending", "In review", "Approved", "Rejected", "Not applicable"];
 
@@ -89,20 +91,6 @@ function buildEmptyCreateState(
   };
 }
 
-function formatDateTimeLabel(value: string) {
-  if (!value) {
-    return "—";
-  }
-
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
 function getTaskStatusTone(tone: OfficeTransactionTask["taskStatusTone"]) {
   if (tone === "approved" || tone === "completed") {
     return "success" as const;
@@ -121,6 +109,10 @@ function getTaskStatusTone(tone: OfficeTransactionTask["taskStatusTone"]) {
   }
 
   return "neutral" as const;
+}
+
+function optionLabel(option: { label: string; zhLabel: string }, isZh: boolean) {
+  return isZh ? option.zhLabel : option.label;
 }
 
 function getTransactionStatusTone(status: string) {
@@ -151,6 +143,8 @@ export function OfficeTasksClient({
   canSecondaryReviewTasks
 }: OfficeTasksClientProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [taskStates, setTaskStates] = useState<Record<string, TaskEditState>>(
     Object.fromEntries(snapshot.tasks.map((task) => [task.id, buildTaskEditState(task)]))
@@ -164,12 +158,12 @@ export function OfficeTasksClient({
   const showOwnerColumn = snapshot.visibleColumns.includes("owner");
   const attentionSummary = useMemo(
     () => [
-      { label: "Overdue", value: snapshot.summary.overdueCount },
-      { label: "Due soon", value: snapshot.summary.dueSoonCount },
-      { label: "Review queue", value: snapshot.summary.reviewQueueCount },
-      { label: "Completed in view", value: snapshot.summary.completedCount }
+      { label: isZh ? "已逾期" : "Overdue", value: snapshot.summary.overdueCount },
+      { label: isZh ? "即将到期" : "Due soon", value: snapshot.summary.dueSoonCount },
+      { label: isZh ? "审核队列" : "Review queue", value: snapshot.summary.reviewQueueCount },
+      { label: isZh ? "当前已完成" : "Completed in view", value: snapshot.summary.completedCount }
     ],
-    [snapshot.summary]
+    [isZh, snapshot.summary]
   );
 
   function updateTaskField(taskId: string, field: keyof TaskEditState, value: string | boolean) {
@@ -191,7 +185,7 @@ export function OfficeTasksClient({
 
   async function handleCreateTask() {
     if (!newTaskState.transactionId || !newTaskState.title.trim()) {
-      setError("Transaction and task title are required.");
+      setError(isZh ? "请选择交易并填写任务标题。" : "Transaction and task title are required.");
       return;
     }
 
@@ -209,13 +203,13 @@ export function OfficeTasksClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to create task.");
+        throw new Error(body?.error ?? (isZh ? "创建任务失败。" : "Failed to create task."));
       }
 
       setNewTaskState(buildEmptyCreateState(newTaskState.transactionId, snapshot.assigneeOptions));
       router.refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create task.");
+      setError(createError instanceof Error ? createError.message : isZh ? "创建任务失败。" : "Failed to create task.");
     } finally {
       setPendingAction(null);
     }
@@ -225,7 +219,7 @@ export function OfficeTasksClient({
     const state = taskStates[task.id];
 
     if (!state?.title.trim()) {
-      setError("Task title is required.");
+      setError(isZh ? "请填写任务标题。" : "Task title is required.");
       return;
     }
 
@@ -243,12 +237,12 @@ export function OfficeTasksClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update task.");
+        throw new Error(body?.error ?? (isZh ? "更新任务失败。" : "Failed to update task."));
       }
 
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to update task.");
+      setError(saveError instanceof Error ? saveError.message : isZh ? "更新任务失败。" : "Failed to update task.");
     } finally {
       setPendingAction(null);
     }
@@ -261,7 +255,7 @@ export function OfficeTasksClient({
     try {
       const rejectionReason =
         action === "reject"
-          ? window.prompt("Reason for rejection (optional)", task.rejectionReason || "")?.trim() ?? ""
+          ? window.prompt(isZh ? "退回原因（可选）" : "Reason for rejection (optional)", task.rejectionReason || "")?.trim() ?? ""
           : "";
       const response = await fetch(`/api/office/transactions/${task.transactionId}/tasks/${task.id}/workflow`, {
         method: "POST",
@@ -273,12 +267,12 @@ export function OfficeTasksClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update task workflow.");
+        throw new Error(body?.error ?? (isZh ? "更新任务流程失败。" : "Failed to update task workflow."));
       }
 
       router.refresh();
     } catch (workflowError) {
-      setError(workflowError instanceof Error ? workflowError.message : "Failed to update task workflow.");
+      setError(workflowError instanceof Error ? workflowError.message : isZh ? "更新任务流程失败。" : "Failed to update task workflow.");
     } finally {
       setPendingAction(null);
     }
@@ -286,7 +280,7 @@ export function OfficeTasksClient({
 
   async function handleSaveCurrentView() {
     if (!saveViewName.trim()) {
-      setError("View name is required.");
+      setError(isZh ? "请填写视图名称。" : "View name is required.");
       return;
     }
 
@@ -309,7 +303,7 @@ export function OfficeTasksClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to save view.");
+        throw new Error(body?.error ?? (isZh ? "保存视图失败。" : "Failed to save view."));
       }
 
       const body = (await response.json()) as { view?: { id: string } };
@@ -322,7 +316,7 @@ export function OfficeTasksClient({
 
       setSaveViewName("");
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save view.");
+      setError(saveError instanceof Error ? saveError.message : isZh ? "保存视图失败。" : "Failed to save view.");
     } finally {
       setIsSavingView(false);
     }
@@ -330,32 +324,32 @@ export function OfficeTasksClient({
 
   return (
     <div className="office-task-list-page">
-      <FilterBar aria-label="Task filters" as="form" className="office-task-filter-form office-task-filter-grid" method="get">
-          <FilterField className="office-task-filter-field" label="Current view">
+      <FilterBar aria-label={isZh ? "任务筛选" : "Task filters"} as="form" className="office-task-filter-form office-task-filter-grid" method="get">
+          <FilterField className="office-task-filter-field" label={isZh ? "当前视图" : "Current view"}>
             <SelectInput defaultValue={snapshot.selectedViewKey} name="view">
               {snapshot.viewOptions.map((view) => (
                 <option key={view.id} value={view.key}>
-                  {view.name}
-                  {view.isSystem ? " (System)" : ""}
+                  {translateOfficeTaskCopy(view.name, isZh)}
+                  {view.isSystem ? (isZh ? "（系统）" : " (System)") : ""}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field" label="Transaction status">
+          <FilterField className="office-task-filter-field" label={isZh ? "交易状态" : "Transaction status"}>
             <SelectInput defaultValue={snapshot.filters.transactionStatus} name="transactionStatus">
-              <option value="All">All statuses</option>
-              <option value="Opportunity">Opportunity</option>
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Closed">Closed</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="All">{translateOfficeTaskCopy("All statuses", isZh)}</option>
+              <option value="Opportunity">{translateOfficeTaskCopy("Opportunity", isZh)}</option>
+              <option value="Active">{translateOfficeTaskCopy("Active", isZh)}</option>
+              <option value="Pending">{translateOfficeTaskCopy("Pending", isZh)}</option>
+              <option value="Closed">{translateOfficeTaskCopy("Closed", isZh)}</option>
+              <option value="Cancelled">{translateOfficeTaskCopy("Cancelled", isZh)}</option>
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field" label="Assignee">
+          <FilterField className="office-task-filter-field" label={isZh ? "负责人" : "Assignee"}>
             <SelectInput defaultValue={snapshot.filters.assigneeMembershipId} name="assigneeMembershipId">
-              <option value="">All assignees</option>
+              <option value="">{isZh ? "全部负责人" : "All assignees"}</option>
               {snapshot.assigneeOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -364,29 +358,29 @@ export function OfficeTasksClient({
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field" label="Due date">
+          <FilterField className="office-task-filter-field" label={isZh ? "到期时间" : "Due date"}>
             <SelectInput defaultValue={snapshot.filters.dueWindow} name="dueWindow">
               {dueWindowOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {optionLabel(option, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field" label="Review status">
+          <FilterField className="office-task-filter-field" label={isZh ? "审核状态" : "Review status"}>
             <SelectInput defaultValue={snapshot.filters.reviewStatus} name="reviewStatus">
               {reviewStatusOptions.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
-                  {option.label}
+                  {optionLabel(option, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field" label="Transaction">
+          <FilterField className="office-task-filter-field" label={isZh ? "交易" : "Transaction"}>
             <SelectInput defaultValue={snapshot.filters.transactionId} name="transactionId">
-              <option value="">All transactions</option>
+              <option value="">{isZh ? "全部交易" : "All transactions"}</option>
               {snapshot.transactionOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -395,17 +389,17 @@ export function OfficeTasksClient({
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-task-filter-field office-task-filter-field-wide" label="Search">
-            <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Task, transaction, assignee..." type="text" />
+          <FilterField className="office-task-filter-field office-task-filter-field-wide" label={isZh ? "搜索" : "Search"}>
+            <TextInput defaultValue={snapshot.filters.q} name="q" placeholder={isZh ? "任务、交易、负责人..." : "Task, transaction, assignee..."} type="text" />
           </FilterField>
 
           <fieldset className="office-task-compliance-filter">
-            <legend>Compliance status</legend>
+            <legend>{isZh ? "合规状态" : "Compliance status"}</legend>
             <div className="office-task-compliance-options">
               {complianceStatusOptions.map((status) => (
                 <label key={status}>
                   <input defaultChecked={snapshot.filters.complianceStatuses.includes(status)} name="complianceStatus" type="checkbox" value={status} />
-                  <span>{status}</span>
+                  <span>{translateOfficeTaskCopy(status, isZh)}</span>
                 </label>
               ))}
             </div>
@@ -414,7 +408,7 @@ export function OfficeTasksClient({
           <div className="office-task-boolean-filters">
             <label>
               <input defaultChecked={snapshot.filters.noDueDate} name="noDueDate" type="checkbox" value="1" />
-              <span>No due date only</span>
+              <span>{isZh ? "只看无到期时间" : "No due date only"}</span>
             </label>
             <label>
               <input
@@ -423,20 +417,20 @@ export function OfficeTasksClient({
                 type="checkbox"
                 value="1"
               />
-              <span>Requires secondary approval</span>
+              <span>{isZh ? "需要二级审核" : "Requires secondary approval"}</span>
             </label>
             <label>
               <input defaultChecked={snapshot.filters.includeCompleted} name="includeCompleted" type="checkbox" value="1" />
-              <span>Include completed</span>
+              <span>{isZh ? "包含已完成" : "Include completed"}</span>
             </label>
           </div>
 
           <div className="office-task-filter-actions">
             <Button type="submit">
-              Apply filters
+              {isZh ? "应用筛选" : "Apply filters"}
             </Button>
             <Link className="office-button-secondary" href="/office/tasks">
-              Reset
+              {isZh ? "重置" : "Reset"}
             </Link>
           </div>
       </FilterBar>
@@ -445,16 +439,20 @@ export function OfficeTasksClient({
 
       <SectionCard
         className="office-list-card office-task-view-save-card"
-        title="Saved views"
+        title={isZh ? "保存的视图" : "Saved views"}
       >
         <div className="office-task-view-save-row">
           <div>
-            <strong>{snapshot.selectedViewName}</strong>
+            <strong>{translateOfficeTaskCopy(snapshot.selectedViewName, isZh)}</strong>
           </div>
           <div className="office-task-view-save-controls">
-            <TextInput onChange={(event) => setSaveViewName(event.target.value)} placeholder="Save current view as..." value={saveViewName} />
+            <TextInput
+              onChange={(event) => setSaveViewName(event.target.value)}
+              placeholder={isZh ? "将当前筛选保存为..." : "Save current view as..."}
+              value={saveViewName}
+            />
             <Button disabled={isSavingView} onClick={handleSaveCurrentView} type="button" variant="secondary">
-              {isSavingView ? "Saving..." : "Save view"}
+              {isSavingView ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存视图" : "Save view"}
             </Button>
           </div>
         </div>
@@ -462,12 +460,12 @@ export function OfficeTasksClient({
 
       <SectionCard
         className="office-list-card office-task-create-card"
-        title="New task"
+        title={isZh ? "新建任务" : "New task"}
       >
         <div className="office-task-edit-grid">
-          <FormField label="Transaction">
+          <FormField label={isZh ? "交易" : "Transaction"}>
             <SelectInput onChange={(event) => updateCreateField("transactionId", event.target.value)} value={newTaskState.transactionId}>
-              <option value="">Select transaction</option>
+              <option value="">{isZh ? "选择交易" : "Select transaction"}</option>
               {snapshot.transactionOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -475,18 +473,18 @@ export function OfficeTasksClient({
               ))}
             </SelectInput>
           </FormField>
-          <FormField label="Checklist group">
+          <FormField label={isZh ? "清单分组" : "Checklist group"}>
             <TextInput onChange={(event) => updateCreateField("checklistGroup", event.target.value)} type="text" value={newTaskState.checklistGroup} />
           </FormField>
-          <FormField className="office-form-grid-span-3" label="Task title">
+          <FormField className="office-form-grid-span-3" label={isZh ? "任务标题" : "Task title"}>
             <TextInput onChange={(event) => updateCreateField("title", event.target.value)} type="text" value={newTaskState.title} />
           </FormField>
-          <FormField className="office-form-grid-span-3" label="Description">
+          <FormField className="office-form-grid-span-3" label={isZh ? "说明" : "Description"}>
             <TextareaInput onChange={(event) => updateCreateField("description", event.target.value)} rows={3} value={newTaskState.description} />
           </FormField>
-          <FormField label="Assignee">
+          <FormField label={isZh ? "负责人" : "Assignee"}>
             <SelectInput onChange={(event) => updateCreateField("assigneeMembershipId", event.target.value)} value={newTaskState.assigneeMembershipId}>
-              <option value="">Unassigned</option>
+              <option value="">{isZh ? "未分配" : "Unassigned"}</option>
               {snapshot.assigneeOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -494,28 +492,28 @@ export function OfficeTasksClient({
               ))}
             </SelectInput>
           </FormField>
-          <FormField label="Due date">
+          <FormField label={isZh ? "到期时间" : "Due date"}>
             <TextInput onChange={(event) => updateCreateField("dueAt", event.target.value)} type="date" value={newTaskState.dueAt} />
           </FormField>
-          <FormField label="Workflow status">
+          <FormField label={isZh ? "流程状态" : "Workflow status"}>
             <SelectInput onChange={(event) => updateCreateField("status", event.target.value)} value={newTaskState.status}>
               {taskStatusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {translateOfficeTaskCopy(status, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FormField>
 
           <div className="office-task-checkbox-row office-detail-field office-detail-field-wide">
-            <span>Compliance rules</span>
+            <span>{isZh ? "合规要求" : "Compliance rules"}</span>
             <label>
               <input
                 checked={newTaskState.requiresDocument}
                 onChange={(event) => updateCreateField("requiresDocument", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires document</span>
+              <span>{isZh ? "需要文档" : "Requires document"}</span>
             </label>
             <label>
               <input
@@ -523,7 +521,7 @@ export function OfficeTasksClient({
                 onChange={(event) => updateCreateField("requiresDocumentApproval", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires review</span>
+              <span>{isZh ? "需要审核" : "Requires review"}</span>
             </label>
             <label>
               <input
@@ -531,22 +529,22 @@ export function OfficeTasksClient({
                 onChange={(event) => updateCreateField("requiresSecondaryApproval", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires secondary approval</span>
+              <span>{isZh ? "需要二级审核" : "Requires secondary approval"}</span>
             </label>
           </div>
         </div>
 
         <div className="office-task-create-actions">
           <Button disabled={pendingAction === "create"} onClick={handleCreateTask} type="button" variant="secondary">
-            {pendingAction === "create" ? "Creating..." : "Create task"}
+            {pendingAction === "create" ? (isZh ? "创建中..." : "Creating...") : isZh ? "创建任务" : "Create task"}
           </Button>
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card office-task-list-card"
-        subtitle={`${snapshot.taskCount} task rows in the current view`}
-        title="Task list"
+        subtitle={isZh ? `当前视图中有 ${snapshot.taskCount} 项任务` : `${snapshot.taskCount} task rows in the current view`}
+        title={isZh ? "任务列表" : "Task list"}
       >
         {error ? <p className="office-form-error office-task-inline-error">{error}</p> : null}
 
@@ -554,15 +552,15 @@ export function OfficeTasksClient({
           <table className="office-task-table">
             <thead>
               <tr>
-                <th>Task / title</th>
-                <th>Transaction</th>
-                <th>Checklist group</th>
-                <th>Assignee</th>
-                <th>Due date</th>
-                <th>Task Status</th>
-                <th>Transaction status</th>
-                {showOwnerColumn ? <th>User / owner</th> : null}
-                <th>Actions</th>
+                <th>{isZh ? "任务/标题" : "Task / title"}</th>
+                <th>{isZh ? "交易" : "Transaction"}</th>
+                <th>{isZh ? "清单分组" : "Checklist group"}</th>
+                <th>{isZh ? "负责人" : "Assignee"}</th>
+                <th>{isZh ? "到期时间" : "Due date"}</th>
+                <th>{isZh ? "任务状态" : "Task Status"}</th>
+                <th>{isZh ? "交易状态" : "Transaction status"}</th>
+                {showOwnerColumn ? <th>{isZh ? "用户/归属人" : "User / owner"}</th> : null}
+                <th>{isZh ? "操作" : "Actions"}</th>
               </tr>
             </thead>
             <tbody>
@@ -584,19 +582,19 @@ export function OfficeTasksClient({
                           >
                             {task.title}
                           </button>
-                          <span className="office-task-meta-copy">{task.description || task.reviewStatus}</span>
+                          <span className="office-task-meta-copy">{task.description || translateOfficeTaskCopy(task.reviewStatus, isZh)}</span>
                         </td>
                         <td>
                           <Link href={task.transactionHref}>{task.transactionLabel}</Link>
                         </td>
-                        <td>{task.checklistGroup}</td>
+                        <td>{translateOfficeTaskCopy(task.checklistGroup, isZh)}</td>
                         <td>{task.assigneeName}</td>
-                        <td>{task.dueAt || "No due date"}</td>
+                        <td>{task.dueAt || translateOfficeTaskCopy("No due date", isZh)}</td>
                         <td>
-                          <StatusBadge tone={getTaskStatusTone(task.taskStatusTone)}>{task.taskStatusLabel}</StatusBadge>
+                          <StatusBadge tone={getTaskStatusTone(task.taskStatusTone)}>{translateOfficeTaskCopy(task.taskStatusLabel, isZh)}</StatusBadge>
                         </td>
                         <td>
-                          <StatusBadge tone={getTransactionStatusTone(task.transactionStatus)}>{task.transactionStatus}</StatusBadge>
+                          <StatusBadge tone={getTransactionStatusTone(task.transactionStatus)}>{translateOfficeTaskCopy(task.transactionStatus, isZh)}</StatusBadge>
                         </td>
                         {showOwnerColumn ? <td>{task.ownerName}</td> : null}
                         <td>
@@ -609,7 +607,7 @@ export function OfficeTasksClient({
                                 type="button"
                                 variant="secondary"
                               >
-                                Complete
+                                {isZh ? "完成" : "Complete"}
                               </Button>
                             ) : null}
                             {task.canRequestReview ? (
@@ -620,7 +618,7 @@ export function OfficeTasksClient({
                                 type="button"
                                 variant="secondary"
                               >
-                                Request review
+                                {isZh ? "提交审核" : "Request review"}
                               </Button>
                             ) : null}
                             {task.canApprove &&
@@ -633,7 +631,7 @@ export function OfficeTasksClient({
                                 size="sm"
                                 type="button"
                               >
-                                {task.awaitingSecondaryApproval ? "Second approve" : "Approve"}
+                                {task.awaitingSecondaryApproval ? (isZh ? "二级通过" : "Second approve") : isZh ? "通过" : "Approve"}
                               </Button>
                             ) : null}
                             {task.canReject && canReviewTasks && canApproveDocuments ? (
@@ -644,7 +642,7 @@ export function OfficeTasksClient({
                                 type="button"
                                 variant="danger"
                               >
-                                Reject
+                                {isZh ? "退回" : "Reject"}
                               </Button>
                             ) : null}
                             {task.canReopen ? (
@@ -655,7 +653,7 @@ export function OfficeTasksClient({
                                 type="button"
                                 variant="secondary"
                               >
-                                Reopen
+                                {isZh ? "重新打开" : "Reopen"}
                               </Button>
                             ) : null}
                           </div>
@@ -666,29 +664,29 @@ export function OfficeTasksClient({
                         <tr className="office-task-edit-row" key={`${task.id}-editor`}>
                           <td colSpan={showOwnerColumn ? 9 : 8}>
                             <div className="office-task-edit-grid">
-                              <FormField label="Checklist group">
+                              <FormField label={isZh ? "清单分组" : "Checklist group"}>
                                 <TextInput
                                   onChange={(event) => updateTaskField(task.id, "checklistGroup", event.target.value)}
                                   type="text"
                                   value={formState.checklistGroup}
                                 />
                               </FormField>
-                              <FormField className="office-form-grid-span-3" label="Task title">
+                              <FormField className="office-form-grid-span-3" label={isZh ? "任务标题" : "Task title"}>
                                 <TextInput onChange={(event) => updateTaskField(task.id, "title", event.target.value)} type="text" value={formState.title} />
                               </FormField>
-                              <FormField className="office-form-grid-span-3" label="Description">
+                              <FormField className="office-form-grid-span-3" label={isZh ? "说明" : "Description"}>
                                 <TextareaInput
                                   onChange={(event) => updateTaskField(task.id, "description", event.target.value)}
                                   rows={3}
                                   value={formState.description}
                                 />
                               </FormField>
-                              <FormField label="Assignee">
+                              <FormField label={isZh ? "负责人" : "Assignee"}>
                                 <SelectInput
                                   onChange={(event) => updateTaskField(task.id, "assigneeMembershipId", event.target.value)}
                                   value={formState.assigneeMembershipId}
                                 >
-                                  <option value="">Unassigned</option>
+                                  <option value="">{isZh ? "未分配" : "Unassigned"}</option>
                                   {snapshot.assigneeOptions.map((option) => (
                                     <option key={option.id} value={option.id}>
                                       {option.label}
@@ -696,28 +694,28 @@ export function OfficeTasksClient({
                                   ))}
                                 </SelectInput>
                               </FormField>
-                              <FormField label="Due date">
+                              <FormField label={isZh ? "到期时间" : "Due date"}>
                                 <TextInput onChange={(event) => updateTaskField(task.id, "dueAt", event.target.value)} type="date" value={formState.dueAt} />
                               </FormField>
-                              <FormField label="Workflow status">
+                              <FormField label={isZh ? "流程状态" : "Workflow status"}>
                                 <SelectInput onChange={(event) => updateTaskField(task.id, "status", event.target.value)} value={formState.status}>
                                   {taskStatusOptions.map((status) => (
                                     <option key={status} value={status}>
-                                      {status}
+                                      {translateOfficeTaskCopy(status, isZh)}
                                     </option>
                                   ))}
                                 </SelectInput>
                               </FormField>
 
                               <div className="office-task-checkbox-row office-detail-field office-detail-field-wide">
-                                <span>Compliance rules</span>
+                                <span>{isZh ? "合规要求" : "Compliance rules"}</span>
                                 <label>
                                   <input
                                     checked={formState.requiresDocument}
                                     onChange={(event) => updateTaskField(task.id, "requiresDocument", event.target.checked)}
                                     type="checkbox"
                                   />
-                                  <span>Requires document</span>
+                                  <span>{isZh ? "需要文档" : "Requires document"}</span>
                                 </label>
                                 <label>
                                   <input
@@ -725,7 +723,7 @@ export function OfficeTasksClient({
                                     onChange={(event) => updateTaskField(task.id, "requiresDocumentApproval", event.target.checked)}
                                     type="checkbox"
                                   />
-                                  <span>Requires review</span>
+                                  <span>{isZh ? "需要审核" : "Requires review"}</span>
                                 </label>
                                 <label>
                                   <input
@@ -733,21 +731,40 @@ export function OfficeTasksClient({
                                     onChange={(event) => updateTaskField(task.id, "requiresSecondaryApproval", event.target.checked)}
                                     type="checkbox"
                                   />
-                                  <span>Requires secondary approval</span>
+                                  <span>{isZh ? "需要二级审核" : "Requires secondary approval"}</span>
                                 </label>
                               </div>
                             </div>
 
                             <div className="office-task-detail-meta">
-                              <span>Review status: {task.reviewStatus}</span>
-                              <span>Compliance status: {task.complianceStatus}</span>
-                              <span>Completed at: {formatDateTimeLabel(task.completedAt)}</span>
-                              <span>Submitted for review: {formatDateTimeLabel(task.submittedForReviewAt)}</span>
-                              <span>Submitted by: {task.submittedForReviewByName || "—"}</span>
-                              <span>First approver: {task.firstApprovedByName || "—"}</span>
-                              <span>Second approver: {task.secondApprovedByName || "—"}</span>
-                              <span>Secondary approval: {task.requiresSecondaryApproval ? "Enabled" : "Not required"}</span>
-                              <span>Rejection reason: {task.rejectionReason || "—"}</span>
+                              <span>
+                                {isZh ? "审核状态" : "Review status"}: {translateOfficeTaskCopy(task.reviewStatus, isZh)}
+                              </span>
+                              <span>
+                                {isZh ? "合规状态" : "Compliance status"}: {translateOfficeTaskCopy(task.complianceStatus, isZh)}
+                              </span>
+                              <span>
+                                {isZh ? "完成时间" : "Completed at"}: {formatOfficeDateTimeLabel(task.completedAt, locale)}
+                              </span>
+                              <span>
+                                {isZh ? "提交审核时间" : "Submitted for review"}: {formatOfficeDateTimeLabel(task.submittedForReviewAt, locale)}
+                              </span>
+                              <span>
+                                {isZh ? "提交人" : "Submitted by"}: {task.submittedForReviewByName || "—"}
+                              </span>
+                              <span>
+                                {isZh ? "一审人" : "First approver"}: {task.firstApprovedByName || "—"}
+                              </span>
+                              <span>
+                                {isZh ? "二审人" : "Second approver"}: {task.secondApprovedByName || "—"}
+                              </span>
+                              <span>
+                                {isZh ? "二级审核" : "Secondary approval"}:{" "}
+                                {task.requiresSecondaryApproval ? (isZh ? "已启用" : "Enabled") : isZh ? "无需二级审核" : "Not required"}
+                              </span>
+                              <span>
+                                {isZh ? "退回原因" : "Rejection reason"}: {task.rejectionReason || "—"}
+                              </span>
                             </div>
 
                             {task.linkedDocuments.length ? (
@@ -755,15 +772,15 @@ export function OfficeTasksClient({
                                 {task.linkedDocuments.map((document) => (
                                   <span key={document.id}>
                                     <a href={document.href}>{document.title}</a>
-                                    {` · ${document.status}`}
-                                    {document.isSigned ? " · Signed" : ""}
-                                    {document.hasPendingSignature ? " · Signature pending" : ""}
+                                    {` · ${translateOfficeTaskCopy(document.status, isZh)}`}
+                                    {document.isSigned ? ` · ${isZh ? "已签署" : "Signed"}` : ""}
+                                    {document.hasPendingSignature ? ` · ${isZh ? "等待签署" : "Signature pending"}` : ""}
                                   </span>
                                 ))}
                               </div>
                             ) : (
                               <div className="office-task-detail-meta office-task-detail-documents">
-                                <span>Linked documents: —</span>
+                                <span>{isZh ? "关联文档" : "Linked documents"}: —</span>
                               </div>
                             )}
 
@@ -774,10 +791,10 @@ export function OfficeTasksClient({
                                 variant="secondary"
                                 type="button"
                               >
-                                {pendingAction === `save:${task.id}` ? "Saving..." : "Save task"}
+                                {pendingAction === `save:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存任务" : "Save task"}
                               </Button>
                               <Link className="office-button-secondary office-button-sm" href={task.transactionHref}>
-                                Open transaction
+                                {isZh ? "打开交易" : "Open transaction"}
                               </Link>
                             </div>
                           </td>
@@ -790,8 +807,12 @@ export function OfficeTasksClient({
                 <tr>
                   <td colSpan={showOwnerColumn ? 9 : 8}>
                     <EmptyState
-                      description="Adjust the filters or switch saved views to widen the task result set."
-                      title="No tasks matched the current filters"
+                      description={
+                        isZh
+                          ? "调整筛选条件，或切换保存的视图来扩大任务范围。"
+                          : "Adjust the filters or switch saved views to widen the task result set."
+                      }
+                      title={isZh ? "当前筛选下没有匹配的任务" : "No tasks matched the current filters"}
                     />
                   </td>
                 </tr>
