@@ -15,6 +15,7 @@ import {
   transactionFinanceCalculatorFieldDefinitions,
   type TransactionFinanceCalculatorFieldKey
 } from "../transaction-finance-calculator-config";
+import { translateCommissionCopy } from "../../_utils/commission-copy";
 
 type FinanceFeeDraft = {
   id: string;
@@ -213,7 +214,7 @@ export function TransactionFinanceForm({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update finance.");
+        throw new Error(body?.error ?? "无法更新财务信息。");
       }
 
       financeSaved = true;
@@ -229,7 +230,7 @@ export function TransactionFinanceForm({
 
         if (!calculateResponse.ok) {
           const body = (await calculateResponse.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error ?? "Automatic commission recalculation failed.");
+          throw new Error(body?.error ?? "自动重新计算佣金失败。");
         }
       }
 
@@ -237,11 +238,11 @@ export function TransactionFinanceForm({
     } catch (saveError) {
       const fallbackMessage =
         financeSaved && shouldAutoCalculate
-          ? "Finance saved, but automatic commission recalculation failed."
-          : "Failed to update finance.";
+          ? "财务信息已保存，但自动重新计算佣金失败。"
+          : "无法更新财务信息。";
       const detailMessage = saveError instanceof Error ? saveError.message : fallbackMessage;
 
-      setError(financeSaved && shouldAutoCalculate ? `Finance saved. ${detailMessage}` : detailMessage);
+      setError(financeSaved && shouldAutoCalculate ? `财务信息已保存。${translateCommissionCopy(detailMessage, true)}` : translateCommissionCopy(detailMessage, true));
     } finally {
       setIsSaving(false);
     }
@@ -250,61 +251,61 @@ export function TransactionFinanceForm({
   const willAutoCalculate = canAutoCalculateCommission && formState.grossCommission.trim().length > 0;
   const actionLabel = isSaving
     ? willAutoCalculate
-      ? "Calculating..."
-      : "Saving..."
+      ? "计算中..."
+      : "保存中..."
     : willAutoCalculate
-      ? "Calculate"
-      : "Save finance";
+      ? "计算"
+      : "保存财务";
   const prerequisiteCards = [
     {
       checked: formState.clientReferralFormApproved,
-      description: "Must be signed and approved before Internal Referral can be included in the commission run.",
+      description: "内部推荐纳入佣金计算前，必须先签署并批准推荐表。",
       field: "clientReferralFormApproved" as const,
-      title: "Internal referral form approved"
+      title: "内部推荐表已批准"
     },
     {
       checked: formState.rebateAgreementSigned,
-      description: "Required before any rebate fee is counted in final commission calculation.",
+      description: "任何返佣费用计入最终佣金前，都需要先完成协议签署。",
       field: "rebateAgreementSigned" as const,
-      title: "Rebate agreement signed"
+      title: "返佣协议已签署"
     },
     {
       checked: formState.rebateGoogleFormSubmitted,
-      description: "Finance must confirm the Google Form submission before rebate can be formally calculated.",
+      description: "财务需要确认 Google Form 已提交，返佣才能正式计算。",
       field: "rebateGoogleFormSubmitted" as const,
-      title: "Rebate Google Form submitted"
+      title: "返佣 Google Form 已提交"
     }
   ];
 
   return (
     <div className="office-transaction-finance-form">
       <div className="office-kpi-grid office-commission-kpi-grid office-transaction-finance-kpis">
-        <StatCard hint="current finance input" label="Gross commission" value={summary?.grossCommissionLabel ?? "$0"} />
-        <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
-        <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
-        <StatCard hint="gross minus pre-split fees" label="Net commission base" value={summary?.netCommissionBaseLabel ?? "$0"} />
-        <StatCard hint="current final payout for the owner agent" label="Final agent net" value={summary?.agentNetLabel ?? "$0"} />
-        <StatCard hint="current company payout" label="Final office net" value={summary?.officeNetLabel ?? "$0"} />
-        <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />
+        <StatCard hint="当前财务输入" label="总佣金" value={summary?.grossCommissionLabel ?? "$0"} />
+        <StatCard hint="全部拆分前费用" label="拆分前合计" value={summary?.preSplitTotalLabel ?? "$0"} />
+        <StatCard hint="全部拆分后费用" label="拆分后合计" value={summary?.postSplitTotalLabel ?? "$0"} />
+        <StatCard hint="总佣金减去拆分前费用" label="净佣金基数" value={summary?.netCommissionBaseLabel ?? "$0"} />
+        <StatCard hint="负责人经纪人当前最终付款" label="经纪人最终净额" value={summary?.agentNetLabel ?? "$0"} />
+        <StatCard hint="公司当前付款" label="公司最终净额" value={summary?.officeNetLabel ?? "$0"} />
+        <StatCard hint="最近保存的佣金版本" label="当前版本" value={summary?.currentVersionLabel ? translateCommissionCopy(summary.currentVersionLabel, true) : "尚未计算"} />
       </div>
 
       <section className="office-transaction-finance-panel">
         <div className="office-transaction-finance-calculator-shell">
           <div className="office-transaction-finance-panel-head office-transaction-finance-calculator-intro">
             <div>
-              <h4>Commission calculator</h4>
-              <p>Use the same calculator flow as create transaction, including amount or rate inputs for each fee.</p>
+              <h4>佣金计算器</h4>
+              <p>沿用创建交易时的计算流程，每项费用都可以按金额或比例录入。</p>
             </div>
           </div>
 
           <div className="office-transaction-finance-calculator-grid">
             <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
-              <span>Gross Commission</span>
+              <span>总佣金</span>
               <input
                 disabled={readOnly}
                 inputMode="decimal"
                 onChange={(event) => setTopLevelField("grossCommission", event.target.value)}
-                placeholder="Required"
+                placeholder="必填"
                 type="text"
                 value={formState.grossCommission}
               />
@@ -321,7 +322,7 @@ export function TransactionFinanceForm({
                   <span>{field.feeTypeLabel}</span>
                   <div className="office-transaction-finance-calculator-pair">
                     <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                      <span>Amount</span>
+                      <span>金额</span>
                       <input
                         disabled={readOnly}
                         inputMode="decimal"
@@ -332,7 +333,7 @@ export function TransactionFinanceForm({
                       />
                     </label>
                     <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                      <span>Rate %</span>
+                      <span>比例 %</span>
                       <input
                         disabled={readOnly}
                         inputMode="decimal"
@@ -358,29 +359,29 @@ export function TransactionFinanceForm({
 
           <div className="office-transaction-finance-calculator-footer">
             <div className="office-inline-callout">
-              <strong>Calculator note</strong>
+              <strong>计算说明</strong>
               <p>
-                For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
+                每项费用可填写金额或比例；填写总佣金后，另一项会自动换算。
               </p>
             </div>
 
             <div className="office-kpi-card office-kpi-card-accent office-transaction-finance-calculator-result is-active">
-              <span>Final Agent Net</span>
+              <span>经纪人最终净额</span>
               <strong>{summary?.agentNetLabel ?? "$0"}</strong>
               <p>
                 {summary
-                  ? `Gross ${summary.grossCommissionLabel} · Pre-Split ${summary.preSplitTotalLabel} · Post-Split ${summary.postSplitTotalLabel}`
-                  : "Save or calculate to refresh the current commission output."}
+                  ? `总佣金 ${summary.grossCommissionLabel} · 拆分前 ${summary.preSplitTotalLabel} · 拆分后 ${summary.postSplitTotalLabel}`
+                  : "保存或计算后，会刷新当前佣金结果。"}
               </p>
             </div>
           </div>
         </div>
 
         {summary?.reimbursementLabel && summary.reimbursementLabel !== "$0" ? (
-          <p className="office-form-helper">Current reimbursement adjustment: {summary.reimbursementLabel}</p>
+          <p className="office-form-helper">当前报销调整：{summary.reimbursementLabel}</p>
         ) : null}
 
-        <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="Note">
+        <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="备注">
           <TextareaInput
             className="office-transaction-finance-note-textarea"
             disabled={readOnly}
@@ -392,11 +393,11 @@ export function TransactionFinanceForm({
 
         {!readOnly && canAutoCalculateCommission ? (
           <p className="office-inline-note">
-            Calculate will save finance changes first, then rerun the current commission rules for this transaction.
+            计算会先保存财务改动，再按此交易当前佣金规则重新计算。
           </p>
         ) : null}
         {readOnly ? (
-          <p className="office-inline-note">Financial details are read-only for your current access level.</p>
+          <p className="office-inline-note">按你当前的访问权限，财务详情为只读。</p>
         ) : null}
         {error ? <p className="office-form-error">{error}</p> : null}
       </section>
@@ -404,8 +405,8 @@ export function TransactionFinanceForm({
       <section className="office-transaction-finance-panel">
         <div className="office-transaction-finance-panel-head">
           <div>
-            <h4>Prerequisites</h4>
-            <p>These checks still gate Internal Referral and Rebate before finance can finalize the commission.</p>
+            <h4>前置条件</h4>
+            <p>财务最终确认佣金前，内部推荐和返佣仍需通过这些检查。</p>
           </div>
         </div>
 
@@ -434,14 +435,14 @@ export function TransactionFinanceForm({
         <section className="office-transaction-finance-panel office-transaction-finance-blockers-panel">
           <div className="office-transaction-finance-panel-head">
             <div>
-              <h4>Calculation blockers</h4>
-              <p>These issues must be resolved before finance can finalize the commission run.</p>
+              <h4>计算阻塞项</h4>
+              <p>这些问题需要先解决，财务才能最终确认佣金计算。</p>
             </div>
           </div>
 
           <ul className="office-transaction-finance-blocker-list">
             {approvalBlockers.map((blocker) => (
-              <li key={blocker}>{blocker}</li>
+              <li key={blocker}>{translateCommissionCopy(blocker, true)}</li>
             ))}
           </ul>
         </section>
