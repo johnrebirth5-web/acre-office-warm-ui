@@ -22,6 +22,14 @@ import {
   TextareaInput
 } from "@acre/ui";
 import { useI18n } from "../../../lib/i18n/client";
+import {
+  commissionStatusOptionLabel,
+  commissionStatusOptions,
+  commissionStatusUpdateOptions,
+  formatCommissionCount,
+  getCommissionErrorMessage,
+  translateCommissionCopy
+} from "../_utils/commission-copy";
 
 type CommissionManagementPanelProps = {
   snapshot: OfficeCommissionManagementSnapshot | null;
@@ -88,99 +96,6 @@ function CommissionTable(props: { children: ReactNode }) {
       <div className="office-table">{props.children}</div>
     </HorizontalScrollArea>
   );
-}
-
-const commissionStatusOptions = [
-  { value: "", label: "All statuses", zhLabel: "全部状态" },
-  { value: "draft", label: "Draft", zhLabel: "草稿" },
-  { value: "calculated", label: "Calculated", zhLabel: "已计算" },
-  { value: "reviewed", label: "Reviewed", zhLabel: "已审核" },
-  { value: "statement_ready", label: "Statement ready", zhLabel: "付款单就绪" },
-  { value: "payable", label: "Payable", zhLabel: "可付款" },
-  { value: "paid", label: "Paid", zhLabel: "已付款" }
-];
-
-const commissionStatusUpdateOptions = commissionStatusOptions.filter((option) => option.value);
-
-function translateCommissionCopy(value: string, isZh: boolean) {
-  if (!isZh) {
-    return value;
-  }
-
-  const copyMap: Record<string, string> = {
-    "All statuses": "全部状态",
-    Draft: "草稿",
-    Calculated: "已计算",
-    Reviewed: "已审核",
-    "Statement ready": "付款单就绪",
-    Payable: "可付款",
-    Paid: "已付款",
-    Active: "启用",
-    Inactive: "停用",
-    Template: "模板",
-    Custom: "自定义",
-    "Custom split": "自定义拆分",
-    Agent: "经纪人",
-    Brokerage: "公司",
-    Referral: "推荐方",
-    Team: "团队",
-    "Team Leader": "团队负责人",
-    "Junior Team Leader": "初级团队负责人",
-    Member: "成员",
-    Owner: "所有者",
-    "Office Admin": "办公室管理员",
-    Accountant: "会计",
-    "Human Resources": "人事",
-    "Team Lead": "团队主管",
-    "Office Manager": "办公室经理",
-    "Office User": "办公室用户",
-    "Split & fees": "拆分和费用",
-    "Flat net": "固定净额",
-    Flat: "固定金额",
-    Percentage: "百分比",
-    "Open-ended": "长期有效",
-    Review: "待复核",
-    "Legacy commission item": "旧佣金项目",
-    "Company residual": "公司留存",
-    "Manual override participant": "手动调整参与方",
-    "Manual / transaction finance": "手动 / 交易财务",
-    "Failed to save commission plan.": "无法保存佣金计划。",
-    "Failed to assign commission plan.": "无法分配佣金计划。",
-    "Failed to remove commission assignment.": "无法移除佣金分配。",
-    "Failed to save split template.": "无法保存拆分模板。",
-    "Failed to delete split template.": "无法删除拆分模板。",
-    "Failed to update calculation status.": "无法更新计算状态。",
-    "Failed to generate statement snapshot.": "无法生成付款单快照。"
-  };
-
-  const exact = copyMap[value] ?? value;
-
-  return exact
-    .replace(/^Template: /, "模板：")
-    .replace(/ split$/i, " 拆分")
-    .replace(/% actual share$/i, "% 实际份额")
-    .replace(/% company residual$/i, "% 公司留存")
-    .replace(
-      /^(\d+) legacy plan\(s\) still use fee or sliding-scale rules and should be reviewed in Advanced settings\.$/,
-      "$1 个旧佣金计划仍在使用费用或阶梯拆分规则，请在高级设置中复核。"
-    )
-    .replace(
-      /^(\d+) legacy team assignment\(s\) remain active and are not used by the new default split chain\.$/,
-      "$1 个旧团队佣金分配仍处于启用状态，但不会被新的默认拆分链使用。"
-    );
-}
-
-function commissionStatusOptionLabel(option: { label: string; zhLabel: string }, isZh: boolean) {
-  return isZh ? option.zhLabel : option.label;
-}
-
-function formatCommissionCount(count: number, singular: string, plural: string, zhUnit: string, isZh: boolean) {
-  return isZh ? `${count} ${zhUnit}` : `${count} ${count === 1 ? singular : plural}`;
-}
-
-function getCommissionErrorMessage(error: unknown, fallback: string, isZh: boolean) {
-  const message = error instanceof Error ? error.message : fallback;
-  return translateCommissionCopy(message, isZh);
 }
 
 function getStatusTone(status: string) {
