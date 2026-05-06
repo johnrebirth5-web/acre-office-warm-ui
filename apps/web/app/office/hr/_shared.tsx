@@ -1,19 +1,52 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Children, cloneElement, isValidElement } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { DataTable, StatusBadge } from "@acre/ui";
 
 type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
 
+const hrNavItems = [
+  { href: "/office/hr", label: "Summary" },
+  { href: "/office/hr/candidates", label: "Candidates" },
+  { href: "/office/hr/interviews", label: "Interviews" },
+  { href: "/office/hr/onboarding", label: "Onboarding" },
+  { href: "/office/hr/offboarding", label: "Offboarding" },
+  { href: "/office/hr/templates", label: "Templates" },
+];
+
+function cx(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/office/hr") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function HrModuleNav() {
+  const pathname = usePathname();
+
   return (
     <nav className="office-filter-bar" aria-label="HR navigation">
-      <Link className="office-filter-chip" href="/office/hr">Summary</Link>
-      <Link className="office-filter-chip" href="/office/hr/candidates">Candidates</Link>
-      <Link className="office-filter-chip" href="/office/hr/interviews">Interviews</Link>
-      <Link className="office-filter-chip" href="/office/hr/onboarding">Onboarding</Link>
-      <Link className="office-filter-chip" href="/office/hr/offboarding">Offboarding</Link>
-      <Link className="office-filter-chip" href="/office/hr/templates">Templates</Link>
+      {hrNavItems.map((item) => {
+        const isActive = isActivePath(pathname, item.href);
+        return (
+          <Link
+            aria-current={isActive ? "page" : undefined}
+            className={cx("office-filter-chip", isActive && "is-active")}
+            href={item.href}
+            key={item.href}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
