@@ -28,12 +28,12 @@ function getDashboardDescription(role: string, isZh: boolean) {
 
   if (role === "office_admin" || role === "owner") {
     return isZh
-      ? "把 Front Office 首页收束成今天的执行入口，正式交易和财务仍进入 Back Office。"
+      ? "把前台首页收束成今天的执行入口；正式交易、签署和财务仍回到后台处理。"
       : "Keep the Front Office homepage focused on today's execution; formal transaction and finance work still moves into Back Office.";
   }
 
   return isZh
-    ? "先处理下一步动作，再进入完整客户、日历或 Back Office 工作区。"
+    ? "先处理最该做的下一步，再进入完整客户、日历或后台工作区。"
     : "Work the next action first, then open the full client, calendar, or Back Office workspace.";
 }
 
@@ -113,7 +113,7 @@ export default async function AgentDashboardPage() {
   return (
     <FrontOfficePageTemplate
       description={getDashboardDescription(context.currentMembership.role, isZh)}
-      eyebrow="Front Office"
+      eyebrow={isZh ? "前台" : "Front Office"}
       headerClassName="front-office-dashboard-header"
       layoutClassName="front-office-dashboard-layout"
       pageClassName="front-office-dashboard-page"
@@ -149,7 +149,7 @@ export default async function AgentDashboardPage() {
         </>
       }
       summaryClassName="front-office-dashboard-summary"
-      title={isZh ? "Front Office 仪表盘" : "Front Office dashboard"}
+      title={isZh ? "前台工作台" : "Front Office dashboard"}
       main={
         <SectionCard
           actions={
@@ -175,10 +175,10 @@ export default async function AgentDashboardPage() {
           className="office-list-card front-office-dashboard-next-actions"
           subtitle={
             isZh
-              ? "这不是完整 CRM，也不是完整 AI 队列；这里只放今天最应该先处理的动作。"
+              ? "这里不是完整客户库，也不是完整 AI 队列；只放今天最值得先处理的动作。"
               : "This is not the full CRM or AI queue; it only shows the actions most worth doing now."
           }
-          title={isZh ? "Next Actions" : "Next Actions"}
+          title={isZh ? "下一步动作" : "Next Actions"}
         >
           <FrontOfficeDashboardDailyActionsClient
             items={snapshot.dailyActions}
@@ -199,10 +199,10 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "今天只显示需要注意的约定事项；完整日历仍在 Calendar。"
+                ? "这里只显示今天需要留意的预约和办公室事项；完整日历仍在日历页。"
                 : "Only today's commitments stay here; the full schedule remains in Calendar."
             }
-            title={isZh ? "Today Schedule" : "Today Schedule"}
+            title={isZh ? "今日日程" : "Today Schedule"}
           >
             {todayScheduleItems.length ? (
               <div className="office-queue-list">
@@ -233,8 +233,12 @@ export default async function AgentDashboardPage() {
               </div>
             ) : (
               <EmptyState
-                description="No appointment or office event lands today."
-                title="No schedule pressure"
+                description={
+                  isZh
+                    ? "今天没有需要处理的预约或办公室活动。"
+                    : "No appointment or office event lands today."
+                }
+                title={isZh ? "今天没有日程压力" : "No schedule pressure"}
               />
             )}
           </SectionCard>
@@ -243,10 +247,10 @@ export default async function AgentDashboardPage() {
             className="office-list-card"
             subtitle={
               isZh
-                ? "按钮打开抽屉；表单不会占用 Dashboard 首屏。"
+                ? "需要时再打开抽屉，表单不会占用工作台首屏。"
                 : "Launch the drawer when needed; the form no longer occupies the dashboard first screen."
             }
-            title={isZh ? "Quick Capture" : "Quick Capture"}
+            title={isZh ? "快速录入" : "Quick Capture"}
           >
             <FrontOfficeDashboardQuickCaptureClient
               duplicatePreviewCandidates={duplicatePreviewCandidates}
@@ -266,14 +270,14 @@ export default async function AgentDashboardPage() {
               className="office-list-card"
               subtitle={
                 isZh
-                  ? "团队逾期、沉默客户和安静发送只作为经理入口，不混进普通 Agent 的前三个动作。"
+                  ? "团队逾期、沉默客户和低反馈发送只放在经理入口，不挤占普通经纪人的前三个动作。"
                   : "Team overdue work, stale clients, and quiet sends stay in manager mode instead of polluting an agent's first actions."
               }
-              title={isZh ? "Team Pressure" : "Team Pressure"}
+              title={isZh ? "团队压力" : "Team Pressure"}
             >
               <div className="office-list-page-stats">
                 <StatCard
-                  hint="Visible cleanup pressure"
+                  hint={isZh ? "当前可见范围内需要清理的压力" : "Visible cleanup pressure"}
                   label={snapshot.leadershipQueue.scopeLabel}
                   tone={mapToneToStatTone(
                     snapshot.summary.leadershipPressureCount > 0

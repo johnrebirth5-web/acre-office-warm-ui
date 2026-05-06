@@ -17,6 +17,7 @@ import {
   TextInput
 } from "@acre/ui";
 import type { OfficeBillingSnapshot } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeBillingClientProps = {
   snapshot: OfficeBillingSnapshot;
@@ -47,13 +48,15 @@ function BillingTable(props: { children: ReactNode }) {
   );
 }
 
-const paymentMethodTypeOptions = [
-  { value: "card_on_file", label: "Card on file" },
-  { value: "bank_account", label: "Bank account" },
-  { value: "check", label: "Check" },
-  { value: "manual", label: "Manual" },
-  { value: "other", label: "Other" }
-] as const;
+function getPaymentMethodTypeOptions(isZh: boolean) {
+  return [
+    { value: "card_on_file", label: isZh ? "已备案银行卡" : "Card on file" },
+    { value: "bank_account", label: isZh ? "银行账户" : "Bank account" },
+    { value: "check", label: isZh ? "支票" : "Check" },
+    { value: "manual", label: isZh ? "手动记录" : "Manual" },
+    { value: "other", label: isZh ? "其他" : "Other" }
+  ] as const;
+}
 
 function buildEmptyPaymentMethodState(): PaymentMethodFormState {
   return {
@@ -103,8 +106,60 @@ function getStatusTone(status: string) {
   }
 }
 
+function formatCount(count: number, singular: string, plural: string, zhUnit: string, isZh: boolean) {
+  return isZh ? `${count} ${zhUnit}` : `${count} ${count === 1 ? singular : plural}`;
+}
+
+function translateBillingStatus(status: string, isZh: boolean) {
+  if (!isZh) {
+    return status;
+  }
+
+  const normalized = status.toLowerCase();
+  const statusMap: Record<string, string> = {
+    active: "启用",
+    "paid / applied": "已支付 / 已应用",
+    scheduled: "已排期",
+    invalid: "无效",
+    expired: "已过期",
+    void: "已作废",
+    pending: "待处理",
+    open: "未结",
+    removed: "已移除"
+  };
+
+  return statusMap[normalized] ?? status;
+}
+
+function translateBillingType(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  const normalized = value.toLowerCase();
+  const typeMap: Record<string, string> = {
+    charge: "费用",
+    payment: "付款",
+    credit: "抵扣",
+    "credit memo": "抵扣单",
+    invoice: "发票",
+    adjustment: "调整",
+    manual: "手动记录",
+    card: "银行卡",
+    "card on file": "已备案银行卡",
+    "bank account": "银行账户",
+    check: "支票",
+    other: "其他"
+  };
+
+  return typeMap[normalized] ?? value;
+}
+
 export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
+  const paymentMethodTypeOptions = getPaymentMethodTypeOptions(isZh);
   const visiblePaymentMethods = snapshot.paymentMethods.filter((method) => method.statusValue !== "removed");
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [paymentMethodFormState, setPaymentMethodFormState] = useState<PaymentMethodFormState>(buildEmptyPaymentMethodState);
@@ -151,13 +206,13 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to save payment method.");
+        throw new Error(body?.error ?? (isZh ? "保存付款方式失败。" : "Failed to save payment method."));
       }
 
       setIsPaymentMethodModalOpen(false);
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Failed to save payment method.");
+      setFormError(error instanceof Error ? error.message : isZh ? "保存付款方式失败。" : "Failed to save payment method.");
     } finally {
       setPendingAction("");
     }
@@ -180,12 +235,12 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to remove payment method.");
+        throw new Error(body?.error ?? (isZh ? "移除付款方式失败。" : "Failed to remove payment method."));
       }
 
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Failed to remove payment method.");
+      setFormError(error instanceof Error ? error.message : isZh ? "移除付款方式失败。" : "Failed to remove payment method.");
     } finally {
       setPendingAction("");
     }
@@ -195,24 +250,24 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
     <>
       <section className="office-billing-summary-grid">
         <StatCard
-          hint={`${snapshot.summary.openChargesCount} open charge(s)`}
-          label="Outstanding balance"
+          hint={formatCount(snapshot.summary.openChargesCount, "open charge", "open charges", "笔未结费用", isZh)}
+          label={isZh ? "未结余额" : "Outstanding balance"}
           tone={snapshot.summary.openChargesCount ? "accent" : "default"}
           value={snapshot.summary.outstandingBalanceLabel}
         />
         <StatCard
-          hint={`${snapshot.summary.pendingChargesCount} pending or scheduled item(s)`}
-          label="Pending charges"
+          hint={formatCount(snapshot.summary.pendingChargesCount, "pending or scheduled item", "pending or scheduled items", "笔待处理或已排期费用", isZh)}
+          label={isZh ? "待处理费用" : "Pending charges"}
           value={snapshot.summary.pendingChargesLabel}
         />
         <StatCard
           hint={snapshot.summary.recentPaymentsWindowLabel}
-          label="Recent payments"
+          label={isZh ? "近期付款" : "Recent payments"}
           value={snapshot.summary.recentPaymentsLabel}
         />
         <StatCard
-          hint={`${snapshot.summary.creditBalanceCount} credit balance item(s)`}
-          label="Credit balance"
+          hint={formatCount(snapshot.summary.creditBalanceCount, "credit balance item", "credit balance items", "笔可用抵扣", isZh)}
+          label={isZh ? "抵扣余额" : "Credit balance"}
           value={snapshot.summary.creditBalanceLabel}
         />
         <StatCard
@@ -221,8 +276,8 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           value={snapshot.summary.latestStatementBalanceLabel}
         />
         <StatCard
-          hint="Invalid or expired methods"
-          label="Payment method issues"
+          hint={isZh ? "无效或已过期的方式" : "Invalid or expired methods"}
+          label={isZh ? "付款方式问题" : "Payment method issues"}
           value={snapshot.summary.paymentMethodIssueCount}
         />
       </section>
@@ -243,30 +298,34 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           <SectionCard
             actions={
               <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
-                Open accounting activity
+                {isZh ? "打开财务记录" : "Open accounting activity"}
               </Link>
             }
-            subtitle="Open invoice balances and future-dated charges for your current membership. Payments are still recorded by office accounting, not by a live gateway."
-            title="Outstanding balance"
+            subtitle={
+              isZh
+                ? "显示你当前成员身份下的未结发票余额和未来费用。付款仍由办公室财务记录，不会在这里实时扣款。"
+                : "Open invoice balances and future-dated charges for your current membership. Payments are still recorded by office accounting, not by a live gateway."
+            }
+            title={isZh ? "未结余额" : "Outstanding balance"}
           >
             {snapshot.outstandingChargeRows.length || snapshot.upcomingChargeRows.length ? (
               <div className="office-billing-section-stack">
                 <div className="office-billing-subsection">
                   <div className="office-billing-subhead">
-                    <strong>Open charges</strong>
-                    <span>{snapshot.outstandingChargeRows.length} current open item(s)</span>
+                    <strong>{isZh ? "未结费用" : "Open charges"}</strong>
+                    <span>{formatCount(snapshot.outstandingChargeRows.length, "current open item", "current open items", "笔当前未结项目", isZh)}</span>
                   </div>
 
                   {snapshot.outstandingChargeRows.length ? (
                     <BillingTable>
                       <div className="office-table-header office-table-row office-table-row-billing-open">
-                        <span>Date</span>
-                        <span>Due</span>
-                        <span>Charge</span>
-                        <span>Amount</span>
-                        <span>Outstanding</span>
-                        <span>Status</span>
-                        <span>Linked transaction</span>
+                        <span>{isZh ? "日期" : "Date"}</span>
+                        <span>{isZh ? "到期" : "Due"}</span>
+                        <span>{isZh ? "费用" : "Charge"}</span>
+                        <span>{isZh ? "金额" : "Amount"}</span>
+                        <span>{isZh ? "未结" : "Outstanding"}</span>
+                        <span>{isZh ? "状态" : "Status"}</span>
+                        <span>{isZh ? "关联交易" : "Linked transaction"}</span>
                       </div>
 
                       {snapshot.outstandingChargeRows.map((row) => (
@@ -274,16 +333,16 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                           <span>{row.accountingDate}</span>
                           <span>{row.dueDate || "—"}</span>
                           <div className="office-table-primary">
-                            <strong>{row.type}</strong>
+                            <strong>{translateBillingType(row.type, isZh)}</strong>
                             <p>{row.referenceNumber || row.chargeCategory || row.counterparty}</p>
                           </div>
                           <span>{row.amountLabel}</span>
                           <span>{row.outstandingAmountLabel}</span>
-                          <span>{row.status}</span>
+                          <span>{translateBillingStatus(row.status, isZh)}</span>
                           <div className="office-table-primary">
                             {row.linkedTransactionHref ? (
                               <Link className="office-inline-link" href={row.linkedTransactionHref}>
-                                Open transaction
+                                {isZh ? "打开交易" : "Open transaction"}
                               </Link>
                             ) : (
                               <strong>—</strong>
@@ -294,76 +353,80 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                       ))}
                     </BillingTable>
                   ) : (
-                    <p className="office-billing-inline-note">No open charges are recorded right now.</p>
+                    <p className="office-billing-inline-note">{isZh ? "当前没有未结费用。" : "No open charges are recorded right now."}</p>
                   )}
                 </div>
 
                 <div className="office-billing-subsection">
                   <div className="office-billing-subhead">
-                    <strong>Pending / upcoming charges</strong>
-                    <span>{snapshot.upcomingChargeRows.length} future or scheduled item(s)</span>
+                    <strong>{isZh ? "待处理 / 未来费用" : "Pending / upcoming charges"}</strong>
+                    <span>{formatCount(snapshot.upcomingChargeRows.length, "future or scheduled item", "future or scheduled items", "笔未来或已排期项目", isZh)}</span>
                   </div>
 
                   {snapshot.upcomingChargeRows.length ? (
                     <BillingTable>
                       <div className="office-table-header office-table-row office-table-row-billing-upcoming">
-                        <span>Due</span>
-                        <span>Source</span>
-                        <span>Description</span>
-                        <span>Amount</span>
-                        <span>Status</span>
-                        <span>Linked transaction</span>
+                        <span>{isZh ? "到期" : "Due"}</span>
+                        <span>{isZh ? "来源" : "Source"}</span>
+                        <span>{isZh ? "说明" : "Description"}</span>
+                        <span>{isZh ? "金额" : "Amount"}</span>
+                        <span>{isZh ? "状态" : "Status"}</span>
+                        <span>{isZh ? "关联交易" : "Linked transaction"}</span>
                       </div>
 
                       {snapshot.upcomingChargeRows.map((row) => (
                         <div className="office-table-row office-table-row-billing-upcoming" key={row.id}>
                           <span>{row.dueDate}</span>
-                          <span>{row.sourceType}</span>
+                          <span>{translateBillingType(row.sourceType, isZh)}</span>
                           <div className="office-table-primary">
                             <strong>{row.description}</strong>
                             <p>{row.linkedTransactionLabel}</p>
                           </div>
                           <span>{row.amountLabel}</span>
-                          <span>{row.status}</span>
-                          <span>{row.linkedTransactionHref ? "Linked" : "—"}</span>
+                          <span>{translateBillingStatus(row.status, isZh)}</span>
+                          <span>{row.linkedTransactionHref ? (isZh ? "已关联" : "Linked") : "—"}</span>
                         </div>
                       ))}
                     </BillingTable>
                   ) : (
-                    <p className="office-billing-inline-note">No pending or scheduled charges are currently queued.</p>
+                    <p className="office-billing-inline-note">{isZh ? "当前没有待处理或已排期费用。" : "No pending or scheduled charges are currently queued."}</p>
                   )}
                 </div>
               </div>
             ) : (
               <EmptyState
-                description="No open or pending charges are recorded for your current membership."
-                title="Nothing due right now"
+                description={isZh ? "当前成员身份下没有未结或待处理费用。" : "No open or pending charges are recorded for your current membership."}
+                title={isZh ? "现在没有应付项目" : "Nothing due right now"}
               />
             )}
           </SectionCard>
 
           <SectionCard
-            subtitle="Real accounting-backed billing records only. Charges, payments, credits, and applied balances stay distinct through type and status."
-            title="Billing ledger"
+            subtitle={
+              isZh
+                ? "这里只显示真实财务记录；费用、付款、抵扣和已应用余额会通过类型和状态区分。"
+                : "Real accounting-backed billing records only. Charges, payments, credits, and applied balances stay distinct through type and status."
+            }
+            title={isZh ? "账单流水" : "Billing ledger"}
           >
             {snapshot.ledgerRows.length ? (
               <BillingTable>
                 <div className="office-table-header office-table-row office-table-row-agent-billing-ledger">
-                  <span>Date</span>
-                  <span>Type</span>
-                  <span>Description</span>
-                  <span>Category</span>
-                  <span>Amount</span>
-                  <span>Applied</span>
-                  <span>Outstanding</span>
-                  <span>Status</span>
-                  <span>Linked transaction</span>
+                  <span>{isZh ? "日期" : "Date"}</span>
+                  <span>{isZh ? "类型" : "Type"}</span>
+                  <span>{isZh ? "说明" : "Description"}</span>
+                  <span>{isZh ? "分类" : "Category"}</span>
+                  <span>{isZh ? "金额" : "Amount"}</span>
+                  <span>{isZh ? "已应用" : "Applied"}</span>
+                  <span>{isZh ? "未结" : "Outstanding"}</span>
+                  <span>{isZh ? "状态" : "Status"}</span>
+                  <span>{isZh ? "关联交易" : "Linked transaction"}</span>
                 </div>
 
                 {snapshot.ledgerRows.map((row) => (
                   <div className="office-table-row office-table-row-agent-billing-ledger" key={row.id}>
                     <span>{row.accountingDate}</span>
-                    <span>{row.type}</span>
+                    <span>{translateBillingType(row.type, isZh)}</span>
                     <div className="office-table-primary">
                       <strong>{row.referenceNumber || row.counterparty}</strong>
                       <p>{row.counterparty}</p>
@@ -372,11 +435,11 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                     <span>{row.amountLabel}</span>
                     <span>{row.appliedAmountLabel}</span>
                     <span>{row.outstandingAmountLabel}</span>
-                    <span>{row.status}</span>
+                    <span>{translateBillingStatus(row.status, isZh)}</span>
                     <div className="office-table-primary">
                       {row.linkedTransactionHref ? (
                         <Link className="office-inline-link" href={row.linkedTransactionHref}>
-                          Open transaction
+                          {isZh ? "打开交易" : "Open transaction"}
                         </Link>
                       ) : (
                         <strong>—</strong>
@@ -388,39 +451,43 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               </BillingTable>
             ) : (
               <EmptyState
-                description="Billing ledger entries will appear here when charges, payments, or credit memos exist for your membership."
-                title="No ledger records"
+                description={isZh ? "当你的成员身份下出现费用、付款或抵扣单后，账单流水会显示在这里。" : "Billing ledger entries will appear here when charges, payments, or credit memos exist for your membership."}
+                title={isZh ? "暂无账单流水" : "No ledger records"}
               />
             )}
           </SectionCard>
 
           <SectionCard
-            subtitle="Live monthly statement summaries generated at view time from the current ledger. PDF downloads export the current live summary and do not create archived statement snapshots."
-            title="Statements"
+            subtitle={
+              isZh
+                ? "月度账单摘要会根据当前流水实时生成。下载 PDF 只导出当前摘要，不会创建归档快照。"
+                : "Live monthly statement summaries generated at view time from the current ledger. PDF downloads export the current live summary and do not create archived statement snapshots."
+            }
+            title={isZh ? "月度账单" : "Statements"}
           >
             {snapshot.statements.length ? (
               <BillingTable>
                 <div className="office-table-header office-table-row office-table-row-billing-statements">
-                  <span>Period</span>
-                  <span>Generated</span>
-                  <span>Charges</span>
-                  <span>Payments</span>
-                  <span>Credits</span>
-                  <span>Current balance</span>
+                  <span>{isZh ? "周期" : "Period"}</span>
+                  <span>{isZh ? "生成时间" : "Generated"}</span>
+                  <span>{isZh ? "费用" : "Charges"}</span>
+                  <span>{isZh ? "付款" : "Payments"}</span>
+                  <span>{isZh ? "抵扣" : "Credits"}</span>
+                  <span>{isZh ? "当前余额" : "Current balance"}</span>
                 </div>
 
                 {snapshot.statements.map((statement) => (
                   <div className="office-table-row office-table-row-billing-statements" key={statement.id}>
                     <div className="office-table-primary">
                       <strong>{statement.periodLabel}</strong>
-                      <p>{statement.entryCount} ledger item(s)</p>
+                      <p>{formatCount(statement.entryCount, "ledger item", "ledger items", "条流水", isZh)}</p>
                       <p>
                         <a
-                          aria-label={`Download ${statement.periodLabel} billing statement PDF`}
+                          aria-label={isZh ? `下载 ${statement.periodLabel} 账单 PDF` : `Download ${statement.periodLabel} billing statement PDF`}
                           className="office-inline-link"
                           href={`/api/office/billing/statements/${statement.id}/pdf`}
                         >
-                          Download PDF
+                          {isZh ? "下载 PDF" : "Download PDF"}
                         </a>
                       </p>
                     </div>
@@ -434,54 +501,64 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               </BillingTable>
             ) : (
               <EmptyState
-                description="Monthly statement summaries will appear here after billing ledger records exist for your membership."
-                title="No statements yet"
+                description={isZh ? "当你的成员身份下出现账单流水后，月度账单摘要会显示在这里。" : "Monthly statement summaries will appear here after billing ledger records exist for your membership."}
+                title={isZh ? "暂无月度账单" : "No statements yet"}
               />
             )}
           </SectionCard>
         </div>
 
         <div className="office-billing-side-column">
-          <SectionCard subtitle="Most recent received-payment records applied to your billing ledger." title="Recent payments">
+          <SectionCard
+            subtitle={isZh ? "最近已经应用到你账单流水上的收款记录。" : "Most recent received-payment records applied to your billing ledger."}
+            title={isZh ? "近期付款" : "Recent payments"}
+          >
             {snapshot.recentPaymentRows.length ? (
               <div className="office-billing-list">
                 {snapshot.recentPaymentRows.map((row) => (
                   <article className="office-billing-list-row" key={row.id}>
                     <div className="office-billing-list-copy">
-                      <strong>{row.referenceNumber || row.type}</strong>
+                      <strong>{row.referenceNumber || translateBillingType(row.type, isZh)}</strong>
                       <p>{row.accountingDate} · {row.amountLabel}</p>
-                      <p>{row.paymentMethod !== "—" ? `${row.paymentMethod} · ${row.status}` : row.status}</p>
+                      <p>{row.paymentMethod !== "—" ? `${row.paymentMethod} · ${translateBillingStatus(row.status, isZh)}` : translateBillingStatus(row.status, isZh)}</p>
                     </div>
-                    <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
+                    <StatusBadge tone={getStatusTone(row.status)}>{translateBillingStatus(row.status, isZh)}</StatusBadge>
                   </article>
                 ))}
               </div>
             ) : (
               <EmptyState
-                description="No received-payment records have been applied to this billing profile yet."
-                title="No payments recorded"
+                description={isZh ? "这个账单档案还没有应用过收款记录。" : "No received-payment records have been applied to this billing profile yet."}
+                title={isZh ? "暂无付款记录" : "No payments recorded"}
               />
             )}
           </SectionCard>
 
-          <SectionCard subtitle="Credit memos and other balance-reducing adjustments remain visible separately from payments." title="Credits / adjustments">
+          <SectionCard
+            subtitle={isZh ? "抵扣单和其他减少余额的调整会与付款分开显示。" : "Credit memos and other balance-reducing adjustments remain visible separately from payments."}
+            title={isZh ? "抵扣 / 调整" : "Credits / adjustments"}
+          >
             {snapshot.creditRows.length ? (
               <div className="office-billing-list">
                 {snapshot.creditRows.map((row) => (
                   <article className="office-billing-list-row" key={row.id}>
                     <div className="office-billing-list-copy">
-                      <strong>{row.referenceNumber || row.type}</strong>
+                      <strong>{row.referenceNumber || translateBillingType(row.type, isZh)}</strong>
                       <p>{row.accountingDate} · {row.amountLabel}</p>
-                      <p>{row.outstandingAmountLabel} remaining · {row.status}</p>
+                      <p>
+                        {isZh
+                          ? `剩余 ${row.outstandingAmountLabel} · ${translateBillingStatus(row.status, isZh)}`
+                          : `${row.outstandingAmountLabel} remaining · ${row.status}`}
+                      </p>
                     </div>
-                    <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
+                    <StatusBadge tone={getStatusTone(row.status)}>{translateBillingStatus(row.status, isZh)}</StatusBadge>
                   </article>
                 ))}
               </div>
             ) : (
               <EmptyState
-                description="No credits or adjustments are currently stored for this billing profile."
-                title="No credits recorded"
+                description={isZh ? "这个账单档案当前没有抵扣或调整记录。" : "No credits or adjustments are currently stored for this billing profile."}
+                title={isZh ? "暂无抵扣记录" : "No credits recorded"}
               />
             )}
           </SectionCard>
@@ -489,11 +566,15 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           <SectionCard
             actions={
               <Button onClick={openPaymentMethodCreate} size="sm" variant="secondary">
-                Add method
+                {isZh ? "新增方式" : "Add method"}
               </Button>
             }
-            subtitle="Masked billing-method references only. This page does not connect to a live payment gateway or store raw credentials."
-            title="Payment methods"
+            subtitle={
+              isZh
+                ? "这里只保存脱敏后的付款方式引用，不连接实时支付网关，也不保存原始凭据。"
+                : "Masked billing-method references only. This page does not connect to a live payment gateway or store raw credentials."
+            }
+            title={isZh ? "付款方式" : "Payment methods"}
           >
             {formError ? <p className="office-form-error">{formError}</p> : null}
 
@@ -503,32 +584,34 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   <article className="office-billing-method-row" key={method.id}>
                     <div className="office-billing-method-copy">
                       <strong>{method.label}</strong>
-                      <p>{method.type} · {method.maskedReference}</p>
+                      <p>{translateBillingType(method.type, isZh)} · {method.maskedReference}</p>
                       <p>{method.provider}</p>
                     </div>
 
                     <div className="office-billing-method-meta">
                       <div className="office-billing-method-flags">
-                        {method.isDefault ? <StatusBadge tone="accent">Default</StatusBadge> : null}
-                        <StatusBadge tone={getStatusTone(method.statusValue)}>{method.status}</StatusBadge>
+                        {method.isDefault ? <StatusBadge tone="accent">{isZh ? "默认" : "Default"}</StatusBadge> : null}
+                        <StatusBadge tone={getStatusTone(method.statusValue)}>{translateBillingStatus(method.status, isZh)}</StatusBadge>
                         <StatusBadge tone={method.autoPayEnabled ? "success" : "neutral"}>
-                          {method.autoPayEnabled ? "Auto-pay on" : "Manual pay"}
+                          {method.autoPayEnabled ? (isZh ? "自动付款已开" : "Auto-pay on") : (isZh ? "手动付款" : "Manual pay")}
                         </StatusBadge>
                       </div>
 
                       <div className="office-billing-method-actions">
                         <Button onClick={() => openPaymentMethodEdit(method.id)} size="sm" variant="secondary">
-                          Edit
+                          {isZh ? "编辑" : "Edit"}
                         </Button>
                         {method.statusValue !== "removed" ? (
                           <Button
                             disabled={pendingAction === "remove-payment-method"}
                             onClick={() =>
                               setConfirmDialog({
-                                title: `Remove ${method.label}?`,
+                                title: isZh ? `移除 ${method.label}？` : `Remove ${method.label}?`,
                                 description:
-                                  "This removes the payment-method reference from your billing profile. It does not charge or refund anything.",
-                                confirmLabel: "Remove method",
+                                  isZh
+                                    ? "这只会从账单档案中移除该付款方式引用，不会发起扣款或退款。"
+                                    : "This removes the payment-method reference from your billing profile. It does not charge or refund anything.",
+                                confirmLabel: isZh ? "移除付款方式" : "Remove method",
                                 onConfirm: () => {
                                   void handleRemovePaymentMethod(method.id);
                                 }
@@ -537,7 +620,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                             size="sm"
                             variant="secondary"
                           >
-                            Remove
+                            {isZh ? "移除" : "Remove"}
                           </Button>
                         ) : null}
                       </div>
@@ -549,11 +632,11 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               <EmptyState
                 action={
                   <Button onClick={openPaymentMethodCreate} size="sm" variant="secondary">
-                    Add method
+                    {isZh ? "新增方式" : "Add method"}
                   </Button>
                 }
-                description="Store a masked card or bank reference if the office uses it for billing coordination. No live charge capture is connected."
-                title="No payment methods on file"
+                description={isZh ? "如果办公室需要用付款方式做账单协同，可以保存脱敏后的银行卡或银行账户引用。这里不会实时扣款。" : "Store a masked card or bank reference if the office uses it for billing coordination. No live charge capture is connected."}
+                title={isZh ? "还没有付款方式" : "No payment methods on file"}
               />
             )}
           </SectionCard>
@@ -561,11 +644,11 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           <SectionCard
             actions={
               <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
-                Open activity
+                {isZh ? "打开记录" : "Open activity"}
               </Link>
             }
-            subtitle="Recent billing-related audit events touching your charges, payments, credits, or payment-method changes."
-            title="Billing activity"
+            subtitle={isZh ? "近期与你的费用、付款、抵扣或付款方式变更有关的审计记录。" : "Recent billing-related audit events touching your charges, payments, credits, or payment-method changes."}
+            title={isZh ? "账单动态" : "Billing activity"}
           >
             {snapshot.recentActivity.length ? (
               <div className="office-billing-activity-list">
@@ -579,7 +662,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                     </div>
                     {item.href ? (
                       <Link className="office-inline-link" href={item.href}>
-                        Open
+                        {isZh ? "打开" : "Open"}
                       </Link>
                     ) : null}
                   </article>
@@ -587,13 +670,16 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               </div>
             ) : (
               <EmptyState
-                description="Billing-related audit events will appear here once charges, payments, credits, or payment-method changes are logged for your membership."
-                title="No recent billing activity"
+                description={isZh ? "当你的成员身份下记录了费用、付款、抵扣或付款方式变更后，相关审计动态会显示在这里。" : "Billing-related audit events will appear here once charges, payments, credits, or payment-method changes are logged for your membership."}
+                title={isZh ? "暂无近期账单动态" : "No recent billing activity"}
               />
             )}
           </SectionCard>
 
-          <SectionCard subtitle="Current scope and limitations for self-service billing in this MVP." title="Current limitations">
+          <SectionCard
+            subtitle={isZh ? "当前自助账单功能的范围和限制。" : "Current scope and limitations for self-service billing in this MVP."}
+            title={isZh ? "当前限制" : "Current limitations"}
+          >
             <ul className="office-billing-limitations">
               {snapshot.limitations.map((item) => (
                 <li key={item}>{item}</li>
@@ -607,15 +693,15 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
         <div className="office-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
           <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
-              <h3>{paymentMethodFormState.paymentMethodId ? "EDIT PAYMENT METHOD" : "ADD PAYMENT METHOD"}</h3>
-              <button aria-label="Close payment method modal" onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
+              <h3>{paymentMethodFormState.paymentMethodId ? (isZh ? "编辑付款方式" : "EDIT PAYMENT METHOD") : (isZh ? "新增付款方式" : "ADD PAYMENT METHOD")}</h3>
+              <button aria-label={isZh ? "关闭付款方式弹窗" : "Close payment method modal"} onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
                 ×
               </button>
             </header>
 
             <form className="office-modal-body office-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
               <div className="office-form-grid">
-                <FormField label="Type">
+                <FormField label={isZh ? "类型" : "Type"}>
                   <SelectInput
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, type: event.target.value }))}
                     value={paymentMethodFormState.type}
@@ -628,7 +714,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   </SelectInput>
                 </FormField>
 
-                <FormField label="Masked last4">
+                <FormField label={isZh ? "脱敏尾号" : "Masked last4"}>
                   <TextInput
                     maxLength={4}
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, last4: event.target.value }))}
@@ -637,24 +723,24 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   />
                 </FormField>
 
-                <FormField className="office-form-grid-span-2" label="Label">
+                <FormField className="office-form-grid-span-2" label={isZh ? "名称" : "Label"}>
                   <TextInput
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, label: event.target.value }))}
-                    placeholder="Visa ending 4242"
+                    placeholder={isZh ? "Visa 尾号 4242" : "Visa ending 4242"}
                     required
                     value={paymentMethodFormState.label}
                   />
                 </FormField>
 
-                <FormField className="office-form-grid-span-2" label="Provider">
+                <FormField className="office-form-grid-span-2" label={isZh ? "来源 / 提供方" : "Provider"}>
                   <TextInput
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, provider: event.target.value }))}
-                    placeholder="Manual"
+                    placeholder={isZh ? "手动记录" : "Manual"}
                     value={paymentMethodFormState.provider}
                   />
                 </FormField>
 
-                <CheckboxField className="office-form-grid-span-2" label="Set as default method">
+                <CheckboxField className="office-form-grid-span-2" label={isZh ? "设为默认付款方式" : "Set as default method"}>
                   <input
                     checked={paymentMethodFormState.isDefault}
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, isDefault: event.target.checked }))}
@@ -662,7 +748,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   />
                 </CheckboxField>
 
-                <CheckboxField className="office-form-grid-span-2" label="Mark auto-pay enabled">
+                <CheckboxField className="office-form-grid-span-2" label={isZh ? "标记为已启用自动付款" : "Mark auto-pay enabled"}>
                   <input
                     checked={paymentMethodFormState.autoPayEnabled}
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, autoPayEnabled: event.target.checked }))}
@@ -674,9 +760,13 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               {formError ? <p className="office-form-error">{formError}</p> : null}
 
               <footer className="office-modal-footer">
-                <span>This stores only a masked billing-method reference. No live processor token or raw credential is captured here.</span>
+                <span>{isZh ? "这里只保存脱敏后的付款方式引用，不会保存支付处理商 token 或原始凭据。" : "This stores only a masked billing-method reference. No live processor token or raw credential is captured here."}</span>
                 <Button disabled={pendingAction === "save-payment-method"} type="submit">
-                  {pendingAction === "save-payment-method" ? "Saving..." : paymentMethodFormState.paymentMethodId ? "Save method" : "Add method"}
+                  {pendingAction === "save-payment-method"
+                    ? isZh ? "保存中..." : "Saving..."
+                    : paymentMethodFormState.paymentMethodId
+                      ? isZh ? "保存方式" : "Save method"
+                      : isZh ? "新增方式" : "Add method"}
                 </Button>
               </footer>
             </form>
@@ -685,7 +775,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
       ) : null}
 
       <ConfirmActionDialog
-        cancelLabel="Keep method"
+        cancelLabel={isZh ? "保留方式" : "Keep method"}
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}

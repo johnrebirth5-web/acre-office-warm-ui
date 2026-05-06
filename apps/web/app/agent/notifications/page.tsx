@@ -9,6 +9,7 @@ import { SectionCard } from "@acre/ui";
 import { FrontOfficeAccessNotice } from "../_components/front-office-access-notice";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import {
   activityViewOptions,
   cleanupFilterOptions,
@@ -120,14 +121,24 @@ export default async function AgentNotificationsPage(
   )}`;
   const cleanupDigestMailThreadHref =
     "/api/agent/notifications/cleanup-digest/mail-thread";
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
 
   return (
     <FrontOfficePageTemplate
-      description="Keep follow-up, appointment pressure, cleanup, and notices in one place."
-      eyebrow="Activity"
+      description={
+        isZh
+          ? "把客户跟进、预约压力、清理事项和通知集中到一个入口。"
+          : "Keep follow-up, appointment pressure, cleanup, and notices in one place."
+      }
+      eyebrow={isZh ? "跟进动态" : "Activity"}
       summary={
         <span>
-          Keep cleanup, reminders, notices, and team pressure in one pass.
+          {isZh
+            ? "一次看清清理事项、提醒、通知和团队压力。"
+            : "Keep cleanup, reminders, notices, and team pressure in one pass."}
         </span>
       }
       main={
@@ -143,7 +154,7 @@ export default async function AgentNotificationsPage(
         />
       }
       rail={
-        <SectionCard className="office-list-card" title="Cleanup digest">
+        <SectionCard className="office-list-card" title={isZh ? "清理摘要" : "Cleanup digest"}>
           <FrontOfficeCleanupDigestCard
             cleanupDigest={cleanupDigest}
             cleanupDigestHref={cleanupDigestHref}
@@ -151,7 +162,7 @@ export default async function AgentNotificationsPage(
           />
         </SectionCard>
       }
-      title="Activity"
+      title={isZh ? "跟进动态" : "Activity"}
     />
   );
 }

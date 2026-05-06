@@ -21,6 +21,7 @@ import type {
   OfficeTransactionTaskComplianceStatus,
   OfficeTransactionTaskReviewStatus
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeApproveDocsClientProps = {
   snapshot: OfficeDocumentApprovalQueueSnapshot;
@@ -30,42 +31,42 @@ type OfficeApproveDocsClientProps = {
   canSecondaryReviewTasks: boolean;
 };
 
-const queueViewOptions: Array<{ key: OfficeDocumentApprovalQueueView; label: string }> = [
-  { key: "all_open_review_items", label: "All open review items" },
-  { key: "awaiting_my_review", label: "Awaiting my review" },
-  { key: "awaiting_second_review", label: "Awaiting second review" },
-  { key: "rejected", label: "Rejected" },
-  { key: "waiting_for_signatures", label: "Waiting for signatures" },
-  { key: "missing_required_document", label: "Missing required document" }
+const queueViewOptions: Array<{ key: OfficeDocumentApprovalQueueView; label: string; zhLabel: string }> = [
+  { key: "all_open_review_items", label: "All open review items", zhLabel: "全部待处理审批" },
+  { key: "awaiting_my_review", label: "Awaiting my review", zhLabel: "等待我审核" },
+  { key: "awaiting_second_review", label: "Awaiting second review", zhLabel: "等待二级审核" },
+  { key: "rejected", label: "Rejected", zhLabel: "已退回" },
+  { key: "waiting_for_signatures", label: "Waiting for signatures", zhLabel: "等待签署" },
+  { key: "missing_required_document", label: "Missing required document", zhLabel: "缺少必交文件" }
 ];
 
 const dueWindowOptions = [
-  { value: "", label: "Any due date" },
-  { value: "past_due", label: "Past due" },
-  { value: "today", label: "Today" },
-  { value: "current_week", label: "Current week" },
-  { value: "next_week", label: "Next week" },
-  { value: "next_2_weeks", label: "Next 2 weeks" }
+  { value: "", label: "Any due date", zhLabel: "全部到期时间" },
+  { value: "past_due", label: "Past due", zhLabel: "已逾期" },
+  { value: "today", label: "Today", zhLabel: "今天到期" },
+  { value: "current_week", label: "Current week", zhLabel: "本周到期" },
+  { value: "next_week", label: "Next week", zhLabel: "下周到期" },
+  { value: "next_2_weeks", label: "Next 2 weeks", zhLabel: "未来两周" }
 ] as const;
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string, locale: string) {
   if (!value) {
     return "—";
   }
 
-  return new Date(`${value}T00:00:00.000Z`).toLocaleDateString("en-US", {
+  return new Date(`${value}T00:00:00.000Z`).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric"
   });
 }
 
-function formatDateTimeLabel(value: string) {
+function formatDateTimeLabel(value: string, locale: string) {
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleString("en-US", {
+  return new Date(value).toLocaleString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -88,6 +89,35 @@ function getQueueTone(view: OfficeDocumentApprovalQueueView) {
   }
 
   return "neutral" as const;
+}
+
+function optionLabel(option: { label: string; zhLabel: string }, isZh: boolean) {
+  return isZh ? option.zhLabel : option.label;
+}
+
+function translateApprovalStatus(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  const statusMap: Record<string, string> = {
+    Approved: "已通过",
+    Rejected: "已退回",
+    "Review requested": "等待审核",
+    "Second review": "二级审核中",
+    "First approved": "一级已通过",
+    Pending: "待处理",
+    "In review": "审核中",
+    Complete: "已完成",
+    Reopened: "已重新打开",
+    "Pending upload": "待上传",
+    "Waiting for signatures": "等待签署",
+    "Fully signed": "已全部签署",
+    "Uploaded / not submitted": "已上传 / 未提交",
+    "In progress": "进行中"
+  };
+
+  return statusMap[value] ?? value;
 }
 
 function getReviewTone(status: OfficeTransactionTaskReviewStatus) {
@@ -181,6 +211,8 @@ export function OfficeApproveDocsClient({
   canSecondaryReviewTasks
 }: OfficeApproveDocsClientProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -191,7 +223,7 @@ export function OfficeApproveDocsClient({
     try {
       const rejectionReason =
         action === "reject"
-          ? window.prompt("Enter a rejection reason (optional)", task.rejectionReason || "")?.trim() ?? ""
+          ? window.prompt(isZh ? "请输入退回原因（可选）" : "Enter a rejection reason (optional)", task.rejectionReason || "")?.trim() ?? ""
           : "";
       const response = await fetch(`/api/office/transactions/${task.transactionId}/tasks/${task.id}/workflow`, {
         method: "POST",
@@ -207,12 +239,12 @@ export function OfficeApproveDocsClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Unable to complete the approval queue action.");
+        throw new Error(body?.error ?? (isZh ? "无法完成审批队列操作。" : "Unable to complete the approval queue action."));
       }
 
       router.refresh();
     } catch (workflowError) {
-      setError(workflowError instanceof Error ? workflowError.message : "Unable to complete the approval queue action.");
+      setError(workflowError instanceof Error ? workflowError.message : isZh ? "无法完成审批队列操作。" : "Unable to complete the approval queue action.");
     } finally {
       setPendingAction(null);
     }
@@ -227,30 +259,34 @@ export function OfficeApproveDocsClient({
             href={buildQueueHref(snapshot, option.key)}
             key={option.key}
           >
-            <span>{option.label}</span>
+            <span>{optionLabel(option, isZh)}</span>
             <strong>{snapshot.summary[option.key]}</strong>
           </Link>
         ))}
       </section>
 
       <SectionCard
-        subtitle="Focus the document review queue by approval state, assignee, and due window. Awaiting my review reflects actions available to the current reviewer."
-        title="Queue filters"
+        subtitle={
+          isZh
+            ? "按审批状态、负责人和到期时间收窄文档审核队列。“等待我审核”只显示当前审核人可处理的动作。"
+            : "Focus the document review queue by approval state, assignee, and due window. Awaiting my review reflects actions available to the current reviewer."
+        }
+        title={isZh ? "队列筛选" : "Queue filters"}
       >
         <FilterBar as="form" className="office-approval-filter-bar" method="get">
-          <FilterField label="Queue view">
+          <FilterField label={isZh ? "队列视图" : "Queue view"}>
             <SelectInput defaultValue={snapshot.filters.queue} name="queue">
               {queueViewOptions.map((option) => (
                 <option key={option.key} value={option.key}>
-                  {option.label}
+                  {optionLabel(option, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField label="Assignee">
+          <FilterField label={isZh ? "负责人" : "Assignee"}>
             <SelectInput defaultValue={snapshot.filters.assigneeMembershipId} name="assigneeMembershipId">
-              <option value="">All assignees</option>
+              <option value="">{isZh ? "全部负责人" : "All assignees"}</option>
               {snapshot.assigneeOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -259,32 +295,36 @@ export function OfficeApproveDocsClient({
             </SelectInput>
           </FilterField>
 
-          <FilterField label="Due date">
+          <FilterField label={isZh ? "到期时间" : "Due date"}>
             <SelectInput defaultValue={snapshot.filters.dueWindow} name="dueWindow">
               {dueWindowOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {optionLabel(option, isZh)}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-approval-filter-field-wide" label="Transaction / task / document">
-            <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Search transaction, task, document, form, or owner..." />
+          <FilterField className="office-approval-filter-field-wide" label={isZh ? "交易 / 任务 / 文档" : "Transaction / task / document"}>
+            <TextInput
+              defaultValue={snapshot.filters.q}
+              name="q"
+              placeholder={isZh ? "搜索交易、任务、文档、表单或负责人..." : "Search transaction, task, document, form, or owner..."}
+            />
           </FilterField>
 
           <div className="office-approval-filter-actions">
-            <Button type="submit">Apply filters</Button>
+            <Button type="submit">{isZh ? "应用筛选" : "Apply filters"}</Button>
             <Link className="office-button-secondary" href="/office/approve-docs">
-              Reset
+              {isZh ? "重置" : "Reset"}
             </Link>
           </div>
         </FilterBar>
       </SectionCard>
 
       <SectionCard
-        subtitle={`${snapshot.itemCount} rows in the current review queue`}
-        title="Document review queue"
+        subtitle={isZh ? `当前审核队列有 ${snapshot.itemCount} 条记录` : `${snapshot.itemCount} rows in the current review queue`}
+        title={isZh ? "文档审核队列" : "Document review queue"}
       >
         {error ? <p className="office-approval-inline-error">{error}</p> : null}
 
@@ -293,18 +333,18 @@ export function OfficeApproveDocsClient({
             <table className="office-approval-table">
               <thead>
                 <tr>
-                  <th>Task</th>
-                  <th>Transaction</th>
-                  <th>Document / Form</th>
-                  <th>Assignee / owner</th>
-                  <th>Review status</th>
-                  <th>Compliance status</th>
-                  <th>Requires secondary approval</th>
-                  <th>Submitted by</th>
-                  <th>Submitted at</th>
-                  <th>Due date</th>
-                  <th>Last updated</th>
-                  <th>Actions</th>
+                  <th>{isZh ? "任务" : "Task"}</th>
+                  <th>{isZh ? "交易" : "Transaction"}</th>
+                  <th>{isZh ? "文档 / 表单" : "Document / Form"}</th>
+                  <th>{isZh ? "负责人 / 所有人" : "Assignee / owner"}</th>
+                  <th>{isZh ? "审核状态" : "Review status"}</th>
+                  <th>{isZh ? "合规状态" : "Compliance status"}</th>
+                  <th>{isZh ? "需要二级审核" : "Requires secondary approval"}</th>
+                  <th>{isZh ? "提交人" : "Submitted by"}</th>
+                  <th>{isZh ? "提交时间" : "Submitted at"}</th>
+                  <th>{isZh ? "到期时间" : "Due date"}</th>
+                  <th>{isZh ? "最近更新" : "Last updated"}</th>
+                  <th>{isZh ? "操作" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -323,12 +363,12 @@ export function OfficeApproveDocsClient({
                       <td>
                         <div className="office-approval-cell-title">{item.task.title}</div>
                         <div className="office-approval-badge-row">
-                          <StatusBadge tone={getQueueTone(item.queueState)}>{item.queueStateLabel}</StatusBadge>
-                          <StatusBadge tone={getTaskStatusTone(item.task.taskStatusTone)}>{item.task.taskStatusLabel}</StatusBadge>
+                          <StatusBadge tone={getQueueTone(item.queueState)}>{translateApprovalStatus(item.queueStateLabel, isZh)}</StatusBadge>
+                          <StatusBadge tone={getTaskStatusTone(item.task.taskStatusTone)}>{translateApprovalStatus(item.task.taskStatusLabel, isZh)}</StatusBadge>
                         </div>
                         <div className="office-approval-meta-copy">{item.task.checklistGroup}</div>
                         {item.task.rejectionReason ? (
-                          <div className="office-approval-meta-copy">Rejection reason: {item.task.rejectionReason}</div>
+                          <div className="office-approval-meta-copy">{isZh ? "退回原因：" : "Rejection reason: "}{item.task.rejectionReason}</div>
                         ) : null}
                       </td>
                       <td>
@@ -344,27 +384,27 @@ export function OfficeApproveDocsClient({
                           <div className="office-approval-meta-copy">{item.artifactCountLabel}</div>
                         ) : null}
                         {item.formStatusLabel ? (
-                          <div className="office-approval-meta-copy">Form: {item.formStatusLabel}</div>
+                          <div className="office-approval-meta-copy">{isZh ? "表单：" : "Form: "}{translateApprovalStatus(item.formStatusLabel, isZh)}</div>
                         ) : null}
                         {item.signatureStatusLabel ? (
-                          <div className="office-approval-meta-copy">Signature: {item.signatureStatusLabel}</div>
+                          <div className="office-approval-meta-copy">{isZh ? "签署：" : "Signature: "}{translateApprovalStatus(item.signatureStatusLabel, isZh)}</div>
                         ) : null}
                       </td>
                       <td>
                         <div className="office-approval-cell-title">{item.task.assigneeName}</div>
-                        <div className="office-approval-meta-copy">Owner: {item.task.ownerName}</div>
+                        <div className="office-approval-meta-copy">{isZh ? "所有人：" : "Owner: "}{item.task.ownerName}</div>
                       </td>
                       <td>
-                        <StatusBadge tone={getReviewTone(item.task.reviewStatus)}>{item.task.reviewStatus}</StatusBadge>
+                        <StatusBadge tone={getReviewTone(item.task.reviewStatus)}>{translateApprovalStatus(item.task.reviewStatus, isZh)}</StatusBadge>
                       </td>
                       <td>
-                        <StatusBadge tone={getComplianceTone(item.task.complianceStatus)}>{item.task.complianceStatus}</StatusBadge>
+                        <StatusBadge tone={getComplianceTone(item.task.complianceStatus)}>{translateApprovalStatus(item.task.complianceStatus, isZh)}</StatusBadge>
                       </td>
-                      <td>{item.task.requiresSecondaryApproval ? "Yes" : "No"}</td>
+                      <td>{item.task.requiresSecondaryApproval ? (isZh ? "是" : "Yes") : (isZh ? "否" : "No")}</td>
                       <td>{item.task.submittedForReviewByName || "—"}</td>
-                      <td>{formatDateTimeLabel(item.task.submittedForReviewAt)}</td>
-                      <td>{formatDateLabel(item.task.dueAt)}</td>
-                      <td>{formatDateTimeLabel(item.task.updatedAt)}</td>
+                      <td>{formatDateTimeLabel(item.task.submittedForReviewAt, locale)}</td>
+                      <td>{formatDateLabel(item.task.dueAt, locale)}</td>
+                      <td>{formatDateTimeLabel(item.task.updatedAt, locale)}</td>
                       <td className="office-approval-actions-cell">
                         <div className="office-approval-action-stack">
                           <div className="office-approval-action-row office-approval-action-row-links">
@@ -372,7 +412,7 @@ export function OfficeApproveDocsClient({
                               className="office-button-secondary office-inline-action-sm"
                               href={item.task.transactionHref}
                             >
-                              Open transaction
+                              {isZh ? "打开交易" : "Open transaction"}
                             </Link>
                             {item.openDocumentHref ? (
                               <Link
@@ -380,7 +420,7 @@ export function OfficeApproveDocsClient({
                                 href={item.openDocumentHref}
                                 target="_blank"
                               >
-                                Open linked document
+                                {isZh ? "打开关联文档" : "Open linked document"}
                               </Link>
                             ) : null}
                           </div>
@@ -393,10 +433,10 @@ export function OfficeApproveDocsClient({
                                 size="sm"
                               >
                                 {pendingAction === `approve:${item.task.id}`
-                                  ? "Saving..."
+                                  ? isZh ? "保存中..." : "Saving..."
                                   : item.task.awaitingSecondaryApproval
-                                    ? "Second approve"
-                                    : "Approve"}
+                                    ? isZh ? "二级通过" : "Second approve"
+                                    : isZh ? "通过" : "Approve"}
                               </Button>
                             ) : null}
                             {canRejectTask ? (
@@ -407,7 +447,7 @@ export function OfficeApproveDocsClient({
                                 size="sm"
                                 variant="danger"
                               >
-                                {pendingAction === `reject:${item.task.id}` ? "Saving..." : "Reject"}
+                                {pendingAction === `reject:${item.task.id}` ? (isZh ? "保存中..." : "Saving...") : (isZh ? "退回" : "Reject")}
                               </Button>
                             ) : null}
                             {item.task.canReopen ? (
@@ -418,7 +458,7 @@ export function OfficeApproveDocsClient({
                                 size="sm"
                                 variant="secondary"
                               >
-                                {pendingAction === `reopen:${item.task.id}` ? "Saving..." : "Reopen"}
+                                {pendingAction === `reopen:${item.task.id}` ? (isZh ? "保存中..." : "Saving...") : (isZh ? "重新打开" : "Reopen")}
                               </Button>
                             ) : null}
                             {item.task.canCompleteDirectly ? (
@@ -428,7 +468,7 @@ export function OfficeApproveDocsClient({
                                 onClick={() => handleWorkflowAction(item.task, "complete")}
                                 size="sm"
                               >
-                                {pendingAction === `complete:${item.task.id}` ? "Saving..." : "Complete"}
+                                {pendingAction === `complete:${item.task.id}` ? (isZh ? "保存中..." : "Saving...") : (isZh ? "标记完成" : "Complete")}
                               </Button>
                             ) : null}
                           </div>
@@ -442,8 +482,8 @@ export function OfficeApproveDocsClient({
           </HorizontalScrollArea>
         ) : (
           <EmptyState
-            description="No tasks in the current filter scope need to enter the document approval queue."
-            title="No document review items"
+            description={isZh ? "当前筛选范围内没有需要进入文档审批队列的任务。" : "No tasks in the current filter scope need to enter the document approval queue."}
+            title={isZh ? "暂无文档审核事项" : "No document review items"}
           />
         )}
       </SectionCard>

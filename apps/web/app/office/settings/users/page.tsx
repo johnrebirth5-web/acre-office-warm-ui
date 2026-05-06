@@ -3,6 +3,7 @@ import { ListPageStack, SummaryChip } from "@acre/ui";
 import { getOfficeAdminUsersSnapshot, getOfficeAgentsRosterSnapshot, type OfficeUsersWorkspaceSnapshot, type OfficeUsersWorkspaceView } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeSettingsUsersWorkspaceClient } from "./users-workspace-client";
@@ -101,33 +102,37 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
       pageSize: officeUsersWorkspacePageSize
     });
   }
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale
+  });
+  const isZh = locale === "zh-CN";
 
   return (
     <OfficeListPageShell className="office-settings-list-page">
       <OfficeListPageHeader
-        eyebrow="Office admin"
+        eyebrow={isZh ? "办公室管理" : "Office admin"}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={isZh ? "办公室范围" : "Office scope"} value={context.currentOffice?.name ?? context.currentOrganization.name} />
             {snapshot.access ? (
               <>
-                <SummaryChip label="Total users" tone="accent" value={snapshot.access.summary.totalUsers} />
-                <SummaryChip label="Active" value={snapshot.access.summary.activeUsers} />
-                <SummaryChip label="Invited" value={snapshot.access.summary.invitedUsers} />
-                <SummaryChip label="Locked" value={snapshot.access.summary.lockedUsers} />
+                <SummaryChip label={isZh ? "用户总数" : "Total users"} tone="accent" value={snapshot.access.summary.totalUsers} />
+                <SummaryChip label={isZh ? "启用" : "Active"} value={snapshot.access.summary.activeUsers} />
+                <SummaryChip label={isZh ? "已邀请" : "Invited"} value={snapshot.access.summary.invitedUsers} />
+                <SummaryChip label={isZh ? "已锁定" : "Locked"} value={snapshot.access.summary.lockedUsers} />
               </>
             ) : null}
             {snapshot.operations ? (
               <>
-                <SummaryChip label="Rostered members" tone="accent" value={snapshot.operations.summary.totalMembers} />
-                <SummaryChip label="Active teams" value={snapshot.operations.summary.activeTeamCount} />
-                <SummaryChip label="Onboarding in progress" value={snapshot.operations.summary.onboardingInProgressCount} />
-                <SummaryChip label="Inactive members" value={snapshot.operations.summary.inactiveMemberCount} />
+                <SummaryChip label={isZh ? "名册成员" : "Rostered members"} tone="accent" value={snapshot.operations.summary.totalMembers} />
+                <SummaryChip label={isZh ? "启用团队" : "Active teams"} value={snapshot.operations.summary.activeTeamCount} />
+                <SummaryChip label={isZh ? "入职处理中" : "Onboarding in progress"} value={snapshot.operations.summary.onboardingInProgressCount} />
+                <SummaryChip label={isZh ? "停用成员" : "Inactive members"} value={snapshot.operations.summary.inactiveMemberCount} />
               </>
             ) : null}
           </>
         }
-        title="Users"
+        title={isZh ? "用户与成员" : "Users"}
       />
 
       <ListPageStack className="office-settings-list-stack">
