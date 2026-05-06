@@ -61,6 +61,59 @@ function formatTransactionCurrency(value: string) {
   return `$${Number(value).toLocaleString("en-US")}`;
 }
 
+const transactionTypeCopy: Record<string, string> = {
+  sales: "买卖",
+  sales_listing: "销售挂牌",
+  rental_leasing: "租赁",
+  rental_listing: "出租挂牌",
+  commercial_sales: "商业买卖",
+  commercial_lease: "商业租赁",
+  other: "其他"
+};
+
+const transactionStatusCopy: Record<string, string> = {
+  opportunity: "机会",
+  active: "进行中",
+  pending: "待处理",
+  closed: "已成交",
+  cancelled: "已取消",
+  system_anchor: "系统锚点",
+  Opportunity: "机会",
+  Active: "进行中",
+  Pending: "待处理",
+  Closed: "已成交",
+  Cancelled: "已取消"
+};
+
+const transactionRepresentingCopy: Record<string, string> = {
+  buyer: "买方",
+  seller: "卖方",
+  both: "双方",
+  tenant: "租客",
+  landlord: "房东",
+  Buyer: "买方",
+  Seller: "卖方",
+  Both: "双方",
+  Tenant: "租客",
+  Landlord: "房东"
+};
+
+function translateTransactionCopy(value: string, copy: Record<string, string>) {
+  return copy[value] ?? value;
+}
+
+function translateBasicValue(value: string) {
+  if (value === "Yes") {
+    return "是";
+  }
+
+  if (value === "No") {
+    return "否";
+  }
+
+  return value;
+}
+
 export async function TransactionDetailWorkspace({
   context,
   transactionId,
@@ -143,88 +196,88 @@ export async function TransactionDetailWorkspace({
       {!isEmbedded ? (
         <OfficeDetailPageHeader
           description={`${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`}
-          eyebrow="Transaction detail"
+          eyebrow="交易详情"
           summary={
             <>
               <Link className="office-button-secondary" href="/office/transactions">
-                Back to transactions
+                返回交易列表
               </Link>
               <TransactionDeleteAction
                 canDelete={canDeleteTransactionsForRole}
                 transactionId={transaction.id}
                 transactionTitle={transaction.title}
               />
-              <SummaryChip label="Owner" value={transaction.ownerName} />
-              <SummaryChip label="Office" value={transaction.officeName || "Unassigned"} />
-              <SummaryChip label="Status" tone="accent" value={transaction.status} />
+              <SummaryChip label="负责人" value={transaction.ownerName} />
+              <SummaryChip label="办公室" value={transaction.officeName || "未分配"} />
+              <SummaryChip label="状态" tone="accent" value={translateTransactionCopy(transaction.statusValue, transactionStatusCopy)} />
             </>
           }
           title={transaction.title}
         />
       ) : null}
 
-      <DetailSection title="Overview">
+      <DetailSection title="概览">
         <div className="office-detail-grid">
           <div className="office-detail-field">
-            <span>Type</span>
-            <strong>{transaction.type}</strong>
+            <span>类型</span>
+            <strong>{translateTransactionCopy(transaction.typeValue, transactionTypeCopy)}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Representing</span>
-            <strong>{transaction.representing}</strong>
+            <span>代表方</span>
+            <strong>{translateTransactionCopy(transaction.representingValue, transactionRepresentingCopy)}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Asking Price</span>
+            <span>要价</span>
             <strong>{formatTransactionCurrency(transaction.askingPrice)}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Purchased Price</span>
+            <span>成交价</span>
             <strong>{formatTransactionCurrency(transaction.purchasedPrice)}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Owner</span>
+            <span>负责人</span>
             <strong>{transaction.ownerName}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Office</span>
-            <strong>{transaction.officeName || "Unassigned"}</strong>
+            <span>办公室</span>
+            <strong>{transaction.officeName || "未分配"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Company referral</span>
-            <strong>{transaction.companyReferral}</strong>
+            <span>公司推荐</span>
+            <strong>{translateBasicValue(transaction.companyReferral)}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Referral employee</span>
-            <strong>{transaction.companyReferralEmployeeName || "None"}</strong>
+            <span>推荐员工</span>
+            <strong>{transaction.companyReferralEmployeeName || "无"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Important date</span>
-            <strong>{transaction.importantDate || "Not set"}</strong>
+            <span>重要日期</span>
+            <strong>{transaction.importantDate || "未设置"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Buyer agreement date</span>
-            <strong>{transaction.buyerAgreementDate || "Not set"}</strong>
+            <span>买方协议日期</span>
+            <strong>{transaction.buyerAgreementDate || "未设置"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Buyer expiration date</span>
-            <strong>{transaction.buyerExpirationDate || "Not set"}</strong>
+            <span>买方协议到期日</span>
+            <strong>{transaction.buyerExpirationDate || "未设置"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Acceptance date</span>
-            <strong>{transaction.acceptanceDate || "Not set"}</strong>
+            <span>接受日期</span>
+            <strong>{transaction.acceptanceDate || "未设置"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Closing date</span>
-            <strong>{transaction.closingDate || "Not set"}</strong>
+            <span>成交日期</span>
+            <strong>{transaction.closingDate || "未设置"}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Move-In date</span>
-            <strong>{transaction.moveInDate || "Not set"}</strong>
+            <span>入住日期</span>
+            <strong>{transaction.moveInDate || "未设置"}</strong>
           </div>
         </div>
       </DetailSection>
 
-      <SectionCard title="Status">
+      <SectionCard title="状态">
         <TransactionStatusForm
           canManageStatus={canManageTransactionStatusForRole}
           currentStatus={transaction.status}
@@ -236,7 +289,7 @@ export async function TransactionDetailWorkspace({
         defaultExpanded
         sectionKey="intake-fields"
         storageScope={transactionDetailSectionStorageScope}
-        title="Intake fields"
+        title="录入字段"
       >
         <TransactionIntakeWorkspace
           canEditFinanceFields={canManageTransactionFinanceForRole}
@@ -273,7 +326,7 @@ export async function TransactionDetailWorkspace({
           schema={transactionIntakeSchema}
           statusFieldPolicy={getEditTransactionStatusFieldPolicy(canManageTransactionStatusForRole)}
           submitEndpoint={`/api/office/transactions/${transaction.id}/intake`}
-          submitLabel="Save intake changes"
+          submitLabel="保存录入更改"
           submitMethod="PATCH"
         />
       </TransactionDetailCollapsibleSection>
@@ -282,8 +335,8 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="finance"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Fees, splits, and agent net."
-          title="Finance"
+          subtitle="费用、拆分与经纪人净额。"
+          title="财务"
         >
           <TransactionFinanceForm
             approvalBlockers={commissionSnapshot?.approvalBlockers ?? []}
@@ -303,7 +356,7 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="commission"
           storageScope={transactionDetailSectionStorageScope}
-          title="Commission"
+          title="佣金"
         >
           <TransactionCommissionCard
             canApproveCommissions={canApproveCommissionsForRole}
@@ -316,7 +369,7 @@ export async function TransactionDetailWorkspace({
         </TransactionDetailCollapsibleSection>
       ) : null}
 
-      <TransactionDetailCollapsibleSection sectionKey="contacts" storageScope={transactionDetailSectionStorageScope} title="Contacts">
+      <TransactionDetailCollapsibleSection sectionKey="contacts" storageScope={transactionDetailSectionStorageScope} title="联系人">
         <TransactionContactsCard
           availableContacts={transaction.availableContacts}
           contacts={transaction.contacts}
@@ -328,8 +381,8 @@ export async function TransactionDetailWorkspace({
         <TransactionDetailCollapsibleSection
           sectionKey="offers"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Incoming offers and linked documents."
-          title="Offers"
+          subtitle="收到的报价和关联文档。"
+          title="报价"
         >
           <TransactionOffersCard
             canAcceptOffers={canAcceptOffersForRole}
@@ -347,7 +400,7 @@ export async function TransactionDetailWorkspace({
         </TransactionDetailCollapsibleSection>
       ) : null}
 
-      <TransactionDetailCollapsibleSection sectionKey="tasks" storageScope={transactionDetailSectionStorageScope} title="Checklist / Tasks">
+      <TransactionDetailCollapsibleSection sectionKey="tasks" storageScope={transactionDetailSectionStorageScope} title="清单 / 任务">
         <TransactionTasksCard
           assigneeOptions={taskAssigneeOptions}
           canApproveDocuments={canApproveDocumentsForRole}
@@ -362,7 +415,7 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="documents"
         storageScope={transactionDetailSectionStorageScope}
-        title="Documents"
+        title="文档"
       >
         <TransactionDocumentsCard
           canManageDocuments={canManageDocumentsForRole}
@@ -377,8 +430,8 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="unsorted-documents"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Uploaded but not yet categorized."
-        title="Unsorted documents"
+        subtitle="已上传但尚未分类。"
+        title="未整理文档"
       >
         <TransactionUnsortedDocumentsCard
           canManageDocuments={canManageDocumentsForRole}
@@ -392,8 +445,8 @@ export async function TransactionDetailWorkspace({
       <TransactionDetailCollapsibleSection
         sectionKey="forms-signatures"
         storageScope={transactionDetailSectionStorageScope}
-        subtitle="Generate and track form signatures."
-        title="Forms & eSignature"
+        subtitle="生成并跟踪表单签名。"
+        title="表单与电子签名"
       >
         <TransactionFormsSignaturesCard
           canManageSignatures={canManageSignaturesForRole}

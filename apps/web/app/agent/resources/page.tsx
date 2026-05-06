@@ -384,7 +384,7 @@ function renderVendorActions(vendor: VendorRecord) {
             action: "phone",
           }}
         >
-          Call
+          拨打
         </FrontOfficeTrackedLink>
       ) : null}
       {vendor.emailHref ? (
@@ -397,7 +397,7 @@ function renderVendorActions(vendor: VendorRecord) {
             action: "email",
           }}
         >
-          Email
+          发邮件
         </FrontOfficeTrackedLink>
       ) : null}
       {vendor.websiteHref ? (
@@ -410,7 +410,7 @@ function renderVendorActions(vendor: VendorRecord) {
             action: "website",
           }}
         >
-          Open site
+          打开网站
         </FrontOfficeTrackedLink>
       ) : null}
     </>
@@ -485,7 +485,7 @@ function VendorCard(props: { vendor: VendorRecord }) {
           </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {vendor.isFeatured ? (
-              <StatusBadge tone="accent">Featured go-to</StatusBadge>
+              <StatusBadge tone="accent">常用推荐</StatusBadge>
             ) : null}
           </div>
           <p style={helperTextStyle}>{vendor.headline}</p>
@@ -566,33 +566,33 @@ export default async function AgentResourcesPage(props: {
     key: FrontOfficeResourceSearchTab;
     label: string;
   }> = [
-    { key: "documents", label: "Documents" },
-    { key: "vendors", label: "Vendors" },
-    { key: "training", label: "Video Academy" },
+    { key: "documents", label: "文档" },
+    { key: "vendors", label: "供应商" },
+    { key: "training", label: "视频学院" },
   ];
   const tabSubtitle: Record<FrontOfficeResourceSearchTab, string> = {
     documents:
-      "Published PDFs, playbooks, templates, and other office-approved documents for agents.",
+      "办公室已发布的 PDF、操作手册、模板，以及其他供经纪人使用的审核文档。",
     vendors:
-      "Partner contacts live here as a simple searchable pool. Search by category, coverage, or contact detail.",
+      "合作伙伴联系人集中在这里，可按类别、服务范围或联系方式搜索。",
     training:
-      "YouTube-based refreshers stay in their own tab so video learning never gets mixed into the document list.",
+      "YouTube 培训视频独立放在这个标签页里，不会混入文档列表。",
   };
 
-  let resultTitle = "Documents";
+  let resultTitle = "文档";
   let resultDescription = tabSubtitle.documents;
   let resultStats: ReactNode = renderCompactStats([
     {
-      label: "Showing now",
+      label: "当前显示",
       value: paginatedDocuments.visibleItems.length,
       tone: "accent",
     },
     {
-      label: "Matching",
+      label: "匹配结果",
       value: filteredDocuments.length,
     },
     {
-      label: "Library total",
+      label: "资料总数",
       value: documentResources.length,
     },
   ]);
@@ -610,36 +610,36 @@ export default async function AgentResourcesPage(props: {
             className="office-button-secondary"
             href={buildResourcesUrl({ tab: activeTab })}
           >
-            Clear search
+            清除搜索
           </a>
         ) : undefined
       }
       description={
         documentResources.length
-          ? "Try a different keyword. Search only checks the documents in this tab."
-          : "This office has not published any documents yet."
+          ? "请换一个关键词。搜索只会检查当前标签页里的文档。"
+          : "这个办公室还没有发布任何文档。"
       }
       title={
-        documentResources.length ? "No documents found" : "No documents yet"
+        documentResources.length ? "没有找到文档" : "还没有文档"
       }
     />
   );
 
   if (activeTab === "vendors") {
-    resultTitle = "Vendor pool";
+    resultTitle = "供应商库";
     resultDescription = tabSubtitle.vendors;
     resultStats = renderCompactStats([
       {
-        label: "Showing now",
+        label: "当前显示",
         value: paginatedVendors.visibleItems.length,
         tone: "accent",
       },
       {
-        label: "Matching",
+        label: "匹配结果",
         value: filteredVendors.length,
       },
       {
-        label: "Featured",
+        label: "重点推荐",
         value: vendors.filter((vendor) => vendor.isFeatured).length,
       },
     ]);
@@ -657,33 +657,33 @@ export default async function AgentResourcesPage(props: {
               className="office-button-secondary"
               href={buildResourcesUrl({ tab: activeTab })}
             >
-              Clear search
+              清除搜索
             </a>
           ) : undefined
         }
         description={
           vendors.length
-            ? "Try a broader vendor keyword or browse again later."
-            : "This office has not published any vendor contacts yet."
+            ? "请换一个更宽泛的供应商关键词，或稍后再浏览。"
+            : "这个办公室还没有发布任何供应商联系人。"
         }
-        title={vendors.length ? "No vendors found" : "No vendors yet"}
+        title={vendors.length ? "没有找到供应商" : "还没有供应商"}
       />
     );
   } else if (activeTab === "training") {
-    resultTitle = "Video academy";
+    resultTitle = "视频学院";
     resultDescription = tabSubtitle.training;
     resultStats = renderCompactStats([
       {
-        label: "Showing now",
+        label: "当前显示",
         value: paginatedTraining.visibleItems.length,
         tone: "accent",
       },
       {
-        label: "Matching",
+        label: "匹配结果",
         value: filteredTraining.length,
       },
       {
-        label: "All training",
+        label: "全部培训",
         value: trainingResources.length,
       },
     ]);
@@ -697,16 +697,16 @@ export default async function AgentResourcesPage(props: {
               className="office-button-secondary"
               href={buildResourcesUrl({ tab: activeTab })}
             >
-              Clear search
+              清除搜索
             </a>
           ) : undefined
         }
         description={
           trainingResources.length
-            ? "Try another topic, process, or script keyword. Search only checks YouTube videos in this tab."
-            : "This office has not published any YouTube training videos yet."
+            ? "请换一个主题、流程或话术关键词。搜索只会检查当前标签页里的 YouTube 视频。"
+            : "这个办公室还没有发布任何 YouTube 培训视频。"
         }
-        title={trainingResources.length ? "No videos found" : "No training yet"}
+        title={trainingResources.length ? "没有找到视频" : "还没有培训内容"}
       />
     );
   }
@@ -724,20 +724,20 @@ export default async function AgentResourcesPage(props: {
   const resultCountLabel =
     activeTab === "vendors"
       ? filteredVendors.length === 1
-        ? "vendor"
-        : "vendors"
+        ? "个供应商"
+        : "个供应商"
       : activeTab === "training"
         ? filteredTraining.length === 1
-          ? "video"
-          : "videos"
+          ? "个视频"
+          : "个视频"
         : filteredDocuments.length === 1
-          ? "document"
-          : "documents";
+          ? "份文档"
+          : "份文档";
 
   return (
     <FrontOfficePageTemplate
-      description="One searchable directory for documents, vendors, and YouTube training. Use the tabs below the search bar to stay inside the section you need."
-      eyebrow="Resources"
+      description="文档、供应商和 YouTube 培训都集中在一个可搜索目录里。用搜索栏下方的标签页切换到需要的内容区。"
+      eyebrow="资源"
       main={
         <div style={stackStyle}>
           <SectionCard className="office-list-card">
@@ -767,12 +767,12 @@ export default async function AgentResourcesPage(props: {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Search vendors, videos, and documents from one place. Results stay inside the tab you're viewing."
-            title="Resources & Training"
+            subtitle="在同一个入口搜索供应商、视频和文档，结果会保留在当前查看的标签页内。"
+            title="资源与培训"
           >
             <FrontOfficeResourceSearchForm
               initialQuery={searchQuery}
-              placeholder="Search vendors, videos, documents..."
+              placeholder="搜索供应商、视频、文档..."
               tab={activeTab}
             />
           </SectionCard>
@@ -790,8 +790,8 @@ export default async function AgentResourcesPage(props: {
               {activePagination.pageCount > 1 ? (
                 <div style={paginationRowStyle}>
                   <span style={pageMetaStyle}>
-                    Page {activePagination.currentPage} of{" "}
-                    {activePagination.pageCount} ·{" "}
+                    第 {activePagination.currentPage} 页，共{" "}
+                    {activePagination.pageCount} 页 ·{" "}
                     {activeTab === "vendors"
                       ? filteredVendors.length
                       : activeTab === "training"
@@ -821,7 +821,7 @@ export default async function AgentResourcesPage(props: {
                           : undefined
                       }
                     >
-                      Previous
+                      上一页
                     </a>
                     {paginationLinks.map((pageNumber, index) => {
                       const previousPage = paginationLinks[index - 1];
@@ -896,7 +896,7 @@ export default async function AgentResourcesPage(props: {
                           : undefined
                       }
                     >
-                      Next
+                      下一页
                     </a>
                   </div>
                 </div>
@@ -905,7 +905,7 @@ export default async function AgentResourcesPage(props: {
           </SectionCard>
         </div>
       }
-      title="Resources & Training"
+      title="资源与培训"
     />
   );
 }

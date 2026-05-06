@@ -53,14 +53,14 @@ export function TransactionContactsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to link contact.");
+        throw new Error(body?.error ?? "关联联系人失败。");
       }
 
       setSelectedContactId("");
       setMakePrimary(false);
       router.refresh();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Failed to link contact.");
+      setActionError(error instanceof Error ? error.message : "关联联系人失败。");
     } finally {
       setPendingAction(null);
     }
@@ -77,12 +77,12 @@ export function TransactionContactsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update primary contact.");
+        throw new Error(body?.error ?? "更新主要联系人失败。");
       }
 
       router.refresh();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Failed to update primary contact.");
+      setActionError(error instanceof Error ? error.message : "更新主要联系人失败。");
     } finally {
       setPendingAction(null);
     }
@@ -99,12 +99,12 @@ export function TransactionContactsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to unlink contact.");
+        throw new Error(body?.error ?? "解除联系人关联失败。");
       }
 
       router.refresh();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Failed to unlink contact.");
+      setActionError(error instanceof Error ? error.message : "解除联系人关联失败。");
     } finally {
       setPendingAction(null);
     }
@@ -113,7 +113,7 @@ export function TransactionContactsCard({
   return (
     <section className="office-detail-card">
       <div className="office-card-head">
-        <h3>Contacts</h3>
+        <h3>联系人</h3>
       </div>
 
       <div className="office-transaction-contact-list">
@@ -126,9 +126,9 @@ export function TransactionContactsCard({
                     {contact.fullName}
                   </Link>
                   <span className="office-status-pill">{contact.role}</span>
-                  {contact.isPrimary ? <span className="office-status-pill office-status-pill-primary">Primary</span> : null}
+                  {contact.isPrimary ? <span className="office-status-pill office-status-pill-primary">主要联系人</span> : null}
                 </div>
-                <p>{contact.email || contact.phone || "No contact details saved."}</p>
+                <p>{contact.email || contact.phone || "还没有保存联系方式。"}</p>
                 {contact.email && contact.phone ? <p>{contact.phone}</p> : null}
               </div>
 
@@ -140,7 +140,7 @@ export function TransactionContactsCard({
                     onClick={() => handleSetPrimary(contact.id)}
                     type="button"
                   >
-                    {pendingAction === `primary:${contact.id}` ? "Setting..." : "Set primary"}
+                    {pendingAction === `primary:${contact.id}` ? "设置中..." : "设为主要联系人"}
                   </button>
                 ) : null}
                 <button
@@ -148,9 +148,9 @@ export function TransactionContactsCard({
                   disabled={pendingAction === `unlink:${contact.id}`}
                   onClick={() =>
                     setConfirmDialog({
-                      title: `Unlink ${contact.fullName}?`,
-                      description: "This removes the contact from the transaction without deleting the contact record itself.",
-                      confirmLabel: "Unlink contact",
+                      title: `解除 ${contact.fullName} 的关联？`,
+                      description: "这只会把联系人从交易中移除，不会删除联系人记录本身。",
+                      confirmLabel: "解除关联",
                       onConfirm: () => {
                         void handleUnlink(contact.id);
                       }
@@ -158,22 +158,22 @@ export function TransactionContactsCard({
                   }
                   type="button"
                 >
-                  {pendingAction === `unlink:${contact.id}` ? "Removing..." : "Unlink"}
+                  {pendingAction === `unlink:${contact.id}` ? "移除中..." : "解除关联"}
                 </button>
               </div>
             </div>
           ))
         ) : (
           <div className="office-detail-field">
-            <span>Contacts</span>
-            <strong>No linked contacts yet.</strong>
+            <span>联系人</span>
+            <strong>还没有关联联系人。</strong>
           </div>
         )}
       </div>
 
       <div className="office-transaction-contact-toolbar">
         <select onChange={(event) => setSelectedContactId(event.target.value)} value={selectedContactId}>
-          <option value="">Select contact to link</option>
+          <option value="">选择要关联的联系人</option>
           {availableContacts.map((contact) => (
             <option key={contact.id} value={contact.id}>
               {contact.label}
@@ -182,17 +182,17 @@ export function TransactionContactsCard({
         </select>
         <label className="office-transaction-contact-checkbox">
           <input checked={makePrimary} onChange={(event) => setMakePrimary(event.target.checked)} type="checkbox" />
-          <span>Set as primary</span>
+          <span>设为主要联系人</span>
         </label>
         <button className="office-button" disabled={!selectedContactId || pendingAction === "link"} onClick={handleLinkContact} type="button">
-          {pendingAction === "link" ? "Linking..." : "Link contact"}
+          {pendingAction === "link" ? "关联中..." : "关联联系人"}
         </button>
       </div>
 
       {actionError ? <p className="office-form-error">{actionError}</p> : null}
 
       <ConfirmActionDialog
-        cancelLabel="Keep link"
+        cancelLabel="保留关联"
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}

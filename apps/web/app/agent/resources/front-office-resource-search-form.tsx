@@ -65,27 +65,27 @@ export function FrontOfficeResourceSearchForm(props: {
   return (
     <FilterBar as="form" method="GET" onSubmit={handleSubmit}>
       <input name="tab" type="hidden" value={props.tab} />
-      <FilterField className="office-form-grid-span-2" label="Search">
+      <FilterField className="office-form-grid-span-2" label="搜索">
         <TextInput
           defaultValue={props.initialQuery}
           name="q"
           placeholder={
             props.placeholder ??
-            "Search titles, summaries, tags, or vendor names"
+            "搜索标题、摘要、标签或供应商名称"
           }
           type="search"
         />
       </FilterField>
       <div className="office-filter-actions">
         <button className="office-button" type="submit">
-          Search
+          搜索
         </button>
         {props.initialQuery ? (
           <a
             className="office-button-secondary"
             href={buildResourcesHref(props.tab)}
           >
-            Clear
+            清除
           </a>
         ) : null}
       </div>
