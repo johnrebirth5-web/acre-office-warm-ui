@@ -105,8 +105,8 @@ function buildFieldModuleSnapshotFromSchema(
 ): OfficeFieldModuleSettingsSnapshot {
   return {
     module: "transaction",
-    label: "Transaction fields",
-    description: "Transaction fields used in the create flow.",
+    label: "交易字段",
+    description: "新建流程使用的交易字段。",
     summary: {
       fieldCount: schema.builtInFields.length + schema.customFields.length,
       customFieldCount: schema.customFields.length,
@@ -255,7 +255,7 @@ export function TransactionCreatePageClient({
       type="button"
       variant="secondary"
     >
-      Edit fields
+      编辑字段
     </Button>
   ) : null;
 
@@ -267,14 +267,14 @@ export function TransactionCreatePageClient({
       headerActions={mode === "modal" ? editFieldsButton : undefined}
       modalDescription={
         modalDescription ??
-        "Open a new office transaction, assign the owner, and capture finance details from the start."
+        "新建一笔 Office 交易，分配负责人，并从一开始记录财务细节。"
       }
-      modalEyebrow={modalEyebrow ?? "Transactions"}
+      modalEyebrow={modalEyebrow ?? "交易"}
       modalFooterDescription={
         modalFooterDescription ??
-        "The record uses the current office fields so pipeline, reporting, and finance stay aligned."
+        "此记录会使用当前 Office 字段，确保管线、报表和财务保持一致。"
       }
-      modalFooterTitle={modalFooterTitle ?? "Create a clean transaction record"}
+      modalFooterTitle={modalFooterTitle ?? "创建清晰的交易记录"}
       mode="create"
       onClose={onClose}
       onSubmitted={onSubmitted ? () => onSubmitted() : undefined}
@@ -284,12 +284,12 @@ export function TransactionCreatePageClient({
       statusFieldPolicy={statusFieldPolicy}
       submitEndpoint="/api/office/transactions"
       submitLabel={
-        submitLabel ?? (mode === "modal" ? "Next →" : "Create transaction")
+        submitLabel ?? (mode === "modal" ? "下一步 →" : "创建交易")
       }
       submitMethod="POST"
       title={
         title ??
-        (mode === "modal" ? "Create transaction" : "Office intake form")
+        (mode === "modal" ? "创建交易" : "Office 录入表")
       }
       initialOwnerMembershipId={initialOwnerMembershipId}
       initialValues={initialValues}
@@ -303,7 +303,7 @@ export function TransactionCreatePageClient({
         <SectionCard
           actions={editFieldsButton}
           className="office-new-transaction-card office-new-transaction-live-card"
-          title="Transaction intake"
+          title="交易录入"
         >
           {leadIn ? (
             <div className="office-transaction-create-lead-in">
@@ -330,16 +330,14 @@ export function TransactionCreatePageClient({
                     />
                     <span>
                       {handoffPrefill.acknowledgementLabel ??
-                        "I reviewed the Front Office handoff gaps and still want to create the Back Office transaction."}
+                        "我已检查 Front Office 交接缺口，仍要创建 Back Office 交易。"}
                     </span>
                   </label>
                 ) : null}
                 {handoffPrefill?.requiresAcknowledgement &&
                 !acknowledgeIncompleteHandoffPrefill ? (
                   <p className="office-form-helper">
-                    Review the items below and confirm before submitting. The
-                    API will block create until this handoff review is
-                    acknowledged.
+                    请先检查下方项目并确认后再提交。确认交接审核前，系统会阻止创建。
                   </p>
                 ) : null}
                 {leadIn.items?.length ? (
@@ -361,7 +359,7 @@ export function TransactionCreatePageClient({
       {isFieldEditorOpen ? (
         <div className="office-modal-overlay" onClick={closeFieldEditor}>
           <section
-            aria-label="Edit transaction fields"
+            aria-label="编辑交易字段"
             aria-modal="true"
             className="office-fields-modal office-transaction-intake-fields-modal office-transaction-intake-fields-modal-expanded"
             onClick={(event) => event.stopPropagation()}
@@ -369,21 +367,19 @@ export function TransactionCreatePageClient({
           >
             <header className="office-fields-modal-head office-transaction-search-layout-head">
               <div>
-                <h3>Edit fields</h3>
+                <h3>编辑字段</h3>
                 <p>
-                  Manage field names, visibility, order, dropdown options,
-                  custom-field lifecycle, and transaction-required contact roles
-                  directly from this create flow.
+                  直接在此新建流程中管理字段名称、可见性、排序、下拉选项、自定义字段生命周期，以及交易必需联系人角色。
                 </p>
               </div>
               <Button
-                aria-label="Close transaction field editor"
+                aria-label="关闭交易字段编辑器"
                 onClick={closeFieldEditor}
                 size="sm"
                 type="button"
                 variant="ghost"
               >
-                Close
+                关闭
               </Button>
             </header>
 
@@ -392,8 +388,8 @@ export function TransactionCreatePageClient({
                 canManageFields={canManageFields}
                 hideModuleRail={true}
                 onModuleSnapshotChange={handleFieldModuleChange}
-                panelDescription="These transaction fields are used by create, settings, and office filters."
-                panelTitle="Transaction fields"
+                panelDescription="这些交易字段会用于新建流程、设置页和 Office 筛选。"
+                panelTitle="交易字段"
                 snapshot={embeddedFieldSettingsSnapshot}
               />
             </div>

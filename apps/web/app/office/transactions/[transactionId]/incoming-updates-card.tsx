@@ -30,13 +30,46 @@ function getIncomingUpdateTone(statusKey: OfficeIncomingUpdate["statusKey"]) {
   return "warning" as const;
 }
 
+const incomingUpdateStatusLabelMap: Partial<Record<OfficeIncomingUpdate["statusKey"], string>> = {
+  accepted: "已接受",
+  applied: "已应用",
+  pending_review: "待审核",
+  rejected: "已拒绝"
+};
+
+const incomingUpdateCopyMap: Record<string, string> = {
+  "Incoming update could not be created.": "无法创建传入更新。",
+  "Incoming update not found.": "找不到传入更新。",
+  "Incoming update payload is invalid.": "传入更新内容无效。",
+  "Incoming update request body must be valid JSON.": "传入更新请求正文必须是有效 JSON。",
+  "Incoming update review failed.": "传入更新审核失败。",
+  "Incoming update review payload is invalid.": "传入更新审核内容无效。",
+  "Incoming update review request body must be valid JSON.": "传入更新审核请求正文必须是有效 JSON。",
+  "Incoming updates access required.": "需要传入更新权限。",
+  "Payload must be valid JSON.": "Payload 必须是有效 JSON。",
+  "Source system, reference, and summary are required.": "请填写来源系统、来源编号和摘要。"
+};
+
+function translateIncomingUpdateCopy(value: string) {
+  return incomingUpdateCopyMap[value] ?? value;
+}
+
+function getIncomingUpdateErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  return translateIncomingUpdateCopy(message);
+}
+
+function getIncomingUpdateStatusLabel(incomingUpdate: OfficeIncomingUpdate) {
+  return incomingUpdateStatusLabelMap[incomingUpdate.statusKey] ?? incomingUpdate.status;
+}
+
 function formatDateLabel(value: string) {
   if (!value) {
     return "";
   }
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function TransactionIncomingUpdatesCard({
@@ -67,12 +100,12 @@ export function TransactionIncomingUpdatesCard({
     try {
       parsedPayload = JSON.parse(newUpdate.payload || "{}") as Record<string, unknown>;
     } catch {
-      setError("Payload must be valid JSON.");
+      setError(translateIncomingUpdateCopy("Payload must be valid JSON."));
       return;
     }
 
     if (!newUpdate.sourceSystem.trim() || !newUpdate.sourceReference.trim() || !newUpdate.summary.trim()) {
-      setError("Source system, reference, and summary are required.");
+      setError(translateIncomingUpdateCopy("Source system, reference, and summary are required."));
       return;
     }
 
@@ -95,7 +128,7 @@ export function TransactionIncomingUpdatesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Incoming update could not be created.");
+        throw new Error(translateIncomingUpdateCopy(body?.error ?? "Incoming update could not be created."));
       }
 
       setNewUpdate({
@@ -113,7 +146,7 @@ export function TransactionIncomingUpdatesCard({
       });
       router.refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Incoming update could not be created.");
+      setError(getIncomingUpdateErrorMessage(createError, "Incoming update could not be created."));
     } finally {
       setPendingAction(null);
     }
@@ -134,12 +167,12 @@ export function TransactionIncomingUpdatesCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Incoming update review failed.");
+        throw new Error(translateIncomingUpdateCopy(body?.error ?? "Incoming update review failed."));
       }
 
       router.refresh();
     } catch (reviewError) {
-      setError(reviewError instanceof Error ? reviewError.message : "Incoming update review failed.");
+      setError(getIncomingUpdateErrorMessage(reviewError, "Incoming update review failed."));
     } finally {
       setPendingAction(null);
     }
@@ -149,8 +182,8 @@ export function TransactionIncomingUpdatesCard({
     <section className="office-detail-card" id="transaction-incoming-updates">
       <div className="office-card-head">
         <div>
-          <h3>Incoming updates</h3>
-          <span>Review future Folio-like external updates before applying safe mapped changes to the transaction.</span>
+          <h3>传入更新</h3>
+          <span>先审核未来 Folio 类外部更新，再把安全映射的变更应用到交易。</span>
         </div>
       </div>
 
@@ -162,14 +195,16 @@ export function TransactionIncomingUpdatesCard({
                 <div className="office-document-row-copy">
                   <div className="office-document-row-head">
                     <strong>{incomingUpdate.summary}</strong>
-                    <StatusBadge tone={getIncomingUpdateTone(incomingUpdate.statusKey)}>{incomingUpdate.status}</StatusBadge>
+                    <StatusBadge tone={getIncomingUpdateTone(incomingUpdate.statusKey)}>
+                      {getIncomingUpdateStatusLabel(incomingUpdate)}
+                    </StatusBadge>
                   </div>
                   <p>
                     {incomingUpdate.sourceSystem} · {incomingUpdate.sourceReference}
                   </p>
                   <p>
-                    Received {formatDateLabel(incomingUpdate.receivedAt)}
-                    {incomingUpdate.reviewedAt ? ` · Reviewed ${formatDateLabel(incomingUpdate.reviewedAt)}` : ""}
+                    收到 {formatDateLabel(incomingUpdate.receivedAt)}
+                    {incomingUpdate.reviewedAt ? ` · 已审核 ${formatDateLabel(incomingUpdate.reviewedAt)}` : ""}
                     {incomingUpdate.reviewedByName ? ` · ${incomingUpdate.reviewedByName}` : ""}
                   </p>
                 </div>
@@ -181,7 +216,7 @@ export function TransactionIncomingUpdatesCard({
                       onClick={() => handleReview(incomingUpdate.id, "accept")}
                       size="sm"
                     >
-                      {pendingAction === `accept:${incomingUpdate.id}` ? "Applying..." : "Accept"}
+                      {pendingAction === `accept:${incomingUpdate.id}` ? "应用中..." : "接受"}
                     </Button>
                     <Button
                       disabled={pendingAction === `reject:${incomingUpdate.id}`}
@@ -189,7 +224,7 @@ export function TransactionIncomingUpdatesCard({
                       size="sm"
                       variant="danger"
                     >
-                      {pendingAction === `reject:${incomingUpdate.id}` ? "Saving..." : "Reject"}
+                      {pendingAction === `reject:${incomingUpdate.id}` ? "保存中..." : "拒绝"}
                     </Button>
                   </div>
                 ) : null}
@@ -206,8 +241,8 @@ export function TransactionIncomingUpdatesCard({
           ))
         ) : (
           <EmptyState
-            description="Create a manual test update now so the transaction workflow can review, accept, or reject it."
-            title="No incoming updates for this transaction."
+            description="现在可以创建一条手动测试更新，让交易流程审核、接受或拒绝。"
+            title="此交易暂无传入更新。"
           />
         )}
       </div>
@@ -215,23 +250,23 @@ export function TransactionIncomingUpdatesCard({
       {canReviewIncomingUpdates ? (
         <div className="office-document-upload-panel">
           <div className="office-card-head office-card-head-inline">
-            <h3>Create incoming update</h3>
+            <h3>创建传入更新</h3>
           </div>
 
           <div className="office-document-upload-grid">
-            <FormField label="Source system">
+            <FormField label="来源系统">
               <TextInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, sourceSystem: event.target.value }))}
                 value={newUpdate.sourceSystem}
               />
             </FormField>
-            <FormField label="Source reference">
+            <FormField label="来源编号">
               <TextInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, sourceReference: event.target.value }))}
                 value={newUpdate.sourceReference}
               />
             </FormField>
-            <FormField className="office-detail-field-wide" label="Summary">
+            <FormField className="office-detail-field-wide" label="摘要">
               <TextInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, summary: event.target.value }))}
                 value={newUpdate.summary}
@@ -248,7 +283,7 @@ export function TransactionIncomingUpdatesCard({
 
           <div className="office-document-edit-actions">
             <Button disabled={pendingAction === "create"} onClick={handleCreateIncomingUpdate}>
-              {pendingAction === "create" ? "Creating..." : "Create incoming update"}
+              {pendingAction === "create" ? "创建中..." : "创建传入更新"}
             </Button>
           </div>
         </div>
