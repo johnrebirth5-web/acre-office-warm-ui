@@ -37,9 +37,9 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
   return (
     <OfficeDetailPageShell className="office-signature-page">
       <OfficeDetailPageHeader
-        description="Update recipients or field placement, keep every field assigned to the right signer, and resend when the request is ready."
-        eyebrow="Transaction signatures"
-        title={`Edit signature request · ${snapshot.document.title}`}
+        description="更新收件人或字段位置，确保每个字段都分配给正确签署人；请求准备好后可重新发送。"
+        eyebrow="交易签名"
+        title={`编辑签名请求 · ${snapshot.document.title}`}
       />
 
       <SignatureRequestEditor
