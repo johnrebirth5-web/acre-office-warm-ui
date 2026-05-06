@@ -15,6 +15,8 @@ import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/fr
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeClientsWorkbenchClient } from "./front-office-clients-workbench-client";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
+import { copyForLocale } from "../_lib/front-office-language";
 
 export default async function AgentClientsPage() {
   const context = await requireSessionContext();
@@ -35,6 +37,10 @@ export default async function AgentClientsPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
   });
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
+  const isZh = locale === "zh-CN";
 
   const duplicatePreviewCandidates: FrontOfficeLeadDuplicatePreviewCandidate[] =
     snapshot.clients.map((client) => ({
@@ -49,37 +55,41 @@ export default async function AgentClientsPage() {
 
   return (
     <FrontOfficePageTemplate
-      description="Keep the Front Office client page focused on the current follow-up clock, a lightweight note, and the few fields that actually drive execution."
-      eyebrow="Front Office"
+      description={copyForLocale(
+        isZh,
+        "Keep the Front Office client page focused on the current follow-up clock, a lightweight note, and the few fields that actually drive execution.",
+        "把前台客户页聚焦在当前跟进节奏、轻量备注，以及真正推动执行的少数字段。",
+      )}
+      eyebrow={isZh ? "前台" : "Front Office"}
       main={
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="A lightweight queue built around the current follow-up clock."
-            title="Client follow-up queue"
+            subtitle={isZh ? "围绕当前跟进时钟整理的轻量队列。" : "A lightweight queue built around the current follow-up clock."}
+            title={isZh ? "客户跟进队列" : "Client follow-up queue"}
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="Clients assigned to you"
-                label="Live clients"
+                hint={isZh ? "分配给你的客户" : "Clients assigned to you"}
+                label={isZh ? "活跃客户" : "Live clients"}
                 tone="accent"
                 value={snapshot.summary.liveContacts}
               />
               <StatCard
-                hint="Due today or already overdue"
-                label="Due now"
+                hint={isZh ? "今天到期或已经逾期" : "Due today or already overdue"}
+                label={isZh ? "待跟进" : "Due now"}
                 tone="accent"
                 value={snapshot.summary.followUpDueCount}
               />
               <StatCard
-                hint="Clients missing a dated next reminder"
-                label="Missing reminder"
+                hint={isZh ? "还没有设置下次提醒日期的客户" : "Clients missing a dated next reminder"}
+                label={isZh ? "缺少提醒" : "Missing reminder"}
                 tone="default"
                 value={snapshot.summary.missingNextTouchCount}
               />
               <StatCard
-                hint="Potential duplicate pairs still visible"
-                label="Duplicate review"
+                hint={isZh ? "仍需检查的潜在重复客户" : "Potential duplicate pairs still visible"}
+                label={isZh ? "重复检查" : "Duplicate review"}
                 tone="accent"
                 value={snapshot.summary.potentialDuplicateCount}
               />
@@ -89,8 +99,12 @@ export default async function AgentClientsPage() {
               <FrontOfficeClientsWorkbenchClient clients={snapshot.clients} />
             ) : (
               <EmptyState
-                description="The queue stays intentionally light. Add one new lead in the intake section below and Acre will place it into this follow-up list."
-                title="No clients in your follow-up queue"
+                description={
+                  isZh
+                    ? "这个队列会保持轻量。你可以在下方录入一个新线索，Acre 会把它放进跟进列表。"
+                    : "The queue stays intentionally light. Add one new lead in the intake section below and Acre will place it into this follow-up list."
+                }
+                title={isZh ? "跟进队列里还没有客户" : "No clients in your follow-up queue"}
               />
             )}
           </SectionCard>
@@ -98,15 +112,19 @@ export default async function AgentClientsPage() {
           <FrontOfficeLeadIntakeCard
             initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="clients"
-            subtitle="AI only fills Name, Budget, Target Area, and Follow-up Status. Everything else is folded into a Note that you can still edit."
-            title="Quick intake"
+            subtitle={
+              isZh
+                ? "AI 只填写姓名、预算、目标区域和跟进状态；其他信息会放进可编辑的备注里。"
+                : "AI only fills Name, Budget, Target Area, and Follow-up Status. Everything else is folded into a Note that you can still edit."
+            }
+            title={isZh ? "快速录入" : "Quick intake"}
           />
 
           {snapshot.duplicatePairs.length ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Duplicate review stays available, but it no longer dominates the main queue."
-              title="Duplicate review"
+              subtitle={isZh ? "重复检查仍保留，但不再占据主队列。" : "Duplicate review stays available, but it no longer dominates the main queue."}
+              title={isZh ? "重复检查" : "Duplicate review"}
             >
               <div className="office-queue-list">
                 {snapshot.duplicatePairs.slice(0, 4).map((pair) => (
@@ -117,8 +135,8 @@ export default async function AgentClientsPage() {
                     key={pair.id}
                     meta={
                       <>
-                        <span>Keep: {pair.recommendedClient.fullName}</span>
-                        <span>Review: {pair.duplicateClient.fullName}</span>
+                        <span>{isZh ? "保留：" : "Keep: "}{pair.recommendedClient.fullName}</span>
+                        <span>{isZh ? "检查：" : "Review: "}{pair.duplicateClient.fullName}</span>
                       </>
                     }
                     action={
@@ -127,13 +145,13 @@ export default async function AgentClientsPage() {
                           className="office-inline-link front-office-inline-link"
                           href={pair.recommendedClient.href}
                         >
-                          Open keep record
+                          {isZh ? "打开保留记录" : "Open keep record"}
                         </FrontOfficeLink>
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
                           href={pair.duplicateClient.href}
                         >
-                          Open duplicate
+                          {isZh ? "打开重复记录" : "Open duplicate"}
                         </FrontOfficeLink>
                       </>
                     }
@@ -148,23 +166,23 @@ export default async function AgentClientsPage() {
       summary={
         <>
           <SummaryChip
-            label="Live clients"
+            label={isZh ? "活跃客户" : "Live clients"}
             tone="accent"
             value={snapshot.summary.liveContacts}
           />
           <SummaryChip
-            label="Due now"
+            label={isZh ? "待跟进" : "Due now"}
             tone="accent"
             value={snapshot.summary.followUpDueCount}
           />
           <SummaryChip
-            label="Duplicate review"
+            label={isZh ? "重复检查" : "Duplicate review"}
             tone="accent"
             value={snapshot.summary.potentialDuplicateCount}
           />
         </>
       }
-      title="Clients"
+      title={isZh ? "客户" : "Clients"}
     />
   );
 }

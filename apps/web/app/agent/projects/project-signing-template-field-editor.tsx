@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { usePdfPreview } from "../../../components/signature/use-pdf-preview";
+import { useI18n } from "../../../lib/i18n/client";
 
 type TemplateSnapshot = ProjectSigningTemplateFieldEditorSnapshot["template"];
 type TemplateField = TemplateSnapshot["fields"][number];
@@ -56,6 +57,32 @@ const placementFieldTools: FieldType[] = [
   "dropdown",
 ];
 
+const fieldTypeLabelsZh: Record<FieldType, string> = {
+  signature: "签名",
+  initials: "姓名缩写",
+  date: "日期",
+  name: "全名",
+  text: "文本",
+  email: "邮箱",
+  title: "职务",
+  company: "公司",
+  checkbox: "复选框",
+  dropdown: "下拉框",
+};
+
+const fieldLabelZh: Record<string, string> = {
+  Checkbox: "复选框",
+  Company: "公司",
+  Date: "日期",
+  Dropdown: "下拉框",
+  Email: "邮箱",
+  "Full Name": "全名",
+  Initials: "姓名缩写",
+  Signature: "签名",
+  Text: "文本",
+  Title: "职务",
+};
+
 const minimumFieldWidth = 0.08;
 const minimumFieldHeight = 0.04;
 const fieldPadding = 0.02;
@@ -65,16 +92,32 @@ function clampFieldMetric(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function getRecipientLabel(recipient: TemplateRecipient | null) {
+function getFieldTypeLabel(fieldType: FieldType, isZh: boolean) {
+  if (isZh) {
+    return fieldTypeLabelsZh[fieldType];
+  }
+
+  return fieldDefaults[fieldType].label;
+}
+
+function getFieldDisplayLabel(label: string, isZh: boolean) {
+  if (!isZh) {
+    return label;
+  }
+
+  return fieldLabelZh[label] ?? label;
+}
+
+function getRecipientLabel(recipient: TemplateRecipient | null, isZh: boolean) {
   if (!recipient) {
     return {
-      badge: "Unassigned",
-      detail: "Choose recipient",
+      badge: isZh ? "未分配" : "Unassigned",
+      detail: isZh ? "选择收件人" : "Choose recipient",
     };
   }
 
   return {
-    badge: `${recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step ${recipient.routingStep}`,
+    badge: `${recipient.roleKey === "approver" ? (isZh ? "审批人" : "Approver") : isZh ? "签署人" : "Signer"} · ${isZh ? "步骤" : "Step"} ${recipient.routingStep}`,
     detail: recipient.recipientRole,
   };
 }
@@ -91,6 +134,8 @@ export function ProjectSigningTemplateFieldEditor(props: {
   template: TemplateSnapshot;
   pdfUrl: string;
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const { pages, isLoading, error: previewError } = usePdfPreview(props.pdfUrl);
   const actionableRecipients = useMemo(
@@ -325,15 +370,15 @@ export function ProjectSigningTemplateFieldEditor(props: {
         | null;
 
       if (!response.ok || !payload?.template) {
-        throw new Error(payload?.error ?? "Template fields could not be saved.");
+        throw new Error(payload?.error ?? (isZh ? "无法保存模板字段。" : "Template fields could not be saved."));
       }
 
       setFields(payload.template.fields);
       setSelectedFieldId(payload.template.fields[0]?.id ?? "");
-      setSuccessMessage("Template fields saved.");
+      setSuccessMessage(isZh ? "模板字段已保存。" : "Template fields saved.");
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Template fields could not be saved.");
+      setError(saveError instanceof Error ? saveError.message : isZh ? "无法保存模板字段。" : "Template fields could not be saved.");
     } finally {
       setPending(false);
     }
@@ -344,8 +389,8 @@ export function ProjectSigningTemplateFieldEditor(props: {
       <div className="front-office-field-editor-main">
         <SectionCard
           className="office-list-card front-office-field-editor-card"
-          subtitle={`${props.template.pdfFileName || "Source PDF"} · ${formatFileSize(props.template.pdfByteSize)}`}
-          title="PDF field placement"
+          subtitle={`${props.template.pdfFileName || (isZh ? "源 PDF" : "Source PDF")} · ${formatFileSize(props.template.pdfByteSize)}`}
+          title={isZh ? "PDF 字段放置" : "PDF field placement"}
         >
           <div className="front-office-field-editor-toolbar">
             {placementFieldTools.map((fieldType) => (
@@ -355,18 +400,18 @@ export function ProjectSigningTemplateFieldEditor(props: {
                 onClick={() => setSelectedTool(fieldType)}
                 type="button"
               >
-                {fieldDefaults[fieldType].label}
+                {getFieldTypeLabel(fieldType, isZh)}
               </button>
             ))}
           </div>
 
-          {isLoading ? <p className="office-signature-helper">Loading PDF preview...</p> : null}
+          {isLoading ? <p className="office-signature-helper">{isZh ? "正在加载 PDF 预览..." : "Loading PDF preview..."}</p> : null}
           {previewError ? <p className="office-form-error">{previewError}</p> : null}
 
           <div className="office-signature-preview-stack front-office-field-preview-stack">
             {pages.map((page) => (
               <div className="office-signature-preview-page" key={page.pageNumber}>
-                <div className="office-signature-preview-label">Page {page.pageNumber}</div>
+                <div className="office-signature-preview-label">{isZh ? "第" : "Page "}{page.pageNumber}{isZh ? " 页" : ""}</div>
                 <div
                   className="office-signature-preview-canvas"
                   onClick={(event) => handleAddField(page.pageNumber, event)}
@@ -379,7 +424,8 @@ export function ProjectSigningTemplateFieldEditor(props: {
                       const assignedRecipient = field.assignedTemplateRecipientId
                         ? recipientLookup.get(field.assignedTemplateRecipientId) ?? null
                         : null;
-                      const bindingSummary = getRecipientLabel(assignedRecipient);
+                      const bindingSummary = getRecipientLabel(assignedRecipient, isZh);
+                      const fieldDisplayLabel = getFieldDisplayLabel(field.label, isZh);
 
                       return (
                         <div
@@ -398,11 +444,11 @@ export function ProjectSigningTemplateFieldEditor(props: {
                           <span className={`office-signature-field-assignee${assignedRecipient ? "" : " is-unassigned"}`}>
                             {bindingSummary.badge}
                           </span>
-                          <span className="office-signature-field-token-label">{field.label}</span>
+                          <span className="office-signature-field-token-label">{fieldDisplayLabel}</span>
                           <span className="office-signature-field-token-detail">{bindingSummary.detail}</span>
                           {selectedFieldId === field.id ? (
                             <button
-                              aria-label={`Resize ${field.label}`}
+                              aria-label={isZh ? `调整${fieldDisplayLabel}大小` : `Resize ${field.label}`}
                               className="office-signature-field-resize-handle"
                               onClick={(event) => event.stopPropagation()}
                               onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
@@ -422,16 +468,16 @@ export function ProjectSigningTemplateFieldEditor(props: {
       <aside className="front-office-field-editor-side">
         <SectionCard
           className="office-list-card front-office-field-editor-panel"
-          subtitle={`${fields.length} fields on this template`}
+          subtitle={isZh ? `此模板上有 ${fields.length} 个字段` : `${fields.length} fields on this template`}
           title={props.template.name}
         >
           <div className="front-office-template-fields-actions">
             <Button disabled={pending} onClick={saveFields} type="button">
-              {pending ? "Saving..." : "Save fields"}
+              {pending ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存字段" : "Save fields"}
             </Button>
             <Link href="/agent/projects">
               <Button type="button" variant="secondary">
-                Back
+                {isZh ? "返回" : "Back"}
               </Button>
             </Link>
           </div>
@@ -442,7 +488,7 @@ export function ProjectSigningTemplateFieldEditor(props: {
           {selectedField ? (
             <div className="office-signature-field-panel">
               <div className="office-signature-field-grid">
-                <FormField className="office-signature-field-panel-span-2" label="Assigned recipient">
+                <FormField className="office-signature-field-panel-span-2" label={isZh ? "分配收件人" : "Assigned recipient"}>
                   <SelectInput
                     onChange={(event) =>
                       updateField(selectedField.id, {
@@ -453,18 +499,18 @@ export function ProjectSigningTemplateFieldEditor(props: {
                   >
                     {actionableRecipients.map((recipient) => (
                       <option key={recipient.id} value={recipient.id}>
-                        {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep} · {recipient.recipientRole}
+                        {recipient.roleKey === "approver" ? (isZh ? "审批人" : "Approver") : isZh ? "签署人" : "Signer"} · {isZh ? "步骤" : "Step"} {recipient.routingStep} · {recipient.recipientRole}
                       </option>
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Label">
+                <FormField label={isZh ? "标签" : "Label"}>
                   <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
                 </FormField>
-                <FormField label="Field key">
+                <FormField label={isZh ? "字段键" : "Field key"}>
                   <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
                 </FormField>
-                <FormField className="office-signature-field-panel-span-2" label="Default value">
+                <FormField className="office-signature-field-panel-span-2" label={isZh ? "默认值" : "Default value"}>
                   <TextInput
                     onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })}
                     value={selectedField.defaultValue}
@@ -473,14 +519,14 @@ export function ProjectSigningTemplateFieldEditor(props: {
               </div>
 
               <div className="office-signature-field-toggle-grid">
-                <CheckboxField className="office-signature-toggle-card" label="Required">
+                <CheckboxField className="office-signature-toggle-card" label={isZh ? "必填" : "Required"}>
                   <input
                     checked={selectedField.required}
                     onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
                     type="checkbox"
                   />
                 </CheckboxField>
-                <CheckboxField className="office-signature-toggle-card" label="Read-only">
+                <CheckboxField className="office-signature-toggle-card" label={isZh ? "只读" : "Read-only"}>
                   <input
                     checked={selectedField.isReadOnly}
                     onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
@@ -491,12 +537,14 @@ export function ProjectSigningTemplateFieldEditor(props: {
 
               <div className="office-signature-section-actions office-signature-field-actions">
                 <Button onClick={() => removeField(selectedField.id)} size="sm" type="button" variant="danger">
-                  Delete field
+                  {isZh ? "删除字段" : "Delete field"}
                 </Button>
               </div>
             </div>
           ) : (
-            <p className="office-signature-helper">Select a field on the PDF, or add one with the toolbar.</p>
+            <p className="office-signature-helper">
+              {isZh ? "请选择 PDF 上的字段，或用工具栏添加一个字段。" : "Select a field on the PDF, or add one with the toolbar."}
+            </p>
           )}
         </SectionCard>
       </aside>

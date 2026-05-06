@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
+import {
+  formatFrontOfficeCount,
+  translateFrontOfficeLabel,
+} from "../_lib/front-office-language";
 
 type ProjectRecord = {
   id: string;
@@ -124,6 +129,8 @@ export function FrontOfficeProjectsClient(props: {
   includeArchived: boolean;
   archivedProjectCount: number;
 }) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const step4Ref = useRef<HTMLDivElement | null>(null);
   const [mutation, setMutation] = useState<MutationState>({
@@ -190,13 +197,19 @@ export function FrontOfficeProjectsClient(props: {
   const selectedSessionTemplates = signableTemplates.filter((template) => selectedSessionTemplateIds.includes(template.id));
   const sessionTemplateSummary =
     selectedSessionTemplates.length === 0
-      ? "No templates selected"
+      ? isZh
+        ? "未选择模板"
+        : "No templates selected"
       : selectedSessionTemplates.length === 1
-        ? selectedSessionTemplates[0]?.name ?? "1 template selected"
-        : `${selectedSessionTemplates.length} templates selected`;
+        ? selectedSessionTemplates[0]?.name ?? (isZh ? "已选择 1 个模板" : "1 template selected")
+        : isZh
+          ? `已选择 ${selectedSessionTemplates.length} 个模板`
+          : `${selectedSessionTemplates.length} templates selected`;
   const sessionTemplateMeta =
     selectedSessionTemplates.length === 0
-      ? "At least one template with signing fields is required"
+      ? isZh
+        ? "至少需要一个已放置签署字段的模板"
+        : "At least one template with signing fields is required"
       : selectedSessionTemplates.map((template) => template.name).join(", ");
   const createSessionFormKey = `${firstProjectId}:${firstTemplateId}:${props.projects.length}:${signableTemplates.length}`;
 
@@ -265,7 +278,7 @@ export function FrontOfficeProjectsClient(props: {
   }
 
   async function submitCreateProject(payload: CreateProjectPayload, force: boolean) {
-    setActionMutation("project", "loading", "Saving project...");
+    setActionMutation("project", "loading", isZh ? "正在保存项目..." : "Saving project...");
     const { response, payload: result } = await postJson("/api/agent/projects", {
       ...payload,
       force,
@@ -273,23 +286,27 @@ export function FrontOfficeProjectsClient(props: {
 
     if (response.status === 409 && result.similarProjects?.length) {
       setDuplicatePrompt({ payload, similar: result.similarProjects });
-      setActionMutation("project", "error", "A similar project already exists. Confirm to create a duplicate.");
+      setActionMutation(
+        "project",
+        "error",
+        isZh ? "已存在相似项目。请确认是否仍要创建重复项目。" : "A similar project already exists. Confirm to create a duplicate.",
+      );
       return false;
     }
 
     if (!response.ok) {
-      setActionMutation("project", "error", result.error || "Project could not be created.");
+      setActionMutation("project", "error", result.error || (isZh ? "无法创建项目。" : "Project could not be created."));
       return false;
     }
 
     setDuplicatePrompt(null);
-    setActionMutation("project", "success", "Project saved. The workspace list is updating.");
+    setActionMutation("project", "success", isZh ? "项目已保存，工作区列表正在更新。" : "Project saved. The workspace list is updating.");
     router.refresh();
     return true;
   }
 
   async function createSigningSession(url: string, body: Record<string, unknown>) {
-    setActionMutation("session", "loading", "Creating signing session...");
+    setActionMutation("session", "loading", isZh ? "正在创建签署会话..." : "Creating signing session...");
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -300,7 +317,7 @@ export function FrontOfficeProjectsClient(props: {
     };
 
     if (!response.ok || !payload.session) {
-      throw new Error(payload.error || "Signing session could not be created.");
+      throw new Error(payload.error || (isZh ? "无法创建签署会话。" : "Signing session could not be created."));
     }
 
     return payload.session;
@@ -317,17 +334,17 @@ export function FrontOfficeProjectsClient(props: {
     const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] ?? null : null;
 
     if (!name) {
-      setActionMutation("template", "error", "Template name is required.");
+      setActionMutation("template", "error", isZh ? "模板名称为必填项。" : "Template name is required.");
       return;
     }
 
     if (!file) {
-      setActionMutation("template", "error", "Choose a PDF file before creating the template.");
+      setActionMutation("template", "error", isZh ? "创建模板前请先选择 PDF 文件。" : "Choose a PDF file before creating the template.");
       return;
     }
 
     setPendingNewTemplate(true);
-    setActionMutation("template", "loading", "Uploading template...");
+    setActionMutation("template", "loading", isZh ? "正在上传模板..." : "Uploading template...");
 
     try {
       const uploadFormData = new FormData();
@@ -343,7 +360,7 @@ export function FrontOfficeProjectsClient(props: {
         | null;
 
       if (!response.ok || !payload?.template) {
-        throw new Error(payload?.error || "Failed to upload signing template.");
+        throw new Error(payload?.error || (isZh ? "上传签署模板失败。" : "Failed to upload signing template."));
       }
 
       formElement.reset();
@@ -352,14 +369,16 @@ export function FrontOfficeProjectsClient(props: {
       setActionMutation(
         "template",
         "success",
-        `Template "${payload.template.name}" uploaded. Use Edit fields to place signature fields.`,
+        isZh
+          ? `模板“${payload.template.name}”已上传。请使用“编辑字段”放置签名字段。`
+          : `Template "${payload.template.name}" uploaded. Use Edit fields to place signature fields.`,
       );
       router.refresh();
     } catch (error) {
       setActionMutation(
         "template",
         "error",
-        error instanceof Error ? error.message : "Failed to upload signing template.",
+        error instanceof Error ? error.message : isZh ? "上传签署模板失败。" : "Failed to upload signing template.",
       );
     } finally {
       setPendingNewTemplate(false);
@@ -390,7 +409,7 @@ export function FrontOfficeProjectsClient(props: {
         event.currentTarget.reset();
       }
     } catch (error) {
-      setActionMutation("project", "error", error instanceof Error ? error.message : "Project could not be created.");
+      setActionMutation("project", "error", error instanceof Error ? error.message : isZh ? "无法创建项目。" : "Project could not be created.");
     }
   }
 
@@ -399,7 +418,7 @@ export function FrontOfficeProjectsClient(props: {
     try {
       await submitCreateProject(duplicatePrompt.payload, true);
     } catch (error) {
-      setActionMutation("project", "error", error instanceof Error ? error.message : "Project could not be created.");
+      setActionMutation("project", "error", error instanceof Error ? error.message : isZh ? "无法创建项目。" : "Project could not be created.");
     }
   }
 
@@ -407,56 +426,89 @@ export function FrontOfficeProjectsClient(props: {
     const action = template.canDelete ? "Delete" : "Deactivate";
     const confirmed = window.confirm(
       template.canDelete
-        ? `Delete template "${template.name}"? This is only allowed because it has not been used by signing history.`
-        : `Deactivate template "${template.name}"? Existing signing history stays intact, but the template will disappear from new sessions.`,
+        ? isZh
+          ? `删除模板“${template.name}”？只有未被签署历史使用过的模板才允许删除。`
+          : `Delete template "${template.name}"? This is only allowed because it has not been used by signing history.`
+        : isZh
+          ? `停用模板“${template.name}”？已有签署历史会保留，但新会话里不再显示此模板。`
+          : `Deactivate template "${template.name}"? Existing signing history stays intact, but the template will disappear from new sessions.`,
     );
 
     if (!confirmed) return;
 
     try {
-      setActionMutation("templateList", "loading", `${action}ing template...`);
+      setActionMutation("templateList", "loading", template.canDelete ? (isZh ? "正在删除模板..." : `${action}ing template...`) : isZh ? "正在停用模板..." : `${action}ing template...`);
       const response = await fetch(`/api/agent/projects/templates/${encodeURIComponent(template.id)}`, {
         method: template.canDelete ? "DELETE" : "PATCH",
       });
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error || `Template could not be ${template.canDelete ? "deleted" : "deactivated"}.`);
+        throw new Error(
+          payload.error ||
+            (template.canDelete
+              ? isZh
+                ? "无法删除模板。"
+                : "Template could not be deleted."
+              : isZh
+                ? "无法停用模板。"
+                : "Template could not be deactivated."),
+        );
       }
 
-      setActionMutation("templateList", "success", `Template ${template.canDelete ? "deleted" : "deactivated"}. The template list is updating.`);
+      setActionMutation(
+        "templateList",
+        "success",
+        template.canDelete
+          ? isZh
+            ? "模板已删除，模板列表正在更新。"
+            : "Template deleted. The template list is updating."
+          : isZh
+            ? "模板已停用，模板列表正在更新。"
+            : "Template deactivated. The template list is updating.",
+      );
       router.refresh();
     } catch (error) {
       setActionMutation(
         "templateList",
         "error",
-        error instanceof Error ? error.message : `Template could not be ${template.canDelete ? "deleted" : "deactivated"}.`,
+        error instanceof Error
+          ? error.message
+          : template.canDelete
+            ? isZh
+              ? "无法删除模板。"
+              : "Template could not be deleted."
+            : isZh
+              ? "无法停用模板。"
+              : "Template could not be deactivated.",
       );
     }
   }
 
   async function handleDeleteProject(project: ProjectRecord) {
     const confirmed = window.confirm(
-      `Delete project "${project.code} · ${project.name}"? This is only allowed because it has no sessions or archived documents.`,
+      isZh
+        ? `删除项目“${project.code} · ${project.name}”？只有没有会话和归档文件的项目才允许删除。`
+        : `Delete project "${project.code} · ${project.name}"? This is only allowed because it has no sessions or archived documents.`,
     );
 
     if (!confirmed) return;
 
     try {
-      setActionMutation("manage", "loading", "Deleting project...");
+      setActionMutation("manage", "loading", isZh ? "正在删除项目..." : "Deleting project...");
       const response = await fetch(`/api/agent/projects/${encodeURIComponent(project.id)}`, {
         method: "DELETE",
       });
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error || "Project could not be deleted.");
+        throw new Error(payload.error || (isZh ? "无法删除项目。" : "Project could not be deleted."));
       }
 
-      setActionMutation("manage", "success", "Project deleted. The project list is updating.");
+      setActionMutation("manage", "success", isZh ? "项目已删除，项目列表正在更新。" : "Project deleted. The project list is updating.");
       router.refresh();
     } catch (error) {
-      setActionMutation("manage", "error", error instanceof Error ? error.message : "Project could not be deleted.");
+      setActionMutation("manage", "error", error instanceof Error ? error.message : isZh ? "无法删除项目。" : "Project could not be deleted.");
     }
   }
 
@@ -464,15 +516,30 @@ export function FrontOfficeProjectsClient(props: {
     const next = project.status === "archived" ? "active" : "archived";
     const verb = next === "archived" ? "Archive" : "Unarchive";
     const confirmed = window.confirm(
-      `${verb} project "${project.code} · ${project.name}"? ` +
-        (next === "archived"
-          ? "Sessions and signed archives stay intact, but the project is hidden from active lists."
-          : "The project will return to the active list."),
+      isZh
+        ? `${next === "archived" ? "归档" : "取消归档"}项目“${project.code} · ${project.name}”？` +
+          (next === "archived"
+            ? "会话和签署归档会保留，但项目会从活跃列表中隐藏。"
+            : "项目会重新回到活跃列表。")
+        : `${verb} project "${project.code} · ${project.name}"? ` +
+          (next === "archived"
+            ? "Sessions and signed archives stay intact, but the project is hidden from active lists."
+            : "The project will return to the active list."),
     );
 
     if (!confirmed) return;
 
-    setActionMutation("manage", "loading", `${verb}ing project...`);
+    setActionMutation(
+      "manage",
+      "loading",
+      next === "archived"
+        ? isZh
+          ? "正在归档项目..."
+          : `${verb}ing project...`
+        : isZh
+          ? "正在取消归档项目..."
+          : `${verb}ing project...`,
+    );
 
     const response = await fetch(`/api/agent/projects/${encodeURIComponent(project.id)}`, {
       method: "PATCH",
@@ -482,11 +549,25 @@ export function FrontOfficeProjectsClient(props: {
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
     if (!response.ok) {
-      setActionMutation("manage", "error", payload.error || `${verb} failed.`);
+      setActionMutation(
+        "manage",
+        "error",
+        payload.error || (isZh ? `${next === "archived" ? "归档" : "取消归档"}失败。` : `${verb} failed.`),
+      );
       return;
     }
 
-    setActionMutation("manage", "success", `${verb}d. The project list is updating.`);
+    setActionMutation(
+      "manage",
+      "success",
+      next === "archived"
+        ? isZh
+          ? "已归档，项目列表正在更新。"
+          : "Archived. The project list is updating."
+        : isZh
+          ? "已取消归档，项目列表正在更新。"
+          : "Unarchived. The project list is updating.",
+    );
     router.refresh();
   }
 
@@ -501,12 +582,12 @@ export function FrontOfficeProjectsClient(props: {
       .filter(Boolean);
 
     if (!projectId || !templateIds.length) {
-      setActionMutation("session", "error", "Choose a project and at least one template first.");
+      setActionMutation("session", "error", isZh ? "请先选择项目和至少一个模板。" : "Choose a project and at least one template first.");
       return;
     }
 
     if (templateIds.some((templateId) => !signableTemplates.some((template) => template.id === templateId))) {
-      setActionMutation("session", "error", "Choose templates that already have at least one signing field.");
+      setActionMutation("session", "error", isZh ? "请选择已经至少放置一个签署字段的模板。" : "Choose templates that already have at least one signing field.");
       return;
     }
 
@@ -536,12 +617,12 @@ export function FrontOfficeProjectsClient(props: {
         id: session.id,
         mode: session.mode,
         status: session.status ?? "draft",
-        buyerName: session.buyerName?.trim() || buyerName || "Unnamed buyer",
+        buyerName: session.buyerName?.trim() || buyerName || (isZh ? "未命名买方" : "Unnamed buyer"),
         buyerEmail: session.buyerEmail?.trim() || buyerEmail,
         documentCount: templateIds.length,
         recipientCount: session.recipients?.length || 1,
-        createdAtLabel: "Just now",
-        projectLabel: project ? `${project.code} · ${project.name}` : "Selected project",
+        createdAtLabel: isZh ? "刚刚" : "Just now",
+        projectLabel: project ? `${project.code} · ${project.name}` : isZh ? "已选项目" : "Selected project",
       };
 
       setCreatedSessions((current) => [
@@ -554,8 +635,12 @@ export function FrontOfficeProjectsClient(props: {
         "session",
         "success",
         session.mode === "remote"
-          ? "Signing session created. It is ready in Step 4; send the remote link next."
-          : "Signing session created. It is ready in Step 4; start the iPad handoff when ready.",
+          ? isZh
+            ? "签署会话已创建。它已在第 4 步准备好；下一步发送远程链接。"
+            : "Signing session created. It is ready in Step 4; send the remote link next."
+          : isZh
+            ? "签署会话已创建。它已在第 4 步准备好；准备好后可开始 iPad 交接。"
+            : "Signing session created. It is ready in Step 4; start the iPad handoff when ready.",
       );
       window.requestAnimationFrame(() => {
         step4Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -565,7 +650,7 @@ export function FrontOfficeProjectsClient(props: {
       setActionMutation(
         "session",
         "error",
-        error instanceof Error ? error.message : "Signing session could not be created.",
+        error instanceof Error ? error.message : isZh ? "无法创建签署会话。" : "Signing session could not be created.",
       );
     }
   }
@@ -577,7 +662,7 @@ export function FrontOfficeProjectsClient(props: {
 
     try {
       setRemoteDelivery(null);
-      setActionMutation("launch", "loading", "Sending links...");
+      setActionMutation("launch", "loading", isZh ? "正在发送链接..." : "Sending links...");
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/send-remote`, {
         method: "POST",
       });
@@ -589,7 +674,7 @@ export function FrontOfficeProjectsClient(props: {
       };
 
       if (!response.ok && !payload.links?.length) {
-        throw new Error(payload.error || "Remote links could not be sent.");
+        throw new Error(payload.error || (isZh ? "无法发送远程链接。" : "Remote links could not be sent."));
       }
 
       if (payload.links?.length) {
@@ -606,11 +691,15 @@ export function FrontOfficeProjectsClient(props: {
         payload.emailDeliveryWarning ? "error" : "success",
         payload.emailDeliveryWarning ??
           (payload.links?.length
-            ? `Remote links sent to saved session recipients: ${payload.links.map((link) => link.email).join(", ")}`
-            : "No email recipients were available for this session."),
+            ? isZh
+              ? `远程链接已发送给已保存的会话收件人：${payload.links.map((link) => link.email).join(", ")}`
+              : `Remote links sent to saved session recipients: ${payload.links.map((link) => link.email).join(", ")}`
+            : isZh
+              ? "此会话没有可用的邮件收件人。"
+              : "No email recipients were available for this session."),
       );
     } catch (error) {
-      setActionMutation("launch", "error", error instanceof Error ? error.message : "Remote links could not be sent.");
+      setActionMutation("launch", "error", error instanceof Error ? error.message : isZh ? "无法发送远程链接。" : "Remote links could not be sent.");
     }
   }
 
@@ -619,7 +708,7 @@ export function FrontOfficeProjectsClient(props: {
       await navigator.clipboard.writeText(signingUrl);
       setRemoteDelivery((current) => (current ? { ...current, copiedUrl: signingUrl } : current));
     } catch (_error) {
-      setActionMutation("remoteLinks", "error", "Copy failed. Select the link field and copy it manually.");
+      setActionMutation("remoteLinks", "error", isZh ? "复制失败。请选中链接字段并手动复制。" : "Copy failed. Select the link field and copy it manually.");
     }
   }
 
@@ -630,7 +719,7 @@ export function FrontOfficeProjectsClient(props: {
     const sessionId = String(formData.get("sessionId") ?? "");
 
     try {
-      setActionMutation("launch", "loading", "Starting handoff...");
+      setActionMutation("launch", "loading", isZh ? "正在开始交接..." : "Starting handoff...");
       const response = await fetch(`/api/agent/projects/sessions/${encodeURIComponent(sessionId)}/handoff/start`, {
         method: "POST",
       });
@@ -640,29 +729,37 @@ export function FrontOfficeProjectsClient(props: {
       };
 
       if (!response.ok) {
-        throw new Error(payload.error || "Handoff could not be started.");
+        throw new Error(payload.error || (isZh ? "无法开始交接。" : "Handoff could not be started."));
       }
 
       if (payload.handoffUrl) {
-        setActionMutation("launch", "success", "Opening iPad handoff...");
+        setActionMutation("launch", "success", isZh ? "正在打开 iPad 交接..." : "Opening iPad handoff...");
         window.location.assign(payload.handoffUrl);
         return;
       }
 
-      setActionMutation("launch", "success", "Handoff started.");
+      setActionMutation("launch", "success", isZh ? "交接已开始。" : "Handoff started.");
     } catch (error) {
-      setActionMutation("launch", "error", error instanceof Error ? error.message : "Handoff could not be started.");
+      setActionMutation("launch", "error", error instanceof Error ? error.message : isZh ? "无法开始交接。" : "Handoff could not be started.");
     }
   }
 
   const selectedLibraryTemplateStatus =
     selectedLibraryTemplate && !selectedLibraryTemplate.hasPdfSource
-      ? "Missing PDF"
+      ? isZh
+        ? "缺少 PDF"
+        : "Missing PDF"
       : selectedLibraryTemplate && selectedLibraryTemplate.fieldCount === 0
-        ? "No signing fields yet"
+        ? isZh
+          ? "还没有签署字段"
+          : "No signing fields yet"
         : selectedLibraryTemplate
-          ? "Ready for sessions"
-          : "No template selected";
+          ? isZh
+            ? "可创建会话"
+            : "Ready for sessions"
+          : isZh
+            ? "未选择模板"
+            : "No template selected";
   const sessionReady = Boolean(selectedProjectId && firstTemplateId);
 
   return (
@@ -670,26 +767,26 @@ export function FrontOfficeProjectsClient(props: {
       {duplicatePrompt ? (
         <SectionCard
           className="office-list-card"
-          subtitle="A similar project already exists in this office. Confirm only if this is intentional."
-          title="Duplicate project detected"
+          subtitle={isZh ? "这个办公室里已经有相似项目。只有确认这是有意重复时才继续。" : "A similar project already exists in this office. Confirm only if this is intentional."}
+          title={isZh ? "检测到重复项目" : "Duplicate project detected"}
         >
           <div className="office-queue-list">
             {duplicatePrompt.similar.map((similar) => (
               <QueueItem
-                badgeLabel={similar.status}
+                badgeLabel={translateFrontOfficeLabel(similar.status, isZh)}
                 badgeTone={similar.status === "active" ? "accent" : "neutral"}
                 key={similar.id}
-                meta={<span>Existing project - review before creating a duplicate.</span>}
+                meta={<span>{isZh ? "已有项目 - 创建重复项前请先检查。" : "Existing project - review before creating a duplicate."}</span>}
                 title={`${similar.code} · ${similar.name}`}
               />
             ))}
           </div>
           <div className="office-form-actions">
             <Button onClick={handleConfirmDuplicate} type="button" variant="danger">
-              Create anyway
+              {isZh ? "仍然创建" : "Create anyway"}
             </Button>
             <Button onClick={() => setDuplicatePrompt(null)} type="button" variant="secondary">
-              Cancel
+              {isZh ? "取消" : "Cancel"}
             </Button>
           </div>
         </SectionCard>
@@ -697,33 +794,37 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card front-office-compact-card front-office-step-card front-office-step-project-card"
-        subtitle="Choose the project first. If it does not exist yet, create it here before touching templates or sessions."
-        title="Step 1 · Project"
+        subtitle={isZh ? "先选择项目。如果项目还不存在，请先在这里创建，再处理模板或会话。" : "Choose the project first. If it does not exist yet, create it here before touching templates or sessions."}
+        title={isZh ? "第 1 步 · 项目" : "Step 1 · Project"}
       >
         <div className="front-office-step-grid front-office-step-grid-two">
           <div className="front-office-step-panel">
             <div className="front-office-panel-head">
-              <h4>Create project</h4>
-              <p>Project name is here. This is the first required setup field for a new signing packet.</p>
+              <h4>{isZh ? "创建项目" : "Create project"}</h4>
+              <p>
+                {isZh
+                  ? "项目名称在这里填写。这是新签署包的第一个必填设置字段。"
+                  : "Project name is here. This is the first required setup field for a new signing packet."}
+              </p>
             </div>
             {renderFeedback("project")}
             <form className="office-form-grid" onSubmit={handleCreateProject}>
-              <FormField className="office-form-field-wide" label="Project name">
+              <FormField className="office-form-field-wide" label={isZh ? "项目名称" : "Project name"}>
                 <TextInput name="name" placeholder="Astoria Reserve" required />
               </FormField>
-              <FormField label="Address">
+              <FormField label={isZh ? "地址" : "Address"}>
                 <TextInput name="address" placeholder="12-34 31st Ave" />
               </FormField>
-              <FormField label="City">
+              <FormField label={isZh ? "城市" : "City"}>
                 <TextInput name="city" placeholder="Astoria" />
               </FormField>
-              <FormField label="State">
+              <FormField label={isZh ? "州" : "State"}>
                 <TextInput name="state" placeholder="NY" />
               </FormField>
-              <FormField label="ZIP">
+              <FormField label={isZh ? "邮编" : "ZIP"}>
                 <TextInput name="zipCode" placeholder="11106" />
               </FormField>
-              <FormField className="office-form-field-wide" label="Archive recipients">
+              <FormField className="office-form-field-wide" label={isZh ? "归档收件人" : "Archive recipients"}>
                 <TextareaInput
                   className="front-office-compact-textarea"
                   name="archiveSinkEmails"
@@ -733,7 +834,7 @@ export function FrontOfficeProjectsClient(props: {
               </FormField>
               <div className="office-form-actions">
                 <Button disabled={mutation.kind === "loading"} type="submit">
-                  Create project
+                  {isZh ? "创建项目" : "Create project"}
                 </Button>
               </div>
             </form>
@@ -741,10 +842,10 @@ export function FrontOfficeProjectsClient(props: {
 
           <div className="front-office-step-panel">
             <div className="front-office-panel-head">
-              <h4>Use an existing project</h4>
-              <p>If the project already exists, select it here and continue to Step 2.</p>
+              <h4>{isZh ? "使用已有项目" : "Use an existing project"}</h4>
+              <p>{isZh ? "如果项目已经存在，请在这里选择，然后继续第 2 步。" : "If the project already exists, select it here and continue to Step 2."}</p>
             </div>
-            <FormField label="Project">
+            <FormField label={isZh ? "项目" : "Project"}>
               <SelectInput
                 onChange={(event) => setSelectedProjectId(event.currentTarget.value)}
                 value={selectedProjectId}
@@ -756,26 +857,26 @@ export function FrontOfficeProjectsClient(props: {
                     </option>
                   ))
                 ) : (
-                  <option value="">No project yet</option>
+                  <option value="">{isZh ? "还没有项目" : "No project yet"}</option>
                 )}
               </SelectInput>
             </FormField>
             {selectedProject ? (
               <QueueItem
-                badgeLabel={selectedProject.status}
+                badgeLabel={translateFrontOfficeLabel(selectedProject.status, isZh)}
                 badgeTone={selectedProject.status === "active" ? "accent" : "neutral"}
                 meta={
                   <>
-                    <span>{selectedProject.sessionCount} sessions</span>
-                    <span>{selectedProject.archivedDocumentCount} archived docs</span>
+                    <span>{formatFrontOfficeCount(selectedProject.sessionCount, isZh, "session", "sessions", "个会话")}</span>
+                    <span>{formatFrontOfficeCount(selectedProject.archivedDocumentCount, isZh, "archived doc", "archived docs", "份归档文件")}</span>
                   </>
                 }
                 title={`${selectedProject.code} · ${selectedProject.name}`}
               />
             ) : (
               <EmptyState
-                description="Create a project on the left before building a signing session."
-                title="No project selected"
+                description={isZh ? "创建签署会话前，请先在左侧创建项目。" : "Create a project on the left before building a signing session."}
+                title={isZh ? "未选择项目" : "No project selected"}
               />
             )}
           </div>
@@ -784,33 +885,33 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card front-office-compact-card front-office-step-card front-office-step-template-card"
-        subtitle="Upload the PDF if needed, then open Edit fields. A template with 0 fields cannot produce a real signer experience."
-        title="Step 2 · Template & fields"
+        subtitle={isZh ? "需要时先上传 PDF，然后打开“编辑字段”。0 个字段的模板无法生成真实签署体验。" : "Upload the PDF if needed, then open Edit fields. A template with 0 fields cannot produce a real signer experience."}
+        title={isZh ? "第 2 步 · 模板与字段" : "Step 2 · Template & fields"}
       >
         <div className="front-office-step-grid front-office-step-grid-two">
           <div className="front-office-step-panel front-office-template-library-panel">
             <div className="front-office-panel-head">
-              <h4>Template library</h4>
-              <p>Choose a PDF-ready template and confirm fields before it can be used in a signing session.</p>
+              <h4>{isZh ? "模板库" : "Template library"}</h4>
+              <p>{isZh ? "选择一个 PDF 已就绪的模板，并确认字段后再用于签署会话。" : "Choose a PDF-ready template and confirm fields before it can be used in a signing session."}</p>
             </div>
             {renderFeedback("templateList")}
             {props.templates.length > 0 && selectedLibraryTemplate ? (
               <div className="front-office-template-library">
-                <FormField label="Template">
+                <FormField label={isZh ? "模板" : "Template"}>
                   <SelectInput
                     value={selectedLibraryTemplate.id}
                     onChange={(event) => setSelectedLibraryTemplateId(event.currentTarget.value)}
                   >
                     {props.templates.map((template) => (
                       <option key={template.id} value={template.id}>
-                        {template.name} · v{template.version} · {template.hasPdfSource ? "PDF ready" : "Missing PDF"}
+                        {template.name} · v{template.version} · {template.hasPdfSource ? (isZh ? "PDF 已就绪" : "PDF ready") : isZh ? "缺少 PDF" : "Missing PDF"}
                       </option>
                     ))}
                   </SelectInput>
                 </FormField>
                 {selectedLibraryTemplate.hasPdfSource && selectedLibraryTemplate.fieldCount === 0 ? (
                   <div className="office-inline-alert office-inline-alert-danger">
-                    No signing fields yet. Open Edit fields before using this template.
+                    {isZh ? "还没有签署字段。使用此模板前，请先打开“编辑字段”。" : "No signing fields yet. Open Edit fields before using this template."}
                   </div>
                 ) : null}
                 <div className="office-queue-list front-office-template-library-detail">
@@ -820,7 +921,7 @@ export function FrontOfficeProjectsClient(props: {
                         <div className="front-office-template-actions">
                           <Link href={`/agent/projects/templates/${encodeURIComponent(selectedLibraryTemplate.id)}/fields`}>
                             <Button size="sm" type="button" variant="secondary">
-                              Edit fields
+                              {isZh ? "编辑字段" : "Edit fields"}
                             </Button>
                           </Link>
                           <Button
@@ -830,20 +931,26 @@ export function FrontOfficeProjectsClient(props: {
                             type="button"
                             variant={selectedLibraryTemplate.canDelete ? "danger" : "secondary"}
                           >
-                            {selectedLibraryTemplate.canDelete ? "Delete" : "Deactivate"}
+                            {selectedLibraryTemplate.canDelete ? (isZh ? "删除" : "Delete") : isZh ? "停用" : "Deactivate"}
                           </Button>
                         </div>
                       ) : null
                     }
                     badgeLabel={selectedLibraryTemplateStatus}
                     badgeTone={selectedLibraryTemplate.fieldCount > 0 ? "success" : "warning"}
-                    description={selectedLibraryTemplate.description || selectedLibraryTemplate.pdfFileName || "No description"}
+                    description={selectedLibraryTemplate.description || selectedLibraryTemplate.pdfFileName || (isZh ? "没有描述" : "No description")}
                     meta={
                       <>
                         <span>v{selectedLibraryTemplate.version}</span>
-                        <span>{selectedLibraryTemplate.recipientCount} recipients</span>
-                        <span>{selectedLibraryTemplate.fieldCount} fields</span>
-                        <span>{selectedLibraryTemplate.usageCount ? `${selectedLibraryTemplate.usageCount} uses` : "unused"}</span>
+                        <span>{formatFrontOfficeCount(selectedLibraryTemplate.recipientCount, isZh, "recipient", "recipients", "位收件人")}</span>
+                        <span>{formatFrontOfficeCount(selectedLibraryTemplate.fieldCount, isZh, "field", "fields", "个字段")}</span>
+                        <span>
+                          {selectedLibraryTemplate.usageCount
+                            ? formatFrontOfficeCount(selectedLibraryTemplate.usageCount, isZh, "use", "uses", "次使用")
+                            : isZh
+                              ? "未使用"
+                              : "unused"}
+                        </span>
                       </>
                     }
                     title={selectedLibraryTemplate.name}
@@ -852,8 +959,8 @@ export function FrontOfficeProjectsClient(props: {
               </div>
             ) : (
               <EmptyState
-                description="Upload a project-sales PDF template, then open Edit fields to place the buyer signature areas."
-                title="No project templates"
+                description={isZh ? "上传项目销售 PDF 模板后，打开“编辑字段”放置买方签署区域。" : "Upload a project-sales PDF template, then open Edit fields to place the buyer signature areas."}
+                title={isZh ? "还没有项目模板" : "No project templates"}
               />
             )}
           </div>
@@ -861,15 +968,15 @@ export function FrontOfficeProjectsClient(props: {
           {props.canCreateTemplate ? (
             <div className="front-office-step-panel front-office-upload-panel">
               <div className="front-office-panel-head">
-                <h4>Upload template</h4>
-                <p>Add a PDF source, then use Edit fields before sending it to a signer.</p>
+                <h4>{isZh ? "上传模板" : "Upload template"}</h4>
+                <p>{isZh ? "添加 PDF 源文件后，请先使用“编辑字段”，再发给签署人。" : "Add a PDF source, then use Edit fields before sending it to a signer."}</p>
               </div>
               {renderFeedback("template")}
               <form className="office-form-grid" onSubmit={handleCreateTemplateWithPdf}>
-                <FormField label="Template name">
+                <FormField label={isZh ? "模板名称" : "Template name"}>
                   <TextInput name="templateName" placeholder="Astoria Reservation Agreement" required />
                 </FormField>
-                <FormField className="office-detail-field-wide front-office-file-field" label="Source PDF">
+                <FormField className="office-detail-field-wide front-office-file-field" label={isZh ? "源 PDF" : "Source PDF"}>
                   <input
                     accept="application/pdf,.pdf"
                     className="front-office-file-input"
@@ -881,15 +988,15 @@ export function FrontOfficeProjectsClient(props: {
                   <span className={`front-office-file-picker${selectedTemplateFileName ? " is-selected" : ""}`}>
                     <span className="front-office-file-badge">PDF</span>
                     <span className="front-office-file-copy">
-                      <strong>{selectedTemplateFileName || "Choose source PDF"}</strong>
-                      <small>{selectedTemplateFileName ? "Ready to upload" : "No file selected"}</small>
+                      <strong>{selectedTemplateFileName || (isZh ? "选择源 PDF" : "Choose source PDF")}</strong>
+                      <small>{selectedTemplateFileName ? (isZh ? "可上传" : "Ready to upload") : isZh ? "未选择文件" : "No file selected"}</small>
                     </span>
-                    <span className="front-office-file-action">Choose PDF</span>
+                    <span className="front-office-file-action">{isZh ? "选择 PDF" : "Choose PDF"}</span>
                   </span>
                 </FormField>
                 <div className="office-form-actions">
                   <Button disabled={pendingNewTemplate || mutation.kind === "loading"} type="submit">
-                    {pendingNewTemplate ? "Uploading..." : "Upload template"}
+                    {pendingNewTemplate ? (isZh ? "上传中..." : "Uploading...") : isZh ? "上传模板" : "Upload template"}
                   </Button>
                 </div>
               </form>
@@ -900,19 +1007,23 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card front-office-compact-card front-office-step-card front-office-session-card front-office-primary-session-card"
-        subtitle="Now create the signer packet from the project and the field-ready template selected above."
-        title="Step 3 · Create signing session"
+        subtitle={isZh ? "现在用上面选择的项目和已放置字段的模板创建签署包。" : "Now create the signer packet from the project and the field-ready template selected above."}
+        title={isZh ? "第 3 步 · 创建签署会话" : "Step 3 · Create signing session"}
       >
         {renderFeedback("session")}
         {!sessionReady ? (
           <div className="office-inline-alert office-inline-alert-danger">
             {selectedProjectId
-              ? "Choose a PDF template with at least one signing field before creating a session."
-              : "Create or select a project before creating a signing session."}
+              ? isZh
+                ? "创建会话前，请选择至少包含一个签署字段的 PDF 模板。"
+                : "Choose a PDF template with at least one signing field before creating a session."
+              : isZh
+                ? "创建签署会话前，请先创建或选择项目。"
+                : "Create or select a project before creating a signing session."}
           </div>
         ) : null}
         <form className="office-form-grid front-office-session-form" key={createSessionFormKey} onSubmit={handleCreateSession}>
-          <FormField label="Project">
+          <FormField label={isZh ? "项目" : "Project"}>
             <SelectInput
               name="projectId"
               onChange={(event) => setSelectedProjectId(event.currentTarget.value)}
@@ -926,18 +1037,18 @@ export function FrontOfficeProjectsClient(props: {
                   </option>
                 ))
               ) : (
-                <option value="">Create a project first</option>
+                <option value="">{isZh ? "请先创建项目" : "Create a project first"}</option>
               )}
             </SelectInput>
           </FormField>
-          <FormField label="Mode">
+          <FormField label={isZh ? "模式" : "Mode"}>
             <SelectInput name="mode">
-              <option value="remote">Remote</option>
-              <option value="in_person">In-person iPad</option>
+              <option value="remote">{isZh ? "远程" : "Remote"}</option>
+              <option value="in_person">{isZh ? "现场 iPad" : "In-person iPad"}</option>
             </SelectInput>
           </FormField>
           <div className="office-form-field office-form-field-wide">
-            <span>Templates</span>
+            <span>{isZh ? "模板" : "Templates"}</span>
             <details className="front-office-template-dropdown">
               <summary>
                 <span className="front-office-template-dropdown-summary">
@@ -945,7 +1056,7 @@ export function FrontOfficeProjectsClient(props: {
                   <small>{sessionTemplateMeta}</small>
                 </span>
               </summary>
-              <div aria-label="Templates" className="front-office-template-dropdown-panel" role="group">
+              <div aria-label={isZh ? "模板" : "Templates"} className="front-office-template-dropdown-panel" role="group">
                 {usableTemplates.length ? (
                   usableTemplates.map((template) => (
                     <label className="front-office-template-choice" key={template.id}>
@@ -960,30 +1071,33 @@ export function FrontOfficeProjectsClient(props: {
                       <span className="front-office-template-choice-copy">
                         <strong>{template.name}</strong>
                         <small>
-                          v{template.version} · {template.recipientCount} recipients · {template.fieldCount} fields
-                          {template.fieldCount === 0 ? " · Edit fields first" : ""}
+                          v{template.version} · {formatFrontOfficeCount(template.recipientCount, isZh, "recipient", "recipients", "位收件人")} ·{" "}
+                          {formatFrontOfficeCount(template.fieldCount, isZh, "field", "fields", "个字段")}
+                          {template.fieldCount === 0 ? (isZh ? " · 请先编辑字段" : " · Edit fields first") : ""}
                         </small>
                       </span>
                     </label>
                   ))
                 ) : (
-                  <span className="front-office-template-choice-empty">Upload a PDF template before creating a session.</span>
+                  <span className="front-office-template-choice-empty">
+                    {isZh ? "创建会话前，请先上传 PDF 模板。" : "Upload a PDF template before creating a session."}
+                  </span>
                 )}
               </div>
             </details>
           </div>
-          <FormField label="Buyer name">
+          <FormField label={isZh ? "买方姓名" : "Buyer name"}>
             <TextInput name="buyerName" required />
           </FormField>
-          <FormField label="Buyer email">
+          <FormField label={isZh ? "买方邮箱" : "Buyer email"}>
             <TextInput name="buyerEmail" required type="email" />
           </FormField>
-          <FormField label="Buyer phone">
+          <FormField label={isZh ? "买方电话" : "Buyer phone"}>
             <TextInput name="buyerPhone" />
           </FormField>
           <div className="office-form-actions front-office-session-submit">
             <Button disabled={!sessionReady || mutation.kind === "loading"} type="submit">
-              Create session
+              {isZh ? "创建会话" : "Create session"}
             </Button>
           </div>
         </form>
@@ -992,8 +1106,8 @@ export function FrontOfficeProjectsClient(props: {
       <div ref={step4Ref}>
         <SectionCard
           className="office-list-card front-office-compact-card front-office-active-sessions-card"
-          subtitle="Send remote links, copy the latest secure link, or start an iPad handoff from the same session row."
-          title="Step 4 · Send / handoff"
+          subtitle={isZh ? "在同一条会话记录里发送远程链接、复制最新安全链接，或开始 iPad 交接。" : "Send remote links, copy the latest secure link, or start an iPad handoff from the same session row."}
+          title={isZh ? "第 4 步 · 发送 / 交接" : "Step 4 · Send / handoff"}
         >
           {renderFeedback("launch")}
           {renderFeedback("remoteLinks")}
@@ -1011,7 +1125,7 @@ export function FrontOfficeProjectsClient(props: {
                           <form onSubmit={handleSendRemote}>
                             <input name="sessionId" type="hidden" value={session.id} />
                             <Button disabled={mutation.kind === "loading"} size="sm" type="submit" variant="secondary">
-                              Send remote link
+                              {isZh ? "发送远程链接" : "Send remote link"}
                             </Button>
                           </form>
                           {firstLink ? (
@@ -1021,25 +1135,25 @@ export function FrontOfficeProjectsClient(props: {
                               type="button"
                               variant="secondary"
                             >
-                              {remoteDelivery?.copiedUrl === firstLink.signingUrl ? "Copied" : "Copy link"}
+                              {remoteDelivery?.copiedUrl === firstLink.signingUrl ? (isZh ? "已复制" : "Copied") : isZh ? "复制链接" : "Copy link"}
                             </Button>
                           ) : null}
                           <form onSubmit={handleStartHandoff}>
                             <input name="sessionId" type="hidden" value={session.id} />
                             <Button disabled={mutation.kind === "loading"} size="sm" type="submit">
-                              Start iPad
+                              {isZh ? "开始 iPad" : "Start iPad"}
                             </Button>
                           </form>
                         </div>
                       }
-                      badgeLabel={session.status}
+                      badgeLabel={translateFrontOfficeLabel(session.status, isZh)}
                       badgeTone={session.status === "completed" ? "success" : "accent"}
-                      description={session.buyerEmail || "No buyer email saved"}
+                      description={session.buyerEmail || (isZh ? "未保存买方邮箱" : "No buyer email saved")}
                       meta={
                         <>
-                          <span>{session.mode === "in_person" ? "iPad handoff" : "Remote"}</span>
-                          <span>{session.documentCount} docs</span>
-                          <span>{session.recipientCount} recipients</span>
+                          <span>{session.mode === "in_person" ? (isZh ? "iPad 交接" : "iPad handoff") : isZh ? "远程" : "Remote"}</span>
+                          <span>{formatFrontOfficeCount(session.documentCount, isZh, "doc", "docs", "份文件")}</span>
+                          <span>{formatFrontOfficeCount(session.recipientCount, isZh, "recipient", "recipients", "位收件人")}</span>
                           <span>{session.createdAtLabel}</span>
                         </>
                       }
@@ -1059,10 +1173,10 @@ export function FrontOfficeProjectsClient(props: {
                               <div className="front-office-remote-link-row">
                                 <TextInput onFocus={(event) => event.currentTarget.select()} readOnly value={link.signingUrl} />
                                 <Button onClick={() => copyRemoteLink(link.signingUrl)} size="sm" type="button" variant="secondary">
-                                  {copied ? "Copied" : "Copy link"}
+                                  {copied ? (isZh ? "已复制" : "Copied") : isZh ? "复制链接" : "Copy link"}
                                 </Button>
                               </div>
-                              {failure ? <small>Email failed: {failure.error}</small> : null}
+                              {failure ? <small>{isZh ? "邮件发送失败：" : "Email failed: "}{failure.error}</small> : null}
                             </div>
                           );
                         })}
@@ -1074,8 +1188,8 @@ export function FrontOfficeProjectsClient(props: {
             </div>
           ) : (
             <EmptyState
-              description="Create a signing session above, then send a remote link or start the iPad handoff here."
-              title="No sessions ready to launch"
+              description={isZh ? "先在上方创建签署会话，然后在这里发送远程链接或开始 iPad 交接。" : "Create a signing session above, then send a remote link or start the iPad handoff here."}
+              title={isZh ? "还没有可启动的会话" : "No sessions ready to launch"}
             />
           )}
         </SectionCard>
@@ -1083,8 +1197,8 @@ export function FrontOfficeProjectsClient(props: {
 
       <SectionCard
         className="office-list-card front-office-compact-card front-office-signed-archive-card"
-        subtitle="Completed PDFs are archived under the project after all required signers submit."
-        title="Signed archive"
+        subtitle={isZh ? "所有必需签署人提交后，完成的 PDF 会归档到项目下。" : "Completed PDFs are archived under the project after all required signers submit."}
+        title={isZh ? "签署归档" : "Signed archive"}
       >
         {archivedDocuments.length ? (
           <div className="office-queue-list front-office-compact-list front-office-signed-archive-list">
@@ -1096,13 +1210,13 @@ export function FrontOfficeProjectsClient(props: {
                     target="_blank"
                   >
                     <Button size="sm" type="button" variant="secondary">
-                      Open PDF
+                      {isZh ? "打开 PDF" : "Open PDF"}
                     </Button>
                   </Link>
                 }
-                badgeLabel={document.documentType || "signed"}
+                badgeLabel={translateFrontOfficeLabel(document.documentType || "signed", isZh)}
                 badgeTone="success"
-                description={document.buyerEmail || document.buyerName || "No buyer snapshot"}
+                description={document.buyerEmail || document.buyerName || (isZh ? "没有买方快照" : "No buyer snapshot")}
                 key={document.id}
                 meta={
                   <>
@@ -1117,8 +1231,8 @@ export function FrontOfficeProjectsClient(props: {
           </div>
         ) : (
           <EmptyState
-            description="Once a project signing session completes, the signed PDFs will be available here."
-            title="No signed project files yet"
+            description={isZh ? "项目签署会话完成后，签署好的 PDF 会显示在这里。" : "Once a project signing session completes, the signed PDFs will be available here."}
+            title={isZh ? "还没有已签署的项目文件" : "No signed project files yet"}
           />
         )}
       </SectionCard>
@@ -1128,23 +1242,27 @@ export function FrontOfficeProjectsClient(props: {
           className="office-list-card front-office-compact-card front-office-maintenance-card"
           subtitle={
             props.canManage
-              ? "Archive hides a project from active lists; sessions and signed archives stay intact and can be restored later."
-              : "Archive and restore are restricted to managers, admins, and owners. Ask a manager if a duplicate project needs cleanup."
+              ? isZh
+                ? "归档会把项目从活跃列表隐藏；会话和签署归档仍会保留，并可稍后恢复。"
+                : "Archive hides a project from active lists; sessions and signed archives stay intact and can be restored later."
+              : isZh
+                ? "归档和恢复仅限经理、管理员和所有者。如果重复项目需要清理，请联系经理。"
+                : "Archive and restore are restricted to managers, admins, and owners. Ask a manager if a duplicate project needs cleanup."
           }
-          title="Project maintenance"
+          title={isZh ? "项目维护" : "Project maintenance"}
         >
           {renderFeedback("manage")}
           <div className="office-form-actions">
             {props.includeArchived ? (
               <Link href="/agent/projects">
                 <Button size="sm" type="button" variant="secondary">
-                  Hide archived
+                  {isZh ? "隐藏已归档" : "Hide archived"}
                 </Button>
               </Link>
             ) : props.archivedProjectCount > 0 ? (
               <Link href="/agent/projects?archived=1">
                 <Button size="sm" type="button" variant="secondary">
-                  Show {props.archivedProjectCount} archived
+                  {isZh ? `显示 ${props.archivedProjectCount} 个已归档` : `Show ${props.archivedProjectCount} archived`}
                 </Button>
               </Link>
             ) : null}
@@ -1164,17 +1282,27 @@ export function FrontOfficeProjectsClient(props: {
                         type="button"
                         variant={canDeleteProject ? "danger" : project.status === "archived" ? "secondary" : "danger"}
                       >
-                        {canDeleteProject ? "Delete" : project.status === "archived" ? "Unarchive" : "Archive"}
+                        {canDeleteProject
+                          ? isZh
+                            ? "删除"
+                            : "Delete"
+                          : project.status === "archived"
+                            ? isZh
+                              ? "取消归档"
+                              : "Unarchive"
+                            : isZh
+                              ? "归档"
+                              : "Archive"}
                       </Button>
                     ) : null
                   }
-                  badgeLabel={project.status}
+                  badgeLabel={translateFrontOfficeLabel(project.status, isZh)}
                   badgeTone={project.status === "active" ? "accent" : "neutral"}
                   key={project.id}
                   meta={
                     <>
-                      <span>{project.sessionCount} sessions</span>
-                      <span>{project.archivedDocumentCount} archived docs</span>
+                      <span>{formatFrontOfficeCount(project.sessionCount, isZh, "session", "sessions", "个会话")}</span>
+                      <span>{formatFrontOfficeCount(project.archivedDocumentCount, isZh, "archived doc", "archived docs", "份归档文件")}</span>
                     </>
                   }
                   title={`${project.code} · ${project.name}`}

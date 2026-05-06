@@ -12,6 +12,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { useI18n } from "../../../lib/i18n/client";
+import { translateFrontOfficeLabel } from "../_lib/front-office-language";
 
 type FrontOfficeClientsWorkbenchClientProps = {
   clients: FrontOfficeClientRecord[];
@@ -42,6 +44,8 @@ const followUpStatusOptions = [
 
 function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
   const { client } = props;
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(client.followUpStatus);
@@ -71,7 +75,10 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
         const data = (await response.json().catch(() => null)) as
           | { error?: string }
           | null;
-        setErrorMessage(data?.error || "Could not save the client update.");
+        setErrorMessage(
+          data?.error ||
+            (isZh ? "无法保存客户更新。" : "Could not save the client update."),
+        );
         return;
       }
 
@@ -83,20 +90,20 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
     <QueueItem
       badge={
         <StatusBadge tone={client.followUpStatusTone}>
-          {client.followUpStatusLabel}
+          {translateFrontOfficeLabel(client.followUpStatusLabel, isZh)}
         </StatusBadge>
       }
-      context={client.followUpReminderModeLabel}
+      context={translateFrontOfficeLabel(client.followUpReminderModeLabel, isZh)}
       title={client.displayName}
-      description={`${client.budgetLabel} · ${client.areasLabel}`}
+      description={`${translateFrontOfficeLabel(client.budgetLabel, isZh)} · ${translateFrontOfficeLabel(client.areasLabel, isZh)}`}
       meta={
         <>
-          <span>{client.lastFollowUpLabel}</span>
-          <span>{client.nextReminderLabel}</span>
+          <span>{translateFrontOfficeLabel(client.lastFollowUpLabel, isZh)}</span>
+          <span>{translateFrontOfficeLabel(client.nextReminderLabel, isZh)}</span>
           <span>{client.noteSummary}</span>
           {client.legacyOpenTaskCount > 0 ? (
             <span>
-              Legacy follow-up tasks still exist ({client.legacyOpenTaskCount})
+              {isZh ? "仍有旧跟进任务" : "Legacy follow-up tasks still exist"} ({client.legacyOpenTaskCount})
             </span>
           ) : null}
         </>
@@ -112,10 +119,14 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
             type="button"
             variant="secondary"
           >
-            Mark followed up
+            {isZh ? "标记已跟进" : "Mark followed up"}
           </Button>
           <SelectInput
-            aria-label={`Change follow-up status for ${client.displayName}`}
+            aria-label={
+              isZh
+                ? `修改 ${client.displayName} 的跟进状态`
+                : `Change follow-up status for ${client.displayName}`
+            }
             disabled={isPending}
             onChange={(event) => {
               const nextStatus = event.target.value as ClientFollowUpStatus;
@@ -126,12 +137,16 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
           >
             {followUpStatusOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {translateFrontOfficeLabel(option.label, isZh)}
               </option>
             ))}
           </SelectInput>
           <TextInput
-            aria-label={`Next reminder for ${client.displayName}`}
+            aria-label={
+              isZh
+                ? `${client.displayName} 的下次提醒`
+                : `Next reminder for ${client.displayName}`
+            }
             disabled={isPending}
             onChange={(event) => {
               setNextReminderValue(event.target.value);
@@ -150,7 +165,7 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
             type="button"
             variant="secondary"
           >
-            Save reminder
+            {isZh ? "保存提醒" : "Save reminder"}
           </Button>
           <Button
             disabled={isPending}
@@ -161,13 +176,13 @@ function ClientQueueRow(props: { client: FrontOfficeClientRecord }) {
             type="button"
             variant="ghost"
           >
-            Use auto
+            {isZh ? "使用自动" : "Use auto"}
           </Button>
           <FrontOfficeLink
             className="office-inline-link front-office-inline-link"
             href={client.href}
           >
-            Open profile
+            {isZh ? "打开档案" : "Open profile"}
           </FrontOfficeLink>
           {errorMessage ? <span>{errorMessage}</span> : null}
         </>
