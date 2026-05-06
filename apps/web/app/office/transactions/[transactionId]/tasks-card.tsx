@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { OfficeTransactionTask, OfficeTransactionTaskAssigneeOption, OfficeTransactionTaskStatus } from "@acre/db";
+import { useI18n } from "../../../../lib/i18n/client";
+import { formatOfficeDateTimeLabel, translateOfficeTaskCopy } from "../../_utils/task-copy";
 
 type TransactionTasksCardProps = {
   transactionId: string;
@@ -29,20 +31,6 @@ type TaskFormState = {
 
 const taskStatusOptions: OfficeTransactionTaskStatus[] = ["Todo", "In progress", "Review requested", "Completed", "Reopened"];
 
-function formatDateTimeLabel(value: string) {
-  if (!value) {
-    return "—";
-  }
-
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
 function buildTaskState(task: OfficeTransactionTask): TaskFormState {
   return {
     checklistGroup: task.checklistGroup,
@@ -67,6 +55,8 @@ export function TransactionTasksCard({
   canApproveDocuments
 }: TransactionTasksCardProps) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [taskStates, setTaskStates] = useState<Record<string, TaskFormState>>(
     Object.fromEntries(tasks.map((task) => [task.id, buildTaskState(task)]))
   );
@@ -114,7 +104,7 @@ export function TransactionTasksCard({
 
   async function handleCreateTask() {
     if (!newTaskState.title.trim()) {
-      setError("Task title is required.");
+      setError(isZh ? "请填写任务标题。" : "Task title is required.");
       return;
     }
 
@@ -132,7 +122,7 @@ export function TransactionTasksCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to create task.");
+        throw new Error(body?.error ?? (isZh ? "创建任务失败。" : "Failed to create task."));
       }
 
       setNewTaskState({
@@ -148,7 +138,7 @@ export function TransactionTasksCard({
       });
       router.refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create task.");
+      setError(createError instanceof Error ? createError.message : isZh ? "创建任务失败。" : "Failed to create task.");
     } finally {
       setPendingAction(null);
     }
@@ -158,7 +148,7 @@ export function TransactionTasksCard({
     const taskState = taskStates[taskId];
 
     if (!taskState?.title.trim()) {
-      setError("Task title is required.");
+      setError(isZh ? "请填写任务标题。" : "Task title is required.");
       return;
     }
 
@@ -176,12 +166,12 @@ export function TransactionTasksCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update task.");
+        throw new Error(body?.error ?? (isZh ? "更新任务失败。" : "Failed to update task."));
       }
 
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to update task.");
+      setError(saveError instanceof Error ? saveError.message : isZh ? "更新任务失败。" : "Failed to update task.");
     } finally {
       setPendingAction(null);
     }
@@ -198,7 +188,7 @@ export function TransactionTasksCard({
     try {
       const rejectionReason =
         action === "reject"
-          ? window.prompt("Reason for rejection (optional)", task.rejectionReason || "")?.trim() ?? ""
+          ? window.prompt(isZh ? "退回原因（可选）" : "Reason for rejection (optional)", task.rejectionReason || "")?.trim() ?? ""
           : "";
       const response = await fetch(`/api/office/transactions/${transactionId}/tasks/${taskId}/workflow`, {
         method: "POST",
@@ -210,12 +200,12 @@ export function TransactionTasksCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update task workflow.");
+        throw new Error(body?.error ?? (isZh ? "更新任务流程失败。" : "Failed to update task workflow."));
       }
 
       router.refresh();
     } catch (workflowError) {
-      setError(workflowError instanceof Error ? workflowError.message : "Failed to update task workflow.");
+      setError(workflowError instanceof Error ? workflowError.message : isZh ? "更新任务流程失败。" : "Failed to update task workflow.");
     } finally {
       setPendingAction(null);
     }
@@ -224,9 +214,9 @@ export function TransactionTasksCard({
   return (
     <section className="office-detail-card" id="transaction-tasks">
       <div className="office-card-head">
-        <h3>Checklist / Tasks</h3>
+        <h3>{isZh ? "清单 / 任务" : "Checklist / Tasks"}</h3>
         <Link className="office-toggle-link" href={`/office/tasks?transactionId=${transactionId}`}>
-          Open Task List
+          {isZh ? "打开任务列表" : "Open Task List"}
         </Link>
       </div>
 
@@ -235,8 +225,8 @@ export function TransactionTasksCard({
           Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
             <section className="office-transaction-task-group" key={groupName}>
               <div className="office-transaction-task-group-head">
-                <strong>{groupName}</strong>
-                <span>{groupTasks.length} task{groupTasks.length === 1 ? "" : "s"}</span>
+                <strong>{translateOfficeTaskCopy(groupName, isZh)}</strong>
+                <span>{isZh ? `${groupTasks.length} 项任务` : `${groupTasks.length} task${groupTasks.length === 1 ? "" : "s"}`}</span>
               </div>
 
               <div className="office-transaction-task-list">
@@ -249,14 +239,16 @@ export function TransactionTasksCard({
                     <article className="office-transaction-task-row" id={`transaction-task-${task.id}`} key={task.id}>
                       <div className="office-transaction-task-top">
                         <div className="office-transaction-task-status">
-                          <span className={`office-status-pill office-task-status-${task.taskStatusTone}`}>{task.taskStatusLabel}</span>
+                          <span className={`office-status-pill office-task-status-${task.taskStatusTone}`}>
+                            {translateOfficeTaskCopy(task.taskStatusLabel, isZh)}
+                          </span>
                           <strong>{task.assigneeName}</strong>
-                          <span>{task.complianceStatus}</span>
+                          <span>{translateOfficeTaskCopy(task.complianceStatus, isZh)}</span>
                         </div>
                         <div className="office-transaction-task-actions">
                           {task.requiresDocument || task.requiresDocumentApproval ? (
                             <Link className="office-toggle-link" href={`/office/transactions/${transactionId}#transaction-forms-signatures`}>
-                              Use forms
+                              {isZh ? "使用表单" : "Use forms"}
                             </Link>
                           ) : null}
                           {task.canCompleteDirectly ? (
@@ -266,7 +258,7 @@ export function TransactionTasksCard({
                               onClick={() => handleWorkflowAction(task, "complete")}
                               type="button"
                             >
-                              {pendingAction === `complete:${task.id}` ? "Saving..." : "Complete"}
+                              {pendingAction === `complete:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "完成" : "Complete"}
                             </button>
                           ) : null}
                           {task.canRequestReview ? (
@@ -276,7 +268,7 @@ export function TransactionTasksCard({
                               onClick={() => handleWorkflowAction(task, "request_review")}
                               type="button"
                             >
-                              {pendingAction === `request_review:${task.id}` ? "Saving..." : "Request review"}
+                              {pendingAction === `request_review:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "提交审核" : "Request review"}
                             </button>
                           ) : null}
                           {task.canApprove &&
@@ -290,10 +282,10 @@ export function TransactionTasksCard({
                               type="button"
                             >
                               {pendingAction === `approve:${task.id}`
-                                ? "Saving..."
+                                ? isZh ? "保存中..." : "Saving..."
                                 : task.awaitingSecondaryApproval
-                                  ? "Second approve"
-                                  : "Approve"}
+                                  ? isZh ? "二级通过" : "Second approve"
+                                  : isZh ? "通过" : "Approve"}
                             </button>
                           ) : null}
                           {task.canReject && canReviewTasks && canApproveDocuments ? (
@@ -303,7 +295,7 @@ export function TransactionTasksCard({
                               onClick={() => handleWorkflowAction(task, "reject")}
                               type="button"
                             >
-                              {pendingAction === `reject:${task.id}` ? "Saving..." : "Reject"}
+                              {pendingAction === `reject:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "退回" : "Reject"}
                             </button>
                           ) : null}
                           {task.canReopen ? (
@@ -313,7 +305,7 @@ export function TransactionTasksCard({
                               onClick={() => handleWorkflowAction(task, "reopen")}
                               type="button"
                             >
-                              {pendingAction === `reopen:${task.id}` ? "Saving..." : "Reopen"}
+                              {pendingAction === `reopen:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "重新打开" : "Reopen"}
                             </button>
                           ) : null}
                           <button
@@ -322,14 +314,14 @@ export function TransactionTasksCard({
                             onClick={() => handleSaveTask(task.id)}
                             type="button"
                           >
-                            {pendingAction === `save:${task.id}` ? "Saving..." : "Save task"}
+                            {pendingAction === `save:${task.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存任务" : "Save task"}
                           </button>
                         </div>
                       </div>
 
                       <div className="office-transaction-task-grid">
                         <label className="office-detail-field">
-                          <span>Checklist group</span>
+                          <span>{isZh ? "清单分组" : "Checklist group"}</span>
                           <input
                             onChange={(event) => updateTaskField(task.id, "checklistGroup", event.target.value)}
                             type="text"
@@ -337,16 +329,16 @@ export function TransactionTasksCard({
                           />
                         </label>
                         <label className="office-detail-field">
-                          <span>Task title</span>
+                          <span>{isZh ? "任务标题" : "Task title"}</span>
                           <input onChange={(event) => updateTaskField(task.id, "title", event.target.value)} type="text" value={formState.title} />
                         </label>
                         <label className="office-detail-field">
-                          <span>Assignee</span>
+                          <span>{isZh ? "负责人" : "Assignee"}</span>
                           <select
                             onChange={(event) => updateTaskField(task.id, "assigneeMembershipId", event.target.value)}
                             value={formState.assigneeMembershipId}
                           >
-                            <option value="">Unassigned</option>
+                            <option value="">{isZh ? "未分配" : "Unassigned"}</option>
                             {assigneeOptions.map((option) => (
                               <option key={option.id} value={option.id}>
                                 {option.label}
@@ -355,27 +347,27 @@ export function TransactionTasksCard({
                           </select>
                         </label>
                         <label className="office-detail-field">
-                          <span>Due date</span>
+                          <span>{isZh ? "到期时间" : "Due date"}</span>
                           <input onChange={(event) => updateTaskField(task.id, "dueAt", event.target.value)} type="date" value={formState.dueAt} />
                         </label>
                         <label className="office-detail-field">
-                          <span>Workflow status</span>
+                          <span>{isZh ? "流程状态" : "Workflow status"}</span>
                           <select onChange={(event) => updateTaskField(task.id, "status", event.target.value)} value={formState.status}>
                             {taskStatusOptions.map((status) => (
                               <option key={status} value={status}>
-                                {status}
+                                {translateOfficeTaskCopy(status, isZh)}
                               </option>
                             ))}
                           </select>
                         </label>
                         <div className="office-detail-field">
-                          <span>Review state</span>
+                          <span>{isZh ? "审核状态" : "Review state"}</span>
                           <strong>
-                            {task.reviewStatus} / {task.complianceStatus}
+                            {translateOfficeTaskCopy(task.reviewStatus, isZh)} / {translateOfficeTaskCopy(task.complianceStatus, isZh)}
                           </strong>
                         </div>
                         <label className="office-detail-field office-detail-field-wide">
-                          <span>Description</span>
+                          <span>{isZh ? "说明" : "Description"}</span>
                           <textarea
                             onChange={(event) => updateTaskField(task.id, "description", event.target.value)}
                             rows={3}
@@ -383,14 +375,14 @@ export function TransactionTasksCard({
                           />
                         </label>
                         <div className="office-detail-field office-detail-field-wide office-task-checkbox-row">
-                          <span>Compliance rules</span>
+                          <span>{isZh ? "合规要求" : "Compliance rules"}</span>
                           <label>
                             <input
                               checked={formState.requiresDocument}
                               onChange={(event) => updateTaskField(task.id, "requiresDocument", event.target.checked)}
                               type="checkbox"
                             />
-                            <span>Requires document</span>
+                            <span>{isZh ? "需要文档" : "Requires document"}</span>
                           </label>
                           <label>
                             <input
@@ -398,7 +390,7 @@ export function TransactionTasksCard({
                               onChange={(event) => updateTaskField(task.id, "requiresDocumentApproval", event.target.checked)}
                               type="checkbox"
                             />
-                            <span>Requires review</span>
+                            <span>{isZh ? "需要审核" : "Requires review"}</span>
                           </label>
                           <label>
                             <input
@@ -406,21 +398,27 @@ export function TransactionTasksCard({
                               onChange={(event) => updateTaskField(task.id, "requiresSecondaryApproval", event.target.checked)}
                               type="checkbox"
                             />
-                            <span>Requires secondary approval</span>
+                            <span>{isZh ? "需要二级审核" : "Requires secondary approval"}</span>
                           </label>
                         </div>
                       </div>
 
                       <div className="office-transaction-task-evidence">
                         <div className="office-transaction-task-evidence-grid">
-                          <span>Submitted by: {task.submittedForReviewByName || "—"}</span>
-                          <span>Submitted at: {task.submittedForReviewAt ? formatDateTimeLabel(task.submittedForReviewAt) : "—"}</span>
-                          <span>First approver: {task.firstApprovedByName || "—"}</span>
-                          <span>Second approver: {task.secondApprovedByName || "—"}</span>
-                          <span>Rejected by: {task.rejectedByName || "—"}</span>
-                          <span>Rejection reason: {task.rejectionReason || "—"}</span>
-                          <span>Secondary approval: {task.requiresSecondaryApproval ? "Enabled" : "Not required"}</span>
-                          <span>Awaiting second review: {task.awaitingSecondaryApproval ? "Yes" : "No"}</span>
+                          <span>{isZh ? "提交人" : "Submitted by"}: {task.submittedForReviewByName || "—"}</span>
+                          <span>
+                            {isZh ? "提交时间" : "Submitted at"}:{" "}
+                            {task.submittedForReviewAt ? formatOfficeDateTimeLabel(task.submittedForReviewAt, locale) : "—"}
+                          </span>
+                          <span>{isZh ? "一审人" : "First approver"}: {task.firstApprovedByName || "—"}</span>
+                          <span>{isZh ? "二审人" : "Second approver"}: {task.secondApprovedByName || "—"}</span>
+                          <span>{isZh ? "退回人" : "Rejected by"}: {task.rejectedByName || "—"}</span>
+                          <span>{isZh ? "退回原因" : "Rejection reason"}: {task.rejectionReason || "—"}</span>
+                          <span>
+                            {isZh ? "二级审核" : "Secondary approval"}:{" "}
+                            {task.requiresSecondaryApproval ? (isZh ? "已启用" : "Enabled") : isZh ? "无需二级审核" : "Not required"}
+                          </span>
+                          <span>{isZh ? "等待二审" : "Awaiting second review"}: {task.awaitingSecondaryApproval ? (isZh ? "是" : "Yes") : isZh ? "否" : "No"}</span>
                         </div>
 
                         {task.linkedDocuments.length ? (
@@ -428,14 +426,14 @@ export function TransactionTasksCard({
                             {task.linkedDocuments.map((document) => (
                               <a className="office-task-linked-document" href={document.href} key={document.id}>
                                 <strong>{document.title}</strong>
-                                <span>{document.status}</span>
-                                {document.isSigned ? <span>Signed</span> : null}
-                                {document.hasPendingSignature ? <span>Signature pending</span> : null}
+                                <span>{translateOfficeTaskCopy(document.status, isZh)}</span>
+                                {document.isSigned ? <span>{isZh ? "已签署" : "Signed"}</span> : null}
+                                {document.hasPendingSignature ? <span>{isZh ? "等待签署" : "Signature pending"}</span> : null}
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <div className="office-transaction-task-linked-documents is-empty">No linked documents yet.</div>
+                          <div className="office-transaction-task-linked-documents is-empty">{isZh ? "暂时没有关联文档。" : "No linked documents yet."}</div>
                         )}
                       </div>
                     </article>
@@ -446,30 +444,30 @@ export function TransactionTasksCard({
           ))
         ) : (
           <div className="office-detail-field">
-            <span>Tasks</span>
-            <strong>No checklist tasks yet.</strong>
+            <span>{isZh ? "任务" : "Tasks"}</span>
+            <strong>{isZh ? "还没有清单任务。" : "No checklist tasks yet."}</strong>
           </div>
         )}
       </div>
 
       <div className="office-transaction-task-create">
         <div className="office-card-head office-card-head-inline">
-          <h3>New task</h3>
+          <h3>{isZh ? "新建任务" : "New task"}</h3>
         </div>
 
         <div className="office-transaction-task-grid">
           <label className="office-detail-field">
-            <span>Checklist group</span>
+            <span>{isZh ? "清单分组" : "Checklist group"}</span>
             <input onChange={(event) => updateNewTaskField("checklistGroup", event.target.value)} type="text" value={newTaskState.checklistGroup} />
           </label>
           <label className="office-detail-field">
-            <span>Task title</span>
+            <span>{isZh ? "任务标题" : "Task title"}</span>
             <input onChange={(event) => updateNewTaskField("title", event.target.value)} type="text" value={newTaskState.title} />
           </label>
           <label className="office-detail-field">
-            <span>Assignee</span>
+            <span>{isZh ? "负责人" : "Assignee"}</span>
             <select onChange={(event) => updateNewTaskField("assigneeMembershipId", event.target.value)} value={newTaskState.assigneeMembershipId}>
-              <option value="">Unassigned</option>
+              <option value="">{isZh ? "未分配" : "Unassigned"}</option>
               {assigneeOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -478,32 +476,32 @@ export function TransactionTasksCard({
             </select>
           </label>
           <label className="office-detail-field">
-            <span>Due date</span>
+            <span>{isZh ? "到期时间" : "Due date"}</span>
             <input onChange={(event) => updateNewTaskField("dueAt", event.target.value)} type="date" value={newTaskState.dueAt} />
           </label>
           <label className="office-detail-field">
-            <span>Workflow status</span>
+            <span>{isZh ? "流程状态" : "Workflow status"}</span>
             <select onChange={(event) => updateNewTaskField("status", event.target.value)} value={newTaskState.status}>
               {taskStatusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {translateOfficeTaskCopy(status, isZh)}
                 </option>
               ))}
             </select>
           </label>
           <label className="office-detail-field office-detail-field-wide">
-            <span>Description</span>
+            <span>{isZh ? "说明" : "Description"}</span>
             <textarea onChange={(event) => updateNewTaskField("description", event.target.value)} rows={3} value={newTaskState.description} />
           </label>
           <div className="office-detail-field office-detail-field-wide office-task-checkbox-row">
-            <span>Compliance rules</span>
+            <span>{isZh ? "合规要求" : "Compliance rules"}</span>
             <label>
               <input
                 checked={newTaskState.requiresDocument}
                 onChange={(event) => updateNewTaskField("requiresDocument", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires document</span>
+              <span>{isZh ? "需要文档" : "Requires document"}</span>
             </label>
             <label>
               <input
@@ -511,7 +509,7 @@ export function TransactionTasksCard({
                 onChange={(event) => updateNewTaskField("requiresDocumentApproval", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires review</span>
+              <span>{isZh ? "需要审核" : "Requires review"}</span>
             </label>
             <label>
               <input
@@ -519,7 +517,7 @@ export function TransactionTasksCard({
                 onChange={(event) => updateNewTaskField("requiresSecondaryApproval", event.target.checked)}
                 type="checkbox"
               />
-              <span>Requires secondary approval</span>
+              <span>{isZh ? "需要二级审核" : "Requires secondary approval"}</span>
             </label>
           </div>
         </div>
@@ -528,7 +526,7 @@ export function TransactionTasksCard({
 
         <div className="office-transaction-task-actions">
           <button className="office-button" disabled={pendingAction === "create"} onClick={handleCreateTask} type="button">
-            {pendingAction === "create" ? "Creating..." : "Create task"}
+            {pendingAction === "create" ? (isZh ? "创建中..." : "Creating...") : isZh ? "创建任务" : "Create task"}
           </button>
         </div>
       </div>
