@@ -22,6 +22,7 @@ import {
 } from "@acre/ui";
 import { FrontOfficeClientDuplicatesCard } from "../clients/front-office-client-duplicates-card";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { useI18n } from "../../../lib/i18n/client";
 import {
   activityViewOptions,
   appointmentReminderGroupConfig,
@@ -311,6 +312,44 @@ function groupItemsByConfig<TItem, TKey extends string>(input: {
     .filter((group) => group.items.length > 0);
 }
 
+function translateNotificationCopy(label: string, isZh: boolean) {
+  if (!isZh) {
+    return label;
+  }
+
+  const copyMap: Record<string, string> = {
+    Overview: "总览",
+    "My follow-ups": "我的跟进",
+    "Team follow-ups": "团队跟进",
+    Appointments: "预约",
+    Notices: "通知",
+    "All personal cleanup": "全部个人清理",
+    "Follow-up due": "跟进已到期",
+    "Appointment follow-up": "预约跟进",
+    "Share risk": "分享风险",
+    "Stale clients": "沉默客户",
+    "Duplicate review": "重复客户审查",
+    "All notices": "全部通知",
+    "Confirmation due": "待确认",
+    "Reschedule follow-up": "改期跟进",
+    "External touch due": "外部触达已到期",
+    "Appointment soon": "预约临近",
+    "General notices": "一般通知",
+    "Agent actions": "经纪人动作",
+    "Formal workflow": "正式流程",
+    "Office updates": "办公室更新",
+    "Reference only": "仅供查看",
+    "All team pressure": "全部团队压力",
+    "Overdue tasks": "逾期任务",
+    "15+ day stale": "沉默 15 天以上",
+    All: "全部",
+    "Unread only": "仅未读",
+    "Read only": "仅已读",
+  };
+
+  return copyMap[label] ?? label;
+}
+
 export function AgentNotificationsClient({
   snapshot,
   initialActivityView,
@@ -324,6 +363,8 @@ export function AgentNotificationsClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [isRouteTransitionPending, startRouteTransition] = useTransition();
   const feedbackToken = resolveNoticeFeedback(
     searchParams.get("noticeFeedback"),
@@ -604,33 +645,55 @@ export function AgentNotificationsClient({
   const totalTeamCleanupSignals = leadershipQueue.visible
     ? leadershipQueue.counts.totalSignalCount
     : 0;
-  const notificationFilterFieldLabel = "Reminder type";
+  const notificationFilterFieldLabel = isZh ? "提醒类型" : "Reminder type";
   const visibleReminderFilterOptions = reminderFilterOptions;
   const activeCleanupFilterLabel =
-    cleanupFilterOptions.find((option) => option.value === activeCleanupFilter)
-      ?.label ?? "current cleanup filter";
+    translateNotificationCopy(
+      cleanupFilterOptions.find((option) => option.value === activeCleanupFilter)
+        ?.label ?? (isZh ? "当前清理筛选" : "current cleanup filter"),
+      isZh,
+    );
   const activeReminderFilterLabel =
-    reminderFilterOptions.find(
-      (option) => option.value === activeReminderFilter,
-    )?.label ?? "current reminder filter";
+    translateNotificationCopy(
+      reminderFilterOptions.find(
+        (option) => option.value === activeReminderFilter,
+      )?.label ?? (isZh ? "当前提醒筛选" : "current reminder filter"),
+      isZh,
+    );
   const activeNoticeStreamFilterLabel =
-    noticeStreamFilterOptions.find(
-      (option) => option.value === activeNoticeStreamFilter,
-    )?.label ?? "current notice view";
+    translateNotificationCopy(
+      noticeStreamFilterOptions.find(
+        (option) => option.value === activeNoticeStreamFilter,
+      )?.label ?? (isZh ? "当前通知视图" : "current notice view"),
+      isZh,
+    );
   const activeLeadershipFilterLabel =
-    leadershipCleanupFilterOptions.find(
-      (option) => option.value === activeLeadershipFilter,
-    )?.label ?? "current leadership filter";
+    translateNotificationCopy(
+      leadershipCleanupFilterOptions.find(
+        (option) => option.value === activeLeadershipFilter,
+      )?.label ?? (isZh ? "当前团队筛选" : "current leadership filter"),
+      isZh,
+    );
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Viewing cleanup, reminders, team pressure, and notices together. Overview stays preview-first while each section still remembers its own filters in the URL."
+      ? isZh
+        ? "同时查看个人清理、预约提醒、团队压力和通知。总览优先预览，每个分区仍会保留自己的筛选。"
+        : "Viewing cleanup, reminders, team pressure, and notices together. Overview stays preview-first while each section still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
-        ? "Focused on your own follow-up cleanup, including duplicate review and send rescue."
+        ? isZh
+          ? "聚焦你自己的跟进清理，包括重复客户审查和低反馈分享补救。"
+          : "Focused on your own follow-up cleanup, including duplicate review and send rescue."
         : activeActivityView === "team_cleanup"
-          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup so team follow-up stays readable.`
+          ? isZh
+            ? `仅查看 ${leadershipQueue.scopeLabel || "管理范围"}；团队干预和个人跟进分开显示，避免队列混在一起。`
+            : `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup so team follow-up stays readable.`
           : activeActivityView === "appointment_reminders"
-            ? "Focused on appointment follow-up only; confirmations, reschedules, and promised touchpoints stay together."
-            : "Focused on broader notice follow-through without mixing in calendar pressure or owner cleanup.";
+            ? isZh
+              ? "仅聚焦预约跟进，确认、改期和约定触达会放在同一组。"
+              : "Focused on appointment follow-up only; confirmations, reschedules, and promised touchpoints stay together."
+            : isZh
+              ? "聚焦一般通知后续，不混入日历压力或客户清理。"
+              : "Focused on broader notice follow-through without mixing in calendar pressure or owner cleanup.";
   const currentFocusCount =
     activeActivityView === "all"
       ? filteredCleanupItems.length +
@@ -671,20 +734,26 @@ export function AgentNotificationsClient({
   const focusAreaCards: ActivityLaneCard[] = [
     {
       key: "personal_cleanup" as const,
-      label: "Personal cleanup",
+      label: isZh ? "我的跟进清理" : "Personal cleanup",
       description:
-        "Your overdue follow-up, quiet send activity, stale clients, appointment updates, and duplicate review stay together in one section.",
+        isZh
+          ? "你的逾期跟进、低反馈分享、沉默客户、预约更新和重复客户审查会集中在这里。"
+          : "Your overdue follow-up, quiet send activity, stale clients, appointment updates, and duplicate review stay together in one section.",
       count: personalCleanupCount,
       tone: personalCleanupTone,
-      ownerLabel: "Ownership · Assigned to you",
+      ownerLabel: isZh ? "归属 · 分配给你" : "Ownership · Assigned to you",
       pressureLabel:
         snapshot.summary.urgentCleanupCount > 0
-          ? `${snapshot.summary.urgentCleanupCount} urgent queue item(s)`
-          : "No urgent personal cleanup right now",
+          ? isZh
+            ? `${snapshot.summary.urgentCleanupCount} 个紧急队列项`
+            : `${snapshot.summary.urgentCleanupCount} urgent queue item(s)`
+          : isZh
+            ? "当前没有紧急个人清理事项"
+            : "No urgent personal cleanup right now",
       sliceLabel:
         activeCleanupFilter === "all"
-          ? "Section target · All personal cleanup"
-          : `Section target · ${activeCleanupFilterLabel}`,
+          ? isZh ? "分区目标 · 全部个人清理" : "Section target · All personal cleanup"
+          : isZh ? `分区目标 · ${activeCleanupFilterLabel}` : `Section target · ${activeCleanupFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "personal_cleanup",
@@ -700,20 +769,26 @@ export function AgentNotificationsClient({
       ? [
           {
             key: "team_cleanup" as const,
-            label: "Team cleanup",
+            label: isZh ? "团队跟进清理" : "Team cleanup",
             description:
-              "Visible-scope overdue tasks, stale clients, and quiet send activity stay readable here without hiding who owns the underlying record.",
+              isZh
+                ? "当前可见范围内的逾期任务、沉默客户和低反馈分享会显示在这里，同时保留原始负责人。"
+                : "Visible-scope overdue tasks, stale clients, and quiet send activity stay readable here without hiding who owns the underlying record.",
             count: teamCleanupCount,
             tone: teamCleanupTone,
-            ownerLabel: `Scope · ${leadershipQueue.scopeLabel}`,
+            ownerLabel: isZh ? `范围 · ${leadershipQueue.scopeLabel}` : `Scope · ${leadershipQueue.scopeLabel}`,
             pressureLabel:
               totalTeamCleanupSignals > 0
-                ? `${totalTeamCleanupSignals} raw pressure signal(s) across the visible scope`
-                : "No visible-scope team cleanup pressure right now",
+                ? isZh
+                  ? `当前可见范围有 ${totalTeamCleanupSignals} 个压力信号`
+                  : `${totalTeamCleanupSignals} raw pressure signal(s) across the visible scope`
+                : isZh
+                  ? "当前可见范围没有团队清理压力"
+                  : "No visible-scope team cleanup pressure right now",
             sliceLabel:
               activeLeadershipFilter === "all"
-                ? "Section target · All team pressure"
-                : `Section target · ${activeLeadershipFilterLabel}`,
+                ? isZh ? "分区目标 · 全部团队压力" : "Section target · All team pressure"
+                : isZh ? `分区目标 · ${activeLeadershipFilterLabel}` : `Section target · ${activeLeadershipFilterLabel}`,
             href: buildAgentNotificationsHref({
               pathname,
               activityView: "team_cleanup",
@@ -729,20 +804,26 @@ export function AgentNotificationsClient({
       : []),
     {
       key: "appointment_reminders" as const,
-      label: "Appointments",
+      label: isZh ? "预约提醒" : "Appointments",
       description:
-        "Confirmation, reschedule, external touch, and countdown pressure stay separate from broader notices so appointment follow-up stays clear.",
+        isZh
+          ? "确认、改期、外部触达和临近预约会单独成组，让预约后续更清楚。"
+          : "Confirmation, reschedule, external touch, and countdown pressure stay separate from broader notices so appointment follow-up stays clear.",
       count: appointmentReminderCount,
       tone: appointmentReminderTone,
-      ownerLabel: "Ownership · Calendar follow-up + personal follow-through",
+      ownerLabel: isZh ? "归属 · 日历跟进 + 个人后续" : "Ownership · Calendar follow-up + personal follow-through",
       pressureLabel:
         urgentAppointmentReminderCount > 0
-          ? `${urgentAppointmentReminderCount} urgent reminder(s)`
-          : "No urgent appointment reminder pressure right now",
+          ? isZh
+            ? `${urgentAppointmentReminderCount} 个紧急预约提醒`
+            : `${urgentAppointmentReminderCount} urgent reminder(s)`
+          : isZh
+            ? "当前没有紧急预约提醒"
+            : "No urgent appointment reminder pressure right now",
       sliceLabel:
         activeReminderFilter === "all"
-          ? "Section target · All reminder types"
-          : `Section target · ${notificationFilterFieldLabel} = ${activeReminderFilterLabel}`,
+          ? isZh ? "分区目标 · 全部提醒类型" : "Section target · All reminder types"
+          : isZh ? `分区目标 · ${notificationFilterFieldLabel} = ${activeReminderFilterLabel}` : `Section target · ${notificationFilterFieldLabel} = ${activeReminderFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "appointment_reminders",
@@ -756,22 +837,30 @@ export function AgentNotificationsClient({
     },
     {
       key: "general_notices" as const,
-      label: "Notices",
+      label: isZh ? "通知" : "Notices",
       description:
-        "Non-calendar notices stay in their own section so follow-through, handoff, shared visibility, and awareness-only items do not blur together.",
+        isZh
+          ? "非日历通知单独显示，避免待处理、交接、共享可见和仅供查看的信息混在一起。"
+          : "Non-calendar notices stay in their own section so follow-through, handoff, shared visibility, and awareness-only items do not blur together.",
       count: generalNoticeCount,
       tone: generalNoticeTone,
-      ownerLabel: "Ownership · Personal + shared office visibility",
+      ownerLabel: isZh ? "归属 · 个人 + 办公室共享可见" : "Ownership · Personal + shared office visibility",
       pressureLabel:
         unreadGeneralNoticeCount > 0
-          ? `${unreadGeneralNoticeCount} unread personal notice(s) in this view`
+          ? isZh
+            ? `当前视图有 ${unreadGeneralNoticeCount} 条未读个人通知`
+            : `${unreadGeneralNoticeCount} unread personal notice(s) in this view`
           : sharedGeneralNoticeCount > 0
-            ? `${sharedGeneralNoticeCount} shared office notice(s) stay open-only`
-            : "No unread general notices right now",
+            ? isZh
+              ? `${sharedGeneralNoticeCount} 条办公室共享通知仅可打开查看`
+              : `${sharedGeneralNoticeCount} shared office notice(s) stay open-only`
+            : isZh
+              ? "当前没有未读一般通知"
+              : "No unread general notices right now",
       sliceLabel:
         activeNoticeStreamFilter === "all"
-          ? "Section target · All notice views"
-          : `Section target · ${activeNoticeStreamFilterLabel}`,
+          ? isZh ? "分区目标 · 全部通知视图" : "Section target · All notice views"
+          : isZh ? `分区目标 · ${activeNoticeStreamFilterLabel}` : `Section target · ${activeNoticeStreamFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "general_notices",
@@ -787,9 +876,11 @@ export function AgentNotificationsClient({
   const activityLaneTabs: ActivityLaneCard[] = [
     {
       key: "all" as const,
-      label: "Overview",
+      label: isZh ? "总览" : "Overview",
       description:
-        "Keep personal cleanup, team pressure, appointments, and notices visible in one stable view.",
+        isZh
+          ? "在一个稳定视图里同时查看个人清理、团队压力、预约和通知。"
+          : "Keep personal cleanup, team pressure, appointments, and notices visible in one stable view.",
       count:
         personalCleanupCount +
         teamCleanupCount +
@@ -804,13 +895,13 @@ export function AgentNotificationsClient({
               unreadGeneralNoticeCount > 0
             ? "warning"
             : "neutral",
-      ownerLabel: "Scope · Personal + shared office activity",
+      ownerLabel: isZh ? "范围 · 个人 + 办公室共享动态" : "Scope · Personal + shared office activity",
       pressureLabel:
         snapshot.summary.urgentCleanupCount > 0 ||
         urgentAppointmentReminderCount > 0
-          ? "High-pressure signals are active across the center"
-          : "No urgent pressure is active across the center",
-      sliceLabel: "Section target · Full activity center",
+          ? isZh ? "动态中心里有高优先级压力信号" : "High-pressure signals are active across the center"
+          : isZh ? "动态中心当前没有紧急压力" : "No urgent pressure is active across the center",
+      sliceLabel: isZh ? "分区目标 · 完整动态中心" : "Section target · Full activity center",
     },
     ...focusAreaCards,
   ];
@@ -857,11 +948,19 @@ export function AgentNotificationsClient({
   });
   const controlsBusy = pendingAction !== null || isRouteTransitionPending;
   const bulkSelectionSummary = selectionActive
-    ? `${selectedVisibleNotificationIds.length} personal notice(s) selected for bulk actions`
-    : `${mutableVisibleNotificationIds.length} personal notice(s) in the current slice can change read state`;
+    ? isZh
+      ? `已选择 ${selectedVisibleNotificationIds.length} 条个人通知，可批量处理`
+      : `${selectedVisibleNotificationIds.length} personal notice(s) selected for bulk actions`
+    : isZh
+      ? `当前分区有 ${mutableVisibleNotificationIds.length} 条个人通知可更改阅读状态`
+      : `${mutableVisibleNotificationIds.length} personal notice(s) in the current slice can change read state`;
   const bulkSelectionDetail = selectionActive
-    ? "Bulk actions apply only to the current selection until you clear it. Opening one of those personal notices will still mark it read automatically."
-    : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice. Shared notices stay open-only, and opening any personal notice still marks it read automatically.";
+    ? isZh
+      ? "清除选择前，批量动作只作用于当前选择。打开个人通知仍会自动标记为已读。"
+      : "Bulk actions apply only to the current selection until you clear it. Opening one of those personal notices will still mark it read automatically."
+    : isZh
+      ? "未选择具体通知时，批量已读/未读会作用于当前可见个人分区。共享通知只能打开查看；打开个人通知仍会自动标记为已读。"
+      : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice. Shared notices stay open-only, and opening any personal notice still marks it read automatically.";
   const currentRouteHref = buildAgentNotificationsHref({
     pathname,
     activityView: activeActivityView,
@@ -879,20 +978,20 @@ export function AgentNotificationsClient({
   const summaryHighlights = [
     {
       key: "scope",
-      label: "Scope",
+      label: isZh ? "范围" : "Scope",
       value: activeLaneTab.ownerLabel,
     },
     {
       key: "route",
-      label: "Route",
+      label: isZh ? "路径" : "Route",
       value: activeLaneTab.sliceLabel,
     },
     ...(showNotificationControls && unreadVisibleNotificationCount > 0
       ? [
           {
             key: "unread",
-            label: "Unread",
-            value: `${unreadVisibleNotificationCount} visible`,
+            label: isZh ? "未读" : "Unread",
+            value: isZh ? `${unreadVisibleNotificationCount} 条可见` : `${unreadVisibleNotificationCount} visible`,
           },
         ]
       : []),
@@ -900,8 +999,8 @@ export function AgentNotificationsClient({
       ? [
           {
             key: "selection",
-            label: "Selection",
-            value: `${selectedVisibleNotificationIds.length} selected`,
+            label: isZh ? "已选择" : "Selection",
+            value: isZh ? `已选 ${selectedVisibleNotificationIds.length} 条` : `${selectedVisibleNotificationIds.length} selected`,
           },
         ]
       : []),
@@ -1932,7 +2031,7 @@ export function AgentNotificationsClient({
 
         <FilterBar className="office-notification-filter-grid office-list-filters">
           {showPersonalCleanupSection ? (
-            <FilterField label="Cleanup focus">
+            <FilterField label={isZh ? "清理重点" : "Cleanup focus"}>
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -1958,7 +2057,7 @@ export function AgentNotificationsClient({
 
                   return (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({count})
+                      {translateNotificationCopy(option.label, isZh)} ({count})
                     </option>
                   );
                 })}
@@ -1991,7 +2090,7 @@ export function AgentNotificationsClient({
 
                   return (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({count})
+                      {translateNotificationCopy(option.label, isZh)} ({count})
                     </option>
                   );
                 })}
@@ -2000,7 +2099,7 @@ export function AgentNotificationsClient({
           ) : null}
 
           {showGeneralNoticeSection ? (
-            <FilterField label="Notice view">
+            <FilterField label={isZh ? "通知视图" : "Notice view"}>
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -2028,7 +2127,7 @@ export function AgentNotificationsClient({
 
                   return (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({count})
+                      {translateNotificationCopy(option.label, isZh)} ({count})
                     </option>
                   );
                 })}
@@ -2037,7 +2136,7 @@ export function AgentNotificationsClient({
           ) : null}
 
           {showNotificationControls ? (
-            <FilterField label="Read state">
+            <FilterField label={isZh ? "阅读状态" : "Read state"}>
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -2053,7 +2152,7 @@ export function AgentNotificationsClient({
               >
                 {readStateOptions.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {translateNotificationCopy(option.label, isZh)}
                   </option>
                 ))}
               </SelectInput>
@@ -2061,7 +2160,7 @@ export function AgentNotificationsClient({
           ) : null}
 
           {showTeamCleanupControls ? (
-            <FilterField label="Team cleanup">
+            <FilterField label={isZh ? "团队清理" : "Team cleanup"}>
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -2087,7 +2186,7 @@ export function AgentNotificationsClient({
 
                   return (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({count})
+                      {translateNotificationCopy(option.label, isZh)} ({count})
                     </option>
                   );
                 })}
@@ -2109,7 +2208,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Clear cleanup filter
+                {isZh ? "清除清理筛选" : "Clear cleanup filter"}
               </Button>
             ) : null}
             {activeReminderFilter !== "all" ? (
@@ -2128,7 +2227,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Clear reminder filter
+                {isZh ? "清除提醒筛选" : "Clear reminder filter"}
               </Button>
             ) : null}
             {activeNoticeStreamFilter !== "all" ? (
@@ -2138,7 +2237,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Clear notice view
+                {isZh ? "清除通知视图" : "Clear notice view"}
               </Button>
             ) : null}
             {activeReadState !== "all" ? (
@@ -2157,7 +2256,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Show all read states
+                {isZh ? "显示全部阅读状态" : "Show all read states"}
               </Button>
             ) : null}
             {activeLeadershipFilter !== "all" ? (
@@ -2167,7 +2266,7 @@ export function AgentNotificationsClient({
                 type="button"
                 variant="secondary"
               >
-                Clear team filter
+                {isZh ? "清除团队筛选" : "Clear team filter"}
               </Button>
             ) : null}
           </div>
@@ -2181,12 +2280,12 @@ export function AgentNotificationsClient({
             </div>
             <div className={styles.bulkPanelMeta}>
               <Badge tone="accent">
-                Unread {unreadVisibleNotificationCount}
+                {isZh ? `未读 ${unreadVisibleNotificationCount}` : `Unread ${unreadVisibleNotificationCount}`}
               </Badge>
-              <Badge tone="neutral">Read {readVisibleNotificationCount}</Badge>
+              <Badge tone="neutral">{isZh ? `已读 ${readVisibleNotificationCount}` : `Read ${readVisibleNotificationCount}`}</Badge>
               {sharedVisibleNotificationCount > 0 ? (
                 <Badge tone="warning">
-                  Shared open-only {sharedVisibleNotificationCount}
+                  {isZh ? `共享仅查看 ${sharedVisibleNotificationCount}` : `Shared open-only ${sharedVisibleNotificationCount}`}
                 </Badge>
               ) : null}
             </div>
@@ -2200,7 +2299,7 @@ export function AgentNotificationsClient({
                   type="button"
                   variant="secondary"
                 >
-                  Select unread
+                  {isZh ? "选择未读" : "Select unread"}
                 </Button>
                 <Button
                   disabled={controlsBusy || readVisibleNotificationCount === 0}
@@ -2208,7 +2307,7 @@ export function AgentNotificationsClient({
                   type="button"
                   variant="secondary"
                 >
-                  Select read
+                  {isZh ? "选择已读" : "Select read"}
                 </Button>
                 <Button
                   disabled={
@@ -2218,7 +2317,7 @@ export function AgentNotificationsClient({
                   type="button"
                   variant="secondary"
                 >
-                  Select all personal
+                  {isZh ? "选择全部个人通知" : "Select all personal"}
                 </Button>
                 <Button
                   disabled={controlsBusy || !selectionActive}
@@ -2226,7 +2325,7 @@ export function AgentNotificationsClient({
                   type="button"
                   variant="secondary"
                 >
-                  Clear selection
+                  {isZh ? "清除选择" : "Clear selection"}
                 </Button>
               </div>
               <div className={styles.bulkActionGroup}>
@@ -2246,8 +2345,8 @@ export function AgentNotificationsClient({
                   variant="secondary"
                 >
                   {selectionActive
-                    ? `Mark selected read (${markReadTargetIds.length})`
-                    : `Mark slice read (${markReadTargetIds.length})`}
+                    ? isZh ? `标记所选为已读（${markReadTargetIds.length}）` : `Mark selected read (${markReadTargetIds.length})`
+                    : isZh ? `标记当前分区为已读（${markReadTargetIds.length}）` : `Mark slice read (${markReadTargetIds.length})`}
                 </Button>
                 <Button
                   disabled={
@@ -2265,8 +2364,8 @@ export function AgentNotificationsClient({
                   variant="secondary"
                 >
                   {selectionActive
-                    ? `Mark selected unread (${markUnreadTargetIds.length})`
-                    : `Mark slice unread (${markUnreadTargetIds.length})`}
+                    ? isZh ? `标记所选为未读（${markUnreadTargetIds.length}）` : `Mark selected unread (${markUnreadTargetIds.length})`
+                    : isZh ? `标记当前分区为未读（${markUnreadTargetIds.length}）` : `Mark slice unread (${markUnreadTargetIds.length})`}
                 </Button>
                 <Button
                   disabled={controlsBusy}
@@ -2276,7 +2375,7 @@ export function AgentNotificationsClient({
                   type="button"
                   variant="secondary"
                 >
-                  Reset all filters
+                  {isZh ? "重置全部筛选" : "Reset all filters"}
                 </Button>
               </div>
             </div>
@@ -2291,7 +2390,7 @@ export function AgentNotificationsClient({
               type="button"
               variant="secondary"
             >
-              Reset all filters
+              {isZh ? "重置全部筛选" : "Reset all filters"}
             </Button>
           </div>
         )}
@@ -2303,7 +2402,7 @@ export function AgentNotificationsClient({
             <div
               className={`${styles.feedbackMessage} ${styles.feedbackError}`}
             >
-              <StatusBadge tone="danger">Update failed</StatusBadge>
+              <StatusBadge tone="danger">{isZh ? "更新失败" : "Update failed"}</StatusBadge>
               <p>{error}</p>
             </div>
           ) : null}
@@ -2311,7 +2410,7 @@ export function AgentNotificationsClient({
             <div
               className={`${styles.feedbackMessage} ${styles.feedbackSuccess}`}
             >
-              <StatusBadge tone="accent">Updated</StatusBadge>
+              <StatusBadge tone="accent">{isZh ? "已更新" : "Updated"}</StatusBadge>
               <p>{statusMessage}</p>
             </div>
           ) : null}
@@ -2330,7 +2429,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={nextPersonalCleanupItem.href}
                   >
-                    Open next item
+                    {isZh ? "打开下一项" : "Open next item"}
                   </FrontOfficeLink>
                 ) : null}
                 {visibleDuplicatePairs.length ? (
@@ -2338,7 +2437,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={buildDuplicateReviewHref()}
                   >
-                    Review duplicates
+                    {isZh ? "审查重复客户" : "Review duplicates"}
                   </FrontOfficeLink>
                 ) : null}
                 {isOverviewMode && hiddenCleanupItemCount > 0 ? (

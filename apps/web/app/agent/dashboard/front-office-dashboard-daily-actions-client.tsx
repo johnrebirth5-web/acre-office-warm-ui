@@ -8,6 +8,7 @@ import {
 import { Button, EmptyState, StatusBadge, TextInput } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useI18n } from "../../../lib/i18n/client";
 
 type FrontOfficeDashboardDailyActionsClientProps = {
   items: FrontOfficeDashboardDailyActionItem[];
@@ -79,10 +80,31 @@ function isExternalCommand(command: FrontOfficeDashboardDailyActionCommand) {
   );
 }
 
+function formatActionKindLabel(kind: string, isZh: boolean) {
+  if (!isZh) {
+    return kind.replace(/_/g, " ");
+  }
+
+  const kindMap: Record<string, string> = {
+    overdue_follow_up: "逾期跟进",
+    follow_up_due: "待跟进",
+    listing_warm_signal: "房源热信号",
+    listing_send_risk: "分享风险",
+    back_office_handoff: "待交接后台",
+    appointment_writeback: "预约回写",
+    appointment_bridge: "预约桥接",
+    duplicate_review: "重复审查",
+  };
+
+  return kindMap[kind] ?? kind.replace(/_/g, " ");
+}
+
 export function FrontOfficeDashboardDailyActionsClient(
   props: FrontOfficeDashboardDailyActionsClientProps,
 ) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [isPending, startTransition] = useTransition();
   const [pendingKey, setPendingKey] = useState("");
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -125,7 +147,7 @@ export function FrontOfficeDashboardDailyActionsClient(
     nextFollowUpAt: string;
   }) {
     if (!input.command.clientId) {
-      throw new Error("Client context is missing.");
+      throw new Error(isZh ? "缺少客户上下文。" : "Client context is missing.");
     }
 
     const response = await fetch(
@@ -146,7 +168,7 @@ export function FrontOfficeDashboardDailyActionsClient(
       const payload = (await response.json().catch(() => null)) as
         | { error?: string }
         | null;
-      throw new Error(payload?.error || "Could not snooze this reminder.");
+      throw new Error(payload?.error || (isZh ? "无法稍后提醒。" : "Could not snooze this reminder."));
     }
 
     await trackDashboardAction({
@@ -187,7 +209,7 @@ export function FrontOfficeDashboardDailyActionsClient(
       try {
         if (command.type === "mark_followed_up") {
           if (!command.clientId) {
-            throw new Error("Client context is missing.");
+            throw new Error(isZh ? "缺少客户上下文。" : "Client context is missing.");
           }
 
           const response = await fetch(`/api/agent/clients/${command.clientId}`, {
@@ -204,11 +226,11 @@ export function FrontOfficeDashboardDailyActionsClient(
             const payload = (await response.json().catch(() => null)) as
               | { error?: string }
               | null;
-            throw new Error(payload?.error || "Could not mark followed up.");
+            throw new Error(payload?.error || (isZh ? "无法标记已跟进。" : "Could not mark followed up."));
           }
         } else if (command.type === "create_follow_up") {
           if (!command.clientId) {
-            throw new Error("Client context is missing.");
+            throw new Error(isZh ? "缺少客户上下文。" : "Client context is missing.");
           }
 
           const response = await fetch(
@@ -232,11 +254,11 @@ export function FrontOfficeDashboardDailyActionsClient(
             const payload = (await response.json().catch(() => null)) as
               | { error?: string }
               | null;
-            throw new Error(payload?.error || "Could not create follow-up.");
+            throw new Error(payload?.error || (isZh ? "无法创建跟进任务。" : "Could not create follow-up."));
           }
         } else if (command.type === "appointment_writeback") {
           if (!command.appointmentId || !command.payload.externalStatus) {
-            throw new Error("Appointment writeback context is missing.");
+            throw new Error(isZh ? "缺少预约回写上下文。" : "Appointment writeback context is missing.");
           }
 
           const response = await fetch(
@@ -257,7 +279,7 @@ export function FrontOfficeDashboardDailyActionsClient(
               | { error?: string; hint?: string }
               | null;
             throw new Error(
-              payload?.error || payload?.hint || "Could not save writeback.",
+              payload?.error || payload?.hint || (isZh ? "无法保存回写。" : "Could not save writeback."),
             );
           }
         } else if (command.href) {
@@ -283,8 +305,8 @@ export function FrontOfficeDashboardDailyActionsClient(
           tone: "success",
           message:
             command.type === "open_href" || isExternalCommand(command)
-              ? "Opened."
-              : "Saved.",
+              ? isZh ? "已打开。" : "Opened."
+              : isZh ? "已保存。" : "Saved.",
         });
         setOpenMoreId("");
         setSnoozeActionId("");
@@ -296,7 +318,7 @@ export function FrontOfficeDashboardDailyActionsClient(
           message:
             error instanceof Error
               ? error.message
-              : "Could not complete this action.",
+              : isZh ? "无法完成这个动作。" : "Could not complete this action.",
         });
       } finally {
         setPendingKey("");
@@ -319,7 +341,7 @@ export function FrontOfficeDashboardDailyActionsClient(
         setFeedback({
           actionId: input.item.id,
           tone: "success",
-          message: "Reminder snoozed.",
+          message: isZh ? "已稍后提醒。" : "Reminder snoozed.",
         });
         setSnoozeActionId("");
         router.refresh();
@@ -330,7 +352,7 @@ export function FrontOfficeDashboardDailyActionsClient(
           message:
             error instanceof Error
               ? error.message
-              : "Could not snooze this reminder.",
+              : isZh ? "无法稍后提醒。" : "Could not snooze this reminder.",
         });
       } finally {
         setPendingKey("");
@@ -341,8 +363,8 @@ export function FrontOfficeDashboardDailyActionsClient(
   if (!props.items.length) {
     return (
       <EmptyState
-        description="No urgent follow-up, appointment, listing, handoff, or cleanup action is waiting right now."
-        title="No next action waiting"
+        description={isZh ? "当前没有紧急跟进、预约、房源、交接或清理动作。" : "No urgent follow-up, appointment, listing, handoff, or cleanup action is waiting right now."}
+        title={isZh ? "暂无下一步动作" : "No next action waiting"}
       />
     );
   }
@@ -365,7 +387,7 @@ export function FrontOfficeDashboardDailyActionsClient(
         return (
           <article className="front-office-dashboard-action-row" key={item.id}>
             <div className="front-office-dashboard-action-copy">
-              <StatusBadge tone={item.tone}>{item.kind.replace(/_/g, " ")}</StatusBadge>
+              <StatusBadge tone={item.tone}>{formatActionKindLabel(item.kind, isZh)}</StatusBadge>
               <div>
                 <strong>{item.title}</strong>
                 <p>{item.whyNowLabel}</p>
@@ -387,7 +409,7 @@ export function FrontOfficeDashboardDailyActionsClient(
                 type="button"
               >
                 {pendingKey === `${item.id}:${item.primaryAction.id}`
-                  ? "Working..."
+                  ? isZh ? "处理中..." : "Working..."
                   : item.primaryAction.label}
               </Button>
 
@@ -427,7 +449,7 @@ export function FrontOfficeDashboardDailyActionsClient(
                     type="button"
                     variant="secondary"
                   >
-                    More
+                    {isZh ? "更多" : "More"}
                   </Button>
 
                   {openMoreId === item.id ? (
@@ -469,7 +491,7 @@ export function FrontOfficeDashboardDailyActionsClient(
                   type="button"
                   variant="secondary"
                 >
-                  Tomorrow
+                  {isZh ? "明天" : "Tomorrow"}
                 </Button>
                 <Button
                   disabled={isPending}
@@ -484,7 +506,7 @@ export function FrontOfficeDashboardDailyActionsClient(
                   type="button"
                   variant="secondary"
                 >
-                  2 days
+                  {isZh ? "2 天后" : "2 days"}
                 </Button>
                 <Button
                   disabled={isPending}
@@ -499,10 +521,10 @@ export function FrontOfficeDashboardDailyActionsClient(
                   type="button"
                   variant="secondary"
                 >
-                  Next week
+                  {isZh ? "下周" : "Next week"}
                 </Button>
                 <TextInput
-                  aria-label={`Custom snooze date for ${item.title}`}
+                  aria-label={isZh ? `${item.title} 的自定义稍后提醒日期` : `Custom snooze date for ${item.title}`}
                   disabled={isPending}
                   onChange={(event) => setCustomSnoozeDate(event.target.value)}
                   type="date"
@@ -521,7 +543,7 @@ export function FrontOfficeDashboardDailyActionsClient(
                   type="button"
                   variant="secondary"
                 >
-                  Save custom
+                  {isZh ? "保存自定义日期" : "Save custom"}
                 </Button>
               </div>
             ) : null}
