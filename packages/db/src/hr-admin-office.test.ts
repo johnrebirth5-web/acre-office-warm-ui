@@ -29,6 +29,7 @@ import {
   generateTerminationLetterDraft,
   generateWelcomeEmail,
 } from "./hr-ai.ts";
+import { buildGoogleAuthorizationUrl, GOOGLE_DRIVE_SCOPE } from "./google-integration.ts";
 import {
   createContextSignatureRequest,
   createStandaloneSignatureArtifact,
@@ -36,6 +37,43 @@ import {
 
 after(async () => {
   await prisma.$disconnect();
+});
+
+test("Google OAuth requests full Drive access for existing HR folders", () => {
+  const previousClientId = process.env.ACRE_GOOGLE_OAUTH_CLIENT_ID;
+  const previousClientSecret = process.env.ACRE_GOOGLE_OAUTH_CLIENT_SECRET;
+  const previousRedirectUrl = process.env.ACRE_GOOGLE_OAUTH_REDIRECT_URL;
+
+  try {
+    process.env.ACRE_GOOGLE_OAUTH_CLIENT_ID = "test-google-client";
+    process.env.ACRE_GOOGLE_OAUTH_CLIENT_SECRET = "test-google-secret";
+    process.env.ACRE_GOOGLE_OAUTH_REDIRECT_URL = "https://acresystem.us/api/office/settings/google/callback";
+
+    const url = new URL(buildGoogleAuthorizationUrl({ state: "state-token" }));
+    const scopes = url.searchParams.get("scope")?.split(" ") ?? [];
+
+    assert.equal(GOOGLE_DRIVE_SCOPE, "https://www.googleapis.com/auth/drive");
+    assert.ok(scopes.includes("https://www.googleapis.com/auth/drive"));
+    assert.ok(!scopes.includes("https://www.googleapis.com/auth/drive.file"));
+  } finally {
+    if (previousClientId === undefined) {
+      delete process.env.ACRE_GOOGLE_OAUTH_CLIENT_ID;
+    } else {
+      process.env.ACRE_GOOGLE_OAUTH_CLIENT_ID = previousClientId;
+    }
+
+    if (previousClientSecret === undefined) {
+      delete process.env.ACRE_GOOGLE_OAUTH_CLIENT_SECRET;
+    } else {
+      process.env.ACRE_GOOGLE_OAUTH_CLIENT_SECRET = previousClientSecret;
+    }
+
+    if (previousRedirectUrl === undefined) {
+      delete process.env.ACRE_GOOGLE_OAUTH_REDIRECT_URL;
+    } else {
+      process.env.ACRE_GOOGLE_OAUTH_REDIRECT_URL = previousRedirectUrl;
+    }
+  }
 });
 
 async function createHrAdminOfficeTestContext() {

@@ -279,6 +279,7 @@ ACRE_BASE_URL="https://acresystem.us"
 - Meet link 用于线上二面
 - Drive 用于 HR folder / upload / template references
 - Sheets 用于把面试记录追加到 `HR Tracker 2026`
+- Google consent scope 包含完整 Drive access（`https://www.googleapis.com/auth/drive`），因为 HR 同步需要写入既有公司 Drive 文件夹，而不只是 Acre 自己创建的文件。
 
 变量：
 
