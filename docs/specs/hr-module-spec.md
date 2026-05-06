@@ -108,6 +108,8 @@ The implementation keeps these as configurable integration targets rather than h
 - Onboarding form: `https://forms.gle/zALYVvygYPJWpZSn8`
 - Offboarding form: `https://forms.gle/pi4AMjwgybYeH2JF9`
 
+Google OAuth requests full Drive scope because HR needs to write into existing company folders such as `HR-ACRE`, `offer letter（Main Office）`, resume, onboarding, and offboarding archives.
+
 Offer / employment template references reviewed from the Google Doc:
 
 - NY Sales Assistant: `1K5gc17xSooBxAKG_Utg2ASmsAPQObYmA0gMZ5UruVZY`

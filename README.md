@@ -120,6 +120,7 @@
   - 公开入职窗口为 `/onboarding/[token]`，使用不可遍历 token hash，不要求登录
   - HR 记录使用 `organizationId + officeId`，其中 `officeId = null` 表示 organization-wide / 跨公司 / 全员可见
   - Google Calendar / Meet / Drive / Sheets 同步失败不会阻断主流程，只会记录 `sync_failed` 并允许后续重试
+  - HR Google OAuth 使用完整 Drive scope，确保 Acre 可上传到管理员指定的既有 HR 公司文件夹
   - AI 邮件和 termination letter 只生成草稿，不会后台自动发送
 - `Admin Office` 是新的 Back Office 行政模块：
   - 路由：`/office/admin-office`

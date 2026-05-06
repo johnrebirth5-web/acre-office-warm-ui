@@ -16,7 +16,7 @@ const googleSheetsEndpoint = "https://sheets.googleapis.com/v4/spreadsheets";
 const tokenRefreshSkewMs = 2 * 60 * 1000;
 
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
-export const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+export const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 export const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
