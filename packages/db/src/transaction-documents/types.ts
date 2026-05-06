@@ -79,6 +79,7 @@ export type OfficeFormTemplateOption = {
 
 export type OfficeSignatureRequest = {
   id: string;
+  transactionId: string | null;
   templateId: string | null;
   formId: string | null;
   documentId: string | null;
@@ -398,7 +399,7 @@ export type UpdateTransactionFormInput = {
 export type CreateSignatureRequestInput = {
   organizationId: string;
   officeId?: string | null;
-  transactionId: string;
+  transactionId?: string | null;
   actorMembershipId: string;
   signatureRequestId?: string | null;
   formId?: string | null;
@@ -414,7 +415,7 @@ export type CreateSignatureRequestInput = {
   senderReplyTo?: string | null;
   signingOrder?: number | null;
   templateId?: string | null;
-  contextType?: "transaction" | "membership" | "finance_request" | "admin_request" | "generic";
+  contextType?: "transaction" | "membership" | "finance_request" | "admin_request" | "generic" | "project" | "hr_onboarding" | "hr_offboarding" | "hr_offer";
   contextId?: string | null;
   contextLabel?: string | null;
   subjectMembershipId?: string | null;
@@ -440,7 +441,7 @@ export type CreateSignatureRequestInput = {
 
 export type UpdateSignatureRequestInput = {
   organizationId: string;
-  transactionId: string;
+  transactionId?: string | null;
   signatureRequestId: string;
   actorMembershipId?: string;
   action: "send" | "resend" | "advance" | "viewed" | "signed" | "completed" | "declined" | "canceled" | "expire";
@@ -458,7 +459,7 @@ export type UpdateSignatureRequestInput = {
 
 export type ReplaceSignatureFieldsInput = {
   organizationId: string;
-  transactionId: string;
+  transactionId?: string | null;
   signatureRequestId: string;
   actorMembershipId: string;
   fields: Array<{

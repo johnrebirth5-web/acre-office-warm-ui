@@ -15,6 +15,10 @@ import {
   canLinkOfficeContacts,
   canManageOfficeCommissionOverrideParticipants,
   canManageOfficeSettings,
+  canManageOfficeHr,
+  canManageOfficeHrOffboarding,
+  canManageOfficeHrTemplates,
+  canManageAdminOffice,
   canManageOfficeTransactionStatus,
   canManageOfficeTransactionFinance,
   canManageOfficeUsers,
@@ -22,6 +26,8 @@ import {
   canViewOfficeAgentBilling,
   canViewOfficeCommissionSelfServiceSummary,
   canViewOfficeContacts,
+  canViewOfficeHr,
+  canViewAdminOffice,
   canViewOfficeCommissions,
   canViewOfficeReports,
   canViewOfficeTransactions
@@ -164,4 +170,48 @@ test("office user keeps internal read access without admin-only powers", () => {
   assert.equal(canManageOfficeSettings("office_user"), false);
   assert.equal(canCreateOfficeTransactions("office_user"), false);
   assert.equal(canCreateOfficeContacts("office_user"), false);
+});
+
+test("HR and Admin Office permissions follow the new role defaults", () => {
+  assert.equal(canViewOfficeHr("owner"), true);
+  assert.equal(canManageOfficeHr("owner"), true);
+  assert.equal(canManageOfficeHrTemplates("owner"), true);
+  assert.equal(canManageOfficeHrOffboarding("owner"), true);
+  assert.equal(canViewAdminOffice("owner"), true);
+  assert.equal(canManageAdminOffice("owner"), true);
+
+  assert.equal(canViewOfficeHr("office_admin"), true);
+  assert.equal(canManageOfficeHr("office_admin"), true);
+  assert.equal(canManageOfficeHrTemplates("office_admin"), true);
+  assert.equal(canManageOfficeHrOffboarding("office_admin"), true);
+  assert.equal(canViewAdminOffice("office_admin"), true);
+  assert.equal(canManageAdminOffice("office_admin"), true);
+
+  assert.equal(canViewOfficeHr("human_resources"), true);
+  assert.equal(canManageOfficeHr("human_resources"), true);
+  assert.equal(canManageOfficeHrTemplates("human_resources"), true);
+  assert.equal(canManageOfficeHrOffboarding("human_resources"), true);
+  assert.equal(canViewAdminOffice("human_resources"), true);
+  assert.equal(canManageAdminOffice("human_resources"), true);
+
+  assert.equal(canViewOfficeHr("office_manager"), true);
+  assert.equal(canManageOfficeHr("office_manager"), false);
+  assert.equal(canViewAdminOffice("office_manager"), true);
+  assert.equal(canManageAdminOffice("office_manager"), false);
+
+  assert.equal(canViewOfficeHr("accountant"), true);
+  assert.equal(canManageOfficeHr("accountant"), false);
+  assert.equal(canViewAdminOffice("accountant"), true);
+  assert.equal(canManageAdminOffice("accountant"), false);
+});
+
+test("agent, office user, and team lead do not receive HR or Admin Office access by default", () => {
+  for (const role of ["agent", "office_user", "team_lead"] as const) {
+    assert.equal(canViewOfficeHr(role), false);
+    assert.equal(canManageOfficeHr(role), false);
+    assert.equal(canManageOfficeHrTemplates(role), false);
+    assert.equal(canManageOfficeHrOffboarding(role), false);
+    assert.equal(canViewAdminOffice(role), false);
+    assert.equal(canManageAdminOffice(role), false);
+  }
 });

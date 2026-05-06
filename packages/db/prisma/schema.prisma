@@ -166,8 +166,11 @@ enum EventVisibility {
 
 enum EventType {
   activity
+  meeting
   training
   admin
+  broker_tour
+  other
 }
 
 enum EventRecurrenceRule {
@@ -179,6 +182,98 @@ enum RsvpStatus {
   going
   maybe
   declined
+}
+
+enum HrCandidateStatus {
+  applied
+  screening
+  interview_1
+  interview_2
+  offered
+  hired
+  rejected
+  withdrawn
+}
+
+enum HrIdentityType {
+  f1_student
+  f1_opt
+  green_card
+  citizen
+  d1_cpt
+  h1b
+  o1
+}
+
+enum HrSyncState {
+  pending
+  synced
+  sync_failed
+  not_applicable
+}
+
+enum HrInterviewMode {
+  online
+  offline
+}
+
+enum HrInterviewStatus {
+  requested
+  scheduled
+  completed
+  canceled
+}
+
+enum HrOnboardingCaseStatus {
+  draft
+  token_issued
+  submitted
+  in_review
+  completed
+  closed
+}
+
+enum HrOffboardingCaseStatus {
+  started
+  in_progress
+  access_limited
+  completed
+  canceled
+}
+
+enum HrDocumentTemplateType {
+  offer_letter
+  nda
+  employee_handbook
+  welcome_email
+  termination_letter
+  commission_after_termination
+  other
+}
+
+enum HrChecklistCaseType {
+  onboarding
+  offboarding
+}
+
+enum HrChecklistItemStatus {
+  open
+  completed
+  reopened
+}
+
+enum HrOnboardingDocumentKind {
+  legal_document
+  onboarding_info
+  direct_deposit_info
+  other
+}
+
+enum AdminEmailRequestStatus {
+  pending
+  approved
+  completed
+  rejected
 }
 
 enum AppointmentType {
@@ -410,6 +505,9 @@ enum SignatureContextType {
   admin_request
   generic
   project
+  hr_onboarding
+  hr_offboarding
+  hr_offer
 }
 
 enum SignatureArtifactKind {
@@ -771,6 +869,17 @@ model Organization {
   vendors                               Vendor[]
   libraryFolders                        LibraryFolder[]
   libraryDocuments                      LibraryDocument[]
+  hrCandidates                          HrCandidate[]
+  hrInterviews                          HrInterview[]
+  hrOnboardingCases                     HrOnboardingCase[]
+  hrOnboardingDocuments                 HrOnboardingDocument[]
+  hrOffboardingCases                    HrOffboardingCase[]
+  hrDocumentTemplates                   HrDocumentTemplate[]
+  hrIdentityChecklistMappings           HrIdentityChecklistMapping[]
+  hrChecklistInstances                  HrChecklistInstance[]
+  hrChecklistInstanceItems              HrChecklistInstanceItem[]
+  adminEmailRequests                    AdminEmailRequest[]
+  googleIntegration                     OrganizationGoogleIntegration?
   auditLogs                             AuditLog[]
   transactions                          Transaction[]
   transactionContacts                   TransactionContact[]
@@ -885,6 +994,16 @@ model Office {
   vendors                               Vendor[]
   libraryFolders                        LibraryFolder[]
   libraryDocuments                      LibraryDocument[]
+  hrCandidates                          HrCandidate[]
+  hrInterviews                          HrInterview[]
+  hrOnboardingCases                     HrOnboardingCase[]
+  hrOnboardingDocuments                 HrOnboardingDocument[]
+  hrOffboardingCases                    HrOffboardingCase[]
+  hrDocumentTemplates                   HrDocumentTemplate[]
+  hrIdentityChecklistMappings           HrIdentityChecklistMapping[]
+  hrChecklistInstances                  HrChecklistInstance[]
+  hrChecklistInstanceItems              HrChecklistInstanceItem[]
+  adminEmailRequests                    AdminEmailRequest[]
   transactions                          Transaction[]
   taskListViews                         TaskListView[]
   ledgerAccounts                        LedgerAccount[]
@@ -2180,6 +2299,11 @@ model Event {
   meetingUrl          String?
   meetingPassword     String?
   isMandatory         Boolean         @default(false)
+  signupRequired      Boolean         @default(false)
+  signupClosesAt      DateTime?
+  capacity            Int?
+  signupExportedAt    DateTime?
+  signupExportedByMembershipId String?
   seriesId            String?
   recurrenceRule      EventRecurrenceRule?
   createdAt           DateTime        @default(now())
@@ -2204,6 +2328,314 @@ model EventRsvp {
   membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, membershipId])
+}
+
+model HrCandidate {
+  id             String            @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fullName       String
+  email          String
+  phone          String?
+  role           String?
+  positionTitle  String?
+  teamLeadName   String?
+  sourceType     String?
+  referrerName   String?
+  hrOwnerMembershipId String?
+  resumeFileKey  String?
+  resumeDriveFileId String?
+  status         HrCandidateStatus @default(applied)
+  identityType   HrIdentityType?
+  driveFolderId  String?
+  driveSyncState HrSyncState       @default(pending)
+  driveSyncError String?
+  createdByMembershipId String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?           @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  interviews     HrInterview[]
+  onboardingCases HrOnboardingCase[]
+  offboardingCases HrOffboardingCase[]
+
+  @@index([organizationId, officeId, status])
+  @@index([organizationId, email])
+  @@index([organizationId, hrOwnerMembershipId])
+  @@index([organizationId, createdAt])
+}
+
+model HrInterview {
+  id                    String            @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  candidateId           String
+  createdByMembershipId String?
+  title                 String
+  mode                  HrInterviewMode   @default(online)
+  status                HrInterviewStatus @default(requested)
+  startsAt              DateTime?
+  endsAt                DateTime?
+  interviewerNames      String[]
+  attendeeEmails        String[]
+  ccEmails              String[]
+  location              String?
+  calendarEventId       String?
+  meetUrl               String?
+  aiEmailDraft          String?
+  notes                 String?
+  googleSyncState       HrSyncState       @default(pending)
+  googleSyncError       String?
+  trackerSyncState      HrSyncState       @default(pending)
+  trackerSyncError      String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  organization          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?           @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  candidate             HrCandidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, officeId, startsAt])
+  @@index([organizationId, candidateId])
+  @@index([organizationId, googleSyncState])
+}
+
+model HrOnboardingCase {
+  id                    String                 @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  candidateId           String?
+  membershipId          String?
+  createdByMembershipId String?
+  status                HrOnboardingCaseStatus @default(draft)
+  tokenHash             String?                @unique
+  tokenIssuedAt         DateTime?
+  tokenExpiresAt        DateTime?
+  submittedAt           DateTime?
+  completedAt           DateTime?
+  accessLimitedAt       DateTime?
+  driveFolderId         String?
+  driveSyncState        HrSyncState            @default(pending)
+  driveSyncError        String?
+  legalFormUrl          String                 @default("https://forms.gle/zALYVvygYPJWpZSn8")
+  position              String?
+  teamLeadName          String?
+  externalFormSubmittedAt DateTime?
+  offerSignatureRequestId String?
+  ndaSignatureRequestId String?
+  handbookSignatureRequestId String?
+  welcomeEmailDraft     String?
+  notes                 String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  candidate             HrCandidate?           @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  documents             HrOnboardingDocument[]
+  checklistInstances    HrChecklistInstance[]
+
+  @@index([organizationId, officeId, status])
+  @@index([organizationId, candidateId])
+  @@index([organizationId, membershipId])
+  @@index([organizationId, tokenExpiresAt])
+}
+
+model HrOnboardingDocument {
+  id                    String                   @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  onboardingCaseId      String
+  uploadedByMembershipId String?
+  kind                  HrOnboardingDocumentKind @default(other)
+  title                 String
+  fileName              String
+  mimeType              String
+  fileSizeBytes         Int
+  storageKey            String
+  submittedByEmail      String?
+  createdAt             DateTime                 @default(now())
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                  @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  onboardingCase        HrOnboardingCase         @relation(fields: [onboardingCaseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, onboardingCaseId])
+  @@index([organizationId, officeId, createdAt])
+}
+
+model HrOffboardingCase {
+  id                    String                 @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  candidateId           String?
+  membershipId          String?
+  createdByMembershipId String?
+  status                HrOffboardingCaseStatus @default(started)
+  position              String?
+  directSupervisor      String?
+  workWechatId          String?
+  lastWorkingDate       DateTime?
+  reason                String?
+  externalFormUrl       String?                @default("https://forms.gle/pi4AMjwgybYeH2JF9")
+  externalFormSubmittedAt DateTime?
+  checklistInstanceId   String?
+  terminationSignatureRequestId String?
+  commissionAgreementSignatureRequestId String?
+  financeHandoffStatus  String?
+  commissionSettlementTriggeredAt DateTime?
+  salespersonLicenseUnlinkRequired Boolean    @default(false)
+  salespersonLicenseUnlinkedAt DateTime?
+  accessClosedAt        DateTime?
+  notes                 String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  candidate             HrCandidate?           @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  checklistInstances    HrChecklistInstance[]
+
+  @@index([organizationId, officeId, status])
+  @@index([organizationId, membershipId])
+  @@index([organizationId, candidateId])
+}
+
+model HrDocumentTemplate {
+  id                    String                 @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  createdByMembershipId String?
+  type                  HrDocumentTemplateType @default(other)
+  name                  String
+  company               String?
+  position              String?
+  body                  String?
+  driveFileId           String?
+  driveFolderId         String?
+  sourceUrl             String?
+  syncState             HrSyncState            @default(not_applicable)
+  syncError             String?
+  variables             String[]
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, officeId, type])
+  @@index([organizationId, isActive])
+}
+
+model HrIdentityChecklistMapping {
+  id                    String              @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  identityType          HrIdentityType
+  caseType              HrChecklistCaseType @default(onboarding)
+  checklistTemplateId   String
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  organization          Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?             @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  checklistTemplate     ChecklistTemplate   @relation(fields: [checklistTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, officeId, identityType, caseType])
+  @@index([organizationId, checklistTemplateId])
+}
+
+model HrChecklistInstance {
+  id                    String              @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  checklistTemplateId   String?
+  onboardingCaseId      String?
+  offboardingCaseId     String?
+  caseType              HrChecklistCaseType
+  title                 String
+  createdByMembershipId String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  organization          Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?             @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  checklistTemplate     ChecklistTemplate?  @relation(fields: [checklistTemplateId], references: [id], onDelete: SetNull)
+  onboardingCase        HrOnboardingCase?   @relation(fields: [onboardingCaseId], references: [id], onDelete: Cascade)
+  offboardingCase       HrOffboardingCase?  @relation(fields: [offboardingCaseId], references: [id], onDelete: Cascade)
+  items                 HrChecklistInstanceItem[]
+
+  @@index([organizationId, officeId, caseType])
+  @@index([organizationId, onboardingCaseId])
+  @@index([organizationId, offboardingCaseId])
+}
+
+model HrChecklistInstanceItem {
+  id                    String                @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  checklistInstanceId   String
+  checklistTemplateItemId String?
+  title                 String
+  description           String?
+  status                HrChecklistItemStatus @default(open)
+  completedByMembershipId String?
+  completedAt           DateTime?
+  sortOrder             Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?               @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  checklistInstance     HrChecklistInstance   @relation(fields: [checklistInstanceId], references: [id], onDelete: Cascade)
+  checklistTemplateItem ChecklistTemplateItem? @relation(fields: [checklistTemplateItemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, checklistInstanceId, sortOrder])
+  @@index([organizationId, status])
+}
+
+model AdminEmailRequest {
+  id                    String                  @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  requestedByMembershipId String?
+  fullName              String
+  preferredEmailPrefix  String
+  status                AdminEmailRequestStatus @default(pending)
+  approvedByMembershipId String?
+  completedByMembershipId String?
+  rejectedByMembershipId String?
+  notes                 String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, officeId, status])
+  @@index([organizationId, preferredEmailPrefix])
+}
+
+model OrganizationGoogleIntegration {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  updatedByMembershipId String?
+  isEnabled             Boolean      @default(true)
+  scope                 String?
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  calendarId            String?
+  driveRootFolderId     String?
+  resumeFolderId        String?
+  offerFolderId         String?
+  onboardingFolderId    String?
+  offboardingFolderId   String?
+  hrTrackerSpreadsheetId String?
+  onboardingFormUrl     String?
+  offboardingFormUrl    String?
+  connectedAt           DateTime     @default(now())
+  disconnectedAt        DateTime?
+  lastSyncStatus        HrSyncState  @default(pending)
+  lastSyncMessage       String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isEnabled])
 }
 
 model Resource {
@@ -2509,7 +2941,7 @@ model SignatureRequest {
   id                      String                   @id @default(cuid())
   organizationId          String
   officeId                String?
-  transactionId           String
+  transactionId           String?
   subjectMembershipId     String?
   offerId                 String?
   formId                  String?
@@ -2548,7 +2980,7 @@ model SignatureRequest {
   updatedAt               DateTime                 @updatedAt
   organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                  Office?                  @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  transaction             Transaction              @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction             Transaction?             @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   subjectMembership       Membership?              @relation("SignatureRequestSubjectMembership", fields: [subjectMembershipId], references: [id], onDelete: SetNull)
   offer                   Offer?                   @relation(fields: [offerId], references: [id], onDelete: SetNull)
   form                    TransactionForm?         @relation("SignatureRequestForm", fields: [formId], references: [id], onDelete: SetNull)
@@ -2564,6 +2996,7 @@ model SignatureRequest {
   salesProjectDocuments   SalesProjectDocument[]
 
   @@index([organizationId, transactionId, status])
+  @@index([organizationId, contextType, contextId])
   @@index([organizationId, officeId])
   @@index([organizationId, subjectMembershipId])
   @@index([organizationId, formId])
@@ -2579,7 +3012,7 @@ model SignatureRecipient {
   id                 String                   @id @default(cuid())
   organizationId     String
   officeId           String?
-  transactionId      String
+  transactionId      String?
   signatureRequestId String
   membershipId       String?
   role               SignatureRecipientRole
@@ -2602,7 +3035,7 @@ model SignatureRecipient {
   updatedAt          DateTime                 @updatedAt
   organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office             Office?                  @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  transaction        Transaction              @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction        Transaction?             @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   membership         Membership?              @relation("SignatureRecipientMembership", fields: [membershipId], references: [id], onDelete: SetNull)
   signatureRequest   SignatureRequest         @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
   assignedFields     SignatureField[]         @relation("SignatureFieldAssignedRecipient")
@@ -3677,6 +4110,8 @@ model ChecklistTemplate {
   createdByMembership   Membership?             @relation("ChecklistTemplateCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
   updatedByMembership   Membership?             @relation("ChecklistTemplateUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
   items                 ChecklistTemplateItem[]
+  hrIdentityMappings    HrIdentityChecklistMapping[]
+  hrChecklistInstances  HrChecklistInstance[]
 
   @@index([organizationId, officeId, isActive])
   @@index([organizationId, transactionType])
@@ -3700,6 +4135,7 @@ model ChecklistTemplateItem {
   organization              Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                    Office?           @relation(fields: [officeId], references: [id], onDelete: SetNull)
   checklistTemplate         ChecklistTemplate @relation(fields: [checklistTemplateId], references: [id], onDelete: Cascade)
+  hrChecklistInstanceItems  HrChecklistInstanceItem[]
 
   @@index([organizationId, officeId, checklistTemplateId])
   @@index([organizationId, sortOrder])

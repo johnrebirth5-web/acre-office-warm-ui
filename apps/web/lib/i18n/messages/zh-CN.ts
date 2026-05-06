@@ -135,6 +135,8 @@ export const zhCNMessages = {
       transactions: "交易",
       offers: "报价",
       contacts: "联系人",
+      hr: "HR",
+      adminOffice: "行政",
       reports: "报表",
       performance: "业绩",
       activity: "活动",

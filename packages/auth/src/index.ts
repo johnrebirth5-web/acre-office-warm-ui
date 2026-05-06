@@ -22,6 +22,12 @@ export type PermissionKey =
   | "agents:manage"
   | "onboarding:view"
   | "onboarding:manage"
+  | "hr:view"
+  | "hr:manage"
+  | "hr:templates_manage"
+  | "hr:offboarding_manage"
+  | "admin_office:view"
+  | "admin_office:manage"
   | "goals:view"
   | "goals:manage"
   | "teams:view"
@@ -131,6 +137,8 @@ export type PermissionGroupKey =
   | "users"
   | "agents"
   | "onboarding"
+  | "hr"
+  | "admin_office"
   | "goals"
   | "teams"
   | "reports"
@@ -356,11 +364,63 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "company"
   },
   {
+    key: "hr:view",
+    label: "Can access HR",
+    description: "Open HR candidates, interviews, onboarding, and offboarding.",
+    group: "hr",
+    sortOrder: 65,
+    scopeBehavior: "company"
+  },
+  {
+    key: "hr:manage",
+    label: "Can manage HR",
+    description: "Create and update HR candidates, interviews, onboarding cases, and files.",
+    group: "hr",
+    parentKey: "hr:view",
+    sortOrder: 66,
+    scopeBehavior: "company"
+  },
+  {
+    key: "hr:templates_manage",
+    label: "Can manage HR templates",
+    description: "Create and update HR offer, handbook, welcome, and termination templates.",
+    group: "hr",
+    parentKey: "hr:manage",
+    sortOrder: 67,
+    scopeBehavior: "company"
+  },
+  {
+    key: "hr:offboarding_manage",
+    label: "Can manage HR offboarding",
+    description: "Start and update offboarding, access shutdown, checklist, and handoff workflows.",
+    group: "hr",
+    parentKey: "hr:manage",
+    sortOrder: 68,
+    scopeBehavior: "company"
+  },
+  {
+    key: "admin_office:view",
+    label: "Can access Admin Office",
+    description: "Open Admin Office email requests, company calendar, and signups.",
+    group: "admin_office",
+    sortOrder: 69,
+    scopeBehavior: "company"
+  },
+  {
+    key: "admin_office:manage",
+    label: "Can manage Admin Office",
+    description: "Approve email requests, create company events, and export signup rosters.",
+    group: "admin_office",
+    parentKey: "admin_office:view",
+    sortOrder: 70,
+    scopeBehavior: "company"
+  },
+  {
     key: "goals:view",
     label: "Can view goals",
     description: "View agent goals and progress.",
     group: "goals",
-    sortOrder: 70,
+    sortOrder: 72,
     scopeBehavior: "company"
   },
   {
@@ -369,7 +429,7 @@ const permissionCatalog: PermissionDefinition[] = [
     description: "Create and update agent goals.",
     group: "goals",
     parentKey: "goals:view",
-    sortOrder: 71,
+    sortOrder: 73,
     scopeBehavior: "company"
   },
   {
@@ -1250,6 +1310,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "users:manage",
     "agents:view",
     "agents:view:company",
+    "hr:view",
+    "admin_office:view",
     "teams:view",
     "reports:view:personal",
     "reports:view:company",
@@ -1294,6 +1356,12 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "users:manage",
     "agents:view",
     "agents:view:company",
+    "hr:view",
+    "hr:manage",
+    "hr:templates_manage",
+    "hr:offboarding_manage",
+    "admin_office:view",
+    "admin_office:manage",
     "teams:view",
     "reports:view:personal",
     "reports:view:company",
@@ -1401,6 +1469,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "agents:manage",
     "onboarding:view",
     "onboarding:manage",
+    "hr:view",
+    "admin_office:view",
     "goals:view",
     "goals:manage",
     "teams:view",
@@ -1701,6 +1771,30 @@ export function canViewOfficeOnboarding(subject: PermissionSubject): boolean {
 
 export function canManageOfficeOnboarding(subject: PermissionSubject): boolean {
   return can(subject, "onboarding:manage");
+}
+
+export function canViewOfficeHr(subject: PermissionSubject): boolean {
+  return can(subject, "hr:view");
+}
+
+export function canManageOfficeHr(subject: PermissionSubject): boolean {
+  return can(subject, "hr:manage");
+}
+
+export function canManageOfficeHrTemplates(subject: PermissionSubject): boolean {
+  return can(subject, "hr:templates_manage");
+}
+
+export function canManageOfficeHrOffboarding(subject: PermissionSubject): boolean {
+  return can(subject, "hr:offboarding_manage");
+}
+
+export function canViewAdminOffice(subject: PermissionSubject): boolean {
+  return can(subject, "admin_office:view");
+}
+
+export function canManageAdminOffice(subject: PermissionSubject): boolean {
+  return can(subject, "admin_office:manage");
 }
 
 export function canViewOfficeGoals(subject: PermissionSubject): boolean {

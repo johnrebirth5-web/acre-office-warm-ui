@@ -1,7 +1,7 @@
-import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, getPublicSignatureRequestSnapshot, updateSignatureRequest } from "@acre/db";
+import { createStandaloneSignatureArtifact, createTransactionDocument, getPublicSignatureDocumentStorageRecord, getPublicSignatureRequestSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "../../../../../../lib/api/parse-body";
-import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
+import { readStoredFile, saveStoredFile, saveStoredSignatureRequestFile } from "../../../../../../lib/document-storage";
 import { getPublicAppBaseUrl } from "../../../../../../lib/request-origin";
 import {
   buildRateLimitKey,
@@ -44,6 +44,7 @@ type PublicSignatureSubmitRouteDependencies = {
   rateLimit?: typeof consumeRateLimit;
   readStoredFile?: typeof readStoredFile;
   saveStoredFile?: typeof saveStoredFile;
+  saveStoredSignatureRequestFile?: typeof saveStoredSignatureRequestFile;
   sendSignatureCompletionEmails?: typeof sendSignatureCompletionEmails;
   sendSignatureRequestEmail?: typeof sendSignatureRequestEmail;
   updateSignatureRequest?: typeof updateSignatureRequest;
@@ -112,6 +113,8 @@ export async function handlePublicSignatureSubmitPost(
     dependencies.sendSignatureRequestEmail ?? sendSignatureRequestEmail;
   const readFile = dependencies.readStoredFile ?? readStoredFile;
   const saveFile = dependencies.saveStoredFile ?? saveStoredFile;
+  const saveSignatureRequestFile =
+    dependencies.saveStoredSignatureRequestFile ?? saveStoredSignatureRequestFile;
   const createDocument =
     dependencies.createTransactionDocument ?? createTransactionDocument;
   const sendCompletionEmails =
@@ -319,30 +322,52 @@ export async function handlePublicSignatureSubmitPost(
         const signedPdfBuffer = new Uint8Array(signedPdfBytes);
         const signedFileName = buildSignedFileName(documentRecord.fileName);
 
-        const signedFile = await saveFile({
-          organizationId: documentRecord.organizationId,
-          transactionId: documentRecord.transactionId,
-          fileName: signedFileName,
-          bytes: signedPdfBuffer,
-        });
+        const signedDocument = documentRecord.transactionId
+          ? await (async () => {
+              const signedFile = await saveFile({
+                organizationId: documentRecord.organizationId,
+                transactionId: documentRecord.transactionId!,
+                fileName: signedFileName,
+                bytes: signedPdfBuffer,
+              });
 
-        const signedDocument = await createDocument({
-          organizationId: documentRecord.organizationId,
-          officeId: documentRecord.officeId,
-          transactionId: documentRecord.transactionId,
-          offerId: documentRecord.offerId,
-          title: `${documentRecord.title} · signed`,
-          fileName: signedFileName,
-          mimeType: "application/pdf",
-          fileSizeBytes: signedFile.fileSizeBytes,
-          storageKey: signedFile.storageKey,
-          documentType: documentRecord.documentType,
-          source: "signature_output",
-          status: "signed",
-          isSigned: true,
-          signedAt: new Date().toISOString(),
-          linkedTaskId: documentRecord.linkedTaskId,
-        });
+              return createDocument({
+                organizationId: documentRecord.organizationId,
+                officeId: documentRecord.officeId,
+                transactionId: documentRecord.transactionId!,
+                offerId: documentRecord.offerId,
+                title: `${documentRecord.title} · signed`,
+                fileName: signedFileName,
+                mimeType: "application/pdf",
+                fileSizeBytes: signedFile.fileSizeBytes,
+                storageKey: signedFile.storageKey,
+                documentType: documentRecord.documentType,
+                source: "signature_output",
+                status: "signed",
+                isSigned: true,
+                signedAt: new Date().toISOString(),
+                linkedTaskId: documentRecord.linkedTaskId,
+              });
+            })()
+          : await (async () => {
+              const signedFile = await saveSignatureRequestFile({
+                organizationId: documentRecord.organizationId,
+                signatureRequestId: refreshedSnapshot.request.id,
+                fileName: signedFileName,
+                bytes: signedPdfBuffer,
+              });
+
+              return createStandaloneSignatureArtifact({
+                organizationId: documentRecord.organizationId,
+                officeId: documentRecord.officeId,
+                signatureRequestId: refreshedSnapshot.request.id,
+                title: `${documentRecord.title} · signed`,
+                fileName: signedFileName,
+                mimeType: "application/pdf",
+                fileSizeBytes: signedFile.fileSizeBytes,
+                storageKey: signedFile.storageKey,
+              });
+            })();
 
         if (!signedDocument) {
           throw new Error("Signed PDF could not be archived.");
@@ -353,7 +378,7 @@ export async function handlePublicSignatureSubmitPost(
           transactionId: documentRecord.transactionId,
           signatureRequestId: refreshedSnapshot.request.id,
           action: "completed",
-          completedDocumentId: signedDocument.id,
+          completedDocumentId: documentRecord.transactionId ? signedDocument.id : null,
         });
 
         try {

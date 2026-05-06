@@ -135,6 +135,7 @@ Current reality:
 - real uploaded files are stored
 - preview and download read back from the stored file
 - object storage is not implemented yet
+- the public HR onboarding window reuses the same storage backend for uploaded legal / onboarding / direct-deposit files, but those uploads are recorded as `HrOnboardingDocument` rows and do not change `/office/library` folder or document behavior
 
 ## Preview Behavior
 
