@@ -32,26 +32,26 @@ export default async function AdminEmailRequestDetailPage({ params }: PageProps)
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        actions={<Link className="office-button-secondary" href="/office/admin-office/email-requests">Back</Link>}
+        actions={<Link className="office-button-secondary" href="/office/admin-office/email-requests">返回</Link>}
         summary={
           <>
-            <SummaryChip label="Status" value={request.status} />
-            <SummaryChip label="Updated" value={request.updatedAt} />
+            <SummaryChip label="状态" value={request.status} />
+            <SummaryChip label="更新" value={request.updatedAt} />
           </>
         }
         title={request.fullName}
       />
       <AdminOfficeModuleNav />
-      <OfficeListPageTableCard title="Request">
+      <OfficeListPageTableCard title="申请">
         <div className="office-detail-two-column">
-          <div className="office-detail-field"><span>Full name</span><strong>{request.fullName}</strong></div>
-          <div className="office-detail-field"><span>Preferred prefix</span><strong>{request.preferredEmailPrefix}</strong></div>
-          <div className="office-detail-field"><span>Status</span><strong><AdminOfficeStatusBadge>{request.status}</AdminOfficeStatusBadge></strong></div>
-          <div className="office-detail-field"><span>Created</span><strong>{request.createdAt}</strong></div>
+          <div className="office-detail-field"><span>姓名</span><strong>{request.fullName}</strong></div>
+          <div className="office-detail-field"><span>首选前缀</span><strong>{request.preferredEmailPrefix}</strong></div>
+          <div className="office-detail-field"><span>状态</span><strong><AdminOfficeStatusBadge>{request.status}</AdminOfficeStatusBadge></strong></div>
+          <div className="office-detail-field"><span>创建时间</span><strong>{request.createdAt}</strong></div>
         </div>
       </OfficeListPageTableCard>
       {canManage ? (
-        <OfficeListPageTableCard title="Update status">
+        <OfficeListPageTableCard title="更新状态">
           <AdminEmailStatusForm requestId={request.id} />
         </OfficeListPageTableCard>
       ) : null}

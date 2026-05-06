@@ -32,17 +32,43 @@ type OfficeAgentsClientProps = {
 };
 
 const onboardingStatusOptions = [
-  { value: "", label: "All onboarding states" },
-  { value: "not_started", label: "Not started" },
-  { value: "in_progress", label: "In progress" },
-  { value: "complete", label: "Complete" }
+  { value: "", label: "全部入职状态" },
+  { value: "not_started", label: "未开始" },
+  { value: "in_progress", label: "进行中" },
+  { value: "complete", label: "已完成" }
 ] as const;
 
 const membershipStatusOptions = [
-  { value: "", label: "All member states" },
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" }
+  { value: "", label: "全部成员状态" },
+  { value: "active", label: "启用" },
+  { value: "inactive", label: "停用" }
 ] as const;
+
+function getMembershipStatusLabel(value: string) {
+  switch (value.toLowerCase()) {
+    case "active":
+      return "启用";
+    case "inactive":
+      return "停用";
+    case "invited":
+      return "已邀请";
+    default:
+      return value;
+  }
+}
+
+function getOnboardingStatusLabel(value: string) {
+  switch (value.toLowerCase()) {
+    case "complete":
+      return "已完成";
+    case "in progress":
+      return "进行中";
+    case "not started":
+      return "未开始";
+    default:
+      return value;
+  }
+}
 
 function getMembershipTone(value: OfficeAgentsRosterSnapshot["rows"][number]["membershipStatusValue"]) {
   if (value === "active") {
@@ -92,7 +118,7 @@ export function OfficeAgentsClient({
     event.preventDefault();
 
     if (!teamName.trim()) {
-      setTeamError("Team name is required.");
+      setTeamError("请输入团队名称。");
       return;
     }
 
@@ -110,13 +136,13 @@ export function OfficeAgentsClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to create team.");
+        throw new Error(body?.error ?? "创建团队失败。");
       }
 
       setTeamName("");
       router.refresh();
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : "Failed to create team.");
+      setTeamError(error instanceof Error ? error.message : "创建团队失败。");
     } finally {
       setPendingAction(null);
     }
@@ -140,12 +166,12 @@ export function OfficeAgentsClient({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update team.");
+        throw new Error(body?.error ?? "更新团队失败。");
       }
 
       router.refresh();
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : "Failed to update team.");
+      setTeamError(error instanceof Error ? error.message : "更新团队失败。");
     } finally {
       setPendingAction(null);
     }
@@ -153,12 +179,12 @@ export function OfficeAgentsClient({
 
   const rosterFilters = (
     <ListPageFilters as="form" className="office-agents-toolbar" method="get">
-      <FilterField className="office-agents-search-field" label="Search">
-        <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Search name, email, title, or team" type="search" />
+      <FilterField className="office-agents-search-field" label="搜索">
+        <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="搜索姓名、邮箱、头衔或团队" type="search" />
       </FilterField>
-      <FilterField className="office-agents-filter-field" label="Office">
+      <FilterField className="office-agents-filter-field" label="办公室">
         <SelectInput defaultValue={snapshot.filters.officeId} name="officeId">
-          <option value="">All offices</option>
+          <option value="">全部办公室</option>
           {snapshot.filters.officeOptions.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label}
@@ -166,9 +192,9 @@ export function OfficeAgentsClient({
           ))}
         </SelectInput>
       </FilterField>
-      <FilterField className="office-agents-filter-field" label="Role">
+      <FilterField className="office-agents-filter-field" label="角色">
         <SelectInput defaultValue={snapshot.filters.role} name="role">
-          <option value="">All roles</option>
+          <option value="">全部角色</option>
           {snapshot.filters.roleOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -176,9 +202,9 @@ export function OfficeAgentsClient({
           ))}
         </SelectInput>
       </FilterField>
-      <FilterField className="office-agents-filter-field" label="Team">
+      <FilterField className="office-agents-filter-field" label="团队">
         <SelectInput defaultValue={snapshot.filters.teamId} name="teamId">
-          <option value="">All teams</option>
+          <option value="">全部团队</option>
           {snapshot.filters.teamOptions.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label}
@@ -186,7 +212,7 @@ export function OfficeAgentsClient({
           ))}
         </SelectInput>
       </FilterField>
-      <FilterField className="office-agents-filter-field" label="Onboarding">
+      <FilterField className="office-agents-filter-field" label="入职">
         <SelectInput defaultValue={snapshot.filters.onboardingStatus} name="onboardingStatus">
           {onboardingStatusOptions.map((option) => (
             <option key={option.value || "all"} value={option.value}>
@@ -195,7 +221,7 @@ export function OfficeAgentsClient({
           ))}
         </SelectInput>
       </FilterField>
-      <FilterField className="office-agents-membership-field" label="Membership">
+      <FilterField className="office-agents-membership-field" label="成员状态">
         <SelectInput defaultValue={snapshot.filters.membershipStatus} name="membershipStatus">
           {membershipStatusOptions.map((option) => (
             <option key={option.value || "all"} value={option.value}>
@@ -205,9 +231,9 @@ export function OfficeAgentsClient({
         </SelectInput>
       </FilterField>
       <div className="office-filter-actions office-agents-filter-actions">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">应用筛选</Button>
         <Link className="office-button-secondary" href="/office/agents">
-          Reset
+          重置
         </Link>
       </div>
     </ListPageFilters>
@@ -218,32 +244,32 @@ export function OfficeAgentsClient({
       controls={
         hasActiveRosterFilters ? (
           <Link className="office-list-page-button" href="/office/agents">
-            Clear filters
+            清空筛选
           </Link>
         ) : null
       }
-      summary={`${snapshot.rows.length} roster rows in the current scope`}
+      summary={`当前范围内有 ${snapshot.rows.length} 条名册记录`}
     />
   );
 
-  const teamsFooter = <ListPageFooter summary={`${snapshot.teams.length} visible teams in the current office scope`} />;
+  const teamsFooter = <ListPageFooter summary={`当前办公室范围内有 ${snapshot.teams.length} 个可见团队`} />;
 
   return (
     <ListPageStack className="office-agents-layout">
-      <ListPageTableSection filters={rosterFilters} footer={rosterFooter} subtitle="Search and filter the current office roster without leaving the back-office workflow." title="Agent roster">
+      <ListPageTableSection filters={rosterFilters} footer={rosterFooter} subtitle="无需离开后台工作流，即可搜索和筛选当前办公室名册。" title="经纪人名册">
         {snapshot.rows.length ? (
           <DataTable className="office-table office-agents-roster-table">
             <DataTableHeader className="office-agents-roster-head">
-              <span>Agent</span>
-              <span>Office</span>
-              <span>Role</span>
-              <span>Team</span>
-              <span>Membership</span>
-              <span>Onboarding</span>
-              <span className="office-agents-roster-head-metric">Workload</span>
-              <span className="office-agents-roster-head-metric">Transactions</span>
-              <span className="office-agents-roster-head-metric">Goals</span>
-              <span className="office-agents-roster-head-metric">Billing</span>
+              <span>经纪人</span>
+              <span>办公室</span>
+              <span>角色</span>
+              <span>团队</span>
+              <span>成员状态</span>
+              <span>入职</span>
+              <span className="office-agents-roster-head-metric">工作量</span>
+              <span className="office-agents-roster-head-metric">交易</span>
+              <span className="office-agents-roster-head-metric">目标</span>
+              <span className="office-agents-roster-head-metric">账单</span>
             </DataTableHeader>
             <DataTableBody>
               {snapshot.rows.map((row) => (
@@ -259,24 +285,24 @@ export function OfficeAgentsClient({
                   </span>
                   <span className="office-agents-roster-plain">{row.teamLabel}</span>
                   <span className="office-agents-roster-stack office-agents-roster-status">
-                    <StatusBadge tone={getMembershipTone(row.membershipStatusValue)}>{row.membershipStatus}</StatusBadge>
-                    <small>{row.membershipStatusValue === "active" ? "In roster" : "Needs review"}</small>
+                    <StatusBadge tone={getMembershipTone(row.membershipStatusValue)}>{getMembershipStatusLabel(row.membershipStatus)}</StatusBadge>
+                    <small>{row.membershipStatusValue === "active" ? "名册内" : "需要复核"}</small>
                   </span>
                   <span className="office-agents-roster-stack office-agents-roster-status">
-                    <StatusBadge tone={getOnboardingTone(row.onboardingStatus)}>{row.onboardingStatus}</StatusBadge>
+                    <StatusBadge tone={getOnboardingTone(row.onboardingStatus)}>{getOnboardingStatusLabel(row.onboardingStatus)}</StatusBadge>
                     <small>{row.onboardingProgressLabel}</small>
                   </span>
                   <span className="office-agents-roster-stack office-agents-roster-metric">
-                    <strong>{row.activeTasksCount} active</strong>
-                    <small>{row.activeTasksCount === 0 ? "No open workload" : "Tasks currently assigned"}</small>
+                    <strong>{row.activeTasksCount} 个活动项</strong>
+                    <small>{row.activeTasksCount === 0 ? "没有待处理工作量" : "当前已分配任务"}</small>
                   </span>
                   <span className="office-agents-roster-stack office-agents-roster-metric">
                     <strong>{row.transactionSummaryLabel}</strong>
-                    <small>{row.openTransactionCount} open pipeline</small>
+                    <small>{row.openTransactionCount} 笔进行中交易</small>
                   </span>
                   <span className="office-agents-roster-stack office-agents-roster-metric">
                     <strong>{row.goalProgressSummary}</strong>
-                    <small>{row.recentClosedTransactionCount} closed in 90d</small>
+                    <small>90 天内已成交 {row.recentClosedTransactionCount} 笔</small>
                   </span>
                   <span className="office-agents-roster-stack office-agents-roster-metric">
                     <strong>{row.billingBalanceLabel}</strong>
@@ -288,26 +314,26 @@ export function OfficeAgentsClient({
           </DataTable>
         ) : (
           <EmptyState
-            description="Try relaxing the current office, team, onboarding, or membership filters."
-            title="No agents matched the current roster filters"
+            description="可以尝试放宽当前办公室、团队、入职或成员状态筛选。"
+            title="当前名册筛选下没有匹配的经纪人"
           />
         )}
       </ListPageTableSection>
 
       <ListPageTableSection
-        actions={<StatusBadge tone="neutral">{snapshot.teams.length} total teams</StatusBadge>}
+        actions={<StatusBadge tone="neutral">{snapshot.teams.length} 个团队</StatusBadge>}
         footer={teamsFooter}
-        subtitle="Quick inventory of teams, membership, active work, and status across the current office scope."
-        title="Teams overview"
+        subtitle="快速查看当前办公室范围内的团队、成员、活动工作和状态。"
+        title="团队总览"
       >
         <div className="office-agents-team-inventory">
           <DataTable className="office-table office-agents-team-table">
             <DataTableHeader className="office-agents-team-table-head">
-              <span>Team</span>
-              <span>Members</span>
-              <span>Open tasks</span>
-              <span>Open transactions</span>
-              <span>Status</span>
+              <span>团队</span>
+              <span>成员</span>
+              <span>未完成任务</span>
+              <span>进行中交易</span>
+              <span>状态</span>
             </DataTableHeader>
             <DataTableBody>
               {snapshot.teams.map((team) => (
@@ -319,26 +345,26 @@ export function OfficeAgentsClient({
                   <span>{team.memberCount}</span>
                   <span>{team.openTaskCount}</span>
                   <span>{team.openTransactionCount}</span>
-                  <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
+                  <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "启用" : "停用"}</StatusBadge>
                 </DataTableRow>
               ))}
             </DataTableBody>
           </DataTable>
-          {snapshot.teams.length === 0 ? <EmptyState description="Create your first team to start grouping agents into rosters." title="No teams yet" /> : null}
+          {snapshot.teams.length === 0 ? <EmptyState description="创建第一个团队，开始把经纪人分组到名册中。" title="还没有团队" /> : null}
         </div>
       </ListPageTableSection>
 
       <ListPageSection
-        subtitle="Create, rename, activate, and maintain teams here. Membership remains managed inside each agent profile."
-        title="Team administration"
+        subtitle="在这里创建、重命名、启用并维护团队。成员归属仍在每个经纪人资料内管理。"
+        title="团队管理"
       >
         {canManageTeams ? (
           <form className="office-inline-form office-agents-team-create-form" onSubmit={handleCreateTeam}>
-            <FormField className="office-inline-form-field" label="New team name">
-              <TextInput onChange={(event) => setTeamName(event.target.value)} placeholder="Create team" value={teamName} />
+            <FormField className="office-inline-form-field" label="新团队名称">
+              <TextInput onChange={(event) => setTeamName(event.target.value)} placeholder="创建团队" value={teamName} />
             </FormField>
             <Button disabled={pendingAction === "create-team"} type="submit">
-              {pendingAction === "create-team" ? "Creating..." : "Create team"}
+              {pendingAction === "create-team" ? "创建中..." : "创建团队"}
             </Button>
             {teamError ? <p className="office-form-error">{teamError}</p> : null}
           </form>
@@ -357,10 +383,10 @@ export function OfficeAgentsClient({
               >
                 <div className="office-section-body">
                   <div className="office-agents-team-card-head">
-                    <FormField className="office-agents-team-name-field" label="Team name">
+                    <FormField className="office-agents-team-name-field" label="团队名称">
                       <TextInput defaultValue={team.name} name="name" readOnly={!canManageTeams} />
                     </FormField>
-                    <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
+                    <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "启用" : "停用"}</StatusBadge>
                   </div>
 
                   <div className="office-secondary-meta-list">
@@ -369,19 +395,19 @@ export function OfficeAgentsClient({
                       <dd>{team.slug}</dd>
                     </div>
                     <div className="office-secondary-meta-row">
-                      <dt>Members</dt>
+                      <dt>成员</dt>
                       <dd>{team.memberCount}</dd>
                     </div>
                     <div className="office-secondary-meta-row">
-                      <dt>Open tasks</dt>
+                      <dt>未完成任务</dt>
                       <dd>{team.openTaskCount}</dd>
                     </div>
                     <div className="office-secondary-meta-row">
-                      <dt>Open transactions</dt>
+                      <dt>进行中交易</dt>
                       <dd>{team.openTransactionCount}</dd>
                     </div>
                     <div className="office-secondary-meta-row">
-                      <dt>Onboarding in progress</dt>
+                      <dt>入职进行中</dt>
                       <dd>{team.onboardingInProgressCount}</dd>
                     </div>
                   </div>
@@ -393,14 +419,14 @@ export function OfficeAgentsClient({
                         <span>{member.role}</span>
                       </li>
                     ))}
-                    {team.members.length === 0 ? <li className="office-agents-team-empty">No members assigned yet.</li> : null}
+                    {team.members.length === 0 ? <li className="office-agents-team-empty">还没有分配成员。</li> : null}
                   </ul>
 
                   {canManageTeams ? (
                     <div className="office-inline-form office-inline-form-compact">
                       <input name="isActive" type="hidden" value={String(team.isActive)} />
                       <Button disabled={pendingAction === `save-team:${team.id}`} type="submit" variant="secondary">
-                        {pendingAction === `save-team:${team.id}` ? "Saving..." : "Save team"}
+                        {pendingAction === `save-team:${team.id}` ? "保存中..." : "保存团队"}
                       </Button>
                       <Button
                         disabled={pendingAction === `save-team:${team.id}`}
@@ -413,19 +439,19 @@ export function OfficeAgentsClient({
                         type="button"
                         variant="ghost"
                       >
-                        {team.isActive ? "Deactivate" : "Reactivate"}
+                        {team.isActive ? "停用" : "重新启用"}
                       </Button>
                     </div>
                   ) : null}
                 </div>
               </form>
             ))}
-            {snapshot.teams.length === 0 ? <EmptyState description="Create your first team to start grouping agents into rosters." title="No teams yet" /> : null}
+            {snapshot.teams.length === 0 ? <EmptyState description="创建第一个团队，开始把经纪人分组到名册中。" title="还没有团队" /> : null}
           </div>
         </div>
 
         {!canManageAgents && !canManageOnboarding && !canManageGoals && !canManageTeams ? (
-          <p className="office-form-helper">This roster is read-only for your current role.</p>
+          <p className="office-form-helper">当前角色只能只读查看这个名册。</p>
         ) : null}
       </ListPageSection>
     </ListPageStack>

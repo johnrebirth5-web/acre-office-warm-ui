@@ -29,21 +29,21 @@ export default async function AdminOfficeCalendarPage(props: PageProps) {
 
   return (
     <OfficeListPageShell>
-      <OfficeListPageHeader title="Company calendar" />
+      <OfficeListPageHeader title="公司日历" />
       <AdminOfficeModuleNav />
       {canManage ? (
-        <OfficeListPageTableCard title="Create event">
+        <OfficeListPageTableCard title="创建活动">
           <AdminEventForm />
         </OfficeListPageTableCard>
       ) : null}
-      <OfficeListPageTableCard title="This month">
+      <OfficeListPageTableCard title="本月">
         {snapshot.events.length === 0 ? (
           <div className="office-empty-state">
-            <p className="office-empty-copy">No company events this month.</p>
-            {canManage ? <Link className="office-button-primary" href="/office/admin-office/calendar">Create event</Link> : null}
+            <p className="office-empty-copy">本月没有公司活动。</p>
+            {canManage ? <Link className="office-button-primary" href="/office/admin-office/calendar">创建活动</Link> : null}
           </div>
         ) : (
-          <AdminOfficeDataTable columns={["Event", "Type", "Time", "Location", "Signups", ""]} gridTemplateColumns="minmax(240px, 2fr) 140px 180px minmax(160px, 1fr) 120px 90px">
+          <AdminOfficeDataTable columns={["活动", "类型", "时间", "地点", "报名", ""]} gridTemplateColumns="minmax(240px, 2fr) 140px 180px minmax(160px, 1fr) 120px 90px">
             {snapshot.events.map((event) => (
               <div className="office-table-row" key={event.id} role="row">
                 <strong>{event.title}</strong>
@@ -51,7 +51,7 @@ export default async function AdminOfficeCalendarPage(props: PageProps) {
                 <span>{event.startsAt}</span>
                 <span>{event.location || "—"}</span>
                 <span>{event.signupRequired ? event.rsvpCount : "—"}</span>
-                <Link href={event.href}>Open</Link>
+                <Link href={event.href}>打开</Link>
               </div>
             ))}
           </AdminOfficeDataTable>

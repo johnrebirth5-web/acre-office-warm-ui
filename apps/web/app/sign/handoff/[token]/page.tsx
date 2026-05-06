@@ -53,8 +53,8 @@ export default async function ProjectHandoffSigningPage({ params }: PageProps) {
     return (
       <main className="project-kiosk-shell">
         <section className="project-kiosk-panel">
-          <h1>Handoff expired</h1>
-          <p>This iPad handoff link is invalid, expired, or has been reset by the agent.</p>
+          <h1>交接链接已失效</h1>
+          <p>这个 iPad 交接链接无效、已过期，或已被经纪人重置。</p>
         </section>
       </main>
     );

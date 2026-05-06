@@ -42,11 +42,11 @@ function buildComposeState(): ComposeState {
 function getMailViewLabel(view: OfficeMailWorkspaceSnapshot["filters"]["view"]) {
   switch (view) {
     case "unread":
-      return "Unread";
+      return "未读";
     case "archived":
-      return "Archived";
+      return "已归档";
     default:
-      return "Inbox";
+      return "收件箱";
   }
 }
 
@@ -151,7 +151,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error ?? "Could not load mail recipients.");
+          throw new Error(body?.error ?? "无法加载站内信收件人。");
         }
 
         const body = (await response.json()) as { recipients?: OfficeMailRecipientOption[] };
@@ -162,7 +162,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
         }
       } catch (loadError) {
         if (isActive) {
-          setRecipientLoadError(loadError instanceof Error ? loadError.message : "Could not load mail recipients.");
+          setRecipientLoadError(loadError instanceof Error ? loadError.message : "无法加载站内信收件人。");
         }
       }
     }
@@ -199,7 +199,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Could not create the mail thread.");
+        throw new Error(body?.error ?? "无法创建站内信线程。");
       }
 
       const body = (await response.json()) as { thread?: { id: string } };
@@ -218,7 +218,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
       );
       router.refresh();
     } catch (composeError) {
-      setError(composeError instanceof Error ? composeError.message : "Could not create the mail thread.");
+      setError(composeError instanceof Error ? composeError.message : "无法创建站内信线程。");
     } finally {
       setPendingAction(null);
     }
@@ -249,7 +249,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Could not send the reply.");
+        throw new Error(body?.error ?? "无法发送回复。");
       }
 
       setReplyBody("");
@@ -257,7 +257,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
       setReplyFileInputNonce((value) => value + 1);
       router.refresh();
     } catch (replyError) {
-      setError(replyError instanceof Error ? replyError.message : "Could not send the reply.");
+      setError(replyError instanceof Error ? replyError.message : "无法发送回复。");
     } finally {
       setPendingAction(null);
     }
@@ -282,13 +282,13 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Could not update the mail thread.");
+        throw new Error(body?.error ?? "无法更新站内信线程。");
       }
 
       notifyMailUnreadChanged();
       router.refresh();
     } catch (threadError) {
-      setError(threadError instanceof Error ? threadError.message : "Could not update the mail thread.");
+      setError(threadError instanceof Error ? threadError.message : "无法更新站内信线程。");
     } finally {
       setPendingAction(null);
     }
@@ -297,50 +297,50 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
   return (
     <>
       <section className="office-mail-summary-grid">
-        <StatCard hint="Threads with unread messages that are still in your inbox." label="Unread" value={snapshot.summary.unreadCount} />
-        <StatCard hint="Visible active threads before archive filtering." label="Active threads" value={snapshot.summary.activeCount} />
-        <StatCard hint="Private archived threads for the current mailbox view." label="Archived" value={snapshot.summary.archivedCount} />
-        <StatCard hint={`Attachments counted in the current ${getMailViewLabel(snapshot.filters.view).toLowerCase()} view.`} label="Attachments in view" value={snapshot.summary.attachmentsInView} />
+        <StatCard hint="仍在收件箱里的未读线程。" label="未读" value={snapshot.summary.unreadCount} />
+        <StatCard hint="归档筛选前的可见活动线程。" label="活动线程" value={snapshot.summary.activeCount} />
+        <StatCard hint="当前邮箱视图里的个人归档线程。" label="已归档" value={snapshot.summary.archivedCount} />
+        <StatCard hint={`当前${getMailViewLabel(snapshot.filters.view)}视图中统计到的附件。`} label="当前附件" value={snapshot.summary.attachmentsInView} />
       </section>
 
       <section className="office-mail-toolbar-row">
         <SectionCard
           className="office-list-card office-mail-toolbar-card"
-          subtitle="Search by subject, participant names, and recent message context."
-          title="Mailbox controls"
+          subtitle="按主题、参与人姓名和最近消息内容搜索。"
+          title="邮箱控制"
         >
           <FilterBar as="form" className="office-mail-filter-grid office-list-filters" method="get">
             <input name="mode" type="hidden" value={snapshot.mode} />
-            <FilterField label="Search">
-              <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Subject, people, latest preview..." />
+            <FilterField label="搜索">
+              <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="主题、人员、最近预览..." />
             </FilterField>
 
-            <FilterField label="View">
+            <FilterField label="视图">
               <SelectInput defaultValue={snapshot.filters.view} name="view">
-                <option value="all">Inbox</option>
-                <option value="unread">Unread</option>
-                <option value="archived">Archived</option>
+                <option value="all">收件箱</option>
+                <option value="unread">未读</option>
+                <option value="archived">已归档</option>
               </SelectInput>
             </FilterField>
 
             <div className="office-mail-filter-actions">
-              <Button type="submit">Apply</Button>
+              <Button type="submit">应用</Button>
               <Link className="office-button-secondary" href={buildMailHref({ pathname, mode: snapshot.mode })}>
-                Reset
+                重置
               </Link>
               {snapshot.canAudit ? (
-                <div className="office-mail-mode-toggle" role="tablist" aria-label="Mail mode">
+                <div className="office-mail-mode-toggle" role="tablist" aria-label="站内信模式">
                   <Link
                     className={`office-button-secondary office-mail-mode-button${snapshot.mode === "mine" ? " is-active" : ""}`}
                     href={modeToggleLinks.mine}
                   >
-                    My mail
+                    我的站内信
                   </Link>
                   <Link
                     className={`office-button-secondary office-mail-mode-button${snapshot.mode === "audit" ? " is-active" : ""}`}
                     href={modeToggleLinks.audit}
                   >
-                    Audit view
+                    审计视图
                   </Link>
                 </div>
               ) : null}
@@ -358,16 +358,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
               className="office-list-card office-mail-compose-card"
               actions={
                 <Button onClick={() => setIsComposeOpen((current) => !current)} size="sm" type="button" variant="secondary">
-                  {isComposeOpen ? "Close compose" : "Compose"}
+                  {isComposeOpen ? "关闭撰写" : "撰写"}
                 </Button>
               }
-              subtitle="Recipients must be active Back Office members in the same organization."
-              title="New message"
+              subtitle="收件人必须是同一组织内启用的后台成员。"
+              title="新消息"
             >
               {isComposeOpen ? (
                 <form className="office-mail-compose-form" onSubmit={handleComposeSubmit}>
                   <div className="office-form-grid office-form-grid-2">
-                    <FormField className="office-mail-compose-field-wide" label="Subject">
+                    <FormField className="office-mail-compose-field-wide" label="主题">
                       <TextInput
                         onChange={(event) => setComposeState((current) => ({ ...current, subject: event.target.value }))}
                         required
@@ -375,7 +375,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       />
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" helper="Hold Command/Ctrl to select more than one recipient." label="Recipients">
+                    <FormField className="office-mail-compose-field-wide" helper="按住 Command/Ctrl 可选择多个收件人。" label="收件人">
                       <SelectInput
                         multiple
                         onChange={(event) =>
@@ -396,16 +396,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       </SelectInput>
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" label="Message">
+                    <FormField className="office-mail-compose-field-wide" label="消息">
                       <TextareaInput
                         onChange={(event) => setComposeState((current) => ({ ...current, body: event.target.value }))}
-                        placeholder="Write the opening message for this thread..."
+                        placeholder="写下这个线程的第一条消息..."
                         rows={6}
                         value={composeState.body}
                       />
                     </FormField>
 
-                    <FormField className="office-mail-compose-field-wide" helper="Single file 10 MB max, 25 MB total per message." label="Attachments">
+                    <FormField className="office-mail-compose-field-wide" helper="单个文件最多 10 MB，每条消息合计最多 25 MB。" label="附件">
                       <TextInput
                         className="office-file-input"
                         key={fileInputNonce}
@@ -420,20 +420,20 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                   <div className="office-mail-compose-actions">
                     <Button disabled={pendingAction === "compose"} type="submit">
-                      {pendingAction === "compose" ? "Sending..." : "Send message"}
+                      {pendingAction === "compose" ? "发送中..." : "发送消息"}
                     </Button>
                   </div>
                 </form>
               ) : (
-                <p className="office-form-helper">Start a thread with one or more teammates and keep the full conversation inside Back Office.</p>
+                <p className="office-form-helper">与一位或多位同事开启线程，并把完整对话保留在后台内。</p>
               )}
             </SectionCard>
           ) : null}
 
           <SectionCard
             className="office-list-card office-mail-thread-list-card"
-            subtitle={`${snapshot.summary.threadsInView} threads in the current view`}
-            title={snapshot.mode === "audit" ? "Organization mail threads" : "Inbox threads"}
+            subtitle={`当前视图中有 ${snapshot.summary.threadsInView} 个线程`}
+            title={snapshot.mode === "audit" ? "组织站内信线程" : "收件箱线程"}
           >
             {snapshot.threads.length ? (
               <div className="office-queue-list office-mail-thread-list">
@@ -449,7 +449,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                   return (
                     <Link className="office-mail-thread-link" href={href} key={thread.id}>
                       <QueueItem
-                        badgeLabel={thread.isUnread ? "Unread" : thread.isArchived ? "Archived" : "Open"}
+                        badgeLabel={thread.isUnread ? "未读" : thread.isArchived ? "已归档" : "打开"}
                         badgeTone={thread.isUnread ? "accent" : thread.isArchived ? "neutral" : "success"}
                         className={`office-mail-thread-item${thread.id === selectedThreadId ? " is-selected" : ""}`}
                         context={`${thread.latestSenderName} · ${thread.latestMessageAtLabel}`}
@@ -461,9 +461,9 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                         }
                         meta={
                           <>
-                            <span>{thread.messageCount} messages</span>
-                            <span>{thread.participantCount} participants</span>
-                            {thread.hasAttachments ? <span>{thread.attachmentCount} attachments</span> : null}
+                            <span>{thread.messageCount} 条消息</span>
+                            <span>{thread.participantCount} 位参与人</span>
+                            {thread.hasAttachments ? <span>{thread.attachmentCount} 个附件</span> : null}
                           </>
                         }
                         title={thread.subject}
@@ -477,16 +477,16 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                 action={
                   canCompose ? (
                     <Button onClick={() => setIsComposeOpen(true)} type="button">
-                      Compose first message
+                      撰写第一条消息
                     </Button>
                   ) : undefined
                 }
                 description={
                   snapshot.mode === "audit"
-                    ? "No internal mail threads match the current audit filters."
-                    : "No internal mail threads match the current inbox filters."
+                    ? "当前审计筛选下没有匹配的内部站内信线程。"
+                    : "当前收件箱筛选下没有匹配的内部站内信线程。"
                 }
-                title="Nothing in this mailbox view"
+                title="这个邮箱视图里没有内容"
               />
             )}
           </SectionCard>
@@ -496,27 +496,27 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
           {selectedThread ? (
             <SectionCard
               className="office-list-card office-mail-detail-card"
-              subtitle={selectedThread.auditedByAdmin ? "Audit mode is read-only and bypasses participant membership checks." : "Thread participants are fixed after creation in v1."}
+              subtitle={selectedThread.auditedByAdmin ? "审计模式为只读，会绕过参与人身份检查。" : "v1 中线程参与人创建后固定。"}
               title={selectedThread.subject}
             >
               <div className="office-mail-detail-head">
                 <div className="office-mail-detail-meta">
                   <StatusBadge tone={selectedThread.isUnread ? "accent" : "neutral"}>
-                    {selectedThread.isUnread ? "Unread" : "Read"}
+                    {selectedThread.isUnread ? "未读" : "已读"}
                   </StatusBadge>
                   <StatusBadge tone={selectedThread.isArchived ? "warning" : "success"}>
-                    {selectedThread.isArchived ? "Archived" : "Inbox"}
+                    {selectedThread.isArchived ? "已归档" : "收件箱"}
                   </StatusBadge>
-                  {selectedThread.auditedByAdmin ? <Badge tone="warning">Audit view</Badge> : null}
+                  {selectedThread.auditedByAdmin ? <Badge tone="warning">审计视图</Badge> : null}
                   <span>{selectedThread.latestMessageAtLabel}</span>
-                  <span>{selectedThread.attachmentCount} attachments</span>
+                  <span>{selectedThread.attachmentCount} 个附件</span>
                 </div>
 
                 {snapshot.mode === "mine" ? (
                   <div className="office-mail-detail-actions">
                     {selectedThread.actionUrl ? (
                       <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
-                        {selectedThread.actionLabel || "Open"}
+                        {selectedThread.actionLabel || "打开"}
                       </Link>
                     ) : null}
                     <Button
@@ -526,7 +526,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       type="button"
                       variant="secondary"
                     >
-                      {selectedThread.isUnread ? "Mark read" : "Mark unread"}
+                      {selectedThread.isUnread ? "标记已读" : "标记未读"}
                     </Button>
                     <Button
                       disabled={pendingAction === "archive" || pendingAction === "unarchive"}
@@ -535,20 +535,20 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       type="button"
                       variant="secondary"
                     >
-                      {selectedThread.isArchived ? "Unarchive" : "Archive"}
+                      {selectedThread.isArchived ? "取消归档" : "归档"}
                     </Button>
                   </div>
                 ) : selectedThread.actionUrl ? (
                   <div className="office-mail-detail-actions">
                     <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
-                      {selectedThread.actionLabel || "Open"}
+                      {selectedThread.actionLabel || "打开"}
                     </Link>
                   </div>
                 ) : null}
               </div>
 
               <div className="office-mail-participant-strip">
-                <span className="office-mail-participant-label">Participants</span>
+                <span className="office-mail-participant-label">参与人</span>
                 <div className="office-mail-participant-list">
                   {selectedThread.participants.map((participant) => (
                     <span className="office-mail-participant-pill" key={participant.membershipId}>
@@ -558,7 +558,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                     </span>
                   ))}
                 </div>
-                <p className="office-form-helper">Organization scope: {scopeLabel}</p>
+                <p className="office-form-helper">组织范围：{scopeLabel}</p>
               </div>
 
               <div className="office-mail-message-list">
@@ -572,7 +572,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                       <span>{message.createdAtLabel}</span>
                     </header>
 
-                    <p className="office-mail-message-body">{message.body || "Attachment only message"}</p>
+                    <p className="office-mail-message-body">{message.body || "仅附件消息"}</p>
 
                     {message.attachments.length ? (
                       <div className="office-mail-attachment-list">
@@ -592,22 +592,22 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                 <form className="office-mail-reply-form" onSubmit={handleReplySubmit}>
                   <div className="office-mail-reply-head">
                     <div>
-                      <strong>Reply to thread</strong>
-                      <p>Replies go to every participant already on the thread.</p>
+                      <strong>回复线程</strong>
+                      <p>回复会发送给这个线程中已有的所有参与人。</p>
                     </div>
-                    <Badge tone="neutral">Reply-all</Badge>
+                    <Badge tone="neutral">回复全部</Badge>
                   </div>
 
-                  <FormField label="Message">
+                  <FormField label="消息">
                     <TextareaInput
                       onChange={(event) => setReplyBody(event.target.value)}
-                      placeholder="Write your reply..."
+                      placeholder="写下你的回复..."
                       rows={5}
                       value={replyBody}
                     />
                   </FormField>
 
-                  <FormField helper="Single file 10 MB max, 25 MB total per reply." label="Attachments">
+                  <FormField helper="单个文件最多 10 MB，每条回复合计最多 25 MB。" label="附件">
                     <TextInput
                       className="office-file-input"
                       key={replyFileInputNonce}
@@ -619,22 +619,22 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                   <div className="office-mail-compose-actions">
                     <Button disabled={pendingAction === "reply"} type="submit">
-                      {pendingAction === "reply" ? "Sending..." : "Send reply"}
+                      {pendingAction === "reply" ? "发送中..." : "发送回复"}
                     </Button>
                   </div>
                 </form>
               ) : selectedThread.auditedByAdmin ? (
                 <div className="office-mail-audit-note">
-                  <Badge tone="warning">Audit view</Badge>
-                  <p>Replies are disabled while you are reviewing organization mail in audit mode.</p>
+                  <Badge tone="warning">审计视图</Badge>
+                  <p>在审计模式查看组织站内信时，回复功能会被停用。</p>
                 </div>
               ) : null}
             </SectionCard>
           ) : (
-            <SectionCard className="office-list-card office-mail-detail-card" title="Thread detail">
+            <SectionCard className="office-list-card office-mail-detail-card" title="线程详情">
               <EmptyState
-                description="Select a thread from the left column, or start a new one if your mailbox is empty."
-                title="No thread selected"
+                description="从左侧选择一个线程；如果邮箱为空，也可以新建一个线程。"
+                title="尚未选择线程"
               />
             </SectionCard>
           )}

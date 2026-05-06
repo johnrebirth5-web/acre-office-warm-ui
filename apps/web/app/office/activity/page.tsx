@@ -121,16 +121,16 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   const activityPageStartLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + 1;
   const activityPageEndLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + paginatedActivityEvents.length;
   const activitySubtitle = totalActivityRecords
-    ? `Showing ${activityPageStartLabel}-${activityPageEndLabel} of ${totalActivityRecords} audit records`
-    : "Showing 0 audit records";
+    ? `显示 ${activityPageStartLabel}-${activityPageEndLabel} / 共 ${totalActivityRecords} 条审计记录`
+    : "显示 0 条审计记录";
   const liveAlertsSummaryValue =
-    selectedView === "activity" ? "On demand" : selectedView === "alerts" ? "Alerts only" : "Included below";
+    selectedView === "activity" ? "按需加载" : selectedView === "alerts" ? "仅提醒" : "下方包含";
   const activityPaginationBaseHref = buildActivityHref(normalizedSearchParams, { page: "" });
   const activitySidebar = (
     <SectionCard
       className="office-activity-sections-card"
-      subtitle="Counts in the latest 200-record audit window"
-      title="Activity log"
+      subtitle="统计最近 200 条审计记录窗口"
+      title="活动日志"
     >
       <nav className="office-activity-section-list">
         {snapshot.activitySections.map((section) => (
@@ -156,7 +156,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
       <SectionCard
         className="office-activity-log-card"
         subtitle={activitySubtitle}
-        title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "Activity log"}
+        title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "活动日志"}
       >
         <div className="office-activity-records">
           {paginatedActivityEvents.length ? (
@@ -193,7 +193,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               </article>
             ))
           ) : (
-            <EmptyState description="Try a wider date range or a broader view filter." title="No audit events are currently available for this scope." />
+            <EmptyState description="可以尝试扩大日期范围，或使用更宽的视图筛选。" title="当前范围内没有可用的审计事件。" />
           )}
         </div>
         {totalActivityRecords > ACTIVITY_PAGE_SIZE ? (
@@ -205,18 +205,18 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
                   page: activityPage - 1 > 1 ? String(activityPage - 1) : ""
                 })}
               >
-                Previous
+                上一页
               </Link>
             ) : (
-              <span className="office-list-page-button is-disabled">Previous</span>
+              <span className="office-list-page-button is-disabled">上一页</span>
             )}
 
             <form action={activityPaginationBaseHref} className="office-activity-page-jump" method="get">
               <label className="office-activity-page-jump-label" htmlFor="activity-page-jump-input">
-                Page
+                页码
               </label>
               <input
-                aria-label="Jump to page"
+                aria-label="跳转到页码"
                 className="office-input office-activity-page-jump-input"
                 defaultValue={activityPage}
                 id="activity-page-jump-input"
@@ -227,7 +227,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               />
               <span className="office-list-page-indicator">/ {totalActivityPages}</span>
               <Button size="sm" type="submit" variant="secondary">
-                Go
+                跳转
               </Button>
             </form>
 
@@ -238,10 +238,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
                   page: String(activityPage + 1)
                 })}
               >
-                Next
+                下一页
               </Link>
             ) : (
-              <span className="office-list-page-button is-disabled">Next</span>
+              <span className="office-list-page-button is-disabled">下一页</span>
             )}
           </div>
         ) : null}
@@ -257,16 +257,16 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             scopeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
           />
         }
-        description="Audit-backed activity records remain the source of truth. Operational alerts are derived live from current transaction, task, and contact state."
-        eyebrow="Account activity"
+        description="以审计记录为准；运营提醒则从当前交易、任务和联系人状态实时推导。"
+        eyebrow="账户活动"
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Audit window" tone="accent" value={snapshot.latestWindowCount} />
-            <SummaryChip label="Live alerts" value={liveAlertsSummaryValue} />
+            <SummaryChip label="办公室范围" value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label="审计窗口" tone="accent" value={snapshot.latestWindowCount} />
+            <SummaryChip label="实时提醒" value={liveAlertsSummaryValue} />
           </>
         }
-        title="Account activity"
+        title="账户活动"
       />
 
       <FilterBar as="form" className="office-activity-filter-bar office-activity-toolbar-card" method="get">
@@ -280,7 +280,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            All
+            全部
           </Link>
           <Link
             className={`office-toggle-link office-button-sm${selectedView === "activity" ? " is-active" : ""}`}
@@ -290,7 +290,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            Activity only
+            仅活动
           </Link>
           <Link
             className={`office-toggle-link office-button-sm${selectedView === "alerts" ? " is-active" : ""}`}
@@ -300,14 +300,14 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               page: ""
             })}
           >
-            Alerts only
+            仅提醒
           </Link>
         </div>
 
         <div className="office-activity-filter-grid">
-          <FilterField className="office-activity-filter-field" label="Actor (activity only)">
+          <FilterField className="office-activity-filter-field" label="操作人（仅活动）">
             <select defaultValue={snapshot.filters.actorMembershipId} disabled={selectedView === "alerts"} name="actorMembershipId">
-              <option value="">All actors</option>
+              <option value="">全部操作人</option>
               {snapshot.filters.actorOptions.map((actor) => (
                 <option key={actor.id} value={actor.id}>
                   {actor.label}
@@ -316,25 +316,25 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             </select>
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="Object type">
+          <FilterField className="office-activity-filter-field" label="对象类型">
             <select defaultValue={snapshot.filters.objectType} name="objectType">
-              <option value="all">All objects</option>
-              <option value="transaction">Transactions</option>
-              <option value="contact">Contacts</option>
-              <option value="task">Tasks</option>
-              <option value="agent">Agents / teams</option>
-              <option value="document">Documents / forms</option>
-              <option value="accounting">Accounting</option>
-              <option value="comment">Comments</option>
-              <option value="auth">Authentication</option>
+              <option value="all">全部对象</option>
+              <option value="transaction">交易</option>
+              <option value="contact">联系人</option>
+              <option value="task">任务</option>
+              <option value="agent">经纪人 / 团队</option>
+              <option value="document">文件 / 表单</option>
+              <option value="accounting">财务</option>
+              <option value="comment">评论</option>
+              <option value="auth">认证</option>
             </select>
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="Start date">
+          <FilterField className="office-activity-filter-field" label="开始日期">
             <input defaultValue={snapshot.filters.startDate} name="startDate" type="date" />
           </FilterField>
 
-          <FilterField className="office-activity-filter-field" label="End date">
+          <FilterField className="office-activity-filter-field" label="结束日期">
             <input defaultValue={snapshot.filters.endDate} name="endDate" type="date" />
           </FilterField>
 
@@ -347,10 +347,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               <input name="alertSection" type="hidden" value={normalizedSearchParams.alertSection} />
             ) : null}
             <Button type="submit" variant="secondary">
-              Apply filters
+              应用筛选
             </Button>
             <Link className="office-button-secondary" href="/office/activity">
-              Reset
+              重置
             </Link>
           </div>
         </div>

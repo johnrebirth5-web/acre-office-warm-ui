@@ -53,8 +53,8 @@ export default async function ProjectRemoteSigningPage({ params }: PageProps) {
     return (
       <main className="project-public-shell">
         <section className="project-public-panel">
-          <h1>Signing link unavailable</h1>
-          <p>This signing link is invalid, expired, or has been replaced by a newer link.</p>
+          <h1>签署链接不可用</h1>
+          <p>这个签署链接无效、已过期，或已被新的链接替换。</p>
         </section>
       </main>
     );

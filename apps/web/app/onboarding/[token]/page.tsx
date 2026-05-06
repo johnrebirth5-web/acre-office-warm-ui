@@ -35,7 +35,7 @@ export default async function PublicOnboardingPage({ params }: PageProps) {
       <main className="office-page-shell">
         <section className="office-section-card">
           <div className="office-section-body">
-            <p className="office-empty-copy">This onboarding link is invalid or expired.</p>
+            <p className="office-empty-copy">这个入职链接无效或已过期。</p>
           </div>
         </section>
       </main>
@@ -46,7 +46,7 @@ export default async function PublicOnboardingPage({ params }: PageProps) {
     <main className="office-page-shell">
       <section className="office-page-header">
         <div className="office-page-heading">
-          <span className="office-eyebrow">Acre onboarding</span>
+          <span className="office-eyebrow">Acre 入职</span>
           <h2>{snapshot.candidateName}</h2>
         </div>
         <div className="office-page-supporting">
@@ -57,16 +57,16 @@ export default async function PublicOnboardingPage({ params }: PageProps) {
       <section className="office-section-card">
         <header className="office-section-head">
           <div className="office-section-copy">
-            <h3>Required form</h3>
+            <h3>必填表单</h3>
           </div>
           <a className="office-button-secondary" href={snapshot.legalFormUrl} rel="noreferrer" target="_blank">
-            Open Google form
+            打开 Google 表单
           </a>
         </header>
         <div className="office-section-body">
           <div className="office-detail-two-column">
-            <div className="office-detail-field"><span>Email</span><strong>{snapshot.candidateEmail}</strong></div>
-            <div className="office-detail-field"><span>Expires</span><strong>{snapshot.expiresAt}</strong></div>
+            <div className="office-detail-field"><span>邮箱</span><strong>{snapshot.candidateEmail}</strong></div>
+            <div className="office-detail-field"><span>过期时间</span><strong>{snapshot.expiresAt}</strong></div>
           </div>
         </div>
       </section>
@@ -74,7 +74,7 @@ export default async function PublicOnboardingPage({ params }: PageProps) {
       <section className="office-section-card">
         <header className="office-section-head">
           <div className="office-section-copy">
-            <h3>Upload documents</h3>
+            <h3>上传文件</h3>
           </div>
         </header>
         <div className="office-section-body">
@@ -85,12 +85,12 @@ export default async function PublicOnboardingPage({ params }: PageProps) {
       <section className="office-section-card">
         <header className="office-section-head">
           <div className="office-section-copy">
-            <h3>Uploaded</h3>
+            <h3>已上传</h3>
           </div>
         </header>
         <div className="office-section-body">
           {snapshot.documents.length === 0 ? (
-            <p className="office-empty-copy">No documents uploaded yet.</p>
+            <p className="office-empty-copy">还没有上传文件。</p>
           ) : (
             <div className="office-list-page-stack">
               {snapshot.documents.map((document) => (

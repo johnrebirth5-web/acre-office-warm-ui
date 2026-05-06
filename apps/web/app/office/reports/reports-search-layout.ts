@@ -53,11 +53,11 @@ export type ReportSortDirectionOption = {
 };
 
 const reportSortOptions: ReportSortOption[] = [
-  { value: "created_at", label: "Creation Date" },
-  { value: "asking_price", label: "Asking Price" },
-  { value: "purchased_price", label: "Purchased Price" },
-  { value: "gross_commission", label: "Gross Commission" },
-  { value: "status", label: "Status" }
+  { value: "created_at", label: "创建日期" },
+  { value: "asking_price", label: "挂牌价" },
+  { value: "purchased_price", label: "成交价" },
+  { value: "gross_commission", label: "总佣金" },
+  { value: "status", label: "状态" }
 ];
 
 function appendValue(searchParams: URLSearchParams, key: string, value: string) {
@@ -97,21 +97,21 @@ export function getReportSortDirectionOptions(
 ): ReportSortDirectionOption[] {
   if (sortBy === "created_at") {
     return [
-      { value: "desc", label: "Newest first" },
-      { value: "asc", label: "Oldest first" }
+      { value: "desc", label: "最新优先" },
+      { value: "asc", label: "最早优先" }
     ];
   }
 
   if (sortBy === "status") {
     return [
-      { value: "asc", label: "Workflow order" },
-      { value: "desc", label: "Reverse workflow order" }
+      { value: "asc", label: "流程顺序" },
+      { value: "desc", label: "反向流程顺序" }
     ];
   }
 
   return [
-    { value: "desc", label: "Highest first" },
-    { value: "asc", label: "Lowest first" }
+    { value: "desc", label: "从高到低" },
+    { value: "asc", label: "从低到高" }
   ];
 }
 
@@ -120,11 +120,11 @@ export function getReportSortSummary(
   sortDirection: ReportSearchFilterState["sortDirection"]
 ) {
   const sortLabel =
-    reportSortOptions.find((option) => option.value === sortBy)?.label ?? "Creation Date";
+    reportSortOptions.find((option) => option.value === sortBy)?.label ?? "创建日期";
   const directionLabel =
     getReportSortDirectionOptions(sortBy).find((option) => option.value === sortDirection)?.label ??
     getReportSortDirectionOptions(sortBy)[0]?.label ??
-    "Newest first";
+    "最新优先";
 
   return {
     sortLabel,
