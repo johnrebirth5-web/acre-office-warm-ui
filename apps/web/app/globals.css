@@ -979,8 +979,10 @@ select {
 }
 
 .office-filter-chip.is-active {
-  background: rgba(20, 74, 119, 0.08);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(20, 74, 119, 0.16);
 }
 
 .office-kpi-grid {
