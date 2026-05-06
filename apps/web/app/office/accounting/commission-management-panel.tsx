@@ -21,6 +21,7 @@ import {
   TextInput,
   TextareaInput
 } from "@acre/ui";
+import { useI18n } from "../../../lib/i18n/client";
 
 type CommissionManagementPanelProps = {
   snapshot: OfficeCommissionManagementSnapshot | null;
@@ -90,16 +91,97 @@ function CommissionTable(props: { children: ReactNode }) {
 }
 
 const commissionStatusOptions = [
-  { value: "", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "calculated", label: "Calculated" },
-  { value: "reviewed", label: "Reviewed" },
-  { value: "statement_ready", label: "Statement ready" },
-  { value: "payable", label: "Payable" },
-  { value: "paid", label: "Paid" }
+  { value: "", label: "All statuses", zhLabel: "全部状态" },
+  { value: "draft", label: "Draft", zhLabel: "草稿" },
+  { value: "calculated", label: "Calculated", zhLabel: "已计算" },
+  { value: "reviewed", label: "Reviewed", zhLabel: "已审核" },
+  { value: "statement_ready", label: "Statement ready", zhLabel: "付款单就绪" },
+  { value: "payable", label: "Payable", zhLabel: "可付款" },
+  { value: "paid", label: "Paid", zhLabel: "已付款" }
 ];
 
 const commissionStatusUpdateOptions = commissionStatusOptions.filter((option) => option.value);
+
+function translateCommissionCopy(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  const copyMap: Record<string, string> = {
+    "All statuses": "全部状态",
+    Draft: "草稿",
+    Calculated: "已计算",
+    Reviewed: "已审核",
+    "Statement ready": "付款单就绪",
+    Payable: "可付款",
+    Paid: "已付款",
+    Active: "启用",
+    Inactive: "停用",
+    Template: "模板",
+    Custom: "自定义",
+    "Custom split": "自定义拆分",
+    Agent: "经纪人",
+    Brokerage: "公司",
+    Referral: "推荐方",
+    Team: "团队",
+    "Team Leader": "团队负责人",
+    "Junior Team Leader": "初级团队负责人",
+    Member: "成员",
+    Owner: "所有者",
+    "Office Admin": "办公室管理员",
+    Accountant: "会计",
+    "Human Resources": "人事",
+    "Team Lead": "团队主管",
+    "Office Manager": "办公室经理",
+    "Office User": "办公室用户",
+    "Split & fees": "拆分和费用",
+    "Flat net": "固定净额",
+    Flat: "固定金额",
+    Percentage: "百分比",
+    "Open-ended": "长期有效",
+    Review: "待复核",
+    "Legacy commission item": "旧佣金项目",
+    "Company residual": "公司留存",
+    "Manual override participant": "手动调整参与方",
+    "Manual / transaction finance": "手动 / 交易财务",
+    "Failed to save commission plan.": "无法保存佣金计划。",
+    "Failed to assign commission plan.": "无法分配佣金计划。",
+    "Failed to remove commission assignment.": "无法移除佣金分配。",
+    "Failed to save split template.": "无法保存拆分模板。",
+    "Failed to delete split template.": "无法删除拆分模板。",
+    "Failed to update calculation status.": "无法更新计算状态。",
+    "Failed to generate statement snapshot.": "无法生成付款单快照。"
+  };
+
+  const exact = copyMap[value] ?? value;
+
+  return exact
+    .replace(/^Template: /, "模板：")
+    .replace(/ split$/i, " 拆分")
+    .replace(/% actual share$/i, "% 实际份额")
+    .replace(/% company residual$/i, "% 公司留存")
+    .replace(
+      /^(\d+) legacy plan\(s\) still use fee or sliding-scale rules and should be reviewed in Advanced settings\.$/,
+      "$1 个旧佣金计划仍在使用费用或阶梯拆分规则，请在高级设置中复核。"
+    )
+    .replace(
+      /^(\d+) legacy team assignment\(s\) remain active and are not used by the new default split chain\.$/,
+      "$1 个旧团队佣金分配仍处于启用状态，但不会被新的默认拆分链使用。"
+    );
+}
+
+function commissionStatusOptionLabel(option: { label: string; zhLabel: string }, isZh: boolean) {
+  return isZh ? option.zhLabel : option.label;
+}
+
+function formatCommissionCount(count: number, singular: string, plural: string, zhUnit: string, isZh: boolean) {
+  return isZh ? `${count} ${zhUnit}` : `${count} ${count === 1 ? singular : plural}`;
+}
+
+function getCommissionErrorMessage(error: unknown, fallback: string, isZh: boolean) {
+  const message = error instanceof Error ? error.message : fallback;
+  return translateCommissionCopy(message, isZh);
+}
 
 function getStatusTone(status: string) {
   if (status === "Paid" || status === "Payable") {
@@ -239,6 +321,8 @@ export function CommissionManagementPanel({
   const router = useRouter();
   const pathname = usePathname();
   const currentSearchParams = useSearchParams();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
 
   const [filterState, setFilterState] = useState<CommissionFilterState>(() => ({
     membershipId: snapshot?.filters.membershipId ?? "",
@@ -489,7 +573,7 @@ export function CommissionManagementPanel({
 
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save commission plan.");
+      setError(getCommissionErrorMessage(saveError, "Failed to save commission plan.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -531,7 +615,7 @@ export function CommissionManagementPanel({
 
       router.refresh();
     } catch (assignError) {
-      setError(assignError instanceof Error ? assignError.message : "Failed to assign commission plan.");
+      setError(getCommissionErrorMessage(assignError, "Failed to assign commission plan.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -553,7 +637,7 @@ export function CommissionManagementPanel({
 
       router.refresh();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Failed to remove commission assignment.");
+      setError(getCommissionErrorMessage(deleteError, "Failed to remove commission assignment.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -590,7 +674,7 @@ export function CommissionManagementPanel({
       setSplitTemplateFormState(buildSplitTemplateFormState());
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save split template.");
+      setError(getCommissionErrorMessage(saveError, "Failed to save split template.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -617,7 +701,7 @@ export function CommissionManagementPanel({
       setSplitTemplateFormState(buildSplitTemplateFormState());
       router.refresh();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete split template.");
+      setError(getCommissionErrorMessage(deleteError, "Failed to delete split template.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -645,7 +729,7 @@ export function CommissionManagementPanel({
 
       router.refresh();
     } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Failed to update calculation status.");
+      setError(getCommissionErrorMessage(statusError, "Failed to update calculation status.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -689,7 +773,7 @@ export function CommissionManagementPanel({
       );
       router.refresh();
     } catch (statementError) {
-      setError(statementError instanceof Error ? statementError.message : "Failed to generate statement snapshot.");
+      setError(getCommissionErrorMessage(statementError, "Failed to generate statement snapshot.", isZh));
     } finally {
       setPendingAction(null);
     }
@@ -697,29 +781,59 @@ export function CommissionManagementPanel({
 
   return (
     <section className="office-accounting-panel" id="commissions">
-      <ListPageSection subtitle="Commission plans, assignments, calculated rows, and statement-ready visibility." title="Commission management">
+      <ListPageSection
+        subtitle={isZh ? "集中管理佣金计划、分配关系、已计算记录和付款单准备状态。" : "Commission plans, assignments, calculated rows, and statement-ready visibility."}
+        title={isZh ? "佣金管理" : "Commission management"}
+      >
         <ListPageStatsGrid className="office-commission-kpi-grid">
-          <StatCard hint="active reusable default split templates" label="Split templates" value={snapshot.overview.activeSplitTemplatesCount} />
-          <StatCard hint="members with an active default split" label="Member defaults" value={snapshot.overview.membersWithDefaultSplitCount} />
-          <StatCard hint="active plans configured for this office scope" label="Active plans" value={snapshot.overview.activePlansCount} />
-          <StatCard hint="active plan assignments across agents and teams" label="Assignments" value={snapshot.overview.activeAssignmentsCount} />
-          <StatCard hint="persisted commission rows in the current filter window" label="Calculated rows" value={snapshot.overview.calculatedRowsCount} />
-          <StatCard hint="rows ready for statement packaging" label="Statement ready" value={snapshot.overview.statementReadyLabel} />
-          <StatCard hint="rows marked payable" label="Payable" value={snapshot.overview.payableLabel} />
-          <StatCard hint="rows marked paid" label="Paid" value={snapshot.overview.paidLabel} />
+          <StatCard
+            hint={isZh ? "启用中的可复用默认拆分模板" : "active reusable default split templates"}
+            label={isZh ? "拆分模板" : "Split templates"}
+            value={snapshot.overview.activeSplitTemplatesCount}
+          />
+          <StatCard
+            hint={isZh ? "已设置启用默认拆分的成员" : "members with an active default split"}
+            label={isZh ? "成员默认拆分" : "Member defaults"}
+            value={snapshot.overview.membersWithDefaultSplitCount}
+          />
+          <StatCard
+            hint={isZh ? "当前办公室范围内启用的佣金计划" : "active plans configured for this office scope"}
+            label={isZh ? "启用计划" : "Active plans"}
+            value={snapshot.overview.activePlansCount}
+          />
+          <StatCard
+            hint={isZh ? "经纪人和团队的启用计划分配" : "active plan assignments across agents and teams"}
+            label={isZh ? "分配关系" : "Assignments"}
+            value={snapshot.overview.activeAssignmentsCount}
+          />
+          <StatCard
+            hint={isZh ? "当前筛选范围内已保存的佣金记录" : "persisted commission rows in the current filter window"}
+            label={isZh ? "已计算记录" : "Calculated rows"}
+            value={snapshot.overview.calculatedRowsCount}
+          />
+          <StatCard
+            hint={isZh ? "可打包进付款单的记录" : "rows ready for statement packaging"}
+            label={isZh ? "付款单就绪" : "Statement ready"}
+            value={snapshot.overview.statementReadyLabel}
+          />
+          <StatCard hint={isZh ? "标记为可付款的记录" : "rows marked payable"} label={isZh ? "可付款" : "Payable"} value={snapshot.overview.payableLabel} />
+          <StatCard hint={isZh ? "标记为已付款的记录" : "rows marked paid"} label={isZh ? "已付款" : "Paid"} value={snapshot.overview.paidLabel} />
         </ListPageStatsGrid>
 
         <div className="office-detail-two-column">
           <div className="office-side-stack">
-            <ListPageSection subtitle="Reusable 20/80, 50/50, and similar defaults for member onboarding and profile updates." title="Split templates">
+            <ListPageSection
+              subtitle={isZh ? "用于成员入职和资料更新的 20/80、50/50 等默认拆分比例。" : "Reusable 20/80, 50/50, and similar defaults for member onboarding and profile updates."}
+              title={isZh ? "拆分模板" : "Split templates"}
+            >
               <form className="office-form-grid office-form-grid-3" onSubmit={handleSaveSplitTemplate}>
-                <FormField label="Existing template">
+                <FormField label={isZh ? "已有模板" : "Existing template"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setSplitTemplateFormState(buildSplitTemplateFormStateFromTemplate(snapshot, event.target.value))}
                     value={splitTemplateFormState.splitTemplateId}
                   >
-                    <option value="">New template</option>
+                    <option value="">{isZh ? "新建模板" : "New template"}</option>
                     {snapshot.splitTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name}
@@ -727,34 +841,34 @@ export function CommissionManagementPanel({
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Template name">
+                <FormField label={isZh ? "模板名称" : "Template name"}>
                   <TextInput
                     onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, name: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={splitTemplateFormState.name}
                   />
                 </FormField>
-                <FormField label="Agent split %">
+                <FormField label={isZh ? "经纪人拆分 %" : "Agent split %"}>
                   <TextInput
                     onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, agentPercent: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={splitTemplateFormState.agentPercent}
                   />
                 </FormField>
-                <FormField label="Status">
+                <FormField label={isZh ? "状态" : "Status"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, isActive: event.target.value }))}
                     value={splitTemplateFormState.isActive}
                   >
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
+                    <option value="true">{isZh ? "启用" : "Active"}</option>
+                    <option value="false">{isZh ? "停用" : "Inactive"}</option>
                   </SelectInput>
                 </FormField>
                 {canManageCommissions ? (
                   <div className="office-inline-form office-inline-form-compact office-form-grid-span-3">
                     <Button disabled={pendingAction === "save-split-template"} type="submit">
-                      {pendingAction === "save-split-template" ? "Saving..." : "Save split template"}
+                      {pendingAction === "save-split-template" ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存拆分模板" : "Save split template"}
                     </Button>
                     {splitTemplateFormState.splitTemplateId ? (
                       <Button
@@ -763,7 +877,7 @@ export function CommissionManagementPanel({
                         type="button"
                         variant="secondary"
                       >
-                        {pendingAction === "delete-split-template" ? "Deleting..." : "Delete template"}
+                        {pendingAction === "delete-split-template" ? (isZh ? "删除中..." : "Deleting...") : isZh ? "删除模板" : "Delete template"}
                       </Button>
                     ) : null}
                   </div>
@@ -774,12 +888,16 @@ export function CommissionManagementPanel({
                 <div className="office-queue-list">
                   {snapshot.splitTemplates.map((template) => (
                     <QueueItem
-                      badge={<StatusBadge tone={getBooleanStatusTone(template.isActive)}>{template.isActive ? "Active" : "Inactive"}</StatusBadge>}
-                      description={template.label}
+                      badge={
+                        <StatusBadge tone={getBooleanStatusTone(template.isActive)}>
+                          {template.isActive ? (isZh ? "启用" : "Active") : isZh ? "停用" : "Inactive"}
+                        </StatusBadge>
+                      }
+                      description={translateCommissionCopy(template.label, isZh)}
                       key={template.id}
                       meta={
                         <>
-                          <span>{template.usageCount} member defaults</span>
+                          <span>{formatCommissionCount(template.usageCount, "member default", "member defaults", "个成员默认拆分", isZh)}</span>
                         </>
                       }
                       title={template.name}
@@ -788,8 +906,8 @@ export function CommissionManagementPanel({
                 </div>
               ) : (
                 <EmptyState
-                  description="Create reusable split ratios here for user onboarding and profile editing."
-                  title="No split templates yet"
+                  description={isZh ? "在这里创建可复用拆分比例，用于用户入职和资料编辑。" : "Create reusable split ratios here for user onboarding and profile editing."}
+                  title={isZh ? "还没有拆分模板" : "No split templates yet"}
                 />
               )}
             </ListPageSection>
@@ -800,76 +918,85 @@ export function CommissionManagementPanel({
               actions={
                 snapshot.memberDefaults.length ? (
                   <span className={styles.memberDefaultsCount}>
-                    {filteredMemberDefaults.length} of {snapshot.memberDefaults.length}
+                    {isZh ? `${filteredMemberDefaults.length} / ${snapshot.memberDefaults.length}` : `${filteredMemberDefaults.length} of ${snapshot.memberDefaults.length}`}
                   </span>
                 ) : null
               }
-              subtitle="Current member-level default split source, ratio, and effective date."
-              title="Member defaults"
+              subtitle={isZh ? "当前成员级默认拆分来源、比例和生效日期。" : "Current member-level default split source, ratio, and effective date."}
+              title={isZh ? "成员默认拆分" : "Member defaults"}
             >
               {snapshot.memberDefaults.length ? (
                 <>
                   <div className={styles.memberDefaultsToolbar}>
-                    <FormField label="Search members">
+                    <FormField label={isZh ? "搜索成员" : "Search members"}>
                       <TextInput
                         onChange={(event) => setMemberDefaultQuery(event.target.value)}
-                        placeholder="Name, split, template, date"
+                        placeholder={isZh ? "姓名、拆分、模板、日期" : "Name, split, template, date"}
                         type="search"
                         value={memberDefaultQuery}
                       />
                     </FormField>
-                    <FormField label="Source">
+                    <FormField label={isZh ? "来源" : "Source"}>
                       <SelectInput
                         onChange={(event) => setMemberDefaultSourceFilter(event.target.value as MemberDefaultSourceFilter)}
                         value={memberDefaultSourceFilter}
                       >
-                        <option value="all">All sources</option>
-                        <option value="template">Template</option>
-                        <option value="custom">Custom</option>
+                        <option value="all">{isZh ? "全部来源" : "All sources"}</option>
+                        <option value="template">{isZh ? "模板" : "Template"}</option>
+                        <option value="custom">{isZh ? "自定义" : "Custom"}</option>
                       </SelectInput>
                     </FormField>
                   </div>
 
                   {filteredMemberDefaults.length ? (
-                    <div aria-label="Member default splits" className={styles.memberDefaultsList} role="list">
+                    <div aria-label={isZh ? "成员默认拆分" : "Member default splits"} className={styles.memberDefaultsList} role="list">
                       {filteredMemberDefaults.map((setting) => (
                         <article className={styles.memberDefaultRow} key={setting.id} role="listitem">
                           <div className={styles.memberDefaultMain}>
                             <Link className={styles.memberDefaultName} href={`/office/settings/users/${setting.membershipId}`}>
                               {setting.membershipLabel}
                             </Link>
-                            <span className={styles.memberDefaultSplit}>{setting.settingLabel}</span>
+                            <span className={styles.memberDefaultSplit}>{translateCommissionCopy(setting.settingLabel, isZh)}</span>
                           </div>
                           <div className={styles.memberDefaultDetails}>
                             <StatusBadge tone={setting.sourceType === "template" ? "accent" : "neutral"}>
-                              {setting.sourceType === "template" ? "Template" : "Custom"}
+                              {setting.sourceType === "template" ? (isZh ? "模板" : "Template") : isZh ? "自定义" : "Custom"}
                             </StatusBadge>
-                            <span>{setting.sourceLabel}</span>
-                            <span>Effective {setting.effectiveFrom}</span>
+                            <span>{translateCommissionCopy(setting.sourceLabel, isZh)}</span>
+                            <span>{isZh ? `生效日 ${setting.effectiveFrom}` : `Effective ${setting.effectiveFrom}`}</span>
                           </div>
                         </article>
                       ))}
                     </div>
                   ) : (
                     <EmptyState
-                      description="Try a different name, split ratio, source, template, or effective date."
-                      title="No matching member defaults"
+                      description={isZh ? "换一个姓名、拆分比例、来源、模板或生效日期再试。" : "Try a different name, split ratio, source, template, or effective date."}
+                      title={isZh ? "没有匹配的成员默认拆分" : "No matching member defaults"}
                     />
                   )}
                 </>
               ) : (
                 <EmptyState
-                  description="Assign default splits from user creation or the user profile page."
-                  title="No member defaults in scope"
+                  description={isZh ? "可以在创建用户或用户资料页分配默认拆分。" : "Assign default splits from user creation or the user profile page."}
+                  title={isZh ? "当前范围内没有成员默认拆分" : "No member defaults in scope"}
                 />
               )}
             </ListPageSection>
 
             {snapshot.advancedReviewItems.length ? (
-              <ListPageSection subtitle="Legacy plan or assignment items that still need manual review." title="Advanced review">
+              <ListPageSection
+                subtitle={isZh ? "仍需要人工复核的旧计划或分配项目。" : "Legacy plan or assignment items that still need manual review."}
+                title={isZh ? "高级复核" : "Advanced review"}
+              >
                 <div className="office-queue-list">
                   {snapshot.advancedReviewItems.map((item) => (
-                    <QueueItem badgeLabel="Review" badgeTone="warning" description={item} key={item} title="Legacy commission item" />
+                    <QueueItem
+                      badgeLabel={isZh ? "待复核" : "Review"}
+                      badgeTone="warning"
+                      description={translateCommissionCopy(item, isZh)}
+                      key={item}
+                      title={isZh ? "旧佣金项目" : "Legacy commission item"}
+                    />
                   ))}
                 </div>
               </ListPageSection>
@@ -878,7 +1005,7 @@ export function CommissionManagementPanel({
         </div>
 
         <details className="office-section-card">
-          <summary>Advanced settings</summary>
+          <summary>{isZh ? "高级设置" : "Advanced settings"}</summary>
           <div className="office-section-body">
         <ListPageFilters
           as="form"
@@ -889,9 +1016,9 @@ export function CommissionManagementPanel({
           }}
         >
           <label className="office-report-filter">
-            <span>Agent</span>
+            <span>{isZh ? "经纪人" : "Agent"}</span>
             <select onChange={(event) => setFilterState((current) => ({ ...current, membershipId: event.target.value }))} value={filterState.membershipId}>
-              <option value="">All agents</option>
+              <option value="">{isZh ? "全部经纪人" : "All agents"}</option>
               {snapshot.filters.memberOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -901,9 +1028,9 @@ export function CommissionManagementPanel({
           </label>
 
           <label className="office-report-filter">
-            <span>Team</span>
+            <span>{isZh ? "团队" : "Team"}</span>
             <select onChange={(event) => setFilterState((current) => ({ ...current, teamId: event.target.value }))} value={filterState.teamId}>
-              <option value="">All teams</option>
+              <option value="">{isZh ? "全部团队" : "All teams"}</option>
               {snapshot.filters.teamOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -913,12 +1040,12 @@ export function CommissionManagementPanel({
           </label>
 
           <label className="office-report-filter">
-            <span>Plan</span>
+            <span>{isZh ? "计划" : "Plan"}</span>
             <select
               onChange={(event) => setFilterState((current) => ({ ...current, commissionPlanId: event.target.value }))}
               value={filterState.commissionPlanId}
             >
-              <option value="">All plans</option>
+              <option value="">{isZh ? "全部计划" : "All plans"}</option>
               {snapshot.filters.commissionPlanOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -928,20 +1055,20 @@ export function CommissionManagementPanel({
           </label>
 
           <label className="office-report-filter">
-            <span>Status</span>
+            <span>{isZh ? "状态" : "Status"}</span>
             <select onChange={(event) => setFilterState((current) => ({ ...current, status: event.target.value }))} value={filterState.status}>
               {commissionStatusOptions.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
-                  {option.label}
+                  {commissionStatusOptionLabel(option, isZh)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="office-report-filter">
-            <span>Transaction</span>
+            <span>{isZh ? "交易" : "Transaction"}</span>
             <select onChange={(event) => setFilterState((current) => ({ ...current, transactionId: event.target.value }))} value={filterState.transactionId}>
-              <option value="">All transactions</option>
+              <option value="">{isZh ? "全部交易" : "All transactions"}</option>
               {snapshot.filters.transactionOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -951,25 +1078,25 @@ export function CommissionManagementPanel({
           </label>
 
           <label className="office-report-filter">
-            <span>Start date</span>
+            <span>{isZh ? "开始日期" : "Start date"}</span>
             <input onChange={(event) => setFilterState((current) => ({ ...current, startDate: event.target.value }))} type="date" value={filterState.startDate} />
           </label>
 
           <label className="office-report-filter">
-            <span>End date</span>
+            <span>{isZh ? "结束日期" : "End date"}</span>
             <input onChange={(event) => setFilterState((current) => ({ ...current, endDate: event.target.value }))} type="date" value={filterState.endDate} />
           </label>
 
           <div className="office-report-filter-actions">
-            <Button type="submit">Apply filters</Button>
+            <Button type="submit">{isZh ? "应用筛选" : "Apply filters"}</Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
-              Reset
+              {isZh ? "重置" : "Reset"}
             </Button>
           </div>
 
           <div className="office-report-filter-actions">
             <SelectInput onChange={(event) => setSelectedStatementMembershipId(event.target.value)} value={selectedStatementMembershipId}>
-              <option value="">Choose agent for statement</option>
+              <option value="">{isZh ? "选择付款单经纪人" : "Choose agent for statement"}</option>
               {snapshot.filters.memberOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -977,22 +1104,25 @@ export function CommissionManagementPanel({
               ))}
             </SelectInput>
             <Button disabled={!selectedStatementMembershipId || pendingAction === "statement"} onClick={() => void handleGenerateStatement()} type="button" variant="secondary">
-              {pendingAction === "statement" ? "Generating..." : "Generate statement"}
+              {pendingAction === "statement" ? (isZh ? "生成中..." : "Generating...") : isZh ? "生成付款单" : "Generate statement"}
             </Button>
           </div>
         </ListPageFilters>
 
         <div className="office-detail-two-column">
           <div className="office-side-stack">
-            <ListPageSection subtitle="Reusable split/fee plans for transaction-side commission automation." title="Commission plans">
+            <ListPageSection
+              subtitle={isZh ? "用于交易佣金自动化的可复用拆分和费用计划。" : "Reusable split/fee plans for transaction-side commission automation."}
+              title={isZh ? "佣金计划" : "Commission plans"}
+            >
               <form className="office-form-grid office-form-grid-3" onSubmit={handleSavePlan}>
-                <FormField label="Existing plan">
+                <FormField label={isZh ? "已有计划" : "Existing plan"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setPlanFormState(buildPlanStateFromPlan(snapshot, event.target.value))}
                     value={planFormState.commissionPlanId}
                   >
-                    <option value="">New plan</option>
+                    <option value="">{isZh ? "新建计划" : "New plan"}</option>
                     {snapshot.plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
                         {plan.name}
@@ -1000,93 +1130,93 @@ export function CommissionManagementPanel({
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Plan name">
+                <FormField label={isZh ? "计划名称" : "Plan name"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, name: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.name}
                   />
                 </FormField>
-                <FormField label="Mode">
+                <FormField label={isZh ? "计算方式" : "Mode"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setPlanFormState((current) => ({ ...current, calculationMode: event.target.value }))}
                     value={planFormState.calculationMode}
                   >
-                    <option value="split_and_fees">Split & fees</option>
-                    <option value="flat_net">Flat net</option>
+                    <option value="split_and_fees">{isZh ? "拆分和费用" : "Split & fees"}</option>
+                    <option value="flat_net">{isZh ? "固定净额" : "Flat net"}</option>
                   </SelectInput>
                 </FormField>
-                <FormField label="Base split %">
+                <FormField label={isZh ? "基础拆分 %" : "Base split %"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, baseSplitPercent: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.baseSplitPercent}
                   />
                 </FormField>
-                <FormField className="office-form-grid-span-3" label="Description">
+                <FormField className="office-form-grid-span-3" label={isZh ? "说明" : "Description"}>
                   <TextareaInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, description: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.description}
                   />
                 </FormField>
-                <FormField label="Brokerage fee type">
+                <FormField label={isZh ? "公司费用类型" : "Brokerage fee type"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setPlanFormState((current) => ({ ...current, brokerageFeeType: event.target.value }))}
                     value={planFormState.brokerageFeeType}
                   >
-                    <option value="flat">Flat</option>
-                    <option value="percentage">Percentage</option>
+                    <option value="flat">{isZh ? "固定金额" : "Flat"}</option>
+                    <option value="percentage">{isZh ? "百分比" : "Percentage"}</option>
                   </SelectInput>
                 </FormField>
-                <FormField label="Brokerage fee">
+                <FormField label={isZh ? "公司费用" : "Brokerage fee"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, brokerageFeeAmount: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.brokerageFeeAmount}
                   />
                 </FormField>
-                <FormField label="Referral fee">
+                <FormField label={isZh ? "推荐费" : "Referral fee"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, referralFeeAmount: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.referralFeeAmount}
                   />
                 </FormField>
-                <FormField label="Referral fee type">
+                <FormField label={isZh ? "推荐费类型" : "Referral fee type"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setPlanFormState((current) => ({ ...current, referralFeeType: event.target.value }))}
                     value={planFormState.referralFeeType}
                   >
-                    <option value="percentage">Percentage</option>
-                    <option value="flat">Flat</option>
+                    <option value="percentage">{isZh ? "百分比" : "Percentage"}</option>
+                    <option value="flat">{isZh ? "固定金额" : "Flat"}</option>
                   </SelectInput>
                 </FormField>
-                <FormField label="Flat fee deduction">
+                <FormField label={isZh ? "固定费用扣除" : "Flat fee deduction"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, flatFeeDeduction: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.flatFeeDeduction}
                   />
                 </FormField>
-                <FormField label="Sliding split %">
+                <FormField label={isZh ? "阶梯拆分 %" : "Sliding split %"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, slidingScalePercent: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.slidingScalePercent}
                   />
                 </FormField>
-                <FormField label="Threshold start">
+                <FormField label={isZh ? "阶梯起点" : "Threshold start"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, slidingScaleThresholdStart: event.target.value }))}
                     readOnly={!canManageCommissions}
                     value={planFormState.slidingScaleThresholdStart}
                   />
                 </FormField>
-                <FormField label="Threshold end">
+                <FormField label={isZh ? "阶梯终点" : "Threshold end"}>
                   <TextInput
                     onChange={(event) => setPlanFormState((current) => ({ ...current, slidingScaleThresholdEnd: event.target.value }))}
                     readOnly={!canManageCommissions}
@@ -1096,7 +1226,7 @@ export function CommissionManagementPanel({
                 {canManageCommissions ? (
                   <div className="office-inline-form office-inline-form-compact office-form-grid-span-3">
                     <Button disabled={pendingAction === "save-plan"} type="submit">
-                      {pendingAction === "save-plan" ? "Saving..." : "Save commission plan"}
+                      {pendingAction === "save-plan" ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存佣金计划" : "Save commission plan"}
                     </Button>
                   </div>
                 ) : null}
@@ -1105,12 +1235,12 @@ export function CommissionManagementPanel({
               <div className="office-queue-list">
                 {snapshot.plans.map((plan) => (
                   <QueueItem
-                    badgeLabel={`${plan.assignmentCount} assignments`}
-                    description={plan.calculationMode}
+                    badgeLabel={formatCommissionCount(plan.assignmentCount, "assignment", "assignments", "个分配", isZh)}
+                    description={translateCommissionCopy(plan.calculationMode, isZh)}
                     key={plan.id}
                     meta={
                       <>
-                        <span>{plan.rules.length} rules</span>
+                        <span>{formatCommissionCount(plan.rules.length, "rule", "rules", "条规则", isZh)}</span>
                       </>
                     }
                     title={plan.name}
@@ -1119,9 +1249,12 @@ export function CommissionManagementPanel({
               </div>
             </ListPageSection>
 
-            <ListPageSection subtitle="Attach active commission plans to agents or teams with explicit precedence." title="Plan assignments">
+            <ListPageSection
+              subtitle={isZh ? "把启用的佣金计划分配给经纪人或团队，并保留清晰的优先级。" : "Attach active commission plans to agents or teams with explicit precedence."}
+              title={isZh ? "计划分配" : "Plan assignments"}
+            >
               <form className="office-inline-form office-inline-form-wrap" onSubmit={handleAssignPlan}>
-                <FormField label="Assign to">
+                <FormField label={isZh ? "分配给" : "Assign to"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) =>
@@ -1132,17 +1265,17 @@ export function CommissionManagementPanel({
                     }
                     value={assignmentFormState.targetType}
                   >
-                    <option value="agent">Agent</option>
-                    <option value="team">Team</option>
+                    <option value="agent">{isZh ? "经纪人" : "Agent"}</option>
+                    <option value="team">{isZh ? "团队" : "Team"}</option>
                   </SelectInput>
                 </FormField>
-                <FormField label="Agent">
+                <FormField label={isZh ? "经纪人" : "Agent"}>
                   <SelectInput
                     disabled={!canManageCommissions || assignmentFormState.targetType !== "agent"}
                     onChange={(event) => setAssignmentFormState((current) => ({ ...current, membershipId: event.target.value }))}
                     value={assignmentFormState.membershipId}
                   >
-                    <option value="">Select agent</option>
+                    <option value="">{isZh ? "选择经纪人" : "Select agent"}</option>
                     {snapshot.filters.memberOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.label}
@@ -1150,13 +1283,13 @@ export function CommissionManagementPanel({
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Team">
+                <FormField label={isZh ? "团队" : "Team"}>
                   <SelectInput
                     disabled={!canManageCommissions || assignmentFormState.targetType !== "team"}
                     onChange={(event) => setAssignmentFormState((current) => ({ ...current, teamId: event.target.value }))}
                     value={assignmentFormState.teamId}
                   >
-                    <option value="">Select team</option>
+                    <option value="">{isZh ? "选择团队" : "Select team"}</option>
                     {snapshot.filters.teamOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.label}
@@ -1164,13 +1297,13 @@ export function CommissionManagementPanel({
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Plan">
+                <FormField label={isZh ? "计划" : "Plan"}>
                   <SelectInput
                     disabled={!canManageCommissions}
                     onChange={(event) => setAssignmentFormState((current) => ({ ...current, commissionPlanId: event.target.value }))}
                     value={assignmentFormState.commissionPlanId}
                   >
-                    <option value="">Select plan</option>
+                    <option value="">{isZh ? "选择计划" : "Select plan"}</option>
                     {filteredPlanOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.label}
@@ -1178,7 +1311,7 @@ export function CommissionManagementPanel({
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Effective from">
+                <FormField label={isZh ? "生效开始" : "Effective from"}>
                   <TextInput
                     onChange={(event) => setAssignmentFormState((current) => ({ ...current, effectiveFrom: event.target.value }))}
                     readOnly={!canManageCommissions}
@@ -1186,7 +1319,7 @@ export function CommissionManagementPanel({
                     value={assignmentFormState.effectiveFrom}
                   />
                 </FormField>
-                <FormField label="Effective to">
+                <FormField label={isZh ? "生效结束" : "Effective to"}>
                   <TextInput
                     onChange={(event) => setAssignmentFormState((current) => ({ ...current, effectiveTo: event.target.value }))}
                     readOnly={!canManageCommissions}
@@ -1197,42 +1330,45 @@ export function CommissionManagementPanel({
                 {canManageCommissions ? (
                   <div className="office-inline-form-actions">
                     <Button disabled={pendingAction === "assign-plan"} type="submit">
-                      {pendingAction === "assign-plan" ? "Assigning..." : "Assign plan"}
+                      {pendingAction === "assign-plan" ? (isZh ? "分配中..." : "Assigning...") : isZh ? "分配计划" : "Assign plan"}
                     </Button>
                   </div>
                 ) : null}
               </form>
 
               <p className="office-helper-copy">
-                Direct agent assignments override team assignments. Team assignments apply only when no active direct assignment exists.
+                {isZh
+                  ? "经纪人的直接分配优先于团队分配；只有没有启用的直接分配时，团队分配才会生效。"
+                  : "Direct agent assignments override team assignments. Team assignments apply only when no active direct assignment exists."}
               </p>
 
               <CommissionTable>
                 <div className="office-table-header office-table-row office-table-row-commission-assignments">
-                  <span>Target</span>
-                  <span>Type</span>
-                  <span>Plan</span>
-                  <span>Effective from</span>
-                  <span>Effective to</span>
-                  <span>Actions</span>
+                  <span>{isZh ? "对象" : "Target"}</span>
+                  <span>{isZh ? "类型" : "Type"}</span>
+                  <span>{isZh ? "计划" : "Plan"}</span>
+                  <span>{isZh ? "生效开始" : "Effective from"}</span>
+                  <span>{isZh ? "生效结束" : "Effective to"}</span>
+                  <span>{isZh ? "操作" : "Actions"}</span>
                 </div>
                 {snapshot.assignments.map((assignment) => (
                   <div className="office-table-row office-table-row-commission-assignments" key={assignment.id}>
                     <span>{assignment.targetLabel}</span>
-                    <span>{assignment.targetType === "team" ? "Team" : "Agent"}</span>
+                    <span>{assignment.targetType === "team" ? (isZh ? "团队" : "Team") : isZh ? "经纪人" : "Agent"}</span>
                     <span>{assignment.commissionPlanLabel}</span>
                     <span>{assignment.effectiveFrom}</span>
-                    <span>{assignment.effectiveTo || "Open-ended"}</span>
+                    <span>{assignment.effectiveTo || (isZh ? "长期有效" : "Open-ended")}</span>
                     <div className="office-accounting-inline-actions">
                       {canManageCommissions ? (
                         <Button
                           disabled={pendingAction === `remove-assignment:${assignment.id}`}
                           onClick={() =>
                             setConfirmDialog({
-                              title: `Remove ${assignment.targetLabel} assignment?`,
-                              description:
-                                "This permanently deletes the selected commission assignment record. Use this when cleaning up a team before deleting it.",
-                              confirmLabel: "Remove assignment",
+                              title: isZh ? `移除 ${assignment.targetLabel} 的佣金分配？` : `Remove ${assignment.targetLabel} assignment?`,
+                              description: isZh
+                                ? "这会永久删除所选佣金分配记录。通常用于删除团队前的清理。"
+                                : "This permanently deletes the selected commission assignment record. Use this when cleaning up a team before deleting it.",
+                              confirmLabel: isZh ? "移除分配" : "Remove assignment",
                               onConfirm: () => {
                                 void handleDeleteAssignment(assignment.id);
                               }
@@ -1242,7 +1378,7 @@ export function CommissionManagementPanel({
                           type="button"
                           variant="secondary"
                         >
-                          {pendingAction === `remove-assignment:${assignment.id}` ? "Removing..." : "Remove"}
+                          {pendingAction === `remove-assignment:${assignment.id}` ? (isZh ? "移除中..." : "Removing...") : isZh ? "移除" : "Remove"}
                         </Button>
                       ) : (
                         <span>—</span>
@@ -1255,34 +1391,37 @@ export function CommissionManagementPanel({
           </div>
 
           <div className="office-side-stack">
-            <ListPageSection subtitle="Persisted commission calculations, review queue, and payout-readiness workflow." title="Commission queue">
+            <ListPageSection
+              subtitle={isZh ? "已保存的佣金计算、复核队列和付款准备流程。" : "Persisted commission calculations, review queue, and payout-readiness workflow."}
+              title={isZh ? "佣金队列" : "Commission queue"}
+            >
               <CommissionTable>
                 <div className="office-table-header office-table-row office-table-row-commission">
-                  <span>Transaction</span>
-                  <span>Recipient</span>
-                  <span>Plan</span>
-                  <span>Status</span>
-                  <span>Statement</span>
-                  <span>Calculated</span>
-                  <span>Actions</span>
+                  <span>{isZh ? "交易" : "Transaction"}</span>
+                  <span>{isZh ? "收款方" : "Recipient"}</span>
+                  <span>{isZh ? "计划" : "Plan"}</span>
+                  <span>{isZh ? "状态" : "Status"}</span>
+                  <span>{isZh ? "付款单" : "Statement"}</span>
+                  <span>{isZh ? "计算时间" : "Calculated"}</span>
+                  <span>{isZh ? "操作" : "Actions"}</span>
                 </div>
 
                 {snapshot.calculations.map((row) => (
                   <div className="office-table-row office-table-row-commission" key={row.id}>
                     <div className="office-table-primary">
                       <strong>{row.transactionLabel}</strong>
-                      <p>{row.recipientRole || row.recipientType}</p>
+                      <p>{translateCommissionCopy(row.recipientRole || row.recipientType, isZh)}</p>
                     </div>
                     <span>{row.recipientLabel}</span>
                     <div className="office-table-primary">
                       <strong>{row.commissionPlanLabel}</strong>
-                      <p>{row.commissionPlanDetailLabel}</p>
+                      <p>{translateCommissionCopy(row.commissionPlanDetailLabel, isZh)}</p>
                     </div>
-                    <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
+                    <StatusBadge tone={getStatusTone(row.status)}>{translateCommissionCopy(row.status, isZh)}</StatusBadge>
                     <div className="office-table-primary">
                       <strong>{row.statementAmountLabel}</strong>
                       <p>
-                        {row.officeNetLabel} office · {row.agentNetLabel} agent
+                        {isZh ? `${row.officeNetLabel} 公司 · ${row.agentNetLabel} 经纪人` : `${row.officeNetLabel} office · ${row.agentNetLabel} agent`}
                       </p>
                     </div>
                     <span>{row.calculatedAt}</span>
@@ -1302,7 +1441,7 @@ export function CommissionManagementPanel({
                           >
                             {commissionStatusUpdateOptions.map((option) => (
                               <option key={option.value} value={option.value}>
-                                {option.label}
+                                {commissionStatusOptionLabel(option, isZh)}
                               </option>
                             ))}
                           </SelectInput>
@@ -1313,7 +1452,7 @@ export function CommissionManagementPanel({
                             type="button"
                             variant="secondary"
                           >
-                            {pendingAction === `status:${row.id}` ? "Saving..." : "Save"}
+                            {pendingAction === `status:${row.id}` ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存" : "Save"}
                           </Button>
                         </>
                       ) : null}
@@ -1323,27 +1462,30 @@ export function CommissionManagementPanel({
 
                 {snapshot.calculations.length === 0 ? (
                   <div className="office-accounting-empty">
-                    <p>No commission rows match the current filters.</p>
+                    <p>{isZh ? "当前筛选条件下没有匹配的佣金记录。" : "No commission rows match the current filters."}</p>
                   </div>
                 ) : null}
               </CommissionTable>
             </ListPageSection>
 
-            <ListPageSection subtitle="On-screen statement snapshot for the selected agent and current date window." title="Statement / payout readiness">
+            <ListPageSection
+              subtitle={isZh ? "所选经纪人在当前日期范围内的付款单快照。" : "On-screen statement snapshot for the selected agent and current date window."}
+              title={isZh ? "付款单 / 付款准备" : "Statement / payout readiness"}
+            >
               {snapshot.statement ? (
                 <>
                   <ListPageStatsGrid className="office-commission-kpi-grid">
-                    <StatCard hint="agent currently selected for statement view" label="Agent" value={snapshot.statement.agentLabel} />
-                    <StatCard hint="calculated + reviewed rows" label="Open calculated" value={snapshot.statement.openCalculatedLabel} />
-                    <StatCard hint="rows ready for statement packaging" label="Statement ready" value={snapshot.statement.statementReadyLabel} />
-                    <StatCard hint="rows marked payable" label="Payable" value={snapshot.statement.payableLabel} />
-                    <StatCard hint="rows marked paid" label="Paid" value={snapshot.statement.paidLabel} />
-                    <StatCard hint="sum of agent share rows in this snapshot" label="Agent net total" value={snapshot.statement.totalAgentNetLabel} />
+                    <StatCard hint={isZh ? "当前付款单视图选择的经纪人" : "agent currently selected for statement view"} label={isZh ? "经纪人" : "Agent"} value={snapshot.statement.agentLabel} />
+                    <StatCard hint={isZh ? "已计算和已审核记录" : "calculated + reviewed rows"} label={isZh ? "待处理计算额" : "Open calculated"} value={snapshot.statement.openCalculatedLabel} />
+                    <StatCard hint={isZh ? "可打包进付款单的记录" : "rows ready for statement packaging"} label={isZh ? "付款单就绪" : "Statement ready"} value={snapshot.statement.statementReadyLabel} />
+                    <StatCard hint={isZh ? "标记为可付款的记录" : "rows marked payable"} label={isZh ? "可付款" : "Payable"} value={snapshot.statement.payableLabel} />
+                    <StatCard hint={isZh ? "标记为已付款的记录" : "rows marked paid"} label={isZh ? "已付款" : "Paid"} value={snapshot.statement.paidLabel} />
+                    <StatCard hint={isZh ? "此快照中经纪人份额合计" : "sum of agent share rows in this snapshot"} label={isZh ? "经纪人净额合计" : "Agent net total"} value={snapshot.statement.totalAgentNetLabel} />
                   </ListPageStatsGrid>
                   <div className="office-queue-list">
                     {snapshot.statement.lineItems.map((item) => (
                       <QueueItem
-                        badge={<StatusBadge tone={getStatusTone(item.status)}>{item.status}</StatusBadge>}
+                        badge={<StatusBadge tone={getStatusTone(item.status)}>{translateCommissionCopy(item.status, isZh)}</StatusBadge>}
                         description={item.statementAmountLabel}
                         key={item.id}
                         title={item.transactionLabel}
@@ -1353,7 +1495,7 @@ export function CommissionManagementPanel({
                 </>
               ) : (
                 <div className="office-accounting-empty">
-                  <p>Select an agent and generate a statement snapshot to review payout-ready commission totals.</p>
+                  <p>{isZh ? "选择经纪人并生成付款单快照，以复核可付款佣金合计。" : "Select an agent and generate a statement snapshot to review payout-ready commission totals."}</p>
                 </div>
               )}
             </ListPageSection>
@@ -1365,7 +1507,7 @@ export function CommissionManagementPanel({
         </details>
       </ListPageSection>
       <ConfirmActionDialog
-        cancelLabel="Cancel"
+        cancelLabel={isZh ? "取消" : "Cancel"}
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}
