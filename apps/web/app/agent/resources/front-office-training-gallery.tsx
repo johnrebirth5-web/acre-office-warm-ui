@@ -305,7 +305,7 @@ function TrainingCard(props: {
             style={coverImageStyle}
           />
         ) : (
-          <div style={fallbackCoverStyle}>Video cover</div>
+          <div style={fallbackCoverStyle}>视频封面</div>
         )}
       </div>
       <div style={cardMetaStyle}>
@@ -438,14 +438,14 @@ export function FrontOfficeTrainingGallery(props: {
                     resourceId: activeVideo.id,
                   }}
                 >
-                  Open on YouTube
+                  在 YouTube 打开
                 </FrontOfficeTrackedLink>
                 <button
                   className="office-button office-button-sm"
                   onClick={() => setActiveVideo(null)}
                   type="button"
                 >
-                  Close
+                  关闭
                 </button>
               </div>
             </div>
@@ -472,7 +472,7 @@ export function FrontOfficeTrainingGallery(props: {
                     }}
                   >
                     <strong style={{ fontSize: "1.15rem" }}>
-                      Unable to embed this video.
+                      无法嵌入这个视频。
                     </strong>
                     <FrontOfficeTrackedLink
                       className="office-button"
@@ -482,7 +482,7 @@ export function FrontOfficeTrainingGallery(props: {
                         resourceId: activeVideo.id,
                       }}
                     >
-                      Open on YouTube
+                      在 YouTube 打开
                     </FrontOfficeTrackedLink>
                   </div>
                 </div>

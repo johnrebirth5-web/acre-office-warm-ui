@@ -39,7 +39,7 @@ export function TransactionDeleteAction({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Transaction delete failed.");
+        throw new Error(body?.error ?? "交易删除失败。");
       }
 
       setConfirmOpen(false);
@@ -48,7 +48,7 @@ export function TransactionDeleteAction({
         router.refresh();
       });
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Transaction delete failed.");
+      setError(deleteError instanceof Error ? deleteError.message : "交易删除失败。");
     } finally {
       setPendingDelete(false);
     }
@@ -65,13 +65,13 @@ export function TransactionDeleteAction({
         size="sm"
         variant="danger"
       >
-        Delete transaction
+        删除交易
       </Button>
 
       <ConfirmActionDialog
-        cancelLabel="Keep transaction"
-        confirmLabel={pendingDelete ? "Deleting..." : "Delete transaction"}
-        description="This permanently removes the transaction workspace from Acre."
+        cancelLabel="保留交易"
+        confirmLabel={pendingDelete ? "删除中..." : "删除交易"}
+        description="这会从 Acre 中永久移除这个交易工作区。"
         isOpen={confirmOpen}
         onCancel={() => {
           if (!pendingDelete) {
@@ -79,15 +79,13 @@ export function TransactionDeleteAction({
           }
         }}
         onConfirm={handleDelete}
-        title={`Delete ${transactionTitle}?`}
+        title={`删除 ${transactionTitle}？`}
       >
         <p>
-          Linked transaction documents, forms, offers, signatures, tasks, commission rows, and earnest money records tied
-          directly to this transaction will be removed.
+          直接关联到这笔交易的文档、表单、报价、签名、任务、佣金行和定金记录都会被移除。
         </p>
         <p>
-          Existing accounting rows that only reference this transaction will stay in accounting, but their transaction link
-          will be cleared.
+          仅引用这笔交易的现有会计行会保留在会计模块中，但会清除它们的交易关联。
         </p>
         {error ? <p className="office-inline-error">{error}</p> : null}
       </ConfirmActionDialog>

@@ -47,20 +47,29 @@ type ConfirmDialogState = {
 };
 
 const documentFilterOptions: Array<{ key: OfficeTransactionDocumentFilter; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "signed", label: "Signed" },
-  { key: "pending_signature", label: "Pending signature" },
-  { key: "linked_to_tasks", label: "Linked to tasks" }
+  { key: "all", label: "全部" },
+  { key: "signed", label: "已签" },
+  { key: "pending_signature", label: "待签名" },
+  { key: "linked_to_tasks", label: "已关联任务" }
 ];
 
 const documentStatusOptions: Array<{ value: OfficeTransactionDocument["statusKey"]; label: string }> = [
-  { value: "uploaded", label: "Uploaded" },
-  { value: "submitted", label: "Submitted" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "signed", label: "Signed" },
-  { value: "archived", label: "Archived" }
+  { value: "uploaded", label: "已上传" },
+  { value: "submitted", label: "已提交" },
+  { value: "approved", label: "已批准" },
+  { value: "rejected", label: "已拒绝" },
+  { value: "signed", label: "已签署" },
+  { value: "archived", label: "已归档" }
 ];
+
+const documentSourceLabelMap: Record<OfficeTransactionDocument["sourceKey"], string> = {
+  manual_upload: "手动上传",
+  generated_form: "生成表单",
+  incoming_update: "外部更新",
+  synced_external: "外部同步",
+  email_pdf: "邮件 PDF",
+  signature_output: "签名输出"
+};
 
 function buildDocumentRowState(document: OfficeTransactionDocument): DocumentRowState {
   return {
@@ -84,6 +93,14 @@ function getDocumentTone(statusKey: OfficeTransactionDocument["statusKey"]) {
   }
 
   return "neutral" as const;
+}
+
+function getDocumentStatusLabel(document: OfficeTransactionDocument) {
+  return documentStatusOptions.find((option) => option.value === document.statusKey)?.label ?? document.status;
+}
+
+function getDocumentSourceLabel(document: OfficeTransactionDocument) {
+  return documentSourceLabelMap[document.sourceKey] ?? document.source;
 }
 
 export function TransactionDocumentsCard({
@@ -143,7 +160,7 @@ export function TransactionDocumentsCard({
 
   async function handleUpload() {
     if (!selectedFile) {
-      setError("A file is required.");
+      setError("请先选择文件。");
       return;
     }
 
@@ -166,7 +183,7 @@ export function TransactionDocumentsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Document upload failed.");
+        throw new Error(body?.error ?? "文档上传失败。");
       }
 
       setUploadState({
@@ -179,7 +196,7 @@ export function TransactionDocumentsCard({
       setSelectedFile(null);
       router.refresh();
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Document upload failed.");
+      setError(uploadError instanceof Error ? uploadError.message : "文档上传失败。");
     } finally {
       setPendingAction(null);
     }
@@ -210,12 +227,12 @@ export function TransactionDocumentsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Document update failed.");
+        throw new Error(body?.error ?? "文档更新失败。");
       }
 
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Document update failed.");
+      setError(saveError instanceof Error ? saveError.message : "文档更新失败。");
     } finally {
       setPendingAction(null);
     }
@@ -232,12 +249,12 @@ export function TransactionDocumentsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Document delete failed.");
+        throw new Error(body?.error ?? "文档删除失败。");
       }
 
       router.refresh();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Document delete failed.");
+      setError(deleteError instanceof Error ? deleteError.message : "文档删除失败。");
     } finally {
       setPendingAction(null);
     }
@@ -248,8 +265,8 @@ export function TransactionDocumentsCard({
       <section className="office-detail-card" id="transaction-documents">
       <div className="office-card-head">
         <div>
-          <h3>Documents</h3>
-          <span>Structured back-office files linked to this transaction and its checklist tasks.</span>
+          <h3>文档</h3>
+          <span>与这笔交易及其清单任务关联的结构化后台文件。</span>
         </div>
       </div>
 
@@ -277,17 +294,17 @@ export function TransactionDocumentsCard({
                   <div className="office-document-row-copy">
                     <div className="office-document-row-head">
                       <strong>{document.title}</strong>
-                      <StatusBadge tone={getDocumentTone(document.statusKey)}>{document.status}</StatusBadge>
-                      <StatusBadge tone="neutral">{document.source}</StatusBadge>
-                      {document.isRequired ? <StatusBadge tone="warning">Required</StatusBadge> : null}
-                      {document.hasPendingSignature ? <StatusBadge tone="accent">Pending signature</StatusBadge> : null}
+                      <StatusBadge tone={getDocumentTone(document.statusKey)}>{getDocumentStatusLabel(document)}</StatusBadge>
+                      <StatusBadge tone="neutral">{getDocumentSourceLabel(document)}</StatusBadge>
+                      {document.isRequired ? <StatusBadge tone="warning">必需</StatusBadge> : null}
+                      {document.hasPendingSignature ? <StatusBadge tone="accent">待签名</StatusBadge> : null}
                     </div>
                     <p>
                       {document.documentType} · {document.fileName} · {(document.fileSizeBytes / 1024).toFixed(1)} KB
                     </p>
                     {document.linkedTaskTitle ? (
                       <p>
-                        Linked task:{" "}
+                        关联任务：{" "}
                         <Link href={document.linkedTaskHref}>{document.linkedTaskTitle}</Link>
                       </p>
                     ) : null}
@@ -296,7 +313,7 @@ export function TransactionDocumentsCard({
                   <div className="office-document-row-actions">
                     {canViewDocuments ? (
                       <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
-                        Open
+                        打开
                       </Link>
                     ) : null}
                     {canManageSignatures && document.mimeType.toLowerCase() === "application/pdf" ? (
@@ -304,7 +321,7 @@ export function TransactionDocumentsCard({
                         className="office-button-secondary office-inline-action-sm"
                         href={`/office/transactions/${transactionId}/signatures/new?documentId=${document.id}`}
                       >
-                        Prepare signature
+                        准备签名
                       </Link>
                     ) : null}
                     {canManageDocuments ? (
@@ -313,9 +330,9 @@ export function TransactionDocumentsCard({
                         disabled={pendingAction === `delete:${document.id}`}
                         onClick={() =>
                           setConfirmDialog({
-                            title: `Delete ${document.title}?`,
-                            description: "This permanently removes the transaction document and its stored file.",
-                            confirmLabel: "Delete document",
+                            title: `删除 ${document.title}？`,
+                            description: "这会永久移除这份交易文档及其已存储文件。",
+                            confirmLabel: "删除文档",
                             onConfirm: () => {
                               void handleDeleteDocument(document.id);
                             }
@@ -324,7 +341,7 @@ export function TransactionDocumentsCard({
                         size="sm"
                         variant="danger"
                       >
-                        {pendingAction === `delete:${document.id}` ? "Deleting..." : "Delete"}
+                        {pendingAction === `delete:${document.id}` ? "删除中..." : "删除"}
                       </Button>
                     ) : null}
                   </div>
@@ -332,12 +349,12 @@ export function TransactionDocumentsCard({
 
                 {canManageDocuments ? (
                   <div className="office-document-edit-grid">
-                    <FormField label="Linked task">
+                    <FormField label="关联任务">
                       <SelectInput
                         onChange={(event) => updateRowState(document.id, "linkedTaskId", event.target.value)}
                         value={rowState.linkedTaskId}
                       >
-                        <option value="">No linked task</option>
+                        <option value="">不关联任务</option>
                         {taskOptions.map((task) => (
                           <option key={task.id} value={task.id}>
                             {task.title}
@@ -346,7 +363,7 @@ export function TransactionDocumentsCard({
                       </SelectInput>
                     </FormField>
 
-                    <FormField label="Status">
+                    <FormField label="状态">
                       <SelectInput
                         onChange={(event) => updateRowState(document.id, "statusKey", event.target.value)}
                         value={rowState.statusKey}
@@ -359,7 +376,7 @@ export function TransactionDocumentsCard({
                       </SelectInput>
                     </FormField>
 
-                    <CheckboxField className="office-document-inline-checkbox" label="Required document">
+                    <CheckboxField className="office-document-inline-checkbox" label="必需文档">
                       <input
                         checked={rowState.isRequired}
                         onChange={(event) => updateRowState(document.id, "isRequired", event.target.checked)}
@@ -373,7 +390,7 @@ export function TransactionDocumentsCard({
                         onClick={() => handleSaveDocument(document.id)}
                         size="sm"
                       >
-                        {pendingAction === `save:${document.id}` ? "Saving..." : "Save"}
+                        {pendingAction === `save:${document.id}` ? "保存中..." : "保存"}
                       </Button>
                     </div>
                   </div>
@@ -383,8 +400,8 @@ export function TransactionDocumentsCard({
           })
         ) : (
           <EmptyState
-            description="Upload a file or move one in from the unsorted queue."
-            title="No matching transaction documents."
+            description="上传文件，或从未整理队列移入一份文件。"
+            title="没有匹配的交易文档。"
           />
         )}
       </div>
@@ -392,35 +409,35 @@ export function TransactionDocumentsCard({
       {canManageDocuments ? (
         <div className="office-document-upload-panel">
           <div className="office-card-head office-card-head-inline">
-            <h3>Upload document</h3>
+            <h3>上传文档</h3>
           </div>
 
           <div className="office-document-upload-grid">
-            <FormField label="File">
+            <FormField label="文件">
               <input
                 className="office-file-input"
                 onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                 type="file"
               />
             </FormField>
-            <FormField label="Title">
+            <FormField label="标题">
               <TextInput
                 onChange={(event) => setUploadState((current) => ({ ...current, title: event.target.value }))}
                 value={uploadState.title}
               />
             </FormField>
-            <FormField label="Document type">
+            <FormField label="文档类型">
               <TextInput
                 onChange={(event) => setUploadState((current) => ({ ...current, documentType: event.target.value }))}
                 value={uploadState.documentType}
               />
             </FormField>
-            <FormField label="Linked task">
+            <FormField label="关联任务">
               <SelectInput
                 onChange={(event) => setUploadState((current) => ({ ...current, linkedTaskId: event.target.value }))}
                 value={uploadState.linkedTaskId}
               >
-                <option value="">No linked task</option>
+                <option value="">不关联任务</option>
                 {taskOptions.map((task) => (
                   <option key={task.id} value={task.id}>
                     {task.title}
@@ -429,14 +446,14 @@ export function TransactionDocumentsCard({
               </SelectInput>
             </FormField>
             <div className="office-document-upload-checkboxes">
-              <CheckboxField label="Required document">
+              <CheckboxField label="必需文档">
                 <input
                   checked={uploadState.isRequired}
                   onChange={(event) => setUploadState((current) => ({ ...current, isRequired: event.target.checked }))}
                   type="checkbox"
                 />
               </CheckboxField>
-              <CheckboxField label="Start in unsorted">
+              <CheckboxField label="先放入未整理">
                 <input
                   checked={uploadState.isUnsorted}
                   onChange={(event) => setUploadState((current) => ({ ...current, isUnsorted: event.target.checked }))}
@@ -448,7 +465,7 @@ export function TransactionDocumentsCard({
 
           <div className="office-document-edit-actions">
             <Button disabled={!selectedFile || pendingAction === "upload"} onClick={handleUpload}>
-              {pendingAction === "upload" ? "Uploading..." : "Upload document"}
+              {pendingAction === "upload" ? "上传中..." : "上传文档"}
             </Button>
           </div>
         </div>
@@ -458,7 +475,7 @@ export function TransactionDocumentsCard({
       </section>
 
       <ConfirmActionDialog
-        cancelLabel="Keep document"
+        cancelLabel="保留文档"
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}
@@ -515,12 +532,12 @@ export function TransactionUnsortedDocumentsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Document update failed.");
+        throw new Error(body?.error ?? "文档更新失败。");
       }
 
       router.refresh();
     } catch (moveError) {
-      setError(moveError instanceof Error ? moveError.message : "Document update failed.");
+      setError(moveError instanceof Error ? moveError.message : "文档更新失败。");
     } finally {
       setPendingAction(null);
     }
@@ -537,12 +554,12 @@ export function TransactionUnsortedDocumentsCard({
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Document delete failed.");
+        throw new Error(body?.error ?? "文档删除失败。");
       }
 
       router.refresh();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Document delete failed.");
+      setError(deleteError instanceof Error ? deleteError.message : "文档删除失败。");
     } finally {
       setPendingAction(null);
     }
@@ -553,8 +570,8 @@ export function TransactionUnsortedDocumentsCard({
       <section className="office-detail-card" id="transaction-unsorted-documents">
       <div className="office-card-head">
         <div>
-          <h3>Unsorted documents</h3>
-          <span>Files that landed in the transaction but have not been organized into the main workflow yet.</span>
+          <h3>未整理文档</h3>
+          <span>已进入这笔交易、但还没有整理到主流程中的文件。</span>
         </div>
       </div>
 
@@ -566,8 +583,8 @@ export function TransactionUnsortedDocumentsCard({
                 <div className="office-document-row-copy">
                   <div className="office-document-row-head">
                     <strong>{document.title}</strong>
-                    <StatusBadge tone="warning">Unsorted</StatusBadge>
-                    <StatusBadge tone={getDocumentTone(document.statusKey)}>{document.status}</StatusBadge>
+                    <StatusBadge tone="warning">未整理</StatusBadge>
+                    <StatusBadge tone={getDocumentTone(document.statusKey)}>{getDocumentStatusLabel(document)}</StatusBadge>
                   </div>
                   <p>
                     {document.documentType} · {document.fileName}
@@ -577,7 +594,7 @@ export function TransactionUnsortedDocumentsCard({
                 <div className="office-document-row-actions">
                   {canViewDocuments ? (
                     <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
-                      Open
+                      打开
                     </Link>
                   ) : null}
                   {canManageDocuments ? (
@@ -586,9 +603,9 @@ export function TransactionUnsortedDocumentsCard({
                       disabled={pendingAction === `delete:${document.id}`}
                       onClick={() =>
                         setConfirmDialog({
-                          title: `Delete ${document.title}?`,
-                          description: "This permanently removes the unsorted document and its stored file from the transaction.",
-                          confirmLabel: "Delete document",
+                          title: `删除 ${document.title}？`,
+                          description: "这会从交易中永久移除这份未整理文档及其已存储文件。",
+                          confirmLabel: "删除文档",
                           onConfirm: () => {
                             void handleDelete(document.id);
                           }
@@ -597,7 +614,7 @@ export function TransactionUnsortedDocumentsCard({
                       size="sm"
                       variant="danger"
                     >
-                      {pendingAction === `delete:${document.id}` ? "Deleting..." : "Delete"}
+                      {pendingAction === `delete:${document.id}` ? "删除中..." : "删除"}
                     </Button>
                   ) : null}
                 </div>
@@ -605,7 +622,7 @@ export function TransactionUnsortedDocumentsCard({
 
               {canManageDocuments ? (
                 <div className="office-document-edit-grid">
-                  <FormField label="Move into task">
+                  <FormField label="移入任务">
                     <SelectInput
                       onChange={(event) =>
                         setTaskSelections((current) => ({
@@ -615,7 +632,7 @@ export function TransactionUnsortedDocumentsCard({
                       }
                       value={taskSelections[document.id] ?? ""}
                     >
-                      <option value="">No linked task</option>
+                      <option value="">不关联任务</option>
                       {taskOptions.map((task) => (
                         <option key={task.id} value={task.id}>
                           {task.title}
@@ -630,7 +647,7 @@ export function TransactionUnsortedDocumentsCard({
                       onClick={() => handleMoveToStructured(document.id)}
                       size="sm"
                     >
-                      {pendingAction === `move:${document.id}` ? "Moving..." : "Move to documents"}
+                      {pendingAction === `move:${document.id}` ? "移动中..." : "移到文档"}
                     </Button>
                   </div>
                 </div>
@@ -639,8 +656,8 @@ export function TransactionUnsortedDocumentsCard({
           ))
         ) : (
           <EmptyState
-            description="Uploads marked as unsorted will appear here until they are placed into the workflow."
-            title="No unsorted documents."
+            description="标记为未整理的上传文件会显示在这里，直到被放入流程。"
+            title="没有未整理文档。"
           />
         )}
       </div>
@@ -649,7 +666,7 @@ export function TransactionUnsortedDocumentsCard({
       </section>
 
       <ConfirmActionDialog
-        cancelLabel="Keep document"
+        cancelLabel="保留文档"
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}

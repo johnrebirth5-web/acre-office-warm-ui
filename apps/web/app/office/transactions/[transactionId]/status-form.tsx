@@ -12,6 +12,18 @@ type TransactionStatusFormProps = {
   canManageStatus: boolean;
 };
 
+const transactionStatusLabelMap: Record<OfficeTransactionStatus, string> = {
+  Opportunity: "机会",
+  Active: "进行中",
+  Pending: "待处理",
+  Closed: "已成交",
+  Cancelled: "已取消"
+};
+
+function getTransactionStatusLabel(status: OfficeTransactionStatus) {
+  return transactionStatusLabelMap[status] ?? status;
+}
+
 export function TransactionStatusForm({ transactionId, currentStatus, canManageStatus }: TransactionStatusFormProps) {
   const router = useRouter();
   const [status, setStatus] = useState<OfficeTransactionStatus>(currentStatus);
@@ -41,12 +53,12 @@ export function TransactionStatusForm({ transactionId, currentStatus, canManageS
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update transaction status.");
+        throw new Error(body?.error ?? "交易状态更新失败。");
       }
 
       router.refresh();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Failed to update transaction status.");
+      setError(updateError instanceof Error ? updateError.message : "交易状态更新失败。");
     } finally {
       setIsSaving(false);
     }
@@ -55,7 +67,7 @@ export function TransactionStatusForm({ transactionId, currentStatus, canManageS
   return (
     <div className="office-form-actions">
       <label className="office-detail-field">
-        <span>Status</span>
+        <span>状态</span>
         <select
           disabled={!canManageStatus}
           onChange={(event) => setStatus(event.target.value as OfficeTransactionStatus)}
@@ -63,17 +75,17 @@ export function TransactionStatusForm({ transactionId, currentStatus, canManageS
         >
           {allOfficeTransactionStatusOptions.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {getTransactionStatusLabel(option)}
             </option>
           ))}
         </select>
       </label>
       {canManageStatus ? (
         <Button disabled={isSaving} onClick={handleUpdateStatus} type="button">
-          {isSaving ? "Saving..." : "Update status"}
+          {isSaving ? "保存中..." : "更新状态"}
         </Button>
       ) : (
-        <p className="office-form-helper">Only admins can change transaction status.</p>
+        <p className="office-form-helper">只有管理员可以修改交易状态。</p>
       )}
       {error ? <p className="office-form-error">{error}</p> : null}
     </div>

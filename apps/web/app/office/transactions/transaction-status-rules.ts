@@ -45,7 +45,7 @@ export function getCreateTransactionStatusFieldPolicy(canManageStatus: boolean):
     canEdit: false,
     allowedValues: createTransactionStatusValues,
     enforcedValue: "pending",
-    helperText: "Only admins can change status. New transactions default to Pending."
+    helperText: "只有管理员可以修改状态。新交易默认进入待处理状态。"
   };
 }
 
@@ -60,6 +60,6 @@ export function getEditTransactionStatusFieldPolicy(canManageStatus: boolean): T
   return {
     canEdit: false,
     allowedValues: allTransactionStatusValues,
-    helperText: "Only admins can change status."
+    helperText: "只有管理员可以修改状态。"
   };
 }
