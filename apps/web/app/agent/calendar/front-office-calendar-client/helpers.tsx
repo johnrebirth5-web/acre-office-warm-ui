@@ -55,21 +55,21 @@ export const externalStatusOptions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
   label: string;
 }> = [
-  { value: "idle", label: "External follow-up idle" },
-  { value: "needs_follow_up", label: "Reply due" },
-  { value: "confirmation_pending", label: "Confirmation pending" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "reschedule_requested", label: "Reschedule requested" },
+  { value: "idle", label: "外部跟进空闲" },
+  { value: "needs_follow_up", label: "待回复" },
+  { value: "confirmation_pending", label: "待确认" },
+  { value: "confirmed", label: "已确认" },
+  { value: "reschedule_requested", label: "请求改期" },
 ];
 
 
 
 export const statusFilterOptions = [
-  { value: "all", label: "All Acre statuses" },
-  { value: "scheduled", label: "Scheduled only" },
-  { value: "completed", label: "Completed" },
-  { value: "canceled", label: "Canceled" },
-  { value: "no_show", label: "No-show" },
+  { value: "all", label: "全部 Acre 状态" },
+  { value: "scheduled", label: "仅已安排" },
+  { value: "completed", label: "已完成" },
+  { value: "canceled", label: "已取消" },
+  { value: "no_show", label: "未到场" },
 ];
 
 
@@ -82,25 +82,25 @@ export const calendarViewOptions = calendarViewValues.map((value) => ({
 
 
 export const coordinationFilterOptions = [
-  { value: "all", label: "All coordination states" },
-  { value: "needs_follow_up", label: "Reply due" },
-  { value: "confirmation_pending", label: "Confirmation pending" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "reschedule_requested", label: "Reschedule requested" },
-  { value: "touch_due", label: "Touch due" },
-  { value: "bridge_logged", label: "Draft opened" },
-  { value: "writeback_pending", label: "Update not saved" },
+  { value: "all", label: "全部协调状态" },
+  { value: "needs_follow_up", label: "待回复" },
+  { value: "confirmation_pending", label: "待确认" },
+  { value: "confirmed", label: "已确认" },
+  { value: "reschedule_requested", label: "请求改期" },
+  { value: "touch_due", label: "触达已到期" },
+  { value: "bridge_logged", label: "草稿已打开" },
+  { value: "writeback_pending", label: "更新未保存" },
 ];
 
 
 
 export const followUpFilterOptions = [
-  { value: "all", label: "All follow-up rhythms" },
-  { value: "response_waiting", label: "Reply due" },
-  { value: "touch_due", label: "Touch due now" },
-  { value: "next_touch_missing", label: "Missing next touch" },
-  { value: "touch_scheduled", label: "Touch scheduled" },
-  { value: "confirmed", label: "Confirmed" },
+  { value: "all", label: "全部跟进节奏" },
+  { value: "response_waiting", label: "待回复" },
+  { value: "touch_due", label: "现在需要触达" },
+  { value: "next_touch_missing", label: "缺少下次触达" },
+  { value: "touch_scheduled", label: "触达已安排" },
+  { value: "confirmed", label: "已确认" },
 ];
 
 
@@ -279,27 +279,27 @@ export const quickWritebackActions: Array<{
 }> = [
   {
     value: "needs_follow_up",
-    label: "Reply due",
+    label: "待回复",
     description:
-      "Keep the appointment active, but flag that another outbound reply is still needed.",
+      "保持预约为活动状态，同时标记仍需要再次外联回复。",
   },
   {
     value: "confirmation_pending",
-    label: "Confirmation pending",
+    label: "待确认",
     description:
-      "Save that the outside reply has not come back yet without claiming a confirmed sync.",
+      "记录外部回复尚未回来，但不声称已经确认同步。",
   },
   {
     value: "confirmed",
-    label: "Confirmed / clear touch",
+    label: "已确认 / 清除触达",
     description:
-      "Mark the outside plan confirmed and clear the current next-touch reminder.",
+      "将外部计划标记为已确认，并清除当前下一次触达提醒。",
   },
   {
     value: "reschedule_requested",
-    label: "Reschedule requested",
+    label: "请求改期",
     description:
-      "Capture that the outside conversation moved into time-change mode.",
+      "记录外部对话已经进入改期模式。",
   },
 ];
 
@@ -403,21 +403,21 @@ export function validateAppointmentFormState(formState: AppointmentFormState) {
   const startIso = toIsoDateTime(formState.startsAt);
 
   if (!startIso) {
-    return "Choose a valid start time before scheduling the appointment.";
+    return "安排预约前请选择有效的开始时间。";
   }
 
   const endIso = formState.endsAt ? toIsoDateTime(formState.endsAt) : "";
 
   if (formState.endsAt && !endIso) {
-    return "Choose a valid end time or clear the field.";
+    return "请选择有效的结束时间，或清空该字段。";
   }
 
   if (endIso && new Date(endIso).getTime() < new Date(startIso).getTime()) {
-    return "End time cannot be earlier than start time.";
+    return "结束时间不能早于开始时间。";
   }
 
   if (formState.meetingUrl && !isValidHttpUrl(formState.meetingUrl)) {
-    return "Meeting link must be a valid Zoom, Meet, Teams, or other http(s) URL.";
+    return "会议链接必须是有效的 Zoom、Meet、Teams 或其他 http(s) URL。";
   }
 
   if (
@@ -431,7 +431,7 @@ export function validateAppointmentFormState(formState: AppointmentFormState) {
       !formState.contactLabel.trim()) ||
     (formState.type === "open_house" && !formState.listingId)
   ) {
-    return "Attach the client, listing, or outside contact that this appointment is coordinating before you save it.";
+    return "保存前请关联这个预约正在协调的客户、房源或外部联系人。";
   }
 
   return null;
@@ -449,42 +449,42 @@ export function buildAppointmentCueList(
   }
 
   if (appointment.externalStatusValue === "confirmation_pending") {
-    cues.push({ label: "Confirmation pending", tone: "accent" });
+    cues.push({ label: "待确认", tone: "accent" });
   }
 
   if (appointment.externalStatusValue === "reschedule_requested") {
-    cues.push({ label: "Reschedule requested", tone: "danger" });
+    cues.push({ label: "请求改期", tone: "danger" });
   }
 
   if (appointment.isExternalTouchDue) {
-    cues.push({ label: "Touch due", tone: "danger" });
+    cues.push({ label: "触达已到期", tone: "danger" });
   } else if (
     appointment.requiresExternalResponse &&
     appointment.externalNextActionAtValue
   ) {
-    cues.push({ label: "Touch scheduled", tone: "accent" });
+    cues.push({ label: "触达已安排", tone: "accent" });
   }
 
   if (appointment.needsNextTouchPlan) {
-    cues.push({ label: "Missing next touch", tone: "warning" });
+    cues.push({ label: "缺少下次触达", tone: "warning" });
   }
 
   if (
     appointment.hasBridgeActivity &&
     appointment.externalStatusValue === "idle"
   ) {
-    cues.push({ label: "Update not saved", tone: "warning" });
+    cues.push({ label: "更新未保存", tone: "warning" });
   }
 
   if (
     appointment.externalStatusValue === "confirmed" &&
     !appointment.externalNextActionAtValue
   ) {
-    cues.push({ label: "Externally confirmed", tone: "success" });
+    cues.push({ label: "外部已确认", tone: "success" });
   }
 
   if (appointment.reminderLabel === "Starts within 2h") {
-    cues.push({ label: "Starts soon", tone: "warning" });
+    cues.push({ label: "即将开始", tone: "warning" });
   }
 
   return cues.slice(0, 4);

@@ -21,15 +21,15 @@ type InvitePageProps = {
 function getErrorMessage(error?: string) {
   switch (error) {
     case "mismatch":
-      return "Password confirmation does not match.";
+      return "两次输入的密码不一致。";
     case "password_length":
-      return "Password is too short.";
+      return "密码太短。";
     case "missing_password":
-      return "Enter a password to continue.";
+      return "请输入密码后继续。";
     case "rate_limited":
-      return "Too many invitation attempts. Please wait a moment and try again.";
+      return "邀请尝试次数过多，请稍后再试。";
     default:
-      return error ? "Unable to complete this invitation." : "";
+      return error ? "暂时无法完成这个邀请。" : "";
   }
 }
 
@@ -61,10 +61,10 @@ function getInviteUnavailableCallout(
     return {
       tone: "success",
       icon: "check",
-      title: "This invitation was already accepted.",
-      description: "Sign in with your email and password to continue.",
+      title: "这个邀请已被接受。",
+      description: "请使用邮箱和密码登录后继续。",
       action: {
-        label: "Sign in",
+        label: "登录",
         href: "/login",
       },
     };
@@ -74,10 +74,10 @@ function getInviteUnavailableCallout(
     return {
       tone: "warning",
       icon: "clock",
-      title: "This invitation has expired.",
-      description: "Ask your inviter to send a fresh link.",
+      title: "这个邀请已过期。",
+      description: "请联系邀请人重新发送链接。",
       action: {
-        label: "Request a fresh link",
+        label: "请求新链接",
         href: buildMailtoHref(
           "Request a new Acre invitation link",
           `Hi,\n\nPlease send me a fresh Acre invitation link for ${email || "my account"}.\n\nThank you.`,
@@ -92,19 +92,19 @@ function getInviteUnavailableCallout(
       icon: "x",
       title:
         status === "revoked"
-          ? "This invitation has been cancelled."
-          : "This organization can no longer accept this invite.",
+          ? "这个邀请已被取消。"
+          : "该组织目前无法继续接受这个邀请。",
       description:
         status === "revoked"
-          ? "An administrator revoked this invitation before it was accepted."
-          : "Contact the sender or your admin team for a new access path.",
+          ? "管理员已在接受前撤销这个邀请。"
+          : "请联系发送人或管理员团队获取新的访问方式。",
     };
   }
 
   return {
     tone: "info",
     icon: "question",
-    title: "This invitation link isn't valid.",
+    title: "这个邀请链接无效。",
   };
 }
 
@@ -119,14 +119,14 @@ function getInviteFormErrorCallout(error?: string): InviteCalloutState | null {
     return {
       tone: "warning",
       icon: "timer",
-      title: "Too many invitation attempts. Try again in a moment.",
+      title: "邀请尝试次数过多，请稍后再试。",
     };
   }
 
   return {
     tone: "error",
     icon: "x",
-    title: "We couldn't complete this invitation yet.",
+    title: "暂时无法完成这个邀请。",
     description: errorMessage,
   };
 }
@@ -157,12 +157,12 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
       <section className="auth-layout">
         <section className="auth-card">
           <div className="auth-card-copy">
-            <span className="auth-eyebrow">Internal Account</span>
-            <h2>{isInvite ? "Accept your invitation" : "Set your password"}</h2>
+            <span className="auth-eyebrow">内部账户</span>
+            <h2>{isInvite ? "接受邀请" : "设置密码"}</h2>
             <p>
               {isReady
-                ? `Finish setup for ${snapshot.email} and start using the internal Acre workspace.`
-                : "This invitation link is no longer available in its current state."}
+                ? `完成 ${snapshot.email} 的账户设置，然后开始使用 Acre 内部工作区。`
+                : "这个邀请链接当前已不可用。"}
             </p>
           </div>
 
@@ -171,27 +171,27 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
               <input name="token" type="hidden" value={token} />
 
               <label className="auth-field">
-                <span>First name</span>
+                <span>名</span>
                 <input defaultValue={snapshot.firstName} name="firstName" type="text" />
               </label>
 
               <label className="auth-field">
-                <span>Last name</span>
+                <span>姓</span>
                 <input defaultValue={snapshot.lastName} name="lastName" type="text" />
               </label>
 
               <label className="auth-field">
-                <span>Email</span>
+                <span>邮箱</span>
                 <input disabled value={snapshot.email} />
               </label>
 
               <label className="auth-field">
-                <span>Password</span>
+                <span>密码</span>
                 <input autoComplete="new-password" name="password" type="password" />
               </label>
 
               <label className="auth-field">
-                <span>Confirm password</span>
+                <span>确认密码</span>
                 <input autoComplete="new-password" name="confirmPassword" type="password" />
               </label>
 
@@ -207,7 +207,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
 
               <div className="auth-actions">
                 <Button className="auth-submit" type="submit">
-                  {isInvite ? "Accept invitation" : "Save password"}
+                  {isInvite ? "接受邀请" : "保存密码"}
                 </Button>
               </div>
             </form>
@@ -223,7 +223,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
               {snapshot.status !== "accepted" ? (
                 <div className="auth-actions">
                   <Link className="office-button-secondary office-button-sm" href="/login">
-                    Go to login
+                    前往登录
                   </Link>
                 </div>
               ) : null}

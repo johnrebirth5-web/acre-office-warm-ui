@@ -144,17 +144,17 @@ function ProjectSigningDocumentPreview(props: {
   return (
     <section className="public-signature-document">
       <div className="public-signature-document-heading">
-        <p className="public-signature-eyebrow">Project document</p>
+        <p className="public-signature-eyebrow">项目文件</p>
         <h2>{props.document.title}</h2>
       </div>
-      {isLoading ? <p className="public-signature-helper">Loading document preview...</p> : null}
+      {isLoading ? <p className="public-signature-helper">正在加载文件预览...</p> : null}
       {error ? <p className="office-inline-alert office-inline-alert-danger">{error}</p> : null}
       <div className="public-signature-pages">
         {pages.map((page) => (
           <section className="public-signature-page" key={page.pageNumber}>
-            <div className="public-signature-page-label">Page {page.pageNumber}</div>
+            <div className="public-signature-page-label">第 {page.pageNumber} 页</div>
             <div className="public-signature-page-frame">
-              <img alt={`${props.document.title} page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
+              <img alt={`${props.document.title} 第 ${page.pageNumber} 页`} height={page.height} src={page.imageUrl} width={page.width} />
               {props.document.fields
                 .filter((field) => field.page === page.pageNumber)
                 .map((field) => {
@@ -173,7 +173,7 @@ function ProjectSigningDocumentPreview(props: {
                     >
                       {field.fieldType === "signature" ? (
                         <button
-                          aria-label={`Add ${getFieldLabel(field)}`}
+                          aria-label={`添加${getFieldLabel(field)}`}
                           className="public-signature-sign-button"
                           disabled={props.disabled}
                           onClick={() => props.onOpenSignature(field.id)}
@@ -182,7 +182,7 @@ function ProjectSigningDocumentPreview(props: {
                           {value?.imageDataUrl ? (
                             <img alt={`${getFieldLabel(field)} preview`} src={value.imageDataUrl} />
                           ) : (
-                            <span>Tap to sign</span>
+                            <span>点击签名</span>
                           )}
                         </button>
                       ) : field.fieldType === "text" ? (
@@ -368,7 +368,7 @@ export function ProjectSigningExperience(props: {
 
     if (!hasSignatureInk) {
       setMessageTone("danger");
-      setMessage("Draw your signature before saving this field.");
+      setMessage("请先手写签名，再保存这个字段。");
       return;
     }
 
@@ -382,13 +382,13 @@ export function ProjectSigningExperience(props: {
 
   function validateCompletion() {
     if (!hasAssignedFields) {
-      return "This signing link has no fields assigned. Ask Acre to add signing fields to the template and send a new link.";
+      return "这个签署链接没有分配任何字段。请联系 Acre 在模板中添加签署字段后重新发送链接。";
     }
 
     const missingField = assignedFields.find((field) => !isFieldComplete(field, values[field.id]));
 
     if (missingField) {
-      return `Complete ${getFieldLabel(missingField)} before saving.`;
+      return `请先填写${getFieldLabel(missingField)}，再保存。`;
     }
 
     return null;
@@ -419,7 +419,7 @@ export function ProjectSigningExperience(props: {
 
     setIsReviewing(true);
     setMessageTone("info");
-    setMessage("Fields saved. Review the document one more time, then confirm to complete signing.");
+    setMessage("字段已保存。请再检查一遍文件，然后确认完成签署。");
   }
 
   async function confirmSignature() {
@@ -443,7 +443,7 @@ export function ProjectSigningExperience(props: {
       setMessage(props.completeMessage);
     } catch (error) {
       setMessageTone("danger");
-      setMessage(error instanceof Error ? error.message : "Signature could not be submitted.");
+      setMessage(error instanceof Error ? error.message : "无法提交签名。");
     } finally {
       setIsBusy(false);
     }
@@ -456,21 +456,21 @@ export function ProjectSigningExperience(props: {
           <p className="public-signature-eyebrow">{props.eyebrow}</p>
           <h1>{props.title}</h1>
           <p className="public-signature-sidebar-description">
-            {isComplete ? "Your signing step is complete." : props.description}
+            {isComplete ? "你的签署步骤已完成。" : props.description}
           </p>
         </div>
 
         <div className="public-signature-meta">
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>Recipient</strong>
+            <strong>收件人</strong>
             <span>{props.recipientName}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>Documents</strong>
+            <strong>文件</strong>
             <span>{props.documents.length}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>Fields</strong>
+            <strong>字段</strong>
             <span>{assignedFields.length}</span>
           </p>
         </div>
@@ -482,32 +482,32 @@ export function ProjectSigningExperience(props: {
         ) : null}
         {!hasAssignedFields ? (
           <p className="office-inline-alert office-inline-alert-danger">
-            This link has no signing fields assigned. The sender needs to edit the template fields and send a new link.
+            这个链接没有分配任何签署字段。发送人需要编辑模板字段并重新发送链接。
           </p>
         ) : null}
 
         <div className="public-signature-sidebar-actions">
           {!isComplete && isReviewing ? (
             <Button disabled={isBusy || !hasAssignedFields} onClick={confirmSignature} type="button">
-              {isBusy ? "Submitting..." : props.submitLabel ?? "Confirm signature"}
+              {isBusy ? "提交中..." : props.submitLabel ?? "确认签名"}
             </Button>
           ) : !isComplete ? (
             <Button disabled={isBusy || !hasAssignedFields} onClick={saveForReview} type="button">
-              Save fields
+              保存字段
             </Button>
           ) : (
             <Button disabled type="button">
-              Signed
+              已签署
             </Button>
           )}
           {!isComplete && isReviewing ? (
             <Button disabled={isBusy} onClick={() => setIsReviewing(false)} type="button" variant="secondary">
-              Edit fields
+              编辑字段
             </Button>
           ) : null}
           {props.onBack && !isComplete ? (
             <Button disabled={isBusy} onClick={props.onBack} type="button" variant="secondary">
-              {props.backLabel ?? "Back"}
+              {props.backLabel ?? "返回"}
             </Button>
           ) : null}
         </div>
@@ -530,12 +530,12 @@ export function ProjectSigningExperience(props: {
         <div className="public-signature-modal" onClick={closeSignatureModal}>
           <div className="public-signature-modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="public-signature-modal-head">
-              <h2>{activeSignatureField ? getFieldLabel(activeSignatureField) : "Add signature"}</h2>
+              <h2>{activeSignatureField ? getFieldLabel(activeSignatureField) : "添加签名"}</h2>
               <button onClick={closeSignatureModal} type="button">
-                Close
+                关闭
               </button>
             </div>
-            <p className="public-signature-helper">Sign inside the box, then save this signature field.</p>
+            <p className="public-signature-helper">请在框内签名，然后保存这个签名字段。</p>
             <canvas
               className="public-signature-canvas"
               height={260}
@@ -548,10 +548,10 @@ export function ProjectSigningExperience(props: {
             />
             <div className="public-signature-modal-actions">
               <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                Clear
+                清除
               </Button>
               <Button onClick={saveActiveSignature} type="button">
-                Save signature
+                保存签名
               </Button>
             </div>
           </div>

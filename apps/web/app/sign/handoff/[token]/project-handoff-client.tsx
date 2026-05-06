@@ -49,7 +49,7 @@ export function ProjectHandoffClient(props: {
 
   async function submitForSelectedRecipient(values: ProjectSigningSubmitValue[]) {
     if (!selectedRecipient) {
-      throw new Error("Signer was not found.");
+      throw new Error("未找到签署人。");
     }
 
     const response = await fetch(`/api/public/project-handoff/${encodeURIComponent(props.token)}/submit`, {
@@ -60,7 +60,7 @@ export function ProjectHandoffClient(props: {
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
     if (!response.ok) {
-      throw new Error(payload.error || "Signature could not be submitted.");
+      throw new Error(payload.error || "无法提交签名。");
     }
 
     const nextRecipients = recipients.map((recipient) =>
@@ -69,7 +69,7 @@ export function ProjectHandoffClient(props: {
     const nextSelectedRecipientId = getAutoSelectedRecipientId(nextRecipients);
     setRecipients(nextRecipients);
     setSelectedRecipientId(nextSelectedRecipientId);
-    setMessage(nextSelectedRecipientId ? "Signed. Hand the iPad to the next signer." : "Signed. All signers are complete.");
+    setMessage(nextSelectedRecipientId ? "已签署。请把 iPad 交给下一位签署人。" : "已签署。所有签署人都已完成。");
   }
 
   async function exitHandoff(event: FormEvent<HTMLFormElement>) {
@@ -83,12 +83,12 @@ export function ProjectHandoffClient(props: {
       const payload = (await response.json().catch(() => ({}))) as { error?: string; redirectTo?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error || "Handoff could not be exited.");
+        throw new Error(payload.error || "无法退出交接模式。");
       }
 
       window.location.href = payload.redirectTo ?? "/agent/projects";
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Handoff could not be exited.");
+      setMessage(error instanceof Error ? error.message : "无法退出交接模式。");
     } finally {
       setIsBusy(false);
     }
@@ -97,16 +97,16 @@ export function ProjectHandoffClient(props: {
   if (!allComplete && selectedRecipient) {
     return (
       <ProjectSigningExperience
-        backLabel="Signer list"
-        completeMessage="Signed. Hand the iPad to the next signer."
-        description="Review the full PDF, complete each highlighted field, save the fields, then confirm this signer."
+        backLabel="签署人列表"
+        completeMessage="已签署。请把 iPad 交给下一位签署人。"
+        description="查看完整 PDF，填写每个高亮字段，保存字段后再确认该签署人。"
         documents={selectedRecipient.documents}
-        eyebrow="Acre project signing"
+        eyebrow="Acre 项目签署"
         key={selectedRecipient.id}
         onBack={activeRecipients.length > 1 ? () => setSelectedRecipientId(null) : undefined}
         onSubmit={submitForSelectedRecipient}
         recipientName={selectedRecipient.name}
-        submitLabel="Confirm signature"
+        submitLabel="确认签名"
         title={props.projectName}
       />
     );
@@ -115,12 +115,12 @@ export function ProjectHandoffClient(props: {
   return (
     <main className="project-kiosk-shell">
       <section className="project-kiosk-panel">
-        <p className="office-eyebrow">Acre Project Signing</p>
+        <p className="office-eyebrow">Acre 项目签署</p>
         <h1>{props.projectName}</h1>
         <p>
           {allComplete
-            ? "All signers are complete. Exit the kiosk when you are ready."
-            : "Tap your name to open the full document signing page."}
+            ? "所有签署人都已完成。准备好后即可退出自助签署模式。"
+            : "点击你的姓名，打开完整文件签署页面。"}
         </p>
         {message ? <p className="project-public-message">{message}</p> : null}
 
@@ -138,7 +138,7 @@ export function ProjectHandoffClient(props: {
                   type="button"
                   variant={recipient.status === "acted" ? "secondary" : "primary"}
                 >
-                  {recipient.status === "acted" ? `${recipient.name} signed` : `我是 ${recipient.name} (${fieldCount} fields)`}
+                  {recipient.status === "acted" ? `${recipient.name} 已签署` : `我是 ${recipient.name}（${fieldCount} 个字段）`}
                 </Button>
               );
             })}
@@ -146,7 +146,7 @@ export function ProjectHandoffClient(props: {
         ) : (
           <form className="project-public-otp" onSubmit={exitHandoff}>
             <Button disabled={isBusy} type="submit">
-              Exit kiosk
+              退出自助签署
             </Button>
           </form>
         )}

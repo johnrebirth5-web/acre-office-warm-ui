@@ -20,7 +20,7 @@ export function ActivityCommentComposer({ officeId, scopeLabel }: ActivityCommen
     const trimmedBody = body.trim();
 
     if (!trimmedBody) {
-      setError("Comment is required.");
+      setError("请输入评论内容。");
       return;
     }
 
@@ -42,14 +42,14 @@ export function ActivityCommentComposer({ officeId, scopeLabel }: ActivityCommen
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Failed to add comment.");
+        throw new Error(payload?.error ?? "添加评论失败。");
       }
 
       setBody("");
       setIsOpen(false);
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to add comment.");
+      setError(saveError instanceof Error ? saveError.message : "添加评论失败。");
     } finally {
       setIsSaving(false);
     }
@@ -59,17 +59,17 @@ export function ActivityCommentComposer({ officeId, scopeLabel }: ActivityCommen
     <div className="office-activity-comment-composer">
       {isOpen ? (
         <div className="office-activity-comment-panel">
-          <FormField className="office-activity-comment-field" label="Add comment">
+          <FormField className="office-activity-comment-field" label="添加评论">
             <TextareaInput
               onChange={(event) => setBody(event.target.value)}
-              placeholder={`Leave an internal note for ${scopeLabel}`}
+              placeholder={`为 ${scopeLabel} 留一条内部备注`}
               rows={3}
               value={body}
             />
           </FormField>
           <div className="office-activity-comment-actions">
             <Button disabled={isSaving} onClick={handleSubmit} type="button">
-              {isSaving ? "Saving..." : "Save comment"}
+              {isSaving ? "保存中..." : "保存评论"}
             </Button>
             <Button
               disabled={isSaving}
@@ -81,14 +81,14 @@ export function ActivityCommentComposer({ officeId, scopeLabel }: ActivityCommen
               type="button"
               variant="secondary"
             >
-              Cancel
+              取消
             </Button>
           </div>
           {error ? <p className="office-form-error">{error}</p> : null}
         </div>
       ) : (
         <Button onClick={() => setIsOpen(true)} type="button">
-          Add comment
+          添加评论
         </Button>
       )}
     </div>

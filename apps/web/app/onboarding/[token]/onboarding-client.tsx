@@ -37,13 +37,13 @@ export function PublicOnboardingUploadForm(props: {
       });
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Upload failed.");
+        throw new Error(payload?.error ?? "上传失败。");
       }
-      setState({ error: "", message: "Uploaded." });
+      setState({ error: "", message: "已上传。" });
       event.currentTarget.reset();
     } catch (error) {
       setState({
-        error: error instanceof Error ? error.message : "Upload failed.",
+        error: error instanceof Error ? error.message : "上传失败。",
         message: "",
       });
     }
@@ -59,12 +59,12 @@ export function PublicOnboardingUploadForm(props: {
       });
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Submit failed.");
+        throw new Error(payload?.error ?? "提交失败。");
       }
-      setState({ error: "", message: "Submitted." });
+      setState({ error: "", message: "已提交。" });
     } catch (error) {
       setState({
-        error: error instanceof Error ? error.message : "Submit failed.",
+        error: error instanceof Error ? error.message : "提交失败。",
         message: "",
       });
     }
@@ -74,26 +74,26 @@ export function PublicOnboardingUploadForm(props: {
     <div className="office-list-page-stack">
       <form className="office-form-section-body" onSubmit={handleUpload}>
         <label className="office-form-field">
-          <span>Document type</span>
+          <span>文件类型</span>
           <select name="kind">
-            <option value="legal_document">Legal document</option>
-            <option value="onboarding_info">Onboarding info</option>
-            <option value="direct_deposit_info">Direct deposit info</option>
-            <option value="other">Other</option>
+            <option value="legal_document">法律文件</option>
+            <option value="onboarding_info">入职资料</option>
+            <option value="direct_deposit_info">直存资料</option>
+            <option value="other">其他</option>
           </select>
         </label>
         <label className="office-form-field">
-          <span>Title</span>
+          <span>标题</span>
           <TextInput name="title" />
         </label>
         <input name="email" type="hidden" value={props.candidateEmail} />
         <label className="office-form-field office-detail-field-wide">
-          <span>File</span>
+          <span>文件</span>
           <input name="file" required type="file" />
         </label>
         <div className="office-button-row">
-          <Button type="submit">Upload document</Button>
-          <Button onClick={handleSubmitCase} type="button" variant="secondary">Submit</Button>
+          <Button type="submit">上传文件</Button>
+          <Button onClick={handleSubmitCase} type="button" variant="secondary">提交</Button>
         </div>
       </form>
       {state.error ? <p className="office-form-error">{state.error}</p> : null}

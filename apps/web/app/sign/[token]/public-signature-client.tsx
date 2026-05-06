@@ -91,16 +91,16 @@ function buildMailtoHref(address: string | null | undefined, subject: string, bo
 
 function buildSignedCopyAction(token: string) {
   return {
-    label: "Download your signed copy",
+    label: "下载已签署副本",
     href: `/api/public/signatures/${encodeURIComponent(token)}/document`,
     download: true
   };
 }
 
 function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: string): CalloutState {
-  const senderDisplayName = snapshot.request.senderDisplayName || "the sender";
+  const senderDisplayName = snapshot.request.senderDisplayName || "发送人";
   const requestNewLinkAction = {
-    label: "Request a new link",
+    label: "请求新链接",
     href: buildMailtoHref(
       snapshot.request.senderReplyTo,
       `Request a new signing link for ${snapshot.document.title}`,
@@ -108,7 +108,7 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     )
   };
   const contactSenderAction = {
-    label: "Contact sender",
+    label: "联系发送人",
     href: buildMailtoHref(
       snapshot.request.senderReplyTo,
       `Question about ${snapshot.document.title}`,
@@ -120,7 +120,7 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "success",
       icon: "check",
-      title: `You already signed this on ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt) || "a previous visit"}.`,
+      title: `你已在 ${formatStatusDate(snapshot.currentRecipient.actedAt || snapshot.request.completedAt) || "之前访问时"} 签署过这个文件。`,
       action: buildSignedCopyAction(token)
     };
   }
@@ -133,7 +133,7 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "x",
-      title: "The sender cancelled this signing request.",
+      title: "发送人已取消这个签署请求。",
       action: contactSenderAction
     };
   }
@@ -142,7 +142,7 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "warning",
       icon: "clock",
-      title: `This link expired on ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt) || "an earlier date"}.`,
+      title: `这个链接已在 ${formatStatusDate(snapshot.request.expiresAt || snapshot.request.expiredAt) || "较早日期"} 过期。`,
       action: requestNewLinkAction
     };
   }
@@ -151,8 +151,8 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "x",
-      title: "This signing request was declined.",
-      description: "Contact the sender if you still need to review this document.",
+      title: "这个签署请求已被拒签。",
+      description: "如果仍需查看这个文件，请联系发送人。",
       action: contactSenderAction
     };
   }
@@ -161,8 +161,8 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "timer",
-      title: "This signing step isn't active yet.",
-      description: "Please wait for the sender to activate your turn."
+      title: "这个签署步骤尚未激活。",
+      description: "请等待发送人激活你的签署顺序。"
     };
   }
 
@@ -170,8 +170,8 @@ function buildStatusCallout(snapshot: PublicSignatureRequestSnapshot, token: str
     return {
       tone: "info",
       icon: "timer",
-      title: "This signing request isn't ready yet.",
-      description: "The sender still needs to finish preparing this document."
+      title: "这个签署请求尚未准备好。",
+      description: "发送人仍需完成这个文件的准备。"
     };
   }
 
@@ -187,14 +187,14 @@ function buildInlineErrorCallout(errorMessage: string): CalloutState {
     return {
       tone: "info",
       icon: "timer",
-      title: "Too many attempts. Try again in a few minutes."
+      title: "尝试次数过多，请几分钟后再试。"
     };
   }
 
   return {
     tone: "error",
     icon: "x",
-    title: "We couldn't finish that action.",
+    title: "暂时无法完成该操作。",
     description: errorMessage
   };
 }
@@ -391,7 +391,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
     const imageDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("The signature image could not be read."));
+      reader.onerror = () => reject(new Error("无法读取签名图片。"));
       reader.readAsDataURL(file);
     });
 
@@ -420,12 +420,12 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error ?? "The document could not be signed.");
+        throw new Error(payload?.error ?? "无法签署这个文件。");
       }
 
       setCompleted(true);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "The document could not be signed.");
+      setSubmitError(error instanceof Error ? error.message : "无法签署这个文件。");
     } finally {
       setPendingSubmit(false);
     }
@@ -435,51 +435,51 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
     <div className="public-signature-shell">
       <aside className="public-signature-sidebar">
         <div className="public-signature-sidebar-summary">
-          <p className="public-signature-eyebrow">Acre signature request</p>
+          <p className="public-signature-eyebrow">Acre 签署请求</p>
           <h1>{snapshot.document.title}</h1>
-          <p className="public-signature-sidebar-description">{senderDisplayName} invited you to sign this document.</p>
+          <p className="public-signature-sidebar-description">{senderDisplayName} 邀请你签署这个文件。</p>
         </div>
 
         <div className="public-signature-meta">
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>Recipient</strong>
+            <strong>收件人</strong>
             <span>{snapshot.currentRecipient.name}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-primary">
-            <strong>Sender</strong>
+            <strong>发送人</strong>
             <span>{senderDisplayName}</span>
           </p>
           {expiresLabel ? (
             <p className="public-signature-meta-item public-signature-meta-item-primary">
-              <strong>Expires</strong>
+              <strong>过期时间</strong>
               <span>{expiresLabel}</span>
             </p>
           ) : null}
           <p className="public-signature-meta-item public-signature-meta-item-secondary">
-            <strong>Email</strong>
+            <strong>邮箱</strong>
             <span>{snapshot.currentRecipient.email}</span>
           </p>
           <p className="public-signature-meta-item public-signature-meta-item-secondary">
-            <strong>Role</strong>
+            <strong>角色</strong>
             <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
           </p>
         </div>
 
         <details className="public-signature-sidebar-details">
-          <summary>Details</summary>
+          <summary>详情</summary>
           <div className="public-signature-sidebar-details-body">
-            <p>{senderDisplayName} invited you to sign this document.</p>
+            <p>{senderDisplayName} 邀请你签署这个文件。</p>
             <div className="public-signature-sidebar-details-list">
               <div className="public-signature-sidebar-details-item">
-                <strong>Email</strong>
+                <strong>邮箱</strong>
                 <span>{snapshot.currentRecipient.email}</span>
               </div>
               <div className="public-signature-sidebar-details-item">
-                <strong>Role</strong>
+                <strong>角色</strong>
                 <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
               </div>
             </div>
-            {!completed && !statusCallout ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
+            {!completed && !statusCallout ? <p className="public-signature-helper">文件上只显示分配给你的字段。</p> : null}
           </div>
         </details>
 
@@ -497,7 +497,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
           <SignatureStatusCallout
             action={buildSignedCopyAction(token)}
             icon="check"
-            title="The document has been signed successfully."
+            title="文件已成功签署。"
             tone="success"
           />
         ) : null}
@@ -510,11 +510,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
             tone={submitErrorCallout.tone}
           />
         ) : null}
-        {!completed && !statusCallout ? <p className="public-signature-helper public-signature-sidebar-helper-desktop">Only the fields assigned to you are shown on the document.</p> : null}
+        {!completed && !statusCallout ? <p className="public-signature-helper public-signature-sidebar-helper-desktop">文件上只显示分配给你的字段。</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
-            {pendingSubmit ? "Submitting..." : snapshot.currentRecipient.roleKey === "approver" && editableFieldCount === 0 ? "Approve step" : "Submit signature"}
+            {pendingSubmit ? "提交中..." : snapshot.currentRecipient.roleKey === "approver" && editableFieldCount === 0 ? "批准此步骤" : "提交签名"}
           </Button>
         ) : null}
       </aside>
@@ -530,7 +530,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
             tone={statusCallout.tone}
           />
         ) : null}
-        {isLoading ? <p className="public-signature-helper">Loading document preview…</p> : null}
+        {isLoading ? <p className="public-signature-helper">正在加载文件预览...</p> : null}
         {previewErrorCallout ? (
           <SignatureStatusCallout
             action={previewErrorCallout.action}
@@ -544,9 +544,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         <div className="public-signature-pages">
           {pages.map((page) => (
             <section className="public-signature-page" key={page.pageNumber}>
-              <div className="public-signature-page-label">Page {page.pageNumber}</div>
+              <div className="public-signature-page-label">第 {page.pageNumber} 页</div>
               <div className="public-signature-page-frame">
-                <img alt={`Signable document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
+                <img alt={`可签署文件第 ${page.pageNumber} 页`} height={page.height} src={page.imageUrl} width={page.width} />
                 {editableFields
                   .filter((field) => field.page === page.pageNumber)
                   .map((field) => {
@@ -607,9 +607,9 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         <div className="public-signature-modal" onClick={closeSignatureModal}>
           <div className="public-signature-modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="public-signature-modal-head">
-              <h2>Add signature</h2>
+              <h2>添加签名</h2>
               <button onClick={closeSignatureModal} type="button">
-                Close
+                关闭
               </button>
             </div>
 
@@ -621,7 +621,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                   onClick={() => setSignatureMode(mode)}
                   type="button"
                 >
-                  {mode === "draw" ? "Draw" : mode === "type" ? "Type" : "Upload"}
+                  {mode === "draw" ? "手写" : mode === "type" ? "输入" : "上传"}
                 </button>
               ))}
             </div>
@@ -641,11 +641,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      Clear signature
+                      清除签名
                     </Button>
                   ) : null}
                   <Button onClick={closeSignatureModal} type="button" variant="secondary">
-                    Done
+                    完成
                   </Button>
                 </div>
               </div>
@@ -653,18 +653,18 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
             {signatureMode === "type" ? (
               <div className="public-signature-type-panel">
-                <FormField label="Typed signature">
+                <FormField label="输入签名">
                   <TextInput onChange={(event) => setTypedSignature(event.target.value)} value={typedSignature} />
                 </FormField>
                 <div className="public-signature-typed-preview public-signature-typed-preview-large">{typedSignature}</div>
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      Clear signature
+                      清除签名
                     </Button>
                   ) : null}
                   <Button onClick={applyTypedSignature} type="button">
-                    Use typed signature
+                    使用输入签名
                   </Button>
                 </div>
               </div>
@@ -682,7 +682,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">
-                      Clear signature
+                      清除签名
                     </Button>
                   ) : null}
                 </div>

@@ -44,25 +44,25 @@ export const activityViewOptions: Array<{
   value: AgentActivityView;
   label: string;
 }> = [
-  { value: "all", label: "Overview" },
-  { value: "personal_cleanup", label: "My follow-ups" },
-  { value: "team_cleanup", label: "Team follow-ups" },
-  { value: "appointment_reminders", label: "Appointments" },
-  { value: "general_notices", label: "Notices" },
+  { value: "all", label: "总览" },
+  { value: "personal_cleanup", label: "我的跟进" },
+  { value: "team_cleanup", label: "团队跟进" },
+  { value: "appointment_reminders", label: "预约" },
+  { value: "general_notices", label: "通知" },
 ];
 
 export function getActivityViewFocusLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Your overdue follow-up and duplicate review";
+      return "你的逾期跟进和重复记录审查";
     case "team_cleanup":
-      return "Team overdue follow-up and quiet activity";
+      return "团队逾期跟进和沉默动态";
     case "appointment_reminders":
-      return "Appointment confirmations, reschedules, and next steps";
+      return "预约确认、改期和下一步";
     case "general_notices":
-      return "Notices, office updates, and formal workflow items";
+      return "通知、办公室更新和正式工作流事项";
     default:
-      return "Follow-up, appointments, team pressure, and notices";
+      return "跟进、预约、团队压力和通知";
   }
 }
 
@@ -71,45 +71,45 @@ export function getActivityViewSectionTargetLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "My follow-ups";
+      return "我的跟进";
     case "team_cleanup":
-      return "Team follow-ups";
+      return "团队跟进";
     case "appointment_reminders":
-      return "Appointments";
+      return "预约";
     case "general_notices":
-      return "Notices";
+      return "通知";
     default:
-      return "Activity";
+      return "动态";
   }
 }
 
 export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Handle the most overdue follow-up first, then return to reminders or notices if needed.";
+      return "先处理最逾期的跟进，必要时再回到提醒或通知。";
     case "team_cleanup":
-      return "Address the most urgent team item, then return to your own follow-up.";
+      return "先处理最紧急的团队事项，再回到自己的跟进。";
     case "appointment_reminders":
-      return "Open the appointment and record the next step.";
+      return "打开预约并记录下一步。";
     case "general_notices":
-      return "Open the notice and decide whether it needs agent work or formal workflow.";
+      return "打开通知，判断它需要经纪人处理还是正式工作流处理。";
     default:
-      return "Start with the most urgent item, then keep the same filters in place.";
+      return "从最紧急的事项开始，然后保持当前筛选继续处理。";
   }
 }
 
 export function getActivityViewOperatorCue(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Finish your own overdue follow-up first, then come back to reminders or notices.";
+      return "先完成自己的逾期跟进，再回到提醒或通知。";
     case "team_cleanup":
-      return "Use this view when the team needs help, not just for your own queue.";
+      return "团队需要协助时使用这个视图，而不是只看自己的队列。";
     case "appointment_reminders":
-      return "Keep the appointment open until the confirmation, reschedule, or next step is recorded.";
+      return "在确认、改期或下一步记录完成前，保持预约打开。";
     case "general_notices":
-      return "Use notices to separate direct action from updates that only need visibility.";
+      return "用通知区分需要直接处理的事项和只需看见的更新。";
     default:
-      return "Review the most urgent area first, then keep the current filters steady while you work.";
+      return "先查看最紧急的区域，处理时保持当前筛选不变。";
   }
 }
 
@@ -118,15 +118,15 @@ export function getActivityViewTriageOrderLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Clear your overdue follow-up before widening the view.";
+      return "先清理自己的逾期跟进，再扩大视图。";
     case "team_cleanup":
-      return "Handle team pressure before returning to your own work.";
+      return "先处理团队压力，再回到自己的工作。";
     case "appointment_reminders":
-      return "Finish the appointment update before switching back to notices.";
+      return "先完成预约更新，再切回通知。";
     case "general_notices":
-      return "Review notices before circling back to appointment follow-up.";
+      return "先查看通知，再回到预约跟进。";
     default:
-      return "My follow-up -> team pressure -> appointments -> notices.";
+      return "我的跟进 -> 团队压力 -> 预约 -> 通知。";
   }
 }
 
@@ -134,12 +134,12 @@ export const cleanupFilterOptions: Array<{
   value: AgentCleanupFilter;
   label: string;
 }> = [
-  { value: "all", label: "All personal cleanup" },
-  { value: "follow_up", label: "Follow-up due" },
-  { value: "appointment_writeback", label: "Appointment follow-up" },
-  { value: "send_risk", label: "Share risk" },
-  { value: "stale_client", label: "Stale clients" },
-  { value: "duplicate_review", label: "Duplicate review" },
+  { value: "all", label: "全部个人清理" },
+  { value: "follow_up", label: "跟进已到期" },
+  { value: "appointment_writeback", label: "预约跟进" },
+  { value: "send_risk", label: "分享风险" },
+  { value: "stale_client", label: "沉默客户" },
+  { value: "duplicate_review", label: "重复记录审查" },
 ];
 
 export const personalCleanupTrackConfig: Array<{
@@ -149,32 +149,32 @@ export const personalCleanupTrackConfig: Array<{
 }> = [
   {
     key: "follow_up",
-    label: "Follow-up due",
-    description: "Follow-up that is already due for your own clients.",
+    label: "跟进已到期",
+    description: "你自己客户中已经到期的跟进。",
   },
   {
     key: "appointment_writeback",
-    label: "Appointment follow-up",
+    label: "预约跟进",
     description:
-      "Appointment updates that still need confirmation, reschedule, or a saved next step.",
+      "仍需要确认、改期或保存下一步的预约更新。",
   },
   {
     key: "send_risk",
-    label: "Share risk",
+    label: "分享风险",
     description:
-      "Tracked sends that never opened or went quiet after the last signal.",
+      "已追踪分享从未打开，或最后一次信号后陷入沉默。",
   },
   {
     key: "stale_client",
-    label: "Stale clients",
+    label: "沉默客户",
     description:
-      "Clients that have gone quiet long enough to need a recovery pass.",
+      "沉默时间已经足够长、需要重新唤回的客户。",
   },
   {
     key: "duplicate_review",
-    label: "Duplicate review",
+    label: "重复记录审查",
     description:
-      "Possible duplicates that should be resolved before more work lands on the wrong client record.",
+      "可能重复的记录，需要在更多工作落到错误客户档案前处理。",
   },
 ];
 
@@ -182,12 +182,12 @@ export const notificationFilterOptions: Array<{
   value: AgentNotificationFilter;
   label: string;
 }> = [
-  { value: "all", label: "All notices" },
-  { value: "confirmation_due", label: "Confirmation due" },
-  { value: "reschedule_due", label: "Reschedule follow-up" },
-  { value: "external_touch_due", label: "External touch due" },
-  { value: "appointment_soon", label: "Appointment soon" },
-  { value: "general_notice", label: "General notices" },
+  { value: "all", label: "全部通知" },
+  { value: "confirmation_due", label: "待确认" },
+  { value: "reschedule_due", label: "改期跟进" },
+  { value: "external_touch_due", label: "外部触达已到期" },
+  { value: "appointment_soon", label: "预约即将开始" },
+  { value: "general_notice", label: "一般通知" },
 ];
 
 export const reminderFilterOptions: Array<{
@@ -202,30 +202,30 @@ export const noticeStreamFilterOptions: Array<{
   value: AgentNotificationStreamFilter;
   label: string;
 }> = [
-  { value: "all", label: "All notices" },
-  { value: "front_office", label: "Agent actions" },
-  { value: "back_office", label: "Formal workflow" },
-  { value: "shared_notice", label: "Office updates" },
-  { value: "reference", label: "Reference only" },
+  { value: "all", label: "全部通知" },
+  { value: "front_office", label: "经纪人动作" },
+  { value: "back_office", label: "正式工作流" },
+  { value: "shared_notice", label: "办公室更新" },
+  { value: "reference", label: "仅参考" },
 ];
 
 export const leadershipCleanupFilterOptions: Array<{
   value: AgentLeadershipCleanupFilter;
   label: string;
 }> = [
-  { value: "all", label: "All team pressure" },
-  { value: "overdue_task", label: "Overdue tasks" },
-  { value: "engagement_risk", label: "Share risk" },
-  { value: "stale_client", label: "15+ day stale" },
+  { value: "all", label: "全部团队压力" },
+  { value: "overdue_task", label: "逾期任务" },
+  { value: "engagement_risk", label: "分享风险" },
+  { value: "stale_client", label: "沉默 15 天以上" },
 ];
 
 export const readStateOptions: Array<{
   value: AgentNotificationReadState;
   label: string;
 }> = [
-  { value: "all", label: "All" },
-  { value: "unread", label: "Unread only" },
-  { value: "read", label: "Read only" },
+  { value: "all", label: "全部" },
+  { value: "unread", label: "仅未读" },
+  { value: "read", label: "仅已读" },
 ];
 
 export const appointmentReminderGroupConfig: Array<{
@@ -235,26 +235,26 @@ export const appointmentReminderGroupConfig: Array<{
 }> = [
   {
     key: "confirmation_due",
-    label: "Confirmation due",
-    description: "Appointments waiting on an explicit confirmation deadline.",
+    label: "待确认",
+    description: "正在等待明确确认截止时间的预约。",
   },
   {
     key: "reschedule_due",
-    label: "Reschedule follow-up",
+    label: "改期跟进",
     description:
-      "Clients asked to move the meeting and now need the next follow-up touch.",
+      "客户要求调整会议时间，现在需要下一次跟进触达。",
   },
   {
     key: "external_touch_due",
-    label: "External touch due",
+    label: "外部触达已到期",
     description:
-      "Follow-up pressure is coming from the promised next touch, not just the meeting start.",
+      "跟进压力来自承诺的下一次触达，而不只是会议开始时间。",
   },
   {
     key: "appointment_soon",
-    label: "Appointment soon",
+    label: "预约即将开始",
     description:
-      "Near-term meetings surfacing because the calendar commitment itself is approaching.",
+      "近期会议因日历承诺临近而浮到前面。",
   },
 ];
 
@@ -265,26 +265,26 @@ export const generalNoticeLaneConfig: Array<{
 }> = [
   {
     key: "front_office",
-    label: "Agent actions",
-    description: "Use these when the next step still belongs with the agent.",
+    label: "经纪人动作",
+    description: "下一步仍由经纪人处理时使用这些通知。",
   },
   {
     key: "back_office",
-    label: "Formal workflow",
+    label: "正式工作流",
     description:
-      "Use these when the next action belongs in the formal transaction or operations workflow.",
+      "下一步属于正式交易或运营工作流时使用这些通知。",
   },
   {
     key: "shared_notice",
-    label: "Office updates",
+    label: "办公室更新",
     description:
-      "Use these for office-wide updates that do not belong in your personal follow-up list.",
+      "用于办公室范围更新，不放入你的个人跟进列表。",
   },
   {
     key: "reference",
-    label: "Reference only",
+    label: "仅参考",
     description:
-      "Use these for information you may want to see without turning it into a task.",
+      "用于你可能需要看到、但不需要转成任务的信息。",
   },
 ];
 
@@ -295,20 +295,20 @@ export const teamCleanupGroupConfig: Array<{
 }> = [
   {
     key: "overdue_task",
-    label: "Overdue tasks",
+    label: "逾期任务",
     description:
-      "Shared follow-up tasks that have already slipped past the promised due time.",
+      "已经超过承诺到期时间的共享跟进任务。",
   },
   {
     key: "engagement_risk",
-    label: "Share risk",
+    label: "分享风险",
     description:
-      "Tracked sends that stayed unopened or opened once and then went quiet.",
+      "已追踪分享保持未打开，或打开一次后陷入沉默。",
   },
   {
     key: "stale_client",
-    label: "15+ day stale clients",
-    description: "Clients with enough inactivity to need leadership attention.",
+    label: "沉默 15 天以上客户",
+    description: "活动停滞到需要负责人关注的客户。",
   },
 ];
 

@@ -24,20 +24,20 @@ type ActivityAlertsLayoutProps = {
 };
 
 const alertSectionLabels: Record<ActivityAlertSectionKey, string> = {
-  all: "All alerts",
-  "offers-awaiting-review": "Offers awaiting review",
-  "offers-expiring-soon": "Offers expiring soon",
-  "tasks-awaiting-your-review": "Tasks awaiting your review",
-  "tasks-awaiting-second-review": "Tasks awaiting second review",
-  "rejected-tasks-needing-action": "Rejected tasks needing action",
-  "transaction-closing-soon": "Transaction closing soon",
-  "overdue-transaction-tasks": "Overdue transaction tasks",
-  "contacts-follow-up-soon": "Contacts needing follow-up soon",
-  "overdue-follow-up-tasks": "Overdue follow-up tasks",
-  "transaction-finance-incomplete": "Transaction finance incomplete",
-  "missing-required-documents": "Missing required documents",
-  "signature-pending": "Signature pending",
-  "incoming-updates-awaiting-review": "Incoming updates awaiting review"
+  all: "全部提醒",
+  "offers-awaiting-review": "等待审核的报价",
+  "offers-expiring-soon": "即将到期的报价",
+  "tasks-awaiting-your-review": "等待你审核的任务",
+  "tasks-awaiting-second-review": "等待二级审核的任务",
+  "rejected-tasks-needing-action": "被拒后需要处理的任务",
+  "transaction-closing-soon": "即将成交的交易",
+  "overdue-transaction-tasks": "逾期交易任务",
+  "contacts-follow-up-soon": "即将需要跟进的联系人",
+  "overdue-follow-up-tasks": "逾期跟进任务",
+  "transaction-finance-incomplete": "交易财务信息不完整",
+  "missing-required-documents": "缺少必需文件",
+  "signature-pending": "待签署",
+  "incoming-updates-awaiting-review": "等待审核的传入更新"
 };
 
 function buildActivityHref(currentSearchParams: ActivitySearchParams, nextSearchParams: Partial<ActivitySearchParams>) {
@@ -142,7 +142,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
 
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "Failed to load operational alerts.");
+          throw new Error(payload?.error ?? "加载运营提醒失败。");
         }
 
         const nextSnapshot = (await response.json()) as OfficeOperationalAlertsSnapshot;
@@ -152,7 +152,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
           return;
         }
 
-        setError(loadError instanceof Error ? loadError.message : "Failed to load operational alerts.");
+        setError(loadError instanceof Error ? loadError.message : "加载运营提醒失败。");
       } finally {
         if (!abortController.signal.aborted) {
           setIsLoading(false);
@@ -187,18 +187,18 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
         <SectionCard
           className="office-activity-sections-card"
           subtitle={
-            shouldLoadAlerts ? "Live alerts derived from current system state" : "Switch to All or Alerts only to load live alerts."
+            shouldLoadAlerts ? "从当前系统状态实时推导的提醒" : "切换到“全部”或“仅提醒”即可加载实时提醒。"
           }
-          title="Operational alerts"
+          title="运营提醒"
         >
           {shouldLoadAlerts ? (
             isLoading ? (
-              <AlertsLoadingState copy="Loading current operational alerts..." />
+              <AlertsLoadingState copy="正在加载当前运营提醒..." />
             ) : error ? (
               <div className="office-activity-alerts-feedback">
                 <p className="office-form-error">{error}</p>
                 <Button onClick={() => setReloadCount((count) => count + 1)} size="sm" type="button" variant="secondary">
-                  Retry alerts
+                  重试提醒
                 </Button>
               </div>
             ) : (
@@ -221,7 +221,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
             )
           ) : (
             <div className="office-activity-alerts-feedback">
-              <p>Alerts are loaded on demand when the current view includes live operational alerts.</p>
+              <p>当前视图包含实时运营提醒时，提醒会按需加载。</p>
             </div>
           )}
         </SectionCard>
@@ -234,22 +234,22 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
           <SectionCard
             className="office-activity-log-card office-alerts-card"
             subtitle={
-              isLoading ? "Loading current alerts" : `Showing ${alerts.length} current alerts`
+              isLoading ? "正在加载当前提醒" : `显示 ${alerts.length} 条当前提醒`
             }
-            title={props.selectedView === "alerts" ? selectedAlertSectionLabel : "Operational alerts"}
+            title={props.selectedView === "alerts" ? selectedAlertSectionLabel : "运营提醒"}
           >
             <div className="office-activity-records">
               {isLoading ? (
-                <AlertsLoadingState copy="Loading current operational alerts..." />
+                <AlertsLoadingState copy="正在加载当前运营提醒..." />
               ) : error ? (
                 <EmptyState
                   action={
                     <Button onClick={() => setReloadCount((count) => count + 1)} size="sm" type="button" variant="secondary">
-                      Retry alerts
+                      重试提醒
                     </Button>
                   }
                   description={error}
-                  title="Operational alerts could not be loaded"
+                  title="无法加载运营提醒"
                 />
               ) : alerts.length ? (
                 alerts.map((alert) => (
@@ -290,8 +290,8 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
                 ))
               ) : (
                 <EmptyState
-                  description="This scope is clear based on the current live workflow state."
-                  title="No live operational alerts are active for this scope."
+                  description="根据当前实时工作流状态，这个范围暂无需要处理的提醒。"
+                  title="当前范围没有活动中的实时运营提醒。"
                 />
               )}
             </div>

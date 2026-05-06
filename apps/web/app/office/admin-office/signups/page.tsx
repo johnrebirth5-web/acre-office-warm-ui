@@ -19,25 +19,25 @@ export default async function AdminOfficeSignupsPage() {
   return (
     <OfficeListPageShell>
       <OfficeListPageHeader
-        actions={<Link className="office-button-primary" href="/office/admin-office/calendar">Create event</Link>}
-        title="Event signups"
+        actions={<Link className="office-button-primary" href="/office/admin-office/calendar">创建活动</Link>}
+        title="活动报名"
       />
       <AdminOfficeModuleNav />
-      <OfficeListPageTableCard title="Signup events">
+      <OfficeListPageTableCard title="报名活动">
         {signupEvents.length === 0 ? (
           <div className="office-empty-state">
-            <p className="office-empty-copy">No signup events this month.</p>
-            <Link className="office-button-primary" href="/office/admin-office/calendar">Create event</Link>
+            <p className="office-empty-copy">本月没有需要报名的活动。</p>
+            <Link className="office-button-primary" href="/office/admin-office/calendar">创建活动</Link>
           </div>
         ) : (
-          <AdminOfficeDataTable columns={["Event", "Type", "Time", "Signed up", ""]} gridTemplateColumns="minmax(260px, 2fr) 150px 180px 120px 90px">
+          <AdminOfficeDataTable columns={["活动", "类型", "时间", "已报名", ""]} gridTemplateColumns="minmax(260px, 2fr) 150px 180px 120px 90px">
             {signupEvents.map((event) => (
               <div className="office-table-row" key={event.id} role="row">
                 <strong>{event.title}<span>{event.location}</span></strong>
                 <AdminOfficeStatusBadge>{event.eventType}</AdminOfficeStatusBadge>
                 <span>{event.startsAt}</span>
                 <span>{event.rsvpCount}{event.capacity ? ` / ${event.capacity}` : ""}</span>
-                <Link href={event.href}>Open</Link>
+                <Link href={event.href}>打开</Link>
               </div>
             ))}
           </AdminOfficeDataTable>
