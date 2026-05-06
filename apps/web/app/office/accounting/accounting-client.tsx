@@ -25,6 +25,7 @@ import {
   TextareaInput
 } from "@acre/ui";
 import { LocalDateTime } from "../_components/local-date-time";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeAccountingClientProps = {
   snapshot: OfficeAgentPayoutStatementsWorkspaceSnapshot;
@@ -53,13 +54,46 @@ type EditableManualLineItem = {
 const statementReviewStatusOptions: Array<{
   value: StatementReviewStatus;
   label: string;
+  zhLabel: string;
 }> = [
-  { value: "draft", label: "Draft" },
-  { value: "awaiting_agent", label: "Awaiting agent" },
-  { value: "revision_requested", label: "Revision requested" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "paid", label: "Paid" }
+  { value: "draft", label: "Draft", zhLabel: "草稿" },
+  { value: "awaiting_agent", label: "Awaiting agent", zhLabel: "等待经纪人确认" },
+  { value: "revision_requested", label: "Revision requested", zhLabel: "要求修改" },
+  { value: "confirmed", label: "Confirmed", zhLabel: "已确认" },
+  { value: "paid", label: "Paid", zhLabel: "已付款" }
 ];
+
+function translateAccountingCopy(value: string, isZh: boolean) {
+  if (!isZh) {
+    return value;
+  }
+
+  const copyMap: Record<string, string> = {
+    Draft: "草稿",
+    "Awaiting agent": "等待经纪人确认",
+    "Revision requested": "要求修改",
+    Confirmed: "已确认",
+    Paid: "已付款",
+    Payable: "可付款",
+    "Statement ready": "付款单就绪",
+    Reviewed: "已审核",
+    Missing: "缺失",
+    Pending: "待处理",
+    Posted: "已过账",
+    Failed: "失败",
+    Ready: "就绪",
+    "Not posted": "未过账",
+    "Invoice number": "发票号",
+    "Created date": "创建日期",
+    "Closing date": "成交日期"
+  };
+
+  return copyMap[value] ?? value;
+}
+
+function reviewStatusOptionLabel(option: { label: string; zhLabel: string }, isZh: boolean) {
+  return isZh ? option.zhLabel : option.label;
+}
 
 function buildAccountingHref(
   pathname: string,
@@ -139,28 +173,28 @@ function getStatementStatusSelectClassName(status: StatementReviewStatus) {
   return `office-accounting-status-select office-accounting-status-select-${getReviewStatusTone(status)}`;
 }
 
-function getSendButtonLabel(reviewStatus: StatementReviewStatus, isSending: boolean) {
+function getSendButtonLabel(reviewStatus: StatementReviewStatus, isSending: boolean, isZh: boolean) {
   if (isSending) {
-    return "Sending...";
+    return isZh ? "发送中..." : "Sending...";
   }
 
   if (reviewStatus === "awaiting_agent") {
-    return "Resend";
+    return isZh ? "重新发送" : "Resend";
   }
 
   if (reviewStatus === "revision_requested") {
-    return "Send update";
+    return isZh ? "发送更新" : "Send update";
   }
 
   if (reviewStatus === "confirmed") {
-    return "Send revision";
+    return isZh ? "发送修订版" : "Send revision";
   }
 
   if (reviewStatus === "paid") {
-    return "Send revision";
+    return isZh ? "发送修订版" : "Send revision";
   }
 
-  return "Send";
+  return isZh ? "发送" : "Send";
 }
 
 function toNumber(value: string) {
@@ -196,18 +230,20 @@ function buildManualLineItemsSignature(items: Array<{ id?: string; memo: string;
     .join("|");
 }
 
-function validateManualLineItems(items: EditableManualLineItem[]) {
+function validateManualLineItems(items: EditableManualLineItem[], isZh: boolean) {
   for (const [index, item] of items.entries()) {
     if (!item.memo.trim()) {
-      return `Manual line item ${index + 1} memo is required.`;
+      return isZh ? `第 ${index + 1} 条手工调整需要填写说明。` : `Manual line item ${index + 1} memo is required.`;
     }
 
     if (!item.amount.trim()) {
-      return `Manual line item ${index + 1} amount is required.`;
+      return isZh ? `第 ${index + 1} 条手工调整需要填写金额。` : `Manual line item ${index + 1} amount is required.`;
     }
 
     if (!/^[+-]?(?:\d+|\d+\.\d{1,2}|\.\d{1,2})$/.test(item.amount.trim())) {
-      return `Manual line item ${index + 1} amount must be a signed number with up to 2 decimal places.`;
+      return isZh
+        ? `第 ${index + 1} 条手工调整金额必须是最多两位小数的正负数。`
+        : `Manual line item ${index + 1} amount must be a signed number with up to 2 decimal places.`;
     }
   }
 
@@ -267,7 +303,7 @@ function resolveTypedAgentMembershipId(options: AgentOption[], membershipId: str
   return exactMatch?.id ?? "";
 }
 
-function buildStatementBankFields(statement: SelectedStatementDetail): StatementBankField[] {
+function buildStatementBankFields(statement: SelectedStatementDetail, isZh: boolean): StatementBankField[] {
   const bankInformation = statement.bankInformation;
 
   if (!bankInformation) {
@@ -275,20 +311,20 @@ function buildStatementBankFields(statement: SelectedStatementDetail): Statement
   }
 
   return [
-    { label: "First name", value: bankInformation.firstName },
-    { label: "Last name", value: bankInformation.lastName },
+    { label: isZh ? "名" : "First name", value: bankInformation.firstName },
+    { label: isZh ? "姓" : "Last name", value: bankInformation.lastName },
     { label: "Email", value: bankInformation.email },
-    { label: "Phone number", value: bankInformation.phoneNumber },
-    { label: "Address", value: bankInformation.address, wide: true },
-    { label: "Bank name", value: bankInformation.bankName },
-    { label: "Account number", value: bankInformation.accountNumber },
-    { label: "Routing number", value: bankInformation.routingNumber },
+    { label: isZh ? "电话号码" : "Phone number", value: bankInformation.phoneNumber },
+    { label: isZh ? "地址" : "Address", value: bankInformation.address, wide: true },
+    { label: isZh ? "银行名称" : "Bank name", value: bankInformation.bankName },
+    { label: isZh ? "账户号码" : "Account number", value: bankInformation.accountNumber },
+    { label: isZh ? "银行路由号" : "Routing number", value: bankInformation.routingNumber },
     {
       label: "SSN / EIN",
       value: [bankInformation.taxIdTypeLabel, bankInformation.taxIdValue].filter(Boolean).join(" · ")
     },
-    { label: "Date of birth", value: bankInformation.dateOfBirth },
-    { label: "Account type", value: bankInformation.accountTypeLabel || bankInformation.accountType }
+    { label: isZh ? "出生日期" : "Date of birth", value: bankInformation.dateOfBirth },
+    { label: isZh ? "账户类型" : "Account type", value: bankInformation.accountTypeLabel || bankInformation.accountType }
   ].filter((field) => field.value.trim().length > 0);
 }
 
@@ -323,13 +359,18 @@ function getStatementGenerationBlockedMessage(input: {
   hasSelectedInvoices: boolean;
   previewMatchesFilter: boolean;
   selectedRowCount: number;
+  isZh: boolean;
 }) {
   if (!input.hasFilterAgent || !input.hasSelectedInvoices) {
     return "";
   }
 
   if (input.previewMatchesFilter) {
-    return input.selectedRowCount === 0 ? "Select at least one commission row before generating." : "";
+    return input.selectedRowCount === 0
+      ? input.isZh
+        ? "生成前请至少选择一条佣金行。"
+        : "Select at least one commission row before generating."
+      : "";
   }
 
   return "";
@@ -338,6 +379,8 @@ function getStatementGenerationBlockedMessage(input: {
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const agentListboxId = useId();
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const previousPreviewContextKeyRef = useRef<string | null>(null);
@@ -476,8 +519,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         }))
       )
     : "";
-  const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement) : [];
-  const sendButtonLabel = selectedStatement ? getSendButtonLabel(selectedStatement.reviewStatus, isSendingStatement) : "Send";
+  const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement, isZh) : [];
+  const sendButtonLabel = selectedStatement ? getSendButtonLabel(selectedStatement.reviewStatus, isSendingStatement, isZh) : isZh ? "发送" : "Send";
   const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
     snapshot.filters.memberOptions,
     filterState.membershipId,
@@ -502,10 +545,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     hasFilterAgent,
     hasSelectedInvoices,
     previewMatchesFilter,
-    selectedRowCount: selectedRows.length
+    selectedRowCount: selectedRows.length,
+    isZh
   });
   const hasSelectedReusableRows = selectedRows.some((row) => row.statusValue === "payable" || row.statusValue === "paid");
-  const generateButtonLabel = isGenerating ? "Generating..." : "Generate statement";
+  const generateButtonLabel = isGenerating ? (isZh ? "生成中..." : "Generating...") : isZh ? "生成付款单" : "Generate statement";
   const manualAdjustmentTotal = manualLineItems.reduce((sum, lineItem) => sum + toNumber(lineItem.amount), 0);
   const invoicePayoutTotal = selectedStatement ? toNumber(selectedStatement.invoicePayoutTotalValue) : 0;
   const statementFinalPayout = invoicePayoutTotal + manualAdjustmentTotal;
@@ -617,7 +661,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     const resolvedMembershipId = resolvedFilterMembershipId;
 
     if (agentSearchValue.trim() && !resolvedMembershipId) {
-      setFilterError("Select an agent from the search results before loading invoices.");
+      setFilterError(isZh ? "请先从搜索结果中选择一个经纪人，再加载发票。" : "Select an agent from the search results before loading invoices.");
       return;
     }
 
@@ -706,12 +750,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
   function handlePreviewSelectedInvoices() {
     if (!hasFilterAgent) {
-      setFilterError("Choose one agent before previewing invoice rows.");
+      setFilterError(isZh ? "预览发票行前，请先选择一个经纪人。" : "Choose one agent before previewing invoice rows.");
       return;
     }
 
     if (!hasSelectedInvoices) {
-      setFilterError("Select at least one invoice number before previewing rows.");
+      setFilterError(isZh ? "预览行明细前，请至少选择一个发票号。" : "Select at least one invoice number before previewing rows.");
       return;
     }
 
@@ -731,17 +775,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
   async function handleGenerateStatement() {
     if (!hasFilterAgent) {
-      setFilterError("Choose one agent before generating.");
+      setFilterError(isZh ? "生成前请先选择一个经纪人。" : "Choose one agent before generating.");
       return;
     }
 
     if (!hasSelectedInvoices) {
-      setFilterError("Select at least one invoice number before generating.");
+      setFilterError(isZh ? "生成前请至少选择一个发票号。" : "Select at least one invoice number before generating.");
       return;
     }
 
     if (previewMatchesFilter && selectedCalculationIds.length === 0) {
-      setFilterError("Select at least one commission row before generating.");
+      setFilterError(isZh ? "生成前请至少选择一条佣金行。" : "Select at least one commission row before generating.");
       return;
     }
 
@@ -766,7 +810,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string; statementId?: string } | null;
 
       if (!response.ok || !body?.statementId) {
-        throw new Error(body?.error ?? "Failed to generate the agent statement.");
+        throw new Error(body?.error ?? (isZh ? "生成经纪人付款单失败。" : "Failed to generate the agent statement."));
       }
 
       startTransition(() => {
@@ -780,7 +824,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         router.refresh();
       });
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : "Failed to generate the agent statement.");
+      setGenerationError(error instanceof Error ? error.message : isZh ? "生成经纪人付款单失败。" : "Failed to generate the agent statement.");
     } finally {
       setIsGenerating(false);
     }
@@ -817,7 +861,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       return;
     }
 
-    const validationError = validateManualLineItems(manualLineItems);
+    const validationError = validateManualLineItems(manualLineItems, isZh);
 
     if (validationError) {
       setManualSaveError(validationError);
@@ -844,14 +888,14 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to save statement manual adjustments.");
+        throw new Error(body?.error ?? (isZh ? "保存手工调整失败。" : "Failed to save statement manual adjustments."));
       }
 
       startTransition(() => {
         router.refresh();
       });
     } catch (error) {
-      setManualSaveError(error instanceof Error ? error.message : "Failed to save statement manual adjustments.");
+      setManualSaveError(error instanceof Error ? error.message : isZh ? "保存手工调整失败。" : "Failed to save statement manual adjustments.");
     } finally {
       setIsSavingManualLineItems(false);
     }
@@ -863,7 +907,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
 
     if (hasManualLineItemChanges) {
-      setSendError("Save the current manual adjustment changes before sending the statement to the agent.");
+      setSendError(isZh ? "发送给经纪人前，请先保存当前手工调整。" : "Save the current manual adjustment changes before sending the statement to the agent.");
       return;
     }
 
@@ -884,14 +928,14 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to send the payout statement to the agent.");
+        throw new Error(body?.error ?? (isZh ? "发送付款单失败。" : "Failed to send the payout statement to the agent."));
       }
 
       startTransition(() => {
         router.refresh();
       });
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : "Failed to send the payout statement to the agent.");
+      setSendError(error instanceof Error ? error.message : isZh ? "发送付款单失败。" : "Failed to send the payout statement to the agent.");
     } finally {
       setIsSendingStatement(false);
     }
@@ -901,7 +945,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     const hasUnsavedSelectedChanges = selectedStatement?.id === statement.id && hasManualLineItemChanges;
 
     if (hasUnsavedSelectedChanges) {
-      setHistorySendError("Save the current manual adjustment changes before sending this statement to the agent.");
+      setHistorySendError(isZh ? "发送这张付款单前，请先保存当前手工调整。" : "Save the current manual adjustment changes before sending this statement to the agent.");
       return;
     }
 
@@ -921,14 +965,14 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to send the payout statement to the agent.");
+        throw new Error(body?.error ?? (isZh ? "发送付款单失败。" : "Failed to send the payout statement to the agent."));
       }
 
       startTransition(() => {
         router.refresh();
       });
     } catch (error) {
-      setHistorySendError(error instanceof Error ? error.message : "Failed to send the payout statement to the agent.");
+      setHistorySendError(error instanceof Error ? error.message : isZh ? "发送付款单失败。" : "Failed to send the payout statement to the agent.");
     } finally {
       setQuickSendingStatementId("");
     }
@@ -943,7 +987,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
 
     if (selectedStatement?.id === statement.id && hasManualLineItemChanges) {
-      setHistoryStatusError("Save the current manual adjustment changes before updating this statement status.");
+      setHistoryStatusError(isZh ? "更新付款单状态前，请先保存当前手工调整。" : "Save the current manual adjustment changes before updating this statement status.");
       return;
     }
 
@@ -968,7 +1012,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to update the payout statement status.");
+        throw new Error(body?.error ?? (isZh ? "更新付款单状态失败。" : "Failed to update the payout statement status."));
       }
 
       startTransition(() => {
@@ -980,7 +1024,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         delete nextState[statement.id];
         return nextState;
       });
-      setHistoryStatusError(error instanceof Error ? error.message : "Failed to update the payout statement status.");
+      setHistoryStatusError(error instanceof Error ? error.message : isZh ? "更新付款单状态失败。" : "Failed to update the payout statement status.");
     } finally {
       setUpdatingStatementStatusId("");
     }
@@ -991,12 +1035,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     quickBooksBill: SelectedStatementDetail["quickBooksBill"];
   }) {
     if (!statement.quickBooksBill.canPost) {
-      setQuickBooksPostError("The agent must confirm this payout statement before it can be posted to QuickBooks.");
+      setQuickBooksPostError(isZh ? "经纪人确认付款单后，才能过账到 QuickBooks。" : "The agent must confirm this payout statement before it can be posted to QuickBooks.");
       return;
     }
 
     if (selectedStatement?.id === statement.id && hasManualLineItemChanges) {
-      setQuickBooksPostError("Save the current manual adjustment changes before posting this statement to QuickBooks.");
+      setQuickBooksPostError(isZh ? "过账到 QuickBooks 前，请先保存当前手工调整。" : "Save the current manual adjustment changes before posting this statement to QuickBooks.");
       return;
     }
 
@@ -1012,14 +1056,14 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Failed to post the QuickBooks unpaid bill.");
+        throw new Error(body?.error ?? (isZh ? "创建 QuickBooks 未付款账单失败。" : "Failed to post the QuickBooks unpaid bill."));
       }
 
       startTransition(() => {
         router.refresh();
       });
     } catch (error) {
-      setQuickBooksPostError(error instanceof Error ? error.message : "Failed to post the QuickBooks unpaid bill.");
+      setQuickBooksPostError(error instanceof Error ? error.message : isZh ? "创建 QuickBooks 未付款账单失败。" : "Failed to post the QuickBooks unpaid bill.");
     } finally {
       setPostingQuickBooksBillId("");
     }
@@ -1028,11 +1072,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   return (
     <ListPageStack className="office-accounting-statements-stack">
       <ListPageSection
-        subtitle="Choose an agent first, load the related invoice numbers, then preview or generate the statement from those invoices."
-        title="Statement filters"
+        subtitle={
+          isZh
+            ? "先选择经纪人，加载相关发票号，再从这些发票预览或生成付款单。"
+            : "Choose an agent first, load the related invoice numbers, then preview or generate the statement from those invoices."
+        }
+        title={isZh ? "付款单筛选" : "Statement filters"}
       >
         <ListPageFilters as="form" className="office-report-filters office-list-filters" onSubmit={handleApplyFilters}>
-          <FilterField label="Agent">
+          <FilterField label={isZh ? "经纪人" : "Agent"}>
             <div className="office-autocomplete" ref={agentPickerRef}>
               <TextInput
                 aria-activedescendant={activeDescendantId}
@@ -1069,7 +1117,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     setIsAgentPickerOpen(false);
                   }
                 }}
-                placeholder="Type agent name"
+                placeholder={isZh ? "输入经纪人姓名" : "Type agent name"}
                 role="combobox"
                 type="search"
                 value={agentSearchValue}
@@ -1098,11 +1146,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                         type="button"
                       >
                         <span>{option.label}</span>
-                        {filterState.membershipId === option.id ? <strong>Selected</strong> : null}
+                        {filterState.membershipId === option.id ? <strong>{isZh ? "已选择" : "Selected"}</strong> : null}
                       </button>
                     ))
                   ) : (
-                    <div className="office-autocomplete-empty">No matching agents.</div>
+                    <div className="office-autocomplete-empty">{isZh ? "没有匹配的经纪人。" : "No matching agents."}</div>
                   )}
                 </div>
               ) : null}
@@ -1111,10 +1159,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
           <div className="office-filter-actions">
             <Button disabled={isPreviewLoading || !hasFilterAgent} type="submit" variant="secondary">
-              {isPreviewLoading ? "Loading..." : "Load invoices"}
+              {isPreviewLoading ? (isZh ? "加载中..." : "Loading...") : isZh ? "加载发票" : "Load invoices"}
             </Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
-              Reset
+              {isZh ? "重置" : "Reset"}
             </Button>
           </div>
         </ListPageFilters>
@@ -1124,15 +1172,23 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         {!filterError && !hasFilterAgent ? (
           <p className="office-form-helper">
             {!hasFilterAgent && agentSearchValue.trim()
-              ? "Pick one agent from the search results to continue."
-              : "Choose an agent to load invoice candidates."}
+              ? isZh
+                ? "请从搜索结果中选择一个经纪人继续。"
+                : "Pick one agent from the search results to continue."
+              : isZh
+                ? "选择经纪人后加载候选发票。"
+                : "Choose an agent to load invoice candidates."}
           </p>
         ) : null}
       </ListPageSection>
 
       <ListPageSection
-        subtitle="Select invoice numbers and review the matching commission rows in one place before generating the statement."
-        title="Statement candidates"
+        subtitle={
+          isZh
+            ? "选择发票号，并在生成付款单前集中核对匹配的佣金行。"
+            : "Select invoice numbers and review the matching commission rows in one place before generating the statement."
+        }
+        title={isZh ? "付款单候选项" : "Statement candidates"}
       >
         {hasLoadedAgent ? (
           snapshot.filters.invoiceOptions.length > 0 ? (
@@ -1140,17 +1196,19 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <div className="office-accounting-candidate-block">
                 <div className="office-accounting-candidate-head">
                   <div className="office-accounting-candidate-copy">
-                    <span className="office-mini-heading">Invoices</span>
+                    <span className="office-mini-heading">{isZh ? "发票" : "Invoices"}</span>
                     <p className="office-form-helper">
-                      Select one or more invoice numbers for the loaded agent. Each invoice contributes all matching eligible rows unless you later uncheck specific rows below.
+                      {isZh
+                        ? "为当前经纪人选择一个或多个发票号。除非你在下面取消勾选具体行，每张发票会包含所有匹配且可生成的佣金行。"
+                        : "Select one or more invoice numbers for the loaded agent. Each invoice contributes all matching eligible rows unless you later uncheck specific rows below."}
                     </p>
                   </div>
                   <div className="office-section-actions">
                     <Button onClick={() => toggleAllInvoiceOptions(true)} size="sm" type="button" variant="secondary">
-                      Select all
+                      {isZh ? "全选" : "Select all"}
                     </Button>
                     <Button onClick={() => toggleAllInvoiceOptions(false)} size="sm" type="button" variant="ghost">
-                      Clear
+                      {isZh ? "清空" : "Clear"}
                     </Button>
                     <Button
                       disabled={isPreviewLoading || !hasSelectedInvoices}
@@ -1159,7 +1217,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       type="button"
                       variant="secondary"
                     >
-                      {isPreviewLoading ? "Loading..." : "Preview rows"}
+                      {isPreviewLoading ? (isZh ? "加载中..." : "Loading...") : isZh ? "预览行明细" : "Preview rows"}
                     </Button>
                   </div>
                 </div>
@@ -1167,10 +1225,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <HorizontalScrollArea>
                   <DataTable className="office-table">
                     <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-invoices">
-                      <span>Select</span>
-                      <span>Invoice number</span>
-                      <span>Rows</span>
-                      <span>Payout</span>
+                      <span>{isZh ? "选择" : "Select"}</span>
+                      <span>{isZh ? "发票号" : "Invoice number"}</span>
+                      <span>{isZh ? "行数" : "Rows"}</span>
+                      <span>{isZh ? "付款金额" : "Payout"}</span>
                     </DataTableHeader>
                     <DataTableBody>
                       {snapshot.filters.invoiceOptions.map((option) => (
@@ -1195,18 +1253,20 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <div className="office-accounting-candidate-block">
                 <div className="office-accounting-candidate-head">
                   <div className="office-accounting-candidate-copy">
-                    <span className="office-mini-heading">Rows</span>
+                    <span className="office-mini-heading">{isZh ? "佣金行" : "Rows"}</span>
                     <p className="office-form-helper">
-                      Preview the commission rows under the currently selected invoice numbers. You can uncheck individual rows before generating.
+                      {isZh
+                        ? "预览当前发票号下的佣金行。生成前可以取消勾选单独的行。"
+                        : "Preview the commission rows under the currently selected invoice numbers. You can uncheck individual rows before generating."}
                     </p>
                   </div>
                   {snapshot.candidateRows.length > 0 && previewMatchesFilter ? (
                     <div className="office-section-actions">
                       <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
-                        Select all rows
+                        {isZh ? "全选行" : "Select all rows"}
                       </Button>
                       <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
-                        Clear rows
+                        {isZh ? "清空行" : "Clear rows"}
                       </Button>
                     </div>
                   ) : null}
@@ -1218,15 +1278,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <HorizontalScrollArea>
                         <DataTable className="office-table">
                           <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-rows">
-                            <span>Select</span>
-                            <span>Invoice</span>
-                            <span>Transaction</span>
-                            <span>Closing</span>
-                            <span>Calculated</span>
-                            <span>Gross</span>
-                            <span>Fees</span>
-                            <span>Payout</span>
-                            <span>Status</span>
+                            <span>{isZh ? "选择" : "Select"}</span>
+                            <span>{isZh ? "发票" : "Invoice"}</span>
+                            <span>{isZh ? "交易" : "Transaction"}</span>
+                            <span>{isZh ? "成交日" : "Closing"}</span>
+                            <span>{isZh ? "计算时间" : "Calculated"}</span>
+                            <span>{isZh ? "总佣金" : "Gross"}</span>
+                            <span>{isZh ? "费用" : "Fees"}</span>
+                            <span>{isZh ? "付款金额" : "Payout"}</span>
+                            <span>{isZh ? "状态" : "Status"}</span>
                           </DataTableHeader>
                           <DataTableBody>
                             {snapshot.candidateRows.map((row) => (
@@ -1253,13 +1313,13 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                                   </strong>
                                   <p>{row.propertyAddress}</p>
                                 </div>
-                                <span>{row.closingDate || "Missing"}</span>
+                                <span>{row.closingDate || translateAccountingCopy("Missing", isZh)}</span>
                                 <span>{row.calculatedAt}</span>
                                 <span>{row.grossCommissionLabel}</span>
                                 <span>{row.feesLabel}</span>
                                 <span>{row.statementAmountLabel}</span>
                                 <span>
-                                  <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
+                                  <StatusBadge tone={getStatementStatusTone(row.status)}>{translateAccountingCopy(row.status, isZh)}</StatusBadge>
                                 </span>
                               </DataTableRow>
                             ))}
@@ -1268,29 +1328,47 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       </HorizontalScrollArea>
                     ) : (
                       <EmptyState
-                        description="No commission rows are currently available under the selected invoice numbers."
-                        title="No payout candidates"
+                        description={
+                          isZh
+                            ? "当前所选发票号下没有可用的佣金行。"
+                            : "No commission rows are currently available under the selected invoice numbers."
+                        }
+                        title={isZh ? "没有可付款候选项" : "No payout candidates"}
                       />
                     )
                   ) : (
                     <EmptyState
-                      description="Click Preview rows to load the exact commission rows for the currently selected invoice numbers."
-                      title="Preview selected rows"
+                      description={
+                        isZh
+                          ? "点击“预览行明细”，加载当前所选发票号对应的精确佣金行。"
+                          : "Click Preview rows to load the exact commission rows for the currently selected invoice numbers."
+                      }
+                      title={isZh ? "预览所选行" : "Preview selected rows"}
                     />
                   )
                 ) : (
-                  <EmptyState description="Select one or more invoice numbers to load the matching commission rows." title="Choose invoices" />
+                  <EmptyState
+                    description={isZh ? "选择一个或多个发票号，以加载匹配的佣金行。" : "Select one or more invoice numbers to load the matching commission rows."}
+                    title={isZh ? "选择发票" : "Choose invoices"}
+                  />
                 )}
               </div>
             </div>
           ) : (
             <EmptyState
-              description="This agent does not currently have any eligible commission rows with a saved invoice number."
-              title="No invoice candidates"
+              description={
+                isZh
+                  ? "这位经纪人当前没有带已保存发票号的可用佣金行。"
+                  : "This agent does not currently have any eligible commission rows with a saved invoice number."
+              }
+              title={isZh ? "没有候选发票" : "No invoice candidates"}
             />
           )
         ) : (
-          <EmptyState description="Choose an agent and load their invoice candidates first." title="Load agent invoices" />
+          <EmptyState
+            description={isZh ? "请先选择经纪人并加载候选发票。" : "Choose an agent and load their invoice candidates first."}
+            title={isZh ? "加载经纪人发票" : "Load agent invoices"}
+          />
         )}
       </ListPageSection>
 
@@ -1307,36 +1385,44 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         }
         subtitle={
           previewMatchesFilter
-            ? "Row-level changes apply only to the currently previewed invoice selection."
-            : "Direct generation is allowed from the selected invoice numbers even before preview, but row totals below are only final after preview."
+            ? isZh
+              ? "行级勾选只作用于当前已预览的发票选择。"
+              : "Row-level changes apply only to the currently previewed invoice selection."
+            : isZh
+              ? "未预览时也可以按所选发票号直接生成，但下方行合计只有预览后才是最终明细。"
+              : "Direct generation is allowed from the selected invoice numbers even before preview, but row totals below are only final after preview."
         }
-        title="Selected payout summary"
+        title={isZh ? "所选付款汇总" : "Selected payout summary"}
       >
         <ListPageStatsGrid>
-          <StatCard hint="currently selected invoice numbers" label="Selected invoices" value={selectedSummary.invoiceCount} />
-          <StatCard hint="rows currently included by the selection" label="Selected rows" value={selectedSummary.rowCount} />
+          <StatCard hint={isZh ? "当前已选择的发票号" : "currently selected invoice numbers"} label={isZh ? "所选发票" : "Selected invoices"} value={selectedSummary.invoiceCount} />
+          <StatCard hint={isZh ? "当前选择包含的佣金行" : "rows currently included by the selection"} label={isZh ? "所选行" : "Selected rows"} value={selectedSummary.rowCount} />
           <StatCard
-            hint="sum of selected gross commission"
-            label="Gross commission"
-            value={selectedSummary.gross === null ? "Preview required" : formatCurrency(selectedSummary.gross)}
+            hint={isZh ? "所选总佣金合计" : "sum of selected gross commission"}
+            label={isZh ? "总佣金" : "Gross commission"}
+            value={selectedSummary.gross === null ? (isZh ? "需要预览" : "Preview required") : formatCurrency(selectedSummary.gross)}
           />
           <StatCard
-            hint="sum of selected fees"
-            label="Fees"
-            value={selectedSummary.fees === null ? "Preview required" : formatCurrency(selectedSummary.fees)}
+            hint={isZh ? "所选费用合计" : "sum of selected fees"}
+            label={isZh ? "费用" : "Fees"}
+            value={selectedSummary.fees === null ? (isZh ? "需要预览" : "Preview required") : formatCurrency(selectedSummary.fees)}
           />
-          <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
+          <StatCard hint={isZh ? "所选付款行合计" : "sum of selected payout rows"} label={isZh ? "净付款" : "Net payout"} value={formatCurrency(selectedSummary.payout)} />
         </ListPageStatsGrid>
 
         {!previewMatchesFilter && hasSelectedInvoices && canGenerateStatement ? (
           <p className="office-form-helper">
-            Preview the selected invoices if you want to inspect or uncheck individual rows before generating. Direct generate will include all eligible rows under those invoices.
+            {isZh
+              ? "如果要在生成前检查或取消单独行，请先预览所选发票。直接生成会包含这些发票下所有可生成的行。"
+              : "Preview the selected invoices if you want to inspect or uncheck individual rows before generating. Direct generate will include all eligible rows under those invoices."}
           </p>
         ) : null}
 
         {previewMatchesFilter && hasSelectedReusableRows ? (
           <p className="office-form-helper">
-            Rows already marked Payable or Paid can still be regenerated into a fresh statement snapshot. Regenerating does not downgrade Paid rows.
+            {isZh
+              ? "已标记为可付款或已付款的行仍可重新生成到新的付款单快照中；重新生成不会把已付款行降级。"
+              : "Rows already marked Payable or Paid can still be regenerated into a fresh statement snapshot. Regenerating does not downgrade Paid rows."}
           </p>
         ) : null}
 
@@ -1350,8 +1436,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       </ListPageSection>
 
       <ListPageSection
-        subtitle="Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot. Use Send here for quick internal delivery, or Open for notes and the full timeline."
-        title="Statement history"
+        subtitle={
+          isZh
+            ? "已保存付款单会保留固定快照，PDF 下载始终基于同一份快照重建。这里可快速发送，或打开查看备注和完整时间线。"
+            : "Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot. Use Send here for quick internal delivery, or Open for notes and the full timeline."
+        }
+        title={isZh ? "付款单历史" : "Statement history"}
       >
         {historySendError ? <p className="office-inline-error">{historySendError}</p> : null}
         {historyStatusError ? <p className="office-inline-error">{historyStatusError}</p> : null}
@@ -1360,15 +1450,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           <HorizontalScrollArea>
             <DataTable className="office-table">
               <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-history">
-                <span>Generated</span>
-                <span>Agent</span>
-                <span>Status</span>
-                <span>Period</span>
-                <span>Basis</span>
-                <span>Rows</span>
-                <span>Total payout</span>
-                <span>QB bill</span>
-                <span>Actions</span>
+                <span>{isZh ? "生成时间" : "Generated"}</span>
+                <span>{isZh ? "经纪人" : "Agent"}</span>
+                <span>{isZh ? "状态" : "Status"}</span>
+                <span>{isZh ? "周期" : "Period"}</span>
+                <span>{isZh ? "依据" : "Basis"}</span>
+                <span>{isZh ? "行数" : "Rows"}</span>
+                <span>{isZh ? "付款合计" : "Total payout"}</span>
+                <span>{isZh ? "QB 账单" : "QB bill"}</span>
+                <span>{isZh ? "操作" : "Actions"}</span>
               </DataTableHeader>
               <DataTableBody>
                 {snapshot.history.map((statement) => {
@@ -1382,7 +1472,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <strong>{statement.agentLabel}</strong>
                       <span>
                         <SelectInput
-                          aria-label={`Update payout statement status for ${statement.agentLabel}`}
+                          aria-label={isZh ? `更新 ${statement.agentLabel} 的付款单状态` : `Update payout statement status for ${statement.agentLabel}`}
                           className={getStatementStatusSelectClassName(displayedReviewStatus)}
                           disabled={updatingStatementStatusId === statement.id}
                           onChange={(event) => void handleUpdateStatementStatus(statement, event.target.value as StatementReviewStatus)}
@@ -1390,18 +1480,18 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                         >
                           {statementReviewStatusOptions.map((option) => (
                             <option key={option.value} value={option.value}>
-                              {option.label}
+                              {reviewStatusOptionLabel(option, isZh)}
                             </option>
                           ))}
                         </SelectInput>
                       </span>
                       <span>{statement.periodLabel}</span>
-                      <span>{statement.periodBasisLabel}</span>
+                      <span>{translateAccountingCopy(statement.periodBasisLabel, isZh)}</span>
                       <span>{statement.lineItemCount}</span>
                       <span>{statement.totalStatementAmountLabel}</span>
                       <span>
                         <StatusBadge tone={getQuickBooksBillStatusTone(statement.quickBooksBill.status)}>
-                          {statement.quickBooksBill.docNumber || statement.quickBooksBill.statusLabel}
+                          {statement.quickBooksBill.docNumber || translateAccountingCopy(statement.quickBooksBill.statusLabel, isZh)}
                         </StatusBadge>
                       </span>
                       <div className="office-accounting-inline-actions office-accounting-statement-history-actions">
@@ -1413,7 +1503,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                             size="sm"
                             type="button"
                           >
-                            {postingQuickBooksBillId === statement.id ? "Posting..." : "Post to QuickBooks"}
+                            {postingQuickBooksBillId === statement.id ? (isZh ? "过账中..." : "Posting...") : isZh ? "过账到 QuickBooks" : "Post to QuickBooks"}
                           </Button>
                         ) : null}
                         <Button
@@ -1423,7 +1513,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           size="sm"
                           type="button"
                         >
-                          {getSendButtonLabel(statement.reviewStatus, quickSendingStatementId === statement.id)}
+                          {getSendButtonLabel(statement.reviewStatus, quickSendingStatementId === statement.id, isZh)}
                         </Button>
                         <Button
                           className="office-inline-action-sm"
@@ -1443,7 +1533,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           type="button"
                           variant="secondary"
                         >
-                          Open
+                          {isZh ? "打开" : "Open"}
                         </Button>
                         <a
                           className="office-inline-action-sm"
@@ -1461,57 +1551,73 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             </DataTable>
           </HorizontalScrollArea>
         ) : (
-          <EmptyState description="Generated statements will appear here once a payout snapshot has been saved." title="No saved statements yet" />
+          <EmptyState
+            description={isZh ? "保存付款快照后，生成的付款单会显示在这里。" : "Generated statements will appear here once a payout snapshot has been saved."}
+            title={isZh ? "还没有保存的付款单" : "No saved statements yet"}
+          />
         )}
       </ListPageSection>
 
       <ListPageSection
         subtitle={
           selectedStatement
-            ? `${selectedStatement.periodBasisLabel} · ${selectedStatement.periodLabel}`
-            : "Select a saved statement to review the durable line-item snapshot and download its PDF."
+            ? `${translateAccountingCopy(selectedStatement.periodBasisLabel, isZh)} · ${selectedStatement.periodLabel}`
+            : isZh
+              ? "选择已保存付款单，查看固定行项目快照并下载 PDF。"
+              : "Select a saved statement to review the durable line-item snapshot and download its PDF."
         }
-        title={selectedStatement ? "Statement detail" : "Select a statement"}
+        title={selectedStatement ? (isZh ? "付款单详情" : "Statement detail") : isZh ? "选择付款单" : "Select a statement"}
       >
         {selectedStatement ? (
           <>
             <ListPageStatsGrid>
-              <StatCard hint="agent on this saved payout statement" label="Agent" value={selectedStatement.agentLabel} />
-              <StatCard hint="current internal confirmation state" label="Review status" value={selectedStatement.reviewStatusLabel} />
-              <StatCard hint="invoice rows plus manual adjustments" label="Rows" value={selectedStatement.lineItemCount} />
-              <StatCard hint="snapshot total gross commission" label="Gross commission" value={selectedStatement.totalGrossCommissionLabel} />
-              <StatCard hint="invoice-based payout subtotal" label="Invoice payout" value={selectedStatement.invoicePayoutTotalLabel} />
-              <StatCard hint="live manual adjustment total before save" label="Manual adjustments" value={formatCurrency(manualAdjustmentTotal)} />
-              <StatCard hint="live final payout total before save" label="Final payout" value={formatCurrency(statementFinalPayout)} />
+              <StatCard hint={isZh ? "这张付款单对应的经纪人" : "agent on this saved payout statement"} label={isZh ? "经纪人" : "Agent"} value={selectedStatement.agentLabel} />
+              <StatCard
+                hint={isZh ? "当前内部确认状态" : "current internal confirmation state"}
+                label={isZh ? "审核状态" : "Review status"}
+                value={translateAccountingCopy(selectedStatement.reviewStatusLabel, isZh)}
+              />
+              <StatCard hint={isZh ? "发票行加手工调整" : "invoice rows plus manual adjustments"} label={isZh ? "行数" : "Rows"} value={selectedStatement.lineItemCount} />
+              <StatCard hint={isZh ? "快照中的总佣金" : "snapshot total gross commission"} label={isZh ? "总佣金" : "Gross commission"} value={selectedStatement.totalGrossCommissionLabel} />
+              <StatCard hint={isZh ? "发票来源付款小计" : "invoice-based payout subtotal"} label={isZh ? "发票付款" : "Invoice payout"} value={selectedStatement.invoicePayoutTotalLabel} />
+              <StatCard hint={isZh ? "保存前的实时手工调整合计" : "live manual adjustment total before save"} label={isZh ? "手工调整" : "Manual adjustments"} value={formatCurrency(manualAdjustmentTotal)} />
+              <StatCard hint={isZh ? "保存前的实时最终付款合计" : "live final payout total before save"} label={isZh ? "最终付款" : "Final payout"} value={formatCurrency(statementFinalPayout)} />
             </ListPageStatsGrid>
 
             <div className="office-inline-meta">
               <span>
-                Generated: <LocalDateTime fallbackLabel={selectedStatement.generatedAtLabel} value={selectedStatement.generatedAt} />
+                {isZh ? "生成时间" : "Generated"}: <LocalDateTime fallbackLabel={selectedStatement.generatedAtLabel} value={selectedStatement.generatedAt} />
               </span>
-              <span>Generated by: {selectedStatement.generatedByLabel}</span>
+              <span>{isZh ? "生成者" : "Generated by"}: {selectedStatement.generatedByLabel}</span>
               <span>
-                Status: <StatusBadge tone={getReviewStatusTone(selectedStatement.reviewStatus)}>{selectedStatement.reviewStatusLabel}</StatusBadge>
+                {isZh ? "状态" : "Status"}:{" "}
+                <StatusBadge tone={getReviewStatusTone(selectedStatement.reviewStatus)}>
+                  {translateAccountingCopy(selectedStatement.reviewStatusLabel, isZh)}
+                </StatusBadge>
               </span>
               {selectedStatement.lastSharedAtLabel ? (
                 <span>
-                  Last sent: <LocalDateTime fallbackLabel={selectedStatement.lastSharedAtLabel} value={selectedStatement.lastSharedAt} />
+                  {isZh ? "上次发送" : "Last sent"}: <LocalDateTime fallbackLabel={selectedStatement.lastSharedAtLabel} value={selectedStatement.lastSharedAt} />
                 </span>
               ) : null}
               {selectedStatement.agentRespondedAtLabel ? (
                 <span>
-                  Agent responded:{" "}
+                  {isZh ? "经纪人回复" : "Agent responded"}:{" "}
                   <LocalDateTime fallbackLabel={selectedStatement.agentRespondedAtLabel} value={selectedStatement.agentRespondedAt} />
                 </span>
               ) : null}
-              <span>Signed amount: use positive for bonus or reimbursement, negative for deduction.</span>
+              <span>
+                {isZh
+                  ? "带符号金额：奖金或报销填正数，扣款填负数。"
+                  : "Signed amount: use positive for bonus or reimbursement, negative for deduction."}
+              </span>
               <Button
                 disabled={isSavingManualLineItems || !hasManualLineItemChanges}
                 onClick={handleSaveManualLineItems}
                 size="sm"
                 type="button"
               >
-                {isSavingManualLineItems ? "Saving..." : "Save adjustments"}
+                {isSavingManualLineItems ? (isZh ? "保存中..." : "Saving...") : isZh ? "保存调整" : "Save adjustments"}
               </Button>
               <Button
                 disabled={isSavingManualLineItems || !hasManualLineItemChanges}
@@ -1520,10 +1626,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 type="button"
                 variant="secondary"
               >
-                Reset changes
+                {isZh ? "重置修改" : "Reset changes"}
               </Button>
               <a className="office-button-secondary office-button-sm" href={`/api/office/accounting/statements/${selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
-                Download PDF
+                {isZh ? "下载 PDF" : "Download PDF"}
               </a>
             </div>
 
@@ -1537,15 +1643,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 ))}
               </div>
             ) : (
-              <p className="office-form-helper">No bank information has been saved on this member profile yet.</p>
+              <p className="office-form-helper">{isZh ? "这个成员档案还没有保存银行信息。" : "No bank information has been saved on this member profile yet."}</p>
             )}
 
             <div className="office-accounting-candidate-block">
               <div className="office-accounting-candidate-head">
                 <div className="office-accounting-candidate-copy">
-                  <span className="office-mini-heading">Agent Delivery</span>
+                  <span className="office-mini-heading">{isZh ? "发送给经纪人" : "Agent Delivery"}</span>
                   <p className="office-form-helper">
-                    Send this payout statement inside Acre so it becomes a high-priority review task on the agent dashboard and notifications page.
+                    {isZh
+                      ? "在 Acre 内发送这张付款单，让它出现在经纪人工作台和通知页的高优先级审核任务中。"
+                      : "Send this payout statement inside Acre so it becomes a high-priority review task on the agent dashboard and notifications page."}
                   </p>
                 </div>
 
@@ -1556,7 +1664,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     size="sm"
                     type="button"
                   >
-                    {sendButtonLabel} to agent
+                    {isZh ? `${sendButtonLabel}给经纪人` : `${sendButtonLabel} to agent`}
                   </Button>
                 </div>
               </div>
@@ -1565,16 +1673,24 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 onChange={(event) => setSendMessage(event.target.value)}
                 placeholder={
                   selectedStatement.reviewStatus === "revision_requested"
-                    ? "Reply to the agent here before you resend the updated statement."
-                    : "Optional note shown to the agent in the system timeline."
+                    ? isZh
+                      ? "重新发送更新后的付款单前，在这里回复经纪人。"
+                      : "Reply to the agent here before you resend the updated statement."
+                    : isZh
+                      ? "可选备注，会显示在经纪人的系统时间线中。"
+                      : "Optional note shown to the agent in the system timeline."
                 }
                 rows={3}
                 value={sendMessage}
               />
               <p className="office-form-helper">
                 {hasManualLineItemChanges
-                  ? "Save manual adjustment changes first. Saving will move this statement back to Draft until you send it again."
-                  : "Each send or resend is logged in-system and stays visible in Acre until the agent confirms it or requests another revision."}
+                  ? isZh
+                    ? "请先保存手工调整。保存后这张付款单会回到草稿状态，直到你再次发送。"
+                    : "Save manual adjustment changes first. Saving will move this statement back to Draft until you send it again."
+                  : isZh
+                    ? "每次发送或重新发送都会记录在系统中，并持续显示在 Acre，直到经纪人确认或再次要求修改。"
+                    : "Each send or resend is logged in-system and stays visible in Acre until the agent confirms it or requests another revision."}
               </p>
               {sendError ? <p className="office-inline-error">{sendError}</p> : null}
             </div>
@@ -1582,15 +1698,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             <div className="office-accounting-candidate-block">
               <div className="office-accounting-candidate-head">
                 <div className="office-accounting-candidate-copy">
-                  <span className="office-mini-heading">QuickBooks AP</span>
+                  <span className="office-mini-heading">{isZh ? "QuickBooks 应付账款" : "QuickBooks AP"}</span>
                   <p className="office-form-helper">
-                    Post the agent-confirmed statement to the QuickBooks company mapped to this Acre office as an unpaid bill for manual review and payment.
+                    {isZh
+                      ? "将经纪人已确认的付款单过账到这个 Acre 办公室对应的 QuickBooks 公司，作为待人工复核和付款的未付账单。"
+                      : "Post the agent-confirmed statement to the QuickBooks company mapped to this Acre office as an unpaid bill for manual review and payment."}
                   </p>
                 </div>
 
                 <div className="office-section-actions">
                   <StatusBadge tone={getQuickBooksBillStatusTone(selectedStatement.quickBooksBill.status)}>
-                    {selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.statusLabel}
+                    {selectedStatement.quickBooksBill.docNumber || translateAccountingCopy(selectedStatement.quickBooksBill.statusLabel, isZh)}
                   </StatusBadge>
                   {selectedStatement.quickBooksBill.canPost ? (
                     <Button
@@ -1599,7 +1717,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       size="sm"
                       type="button"
                     >
-                      {postingQuickBooksBillId === selectedStatement.id ? "Posting..." : "Post to QuickBooks"}
+                      {postingQuickBooksBillId === selectedStatement.id ? (isZh ? "过账中..." : "Posting...") : isZh ? "过账到 QuickBooks" : "Post to QuickBooks"}
                     </Button>
                   ) : null}
                 </div>
@@ -1607,13 +1725,19 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
               <p className="office-form-helper">
                 {selectedStatement.quickBooksBill.status === "posted"
-                  ? `QuickBooks bill ${selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.billId} was posted as unpaid.`
+                  ? isZh
+                    ? `QuickBooks 账单 ${selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.billId} 已作为未付款账单过账。`
+                    : `QuickBooks bill ${selectedStatement.quickBooksBill.docNumber || selectedStatement.quickBooksBill.billId} was posted as unpaid.`
                   : selectedStatement.quickBooksBill.canPost
-                    ? "This action creates Accounts Payable only in the mapped QuickBooks company; Feifei still checks and pays the bill manually."
-                    : "The button appears after the agent confirms the statement inside Acre."}
+                    ? isZh
+                      ? "这个动作只会在映射的 QuickBooks 公司中创建应付账款；仍需菲菲人工复核并付款。"
+                      : "This action creates Accounts Payable only in the mapped QuickBooks company; Feifei still checks and pays the bill manually."
+                    : isZh
+                      ? "经纪人在 Acre 内确认付款单后，这个按钮才会出现。"
+                      : "The button appears after the agent confirms the statement inside Acre."}
               </p>
               {selectedStatement.quickBooksBill.postedAtLabel ? (
-                <p className="office-form-helper">Posted: {selectedStatement.quickBooksBill.postedAtLabel}</p>
+                <p className="office-form-helper">{isZh ? "过账时间" : "Posted"}: {selectedStatement.quickBooksBill.postedAtLabel}</p>
               ) : null}
               {selectedStatement.quickBooksBill.syncError ? (
                 <p className="office-inline-error">{selectedStatement.quickBooksBill.syncError}</p>
@@ -1624,9 +1748,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             <div className="office-accounting-candidate-block">
               <div className="office-accounting-candidate-head">
                 <div className="office-accounting-candidate-copy">
-                  <span className="office-mini-heading">System Timeline</span>
+                  <span className="office-mini-heading">{isZh ? "系统时间线" : "System Timeline"}</span>
                   <p className="office-form-helper">
-                    Agent feedback and finance replies stay on the statement record so payout communication is kept inside Back Office.
+                    {isZh
+                      ? "经纪人反馈和财务回复都会保留在付款单记录中，让付款沟通留在后台系统内。"
+                      : "Agent feedback and finance replies stay on the statement record so payout communication is kept inside Back Office."}
                   </p>
                 </div>
               </div>
@@ -1640,21 +1766,23 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                         <span>{item.authorLabel}</span>
                         <span>{item.createdAtLabel}</span>
                       </div>
-                      {item.body ? <p>{item.body}</p> : <p className="office-form-helper">No note added for this step.</p>}
+                      {item.body ? <p>{item.body}</p> : <p className="office-form-helper">{isZh ? "这一步没有添加备注。" : "No note added for this step."}</p>}
                     </article>
                   ))}
                 </div>
               ) : (
-                <p className="office-form-helper">No agent-facing timeline entries have been recorded on this statement yet.</p>
+                <p className="office-form-helper">{isZh ? "这张付款单还没有面向经纪人的时间线记录。" : "No agent-facing timeline entries have been recorded on this statement yet."}</p>
               )}
             </div>
 
             <div className="office-accounting-candidate-block">
               <div className="office-accounting-candidate-head">
                 <div className="office-accounting-candidate-copy">
-                  <span className="office-mini-heading">Invoice Items</span>
+                  <span className="office-mini-heading">{isZh ? "发票项目" : "Invoice Items"}</span>
                   <p className="office-form-helper">
-                    These rows are the locked invoice-based snapshot that originally generated this payout statement.
+                    {isZh
+                      ? "这些行是最初生成这张付款单时锁定的发票快照。"
+                      : "These rows are the locked invoice-based snapshot that originally generated this payout statement."}
                   </p>
                 </div>
               </div>
@@ -1662,16 +1790,16 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <HorizontalScrollArea>
                 <DataTable className="office-table">
                   <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-snapshot">
-                    <span>Creation date</span>
-                    <span>Invoice number</span>
-                    <span>Owner</span>
-                    <span>Building name</span>
-                    <span>Unit</span>
-                    <span>Gross</span>
-                    <span>Pre split</span>
-                    <span>Commission rate</span>
-                    <span>Post split detail</span>
-                    <span>Net commission</span>
+                    <span>{isZh ? "创建日期" : "Creation date"}</span>
+                    <span>{isZh ? "发票号" : "Invoice number"}</span>
+                    <span>{isZh ? "业主" : "Owner"}</span>
+                    <span>{isZh ? "楼宇名称" : "Building name"}</span>
+                    <span>{isZh ? "单元" : "Unit"}</span>
+                    <span>{isZh ? "总佣金" : "Gross"}</span>
+                    <span>{isZh ? "拆分前" : "Pre split"}</span>
+                    <span>{isZh ? "佣金比例" : "Commission rate"}</span>
+                    <span>{isZh ? "拆分后明细" : "Post split detail"}</span>
+                    <span>{isZh ? "净佣金" : "Net commission"}</span>
                   </DataTableHeader>
                   <DataTableBody>
                     {selectedStatement.lineItems.map((lineItem) => (
@@ -1701,15 +1829,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             <div className="office-accounting-candidate-block office-accounting-manual-section">
               <div className="office-accounting-candidate-head">
                 <div className="office-accounting-candidate-copy">
-                  <span className="office-mini-heading">Manual Adjustment Items</span>
+                  <span className="office-mini-heading">{isZh ? "手工调整项目" : "Manual Adjustment Items"}</span>
                   <p className="office-form-helper">
-                    Add signed adjustments to match the actual payout for this period. Positive values increase payout and negative values reduce it.
+                    {isZh
+                      ? "添加带正负号的调整，让本周期实际付款金额对齐。正数增加付款，负数减少付款。"
+                      : "Add signed adjustments to match the actual payout for this period. Positive values increase payout and negative values reduce it."}
                   </p>
                 </div>
 
                 <div className="office-section-actions">
                   <Button onClick={handleAddManualLineItem} size="sm" type="button" variant="secondary">
-                    Add Line Item
+                    {isZh ? "添加项目" : "Add Line Item"}
                   </Button>
                 </div>
               </div>
@@ -1718,21 +1848,21 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <HorizontalScrollArea>
                   <DataTable className="office-table">
                     <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-manual">
-                      <span>Memo</span>
-                      <span>Amount</span>
-                      <span>Actions</span>
+                      <span>{isZh ? "说明" : "Memo"}</span>
+                      <span>{isZh ? "金额" : "Amount"}</span>
+                      <span>{isZh ? "操作" : "Actions"}</span>
                     </DataTableHeader>
                     <DataTableBody>
                       {manualLineItems.map((lineItem, index) => (
                         <DataTableRow className="office-table-row office-table-row-agent-statement-manual" key={lineItem.localId}>
                           <TextInput
-                            aria-label={`Manual line item memo ${index + 1}`}
+                            aria-label={isZh ? `第 ${index + 1} 条手工调整说明` : `Manual line item memo ${index + 1}`}
                             onChange={(event) => handleManualLineItemChange(lineItem.localId, "memo", event.target.value)}
-                            placeholder="Insurance Deduction"
+                            placeholder={isZh ? "保险扣款" : "Insurance Deduction"}
                             value={lineItem.memo}
                           />
                           <TextInput
-                            aria-label={`Manual line item amount ${index + 1}`}
+                            aria-label={isZh ? `第 ${index + 1} 条手工调整金额` : `Manual line item amount ${index + 1}`}
                             className="office-accounting-manual-amount-input"
                             inputMode="decimal"
                             onChange={(event) => handleManualLineItemChange(lineItem.localId, "amount", event.target.value)}
@@ -1741,7 +1871,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           />
                           <div className="office-accounting-manual-row-actions">
                             <Button onClick={() => handleRemoveManualLineItem(lineItem.localId)} size="sm" type="button" variant="ghost">
-                              Remove
+                              {isZh ? "移除" : "Remove"}
                             </Button>
                           </div>
                         </DataTableRow>
@@ -1750,20 +1880,23 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                   </DataTable>
                 </HorizontalScrollArea>
               ) : (
-                <p className="office-form-helper">No manual adjustments have been added to this statement yet.</p>
+                <p className="office-form-helper">{isZh ? "这张付款单还没有添加手工调整。" : "No manual adjustments have been added to this statement yet."}</p>
               )}
 
               <div className="office-accounting-manual-summary">
-                <span>Invoice payout subtotal: {selectedStatement.invoicePayoutTotalLabel}</span>
-                <span>Manual adjustments total: {formatCurrency(manualAdjustmentTotal)}</span>
-                <strong>Final payout: {formatCurrency(statementFinalPayout)}</strong>
+                <span>{isZh ? "发票付款小计" : "Invoice payout subtotal"}: {selectedStatement.invoicePayoutTotalLabel}</span>
+                <span>{isZh ? "手工调整合计" : "Manual adjustments total"}: {formatCurrency(manualAdjustmentTotal)}</span>
+                <strong>{isZh ? "最终付款" : "Final payout"}: {formatCurrency(statementFinalPayout)}</strong>
               </div>
 
               {manualSaveError ? <p className="office-inline-error">{manualSaveError}</p> : null}
             </div>
           </>
         ) : (
-          <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />
+          <EmptyState
+            description={isZh ? "从历史列表打开已保存付款单，查看锁定的付款行。" : "Use the history list to open a saved statement and inspect its locked payout lines."}
+            title={isZh ? "未选择付款单" : "No statement selected"}
+          />
         )}
       </ListPageSection>
     </ListPageStack>

@@ -3,6 +3,7 @@ import { getOfficeAgentPayoutStatementsWorkspaceSnapshot } from "@acre/db";
 import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeAccountingClient } from "./accounting-client";
 
@@ -32,6 +33,10 @@ function readSearchParamArray(value: string | string[] | undefined) {
 
 export default async function OfficeAccountingPage(props: OfficeAccountingPageProps) {
   const context = await requireOfficeSession();
+  const { locale } = await getServerI18n({
+    userLocale: context.currentUser.locale
+  });
+  const isZh = locale === "zh-CN";
 
   if (!canAccessOfficeAdminAccountingWorkspace(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -49,17 +54,21 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
   return (
     <OfficeListPageShell className="office-accounting-list-page">
       <OfficeListPageHeader
-        description="Generate agent payout statements from selected invoice numbers, save a durable snapshot, and download a PDF."
-        eyebrow="Accounting"
+        description={
+          isZh
+            ? "按发票号生成经纪人付款单，保存可追溯快照，并下载 PDF。"
+            : "Generate agent payout statements from selected invoice numbers, save a durable snapshot, and download a PDF."
+        }
+        eyebrow={isZh ? "财务" : "Accounting"}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Invoice candidates" tone="accent" value={snapshot.filters.invoiceOptions.length} />
-            <SummaryChip label="Saved statements" value={snapshot.history.length} />
-            <SummaryChip label="Current basis" value="Invoice number" />
+            <SummaryChip label={isZh ? "办公室范围" : "Office scope"} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={isZh ? "候选发票" : "Invoice candidates"} tone="accent" value={snapshot.filters.invoiceOptions.length} />
+            <SummaryChip label={isZh ? "已保存付款单" : "Saved statements"} value={snapshot.history.length} />
+            <SummaryChip label={isZh ? "当前依据" : "Current basis"} value={isZh ? "发票号" : "Invoice number"} />
           </>
         }
-        title="Agent Statements"
+        title={isZh ? "经纪人付款单" : "Agent Statements"}
       />
 
       <OfficeAccountingClient snapshot={snapshot} />
