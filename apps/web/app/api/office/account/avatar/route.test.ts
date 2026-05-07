@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildProfileAvatarUrl,
   handleProfileAvatarPost,
+  normalizeProfileAvatarImage,
 } from "./route";
 
 function createAvatarRequest(formData: FormData | null, contentLength?: string) {
@@ -74,16 +75,24 @@ test("handleProfileAvatarPost stores the file and saves the public avatar URL", 
     createAvatarRequest(formData),
     createSessionContext(),
     {
+      normalizeProfileAvatarImage: async (input) => {
+        assert.equal(input.name, "headshot.png");
+        return {
+          bytes: new Uint8Array([119, 101, 98, 112]),
+          contentType: "image/webp",
+          fileName: "profile-avatar.webp",
+        };
+      },
       saveStoredProfileAvatarFile: async (input) => {
         capturedStorageInput = {
           ...input,
           bytes: Array.from(input.bytes),
         };
         return {
-          absolutePath: "/tmp/headshot.png",
-          fileName: "headshot.png",
+          absolutePath: "/tmp/profile-avatar.webp",
+          fileName: "profile-avatar.webp",
           fileSizeBytes: input.bytes.byteLength,
-          storageKey: "org_1/profile-avatars/membership_1/headshot.png",
+          storageKey: "org_1/profile-avatars/membership_1/profile-avatar.webp",
         };
       },
       saveOfficeAccountAvatar: async (input) => {
@@ -99,17 +108,48 @@ test("handleProfileAvatarPost stores the file and saves the public avatar URL", 
   assert.deepEqual(capturedStorageInput, {
     organizationId: "org_1",
     membershipId: "membership_1",
-    fileName: "headshot.png",
-    bytes: [97, 118, 97, 116, 97, 114],
+    fileName: "profile-avatar.webp",
+    bytes: [119, 101, 98, 112],
   });
   assert.deepEqual(capturedProfileInput, {
     organizationId: "org_1",
     officeId: "office_1",
     membershipId: "membership_1",
-    avatarUrl: "/api/public/profile-avatar/org_1/profile-avatars/membership_1/headshot.png",
+    avatarUrl: "/api/public/profile-avatar/org_1/profile-avatars/membership_1/profile-avatar.webp",
   });
   assert.deepEqual(await readJson(response), {
     ok: true,
-    avatarUrl: "/api/public/profile-avatar/org_1/profile-avatars/membership_1/headshot.png",
+    avatarUrl: "/api/public/profile-avatar/org_1/profile-avatars/membership_1/profile-avatar.webp",
+  });
+});
+
+test("normalizeProfileAvatarImage rejects images below the minimum avatar dimensions", async () => {
+  const pipeline = {
+    metadata: async () => ({
+      height: 512,
+      width: 128,
+    }),
+    resize() {
+      return pipeline;
+    },
+    rotate() {
+      return pipeline;
+    },
+    toBuffer: async () => Buffer.from("unused"),
+    webp() {
+      return pipeline;
+    },
+  };
+
+  const result = await normalizeProfileAvatarImage(
+    new File(["small"], "small.png", { type: "image/png" }),
+    {
+      importSharp: async () => (() => pipeline),
+    },
+  );
+
+  assert.deepEqual(result, {
+    error: "Avatar images must be at least 256x256px.",
+    status: 400,
   });
 });
