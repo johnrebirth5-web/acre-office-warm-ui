@@ -649,6 +649,14 @@ test("publishing a pack mints a high-entropy share code", async () => {
   const context = await createStudioListingsTestContext();
 
   try {
+    await prisma.agentProfile.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        membershipId: context.ownerMembership.id,
+        avatarUrl: "/api/public/profile-avatar/org/profile-avatars/owner/avatar.png",
+      },
+    });
     const pack = await context.createPack({
       membershipId: context.ownerMembership.id,
       title: "Queens Landing",
@@ -665,6 +673,14 @@ test("publishing a pack mints a high-entropy share code", async () => {
 
     assert.ok(published);
     assert.match(published?.shareCode ?? "", /^pack_[A-Za-z0-9_-]{32}$/);
+
+    const publicSnapshot = await getStudioListingPublicPack({
+      shareCode: published?.shareCode ?? "",
+    });
+    assert.equal(
+      publicSnapshot?.contact.avatarUrl,
+      "/api/public/profile-avatar/org/profile-avatars/owner/avatar.png",
+    );
   } finally {
     await context.cleanup();
   }
@@ -772,6 +788,14 @@ test("public collection lookup returns current shared listings", async () => {
   const context = await createStudioListingsTestContext();
 
   try {
+    await prisma.agentProfile.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        membershipId: context.ownerMembership.id,
+        avatarUrl: "/api/public/profile-avatar/org/profile-avatars/owner/collection.png",
+      },
+    });
     const firstPack = await context.createPack({
       membershipId: context.ownerMembership.id,
       title: "Court Square One",
@@ -818,6 +842,10 @@ test("public collection lookup returns current shared listings", async () => {
     assert.equal(snapshot?.name, "For Client");
     assert.equal(snapshot?.listingCount, 2);
     assert.equal(snapshot?.listings.length, 2);
+    assert.equal(
+      snapshot?.contact.avatarUrl,
+      "/api/public/profile-avatar/org/profile-avatars/owner/collection.png",
+    );
     assert.ok(
       snapshot?.listings.some((item) => item.packId === firstPack.packId),
     );

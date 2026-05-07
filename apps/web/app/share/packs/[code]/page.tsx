@@ -61,6 +61,17 @@ function formatPublicListingText(value: string, isZh: boolean) {
     .replace(/\bViews \/ Exposure\b/gi, "景观与朝向");
 }
 
+function buildContactInitials(contact: { name: string }) {
+  return (
+    contact.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "A"
+  );
+}
+
 export default async function ListingStudioPublicSharePage(
   props: ListingStudioPublicSharePageProps,
 ) {
@@ -278,6 +289,17 @@ export default async function ListingStudioPublicSharePage(
         </section>
 
         <footer className="listing-studio-share-footer">
+          {snapshot.contact.avatarUrl ? (
+            <img
+              alt={`${snapshot.contact.name} avatar`}
+              className="listing-studio-share-footer-avatar"
+              src={snapshot.contact.avatarUrl}
+            />
+          ) : (
+            <div className="listing-studio-share-footer-avatar" aria-hidden="true">
+              {buildContactInitials(snapshot.contact)}
+            </div>
+          )}
           <div>
             <strong>{snapshot.contact.name}</strong>
             <span>{snapshot.contact.title}</span>

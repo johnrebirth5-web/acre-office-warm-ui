@@ -159,6 +159,13 @@ export type SaveOfficeAccountProfileInput = {
   locale: string;
 };
 
+export type SaveOfficeAccountAvatarInput = {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+  avatarUrl: string;
+};
+
 export type SaveOfficeAccountNotificationPreferencesInput = {
   organizationId: string;
   membershipId: string;
@@ -865,6 +872,72 @@ export async function saveOfficeAccountProfile(
     return {
       fullName: nextFullName,
       displayName: nextDisplayName ?? nextFullName,
+    };
+  });
+}
+
+export async function saveOfficeAccountAvatar(input: SaveOfficeAccountAvatarInput) {
+  const membership = await getScopedMembership({
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+  });
+
+  if (!membership) {
+    return null;
+  }
+
+  const nextAvatarUrl = parseOptionalText(input.avatarUrl);
+  const previousAvatarUrl = membership.agentProfile?.avatarUrl ?? "";
+  const change = buildChange("Avatar URL", previousAvatarUrl, nextAvatarUrl ?? "");
+
+  if (!change) {
+    return {
+      avatarUrl: nextAvatarUrl ?? "",
+    };
+  }
+
+  const fullName = buildFullName(
+    membership.user.firstName,
+    membership.user.lastName,
+  );
+  const displayName = membership.agentProfile?.displayName?.trim() || fullName;
+  const targetOfficeId = input.officeId ?? membership.officeId ?? null;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.agentProfile.upsert({
+      where: {
+        membershipId: input.membershipId,
+      },
+      update: {
+        organizationId: input.organizationId,
+        officeId: membership.officeId,
+        avatarUrl: nextAvatarUrl,
+      },
+      create: {
+        organizationId: input.organizationId,
+        officeId: membership.officeId,
+        membershipId: input.membershipId,
+        avatarUrl: nextAvatarUrl,
+      },
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      entityType: "account_profile",
+      entityId: input.membershipId,
+      action: activityLogActions.accountProfileUpdated,
+      payload: {
+        officeId: targetOfficeId,
+        objectLabel: displayName,
+        contextHref: "/agent/settings/profile",
+        details: [`Role: ${getRoleSummary(membership.role).label}`],
+        changes: [change],
+      },
+    });
+
+    return {
+      avatarUrl: nextAvatarUrl ?? "",
     };
   });
 }

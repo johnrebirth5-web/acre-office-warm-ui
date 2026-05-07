@@ -170,6 +170,16 @@ export function AgentNav({
         },
       ],
     },
+    {
+      title: t((messages) => messages.agentNav.groups.settings),
+      icon: "□",
+      items: [
+        {
+          href: "/agent/settings/profile",
+          label: t((messages) => messages.agentNav.items.profileSettings),
+        },
+      ],
+    },
   ];
 
   return (

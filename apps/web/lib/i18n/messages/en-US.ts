@@ -178,6 +178,7 @@ export const enUSMessages = {
     switcherLabel: "Active workspace",
     groups: {
       execution: "Execution",
+      settings: "Settings",
     },
     items: {
       dashboard: "Dashboard",
@@ -192,6 +193,7 @@ export const enUSMessages = {
       projects: "Project Signing",
       activity: "Activity",
       resources: "Resources",
+      profileSettings: "Profile",
       training: "Training",
     },
     shortcuts: {
