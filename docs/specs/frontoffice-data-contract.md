@@ -27,6 +27,7 @@ That means:
 
 - Front Office should keep extending beyond Acre-only scheduling surfaces, moving from export-style bridges into stronger calendar / inbox writeback where it is truly supported on top of the current bridge-action log plus agent-managed external follow-up state
 - the next CRM pass should keep reducing first-call friction through stronger cleanup, deeper OCR-style intake assists, and eventually a more unified cross-surface cleanup center
+- the cleanup digest now exposes a first formal `manual cleanup pass` contract: each item carries an action label, destination label, and next-step detail; appointment continuity items route directly into the calendar writeback section with the tightest proven writeback lane, so external calendar / email / call results can be reconciled before the operator clears broader notifications
 - automation should still stay safe and agent-approved first: connect systems and improve operational reach before any true auto-send behavior
 - the goal is to extend the now-explainable FO execution layer into the tools agents actually live in day to day
 
@@ -279,5 +280,6 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- deeper calendar / inbox writeback on top of the current export + logged-bridge + external-status layer
-- broader CRM quality-of-life work such as deeper office-wide cleanup depth and provider-backed OCR / transcript intake depth beyond the current browser-side beta
+- deeper calendar / inbox writeback on top of the current export + logged-bridge + external-status layer, including provider-supported status return only where the integration can actually prove the state
+- broader CRM quality-of-life work such as deeper office-wide cleanup depth and provider-backed OCR / transcript intake depth beyond the current local/server OCR boundary
+- turning the current manual cleanup pass runner contract into a scheduler-backed digest only after the job-runner foundation exists; until then, the pass remains manual and audit-visible

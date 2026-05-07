@@ -48,6 +48,27 @@ function buildCleanupDigest() {
       urgentCount: 2,
     },
     timeZone: "America/New_York",
+    workflow: {
+      label: "Manual cleanup pass",
+      detail:
+        "Run the digest, then work the listed passes in order. Acre records the manual run, but it does not schedule, auto-send, or provider-sync anything.",
+      runMode: "manual_operator_pass",
+      schedulerState: "runner_contract_ready",
+      providerSyncState: "none",
+      primaryStepKey: "follow_up_tasks",
+      steps: [
+        {
+          key: "follow_up_tasks",
+          label: "Follow-up pass",
+          detail: "Work due follow-up first.",
+          href: "/agent/notifications?activityView=personal_cleanup&cleanupFilter=follow_up",
+          actionLabel: "Open follow-up pass",
+          count: 3,
+          tone: "danger",
+          mode: "manual",
+        },
+      ],
+    },
     windowLabel: "Next 7 days",
   } as never;
 }

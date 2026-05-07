@@ -45,6 +45,9 @@ export type FrontOfficeCleanupDigestItem = {
   title: string;
   detail: string;
   href: string;
+  actionLabel: string;
+  actionDetail: string;
+  destinationLabel: string;
   dueAtLabel: string;
   tone: FrontOfficeCleanupDigestTone;
 };
@@ -59,6 +62,31 @@ export type FrontOfficeCleanupDigestSection = {
   summary: string;
   count: number;
   items: FrontOfficeCleanupDigestItem[];
+};
+
+export type FrontOfficeCleanupDigestWorkflowStep = {
+  key:
+    | "follow_up_tasks"
+    | "client_reminders"
+    | "appointment_writeback"
+    | "unread_notifications";
+  label: string;
+  detail: string;
+  href: string;
+  actionLabel: string;
+  count: number;
+  tone: FrontOfficeCleanupDigestTone;
+  mode: "manual";
+};
+
+export type FrontOfficeCleanupDigestWorkflow = {
+  label: string;
+  detail: string;
+  runMode: "manual_operator_pass";
+  schedulerState: "runner_contract_ready";
+  providerSyncState: "none";
+  primaryStepKey: FrontOfficeCleanupDigestWorkflowStep["key"] | null;
+  steps: FrontOfficeCleanupDigestWorkflowStep[];
 };
 
 export type FrontOfficeCleanupDigest = {
@@ -79,6 +107,7 @@ export type FrontOfficeCleanupDigest = {
   };
   nextActionLabel: string;
   nextActionDetail: string;
+  workflow: FrontOfficeCleanupDigestWorkflow;
   sections: FrontOfficeCleanupDigestSection[];
 };
 
@@ -263,6 +292,14 @@ function pickNextAction(
   sections: FrontOfficeCleanupDigestSection[],
   summary: FrontOfficeCleanupDigest["summary"],
 ) {
+  const getFirstItemDetail = (
+    sectionKey: FrontOfficeCleanupDigestSection["key"],
+  ) => {
+    const section = sections.find((candidate) => candidate.key === sectionKey);
+    const item = section?.items[0];
+
+    return item ? `${item.title}: ${item.detail}` : section?.summary;
+  };
   const firstNonEmptySection = sections.find((section) => section.count > 0);
 
   if (!firstNonEmptySection) {
@@ -277,7 +314,7 @@ function pickNextAction(
     return {
       label: "Start with follow-up tasks",
       detail:
-        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+        getFirstItemDetail("follow_up_tasks") ?? firstNonEmptySection.summary,
     };
   }
 
@@ -285,7 +322,8 @@ function pickNextAction(
     return {
       label: "Review client reminders",
       detail:
-        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+        getFirstItemDetail("client_reminders") ??
+        firstNonEmptySection.summary,
     };
   }
 
@@ -293,7 +331,8 @@ function pickNextAction(
     return {
       label: "Reconcile appointment continuity",
       detail:
-        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+        getFirstItemDetail("appointment_continuity") ??
+        firstNonEmptySection.summary,
     };
   }
 
@@ -514,6 +553,34 @@ export function renderFrontOfficeCleanupDigestRunSummary(
   ];
 }
 
+export function renderFrontOfficeCleanupDigestWorkflow(
+  workflow: FrontOfficeCleanupDigestWorkflow,
+) {
+  const lines = [
+    workflow.label,
+    `  ${workflow.detail}`,
+    `  Run mode: ${workflow.runMode}`,
+    `  Scheduler: ${workflow.schedulerState}`,
+    `  Provider sync: ${workflow.providerSyncState}`,
+  ];
+
+  if (!workflow.steps.length) {
+    lines.push("  No active workflow steps.");
+    return lines;
+  }
+
+  for (const [index, step] of workflow.steps.entries()) {
+    lines.push(
+      `  ${index + 1}. [${step.tone}] ${step.label} (${step.count})`,
+    );
+    lines.push(`     ${step.detail}`);
+    lines.push(`     Action: ${step.actionLabel}`);
+    lines.push(`     Link: ${step.href}`);
+  }
+
+  return lines;
+}
+
 export function renderFrontOfficeCleanupDigestSection(
   section: FrontOfficeCleanupDigestSection,
 ) {
@@ -527,6 +594,8 @@ export function renderFrontOfficeCleanupDigestSection(
   for (const item of section.items) {
     lines.push(`  - [${item.tone}] ${item.title}`);
     lines.push(`    ${item.detail}`);
+    lines.push(`    Action: ${item.actionLabel}`);
+    lines.push(`    Destination: ${item.destinationLabel}`);
     lines.push(`    Due: ${item.dueAtLabel}`);
     lines.push(`    Link: ${item.href}`);
   }
@@ -540,6 +609,9 @@ export function renderFrontOfficeCleanupDigestReport(
   const lines = renderFrontOfficeCleanupDigestRunSummary(
     buildFrontOfficeCleanupDigestRunSummary(digest),
   );
+
+  lines.push("");
+  lines.push(...renderFrontOfficeCleanupDigestWorkflow(digest.workflow));
 
   for (const section of digest.sections) {
     lines.push("");
@@ -616,6 +688,16 @@ function mapNotificationTone(type: string): FrontOfficeCleanupDigestTone {
   }
 }
 
+type CleanupDigestCalendarView =
+  | "reply_due"
+  | "confirmation_pending"
+  | "confirmed"
+  | "touch_due"
+  | "touch_scheduled"
+  | "missing_next_touch"
+  | "reschedule_requested"
+  | "writeback_pending";
+
 function readAppointmentWorkflowState(metadata: Record<string, unknown> | null) {
   const status = typeof metadata?.status === "string" ? metadata.status : null;
   const note = typeof metadata?.note === "string" ? metadata.note : null;
@@ -633,6 +715,54 @@ function readAppointmentWorkflowState(metadata: Record<string, unknown> | null) 
         ? nextActionAt
         : null,
   };
+}
+
+function getAppointmentCleanupCalendarView(input: {
+  bridgeOpenedAt: Date | null;
+  workflowStatus: string | null;
+  workflowNextActionAt: Date | null;
+  startsAt: Date;
+  now: Date;
+}): CleanupDigestCalendarView {
+  switch (input.workflowStatus) {
+    case "needs_follow_up":
+      return "reply_due";
+    case "confirmation_pending":
+      return "confirmation_pending";
+    case "confirmed":
+      return "confirmed";
+    case "reschedule_requested":
+      return "reschedule_requested";
+  }
+
+  if (input.workflowNextActionAt) {
+    return input.workflowNextActionAt.getTime() <= input.now.getTime()
+      ? "touch_due"
+      : "touch_scheduled";
+  }
+
+  if (input.bridgeOpenedAt) {
+    return "writeback_pending";
+  }
+
+  return "missing_next_touch";
+}
+
+function buildAppointmentWritebackHref(input: {
+  appointmentId: string;
+  clientId?: string | null;
+  calendarView: CleanupDigestCalendarView;
+}) {
+  const params = new URLSearchParams();
+
+  params.set("calendarView", input.calendarView);
+  params.set("appointmentId", input.appointmentId);
+
+  if (input.clientId) {
+    params.set("clientId", input.clientId);
+  }
+
+  return `/agent/calendar?${params.toString()}#calendar-writeback-section`;
 }
 
 function mapAppointmentTone(appointment: {
@@ -711,6 +841,10 @@ function buildNotificationItems(
     href: notification.actionUrl?.trim()
       ? notification.actionUrl
       : `/office/notifications/${notification.id}/open`,
+    actionLabel: "Open notice",
+    actionDetail:
+      "Open the unread signal, decide whether it belongs in Front Office execution or formal Back Office workflow, then return to the digest pass.",
+    destinationLabel: "Unread notice",
     dueAtLabel: formatDateTimeLabel(notification.createdAt, {
       timeZone,
     }),
@@ -737,7 +871,11 @@ function buildFollowUpTaskItems(
         task.client?.fullName ? `Client: ${task.client.fullName}` : "Client: Unassigned",
         `Status: ${task.status}`,
       ]),
-      href: task.client?.id ? `/office/contacts/${task.client.id}` : "/office/contacts",
+      href: task.client?.id ? `/agent/clients/${task.client.id}` : "/agent/clients",
+      actionLabel: "Open follow-up",
+      actionDetail:
+        "Open the client record, complete or reschedule the follow-up, and keep the next reminder clock current.",
+      destinationLabel: "Client follow-up",
       dueAtLabel: formatDateTimeLabel(task.dueAt, { timeZone }),
       tone: getUrgencyTone(task.dueAt, now, cutoffAt),
     }))
@@ -778,7 +916,11 @@ function buildClientReminderItems(
               })}`
             : "",
         ]),
-        href: `/office/contacts/${client.id}`,
+        href: `/agent/clients/${client.id}`,
+        actionLabel: "Open client reminder",
+        actionDetail:
+          "Open the lightweight client page, record the latest touch, and adjust the next reminder if the outside conversation changed.",
+        destinationLabel: "Client reminder",
         dueAtLabel: formatDateTimeLabel(reminderAt, { timeZone }),
         tone: getUrgencyTone(reminderAt, now, cutoffAt),
       };
@@ -805,6 +947,13 @@ function buildAppointmentItems(
       const workflow = readAppointmentWorkflowState(appointment.metadata);
       const bridgeLogs = bridgeLogsByAppointmentId.get(appointment.id) ?? [];
       const bridgeOpenedAt = bridgeLogs.at(0)?.createdAt ?? null;
+      const calendarView = getAppointmentCleanupCalendarView({
+        bridgeOpenedAt,
+        workflowStatus: workflow.status,
+        workflowNextActionAt: workflow.nextActionAt,
+        startsAt: appointment.startsAt,
+        now,
+      });
       const workflowHasPressure = Boolean(
         workflow.status ||
           workflow.nextActionAt ||
@@ -823,9 +972,15 @@ function buildAppointmentItems(
           workflowNextActionAt: workflow.nextActionAt,
           timeZone,
         }),
-        href: appointment.client?.id
-          ? `/agent/clients/${appointment.client.id}`
-          : `/agent/calendar?appointmentId=${appointment.id}`,
+        href: buildAppointmentWritebackHref({
+          appointmentId: appointment.id,
+          clientId: appointment.clientId,
+          calendarView,
+        }),
+        actionLabel: "Open writeback",
+        actionDetail:
+          "Open the calendar writeback section, then save the confirmation, reschedule request, or next promised external touch in Acre.",
+        destinationLabel: "Calendar writeback",
         dueAtLabel: formatDateTimeLabel(appointment.startsAt, { timeZone }),
         tone: mapAppointmentTone({
           bridgeOpenedAt,
@@ -841,6 +996,99 @@ function buildAppointmentItems(
     .map(({ _hasPressure, ...item }) => item)
     .slice(0, frontOfficeCleanupDigestMaxItemsPerSection)
     .sort(sortItemsByUrgency);
+}
+
+function pickWorkflowTone(section: FrontOfficeCleanupDigestSection) {
+  if (section.items.some((item) => item.tone === "danger")) {
+    return "danger" as const;
+  }
+
+  if (section.items.some((item) => item.tone === "warning")) {
+    return "warning" as const;
+  }
+
+  return section.count > 0 ? ("accent" as const) : ("neutral" as const);
+}
+
+function buildFrontOfficeCleanupDigestWorkflow(
+  sections: FrontOfficeCleanupDigestSection[],
+): FrontOfficeCleanupDigestWorkflow {
+  const sectionByKey = new Map(sections.map((section) => [section.key, section]));
+  const followUpSection = sectionByKey.get("follow_up_tasks");
+  const clientReminderSection = sectionByKey.get("client_reminders");
+  const appointmentSection = sectionByKey.get("appointment_continuity");
+  const notificationSection = sectionByKey.get("notifications");
+  const steps: FrontOfficeCleanupDigestWorkflowStep[] = [];
+
+  if (followUpSection?.count) {
+    steps.push({
+      key: "follow_up_tasks",
+      label: "Follow-up pass",
+      detail:
+        "Work due follow-up first so client clocks stop drifting while the rest of the digest stays visible.",
+      href: "/agent/notifications?activityView=personal_cleanup&cleanupFilter=follow_up",
+      actionLabel: "Open follow-up pass",
+      count: followUpSection.count,
+      tone: pickWorkflowTone(followUpSection),
+      mode: "manual",
+    });
+  }
+
+  if (clientReminderSection?.count) {
+    steps.push({
+      key: "client_reminders",
+      label: "Client reminder pass",
+      detail:
+        "Open the client queue and update the current reminder or last-touch record after the outside conversation.",
+      href: "/agent/clients?clientView=follow_first",
+      actionLabel: "Open client queue",
+      count: clientReminderSection.count,
+      tone: pickWorkflowTone(clientReminderSection),
+      mode: "manual",
+    });
+  }
+
+  if (appointmentSection?.count) {
+    steps.push({
+      key: "appointment_writeback",
+      label: "Appointment writeback pass",
+      detail:
+        "Reconcile external calendar, email, or call results back into Acre as confirmation, reschedule, or next-touch checkpoints.",
+      href:
+        appointmentSection.items[0]?.href ??
+        "/agent/calendar?calendarView=writeback_pending#calendar-writeback-section",
+      actionLabel: "Open writeback pass",
+      count: appointmentSection.count,
+      tone: pickWorkflowTone(appointmentSection),
+      mode: "manual",
+    });
+  }
+
+  if (notificationSection?.count) {
+    steps.push({
+      key: "unread_notifications",
+      label: "Unread notice pass",
+      detail:
+        "Clear unread workflow signals after the follow-up and appointment checkpoints have a saved next move.",
+      href: "/agent/notifications?activityView=general_notices&readState=unread",
+      actionLabel: "Open unread notices",
+      count: notificationSection.count,
+      tone: pickWorkflowTone(notificationSection),
+      mode: "manual",
+    });
+  }
+
+  return {
+    label: "Manual cleanup pass",
+    detail: steps.length
+      ? "Run the digest, then work the listed passes in order. Acre records the manual run, but it does not schedule, auto-send, or provider-sync anything."
+      : "No active cleanup pass is needed right now. The runner contract is still ready for a future scheduler.",
+    runMode: "manual_operator_pass",
+    schedulerState: "runner_contract_ready",
+    providerSyncState: "none",
+    primaryStepKey: steps[0]?.key ?? null,
+    steps,
+  };
 }
 
 export async function buildFrontOfficeCleanupDigest(
@@ -1081,6 +1329,7 @@ export async function buildFrontOfficeCleanupDigest(
   };
 
   const nextAction = pickNextAction(sections, summary);
+  const workflow = buildFrontOfficeCleanupDigestWorkflow(sections);
 
   return {
     generatedAt: generatedAt.toISOString(),
@@ -1094,6 +1343,7 @@ export async function buildFrontOfficeCleanupDigest(
     summary,
     nextActionLabel: nextAction.label,
     nextActionDetail: nextAction.detail,
+    workflow,
     sections,
   };
 }
