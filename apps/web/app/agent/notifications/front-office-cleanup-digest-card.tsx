@@ -13,6 +13,9 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import styles from "./agent-notifications.module.css";
 
 type CleanupDigestSectionItem = {
+  actionDetail?: string;
+  actionLabel?: string;
+  destinationLabel?: string;
   detail?: string;
   dueAtLabel?: string;
   href: string;
@@ -37,6 +40,26 @@ type CleanupDigestSummary = {
   urgentCount?: number;
 };
 
+type CleanupDigestWorkflowStep = {
+  actionLabel: string;
+  count: number;
+  detail: string;
+  href: string;
+  key: string;
+  label: string;
+  tone: "neutral" | "accent" | "warning" | "danger";
+};
+
+type CleanupDigestWorkflow = {
+  detail: string;
+  label: string;
+  primaryStepKey: string | null;
+  providerSyncState: "none";
+  runMode: "manual_operator_pass";
+  schedulerState: "runner_contract_ready";
+  steps: CleanupDigestWorkflowStep[];
+};
+
 type CleanupDigest = {
   generatedAtLabel: string;
   nextActionDetail: string;
@@ -45,6 +68,7 @@ type CleanupDigest = {
   sections: CleanupDigestSection[];
   summary: CleanupDigestSummary;
   timeZone: string;
+  workflow?: CleanupDigestWorkflow;
   windowLabel: string;
 };
 
@@ -83,6 +107,8 @@ export function FrontOfficeCleanupDigestCard({
   const topSections = cleanupDigest.sections
     .filter((section) => section.count > 0)
     .slice(0, 2);
+  const workflowSteps = cleanupDigest.workflow?.steps ?? [];
+  const primaryWorkflowStep = workflowSteps[0] ?? null;
 
   async function runCleanupDigest() {
     setRunMessage(null);
@@ -113,6 +139,9 @@ export function FrontOfficeCleanupDigestCard({
           payload?.activityLabel ?? "Summary refresh recorded.",
           payload?.manualOnlyDetail ??
             "Reviewed here only. Nothing runs on a schedule and nothing syncs automatically.",
+          cleanupDigest.workflow?.label
+            ? `Workflow: ${cleanupDigest.workflow.label}.`
+            : null,
           payload?.digest?.nextActionLabel
             ? `Next: ${payload.digest.nextActionLabel}.`
             : null,
@@ -187,11 +216,13 @@ export function FrontOfficeCleanupDigestCard({
     <div className={styles.summaryPanel}>
       <div className={styles.summaryPanelHeader}>
         <div className={styles.summaryPanelCopy}>
-          <span className={styles.summaryPanelEyebrow}>Live summary</span>
+          <span className={styles.summaryPanelEyebrow}>
+            Manual cleanup pass
+          </span>
           <strong>{cleanupDigest.nextActionLabel}</strong>
           <p>{cleanupDigest.nextActionDetail}</p>
         </div>
-        <StatusBadge tone={digestTone}>Live review</StatusBadge>
+        <StatusBadge tone={digestTone}>Manual run</StatusBadge>
       </div>
 
       <ListPageStatsGrid>
@@ -251,17 +282,45 @@ export function FrontOfficeCleanupDigestCard({
       <div className={styles.summaryPanelPills}>
         <span className={styles.summaryPanelPill}>
           <strong>Mode</strong>
-          Live review
+          Manual pass
         </span>
         <span className={styles.summaryPanelPill}>
-          <strong>Preview</strong>
-          Live data
+          <strong>Scheduler</strong>
+          Ready, not active
         </span>
         <span className={styles.summaryPanelPill}>
-          <strong>Refresh</strong>
-          Pulls newest snapshot
+          <strong>Writeback</strong>
+          Agent saved
         </span>
       </div>
+
+      {cleanupDigest.workflow ? (
+        <div className={styles.summaryPanelGrid}>
+          <div className={styles.summaryPanelBlock}>
+            <span className={styles.summaryPanelBlockEyebrow}>Pass</span>
+            <strong>{cleanupDigest.workflow.label}</strong>
+            <p>{cleanupDigest.workflow.detail}</p>
+          </div>
+          <div className={styles.summaryPanelBlock}>
+            <span className={styles.summaryPanelBlockEyebrow}>
+              Primary step
+            </span>
+            <strong>{primaryWorkflowStep?.label ?? "No active step"}</strong>
+            <p>
+              {primaryWorkflowStep?.detail ??
+                "The digest is clear, but the same runner contract can support a future scheduled pass."}
+            </p>
+          </div>
+          <div className={styles.summaryPanelBlock}>
+            <span className={styles.summaryPanelBlockEyebrow}>Boundary</span>
+            <strong>No provider sync</strong>
+            <p>
+              Runs and internal threads are recorded; outside systems stay
+              manual until a user writes back.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.summaryPanelActions}>
         <Button
@@ -270,8 +329,16 @@ export function FrontOfficeCleanupDigestCard({
           type="button"
           variant="primary"
         >
-          {isRunningManualDigest ? "Refreshing summary..." : "Refresh summary"}
+          {isRunningManualDigest ? "Running digest..." : "Run manual digest"}
         </Button>
+        {primaryWorkflowStep ? (
+          <FrontOfficeLink
+            className="office-inline-link front-office-inline-link"
+            href={primaryWorkflowStep.href}
+          >
+            {primaryWorkflowStep.actionLabel}
+          </FrontOfficeLink>
+        ) : null}
         <Button
           disabled={isOpeningMailThread}
           onClick={openCleanupDigestMailThread}
@@ -328,9 +395,38 @@ export function FrontOfficeCleanupDigestCard({
           <div className="list-row-meta front-office-record-meta">
             <span>{cleanupDigest.windowLabel}</span>
             <span>{cleanupDigest.scopeLabel}</span>
-            <span>Live review</span>
+            <span>Manual pass</span>
           </div>
         </article>
+
+        {workflowSteps.length ? (
+          workflowSteps.slice(0, 4).map((step, index) => (
+            <article
+              className={`list-row front-office-record tone-${step.tone}`}
+              key={step.key}
+            >
+              <div className="list-row-top front-office-record-head">
+                <div>
+                  <strong>
+                    {index + 1}. {step.label}
+                  </strong>
+                  <p>{step.detail}</p>
+                </div>
+                <StatusBadge tone={step.tone}>{step.count}</StatusBadge>
+              </div>
+              <div className="list-row-meta front-office-record-meta">
+                <span>Manual</span>
+                <span>Recorded in Acre when run</span>
+              </div>
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={step.href}
+              >
+                {step.actionLabel}
+              </FrontOfficeLink>
+            </article>
+          ))
+        ) : null}
 
         {topSections.length ? (
           topSections.map((section) => (
@@ -347,14 +443,17 @@ export function FrontOfficeCleanupDigestCard({
               </div>
               <div className="list-row-meta front-office-record-meta">
                 <span>{section.items[0]?.dueAtLabel ?? "No due label"}</span>
-                <span>{section.items[0]?.detail ?? "Preview only"}</span>
+                <span>
+                  {section.items[0]?.destinationLabel ?? "Preview only"}
+                </span>
+                <span>{section.items[0]?.actionDetail ?? "Manual review"}</span>
               </div>
               {section.items[0] ? (
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
                   href={section.items[0].href}
                 >
-                  Open first item
+                  {section.items[0].actionLabel ?? "Open first item"}
                 </FrontOfficeLink>
               ) : null}
             </article>

@@ -18,6 +18,7 @@ import {
   renderFrontOfficeCleanupDigestDryRunOutput,
   renderFrontOfficeCleanupDigestReport,
   renderFrontOfficeCleanupDigestSection,
+  renderFrontOfficeCleanupDigestWorkflow,
   renderFrontOfficeCleanupDigestRunnerContract,
   recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
   recordFrontOfficeCleanupDigestRunActivity,
@@ -206,6 +207,10 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
             title: "Follow-up overdue",
             detail: "Follow-up cleanup before the next touch.",
             href: "/office/notifications/notification-1/open",
+            actionLabel: "Open notice",
+            actionDetail:
+              "Open the unread signal and return to the digest pass.",
+            destinationLabel: "Unread notice",
             dueAtLabel: "Apr 8, 2026, 10:30 AM",
             tone: "danger",
           },
@@ -222,7 +227,11 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
             kind: "follow_up_task",
             title: "Follow-up cleanup",
             detail: "Client: Cleanup Client · Status: queued",
-            href: "/office/contacts/client-1",
+            href: "/agent/clients/client-1",
+            actionLabel: "Open follow-up",
+            actionDetail:
+              "Open the client record and keep the next reminder clock current.",
+            destinationLabel: "Client follow-up",
             dueAtLabel: "Apr 8, 2026, 11:00 AM",
             tone: "danger",
           },
@@ -240,7 +249,11 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
             title: "Cleanup Client",
             detail:
               "Next follow-up: Apr 10, 2026, 11:00 AM · Lease reminder: Apr 11, 2026, 11:00 AM",
-            href: "/office/contacts/client-1",
+            href: "/agent/clients/client-1",
+            actionLabel: "Open client reminder",
+            actionDetail:
+              "Open the lightweight client page and update the reminder.",
+            destinationLabel: "Client reminder",
             dueAtLabel: "Apr 10, 2026, 11:00 AM",
             tone: "warning",
           },
@@ -258,13 +271,50 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
             title: "Bridge cleanup",
             detail:
               "Bridge opened: Apr 9, 2026, 10:15 AM · No saved writeback yet",
-            href: "/agent/clients/client-1",
+            href:
+              "/agent/calendar?calendarView=writeback_pending&appointmentId=appointment-1&clientId=client-1#calendar-writeback-section",
+            actionLabel: "Open writeback",
+            actionDetail:
+              "Open the calendar writeback section and save the next checkpoint.",
+            destinationLabel: "Calendar writeback",
             dueAtLabel: "Apr 10, 2026, 11:00 AM",
             tone: "warning",
           },
         ],
       },
     ],
+    workflow: {
+      label: "Manual cleanup pass",
+      detail:
+        "Run the digest, then work the listed passes in order. Acre records the manual run, but it does not schedule, auto-send, or provider-sync anything.",
+      runMode: "manual_operator_pass",
+      schedulerState: "runner_contract_ready",
+      providerSyncState: "none",
+      primaryStepKey: "follow_up_tasks",
+      steps: [
+        {
+          key: "follow_up_tasks",
+          label: "Follow-up pass",
+          detail: "Work due follow-up first.",
+          href: "/agent/notifications?activityView=personal_cleanup&cleanupFilter=follow_up",
+          actionLabel: "Open follow-up pass",
+          count: 1,
+          tone: "danger",
+          mode: "manual",
+        },
+        {
+          key: "appointment_writeback",
+          label: "Appointment writeback pass",
+          detail: "Reconcile external calendar, email, or call results.",
+          href:
+            "/agent/calendar?calendarView=writeback_pending&appointmentId=appointment-1&clientId=client-1#calendar-writeback-section",
+          actionLabel: "Open writeback pass",
+          count: 1,
+          tone: "warning",
+          mode: "manual",
+        },
+      ],
+    },
   } satisfies Parameters<typeof renderFrontOfficeCleanupDigestReport>[0];
 
   const deliveryDraft = buildFrontOfficeCleanupDigestDeliveryDraft(digest);
@@ -289,12 +339,18 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
   );
   assert.equal(notificationLines[0], "Unread notifications (1)");
   assert.match(notificationLines.join("\n"), /Follow-up overdue/);
+  assert.match(notificationLines.join("\n"), /Action: Open notice/);
+
+  const workflowLines = renderFrontOfficeCleanupDigestWorkflow(digest.workflow);
+  assert.equal(workflowLines[0], "Manual cleanup pass");
+  assert.match(workflowLines.join("\n"), /Open writeback pass/);
 
   const report = renderFrontOfficeCleanupDigestReport(digest);
   assert.match(report, /^Office cleanup digest$/m);
   assert.match(report, /^Generated: Apr 9, 2026, 11:00 AM$/m);
   assert.match(report, /^Summary: 4 item\(s\), 2 urgent, 2 due soon$/m);
   assert.match(report, /^Next action: Start with follow-up tasks$/m);
+  assert.match(report, /^Manual cleanup pass$/m);
   assert.match(report, /No saved writeback yet/);
 
   const renderedDraft = renderFrontOfficeCleanupDigestDeliveryDraft(
@@ -480,13 +536,23 @@ digestIntegrationTest(
         renderedSection[1] ?? "",
         /1 Appointment continuity item needs attention\./,
       );
-      assert.match(renderedSection.join("\n"), /Link: \/agent\/clients\//);
+      assert.match(renderedSection.join("\n"), /Calendar writeback/);
+      assert.match(
+        renderedSection.join("\n"),
+        /\/agent\/calendar\?calendarView=writeback_pending/,
+      );
 
       const report = renderFrontOfficeCleanupDigestReport(digest);
       assert.match(report, /^Office cleanup digest$/m);
       assert.match(report, /^Generated: /m);
       assert.match(report, /^Summary: 4 item\(s\), 2 urgent, 2 due soon$/m);
       assert.match(report, /^Next action: Start with follow-up tasks$/m);
+      assert.equal(digest.workflow.primaryStepKey, "follow_up_tasks");
+      assert.ok(
+        digest.workflow.steps.some(
+          (step) => step.key === "appointment_writeback",
+        ),
+      );
 
       await recordFrontOfficeCleanupDigestRunActivity(prisma, {
         organizationId: context.organization.id,

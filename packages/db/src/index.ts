@@ -258,6 +258,8 @@ export {
   type FrontOfficeCleanupDigest,
   type FrontOfficeCleanupDigestItem,
   type FrontOfficeCleanupDigestSection,
+  type FrontOfficeCleanupDigestWorkflow,
+  type FrontOfficeCleanupDigestWorkflowStep,
   recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
   recordFrontOfficeCleanupDigestRunActivity,
   renderFrontOfficeCleanupDigestDeliveryDraft,
