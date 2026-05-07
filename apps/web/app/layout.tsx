@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { I18nProvider } from "../lib/i18n/client";
-import { getServerI18n } from "../lib/i18n/server";
+import { getCurrentLocale, getServerI18n } from "../lib/i18n/server";
 import "./globals.css";
 
 const officeSans = Inter({
@@ -17,7 +17,9 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const { locale, messages } = await getServerI18n();
+  const { locale, messages } = await getServerI18n({
+    locale: await getCurrentLocale(),
+  });
 
   return (
     <html lang={locale}>
