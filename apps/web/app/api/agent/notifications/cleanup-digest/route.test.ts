@@ -17,6 +17,13 @@ type RecordedCleanupDigestRunActivity = {
   objectLabel?: string;
 };
 
+type CreatedCleanupRunInput = {
+  digest: Record<string, unknown>;
+  membershipId: string;
+  officeId?: string | null;
+  organizationId: string;
+};
+
 function createRequest() {
   const url =
     "https://example.com/api/agent/notifications/cleanup-digest?timeZone=America/New_York";
@@ -76,6 +83,32 @@ function buildCleanupDigest() {
   } as never;
 }
 
+function buildCleanupRun() {
+  return {
+    completedAtLabel: null,
+    createdAtLabel: "April 9, 2026 at 10:00 AM",
+    id: "cleanup_run_1",
+    items: [],
+    progress: {
+      completedCount: 0,
+      handledCount: 0,
+      openCount: 7,
+      pendingCount: 7,
+      percentComplete: 0,
+      revisitCount: 0,
+      skippedCount: 0,
+      totalCount: 7,
+    },
+    scopeLabel: "South Bay Office",
+    status: "active",
+    statusLabel: "In progress",
+    statusTone: "accent",
+    timeZone: "America/New_York",
+    updatedAtLabel: "April 9, 2026 at 10:00 AM",
+    windowLabel: "Next 7 days",
+  } as never;
+}
+
 function buildDependencies(
   overrides: Partial<RouteDependencies>,
 ): RouteDependencies {
@@ -90,6 +123,7 @@ function buildDependencies(
     canViewCleanupDigest: () => true,
     getCleanupDigest: async () => buildCleanupDigest(),
     buildDeliveryDraft: buildFrontOfficeCleanupDigestDeliveryDraft,
+    createCleanupRun: async () => buildCleanupRun(),
     recordRunActivity: async () => undefined,
     ...overrides,
   };
@@ -125,6 +159,7 @@ test("returns 403 when cleanup digest access is missing", async () => {
 
 test("returns 200, no-store, and records the cleanup digest manual run activity", async () => {
   let recordedActivity: RecordedCleanupDigestRunActivity | null = null;
+  let createdRunInput: CreatedCleanupRunInput | null = null;
 
   const recordRunActivity: RouteDependencies["recordRunActivity"] = async (
     _writer,
@@ -148,10 +183,24 @@ test("returns 200, no-store, and records the cleanup digest manual run activity"
       objectLabel: typedInput.objectLabel,
     };
   };
+  const createCleanupRun: RouteDependencies["createCleanupRun"] = async (
+    _writer,
+    input,
+  ) => {
+    createdRunInput = {
+      digest: input.digest as unknown as Record<string, unknown>,
+      membershipId: input.membershipId,
+      officeId: input.officeId ?? null,
+      organizationId: input.organizationId,
+    };
+
+    return buildCleanupRun();
+  };
 
   const response = await handleCleanupDigestPost(
     createRequest(),
     buildDependencies({
+      createCleanupRun,
       recordRunActivity,
     }),
   );
@@ -165,7 +214,14 @@ test("returns 200, no-store, and records the cleanup digest manual run activity"
     manualOnlyDetail: "Manual-only. No scheduler. No provider sync.",
     mailThreadHref: "/api/agent/notifications/cleanup-digest/mail-thread",
     digest: buildCleanupDigest(),
+    run: buildCleanupRun(),
   });
+  assert.ok(createdRunInput);
+  const runInput = createdRunInput as CreatedCleanupRunInput;
+  assert.equal(runInput.organizationId, "org_1");
+  assert.equal(runInput.membershipId, "member_1");
+  assert.equal(runInput.officeId, "office_1");
+  assert.equal(runInput.digest.scopeLabel, "South Bay Office");
   assert.ok(recordedActivity);
   const activity = recordedActivity as RecordedCleanupDigestRunActivity;
   assert.equal(activity.organizationId, "org_1");

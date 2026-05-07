@@ -181,6 +181,7 @@ Current implementation priority note:
 - that same cleanup layer now also re-enters duplicate review through the stable clients workbench lane and calendar cleanup through tighter client-aware appointment links, so the next operator move no longer falls back to broad summary routes
 - that same cleanup layer now also re-enters client dossier work through explicit section anchors such as the appointments / follow-up rail, listing-output rail, and next-step rail, so stale-client, send-risk, and appointment-writeback pressure can land in the right dossier section instead of a generic client detail top
 - that same cleanup route now also labels each cleanup / reminder / notice card with its target section semantics, so the operator can see whether the next move belongs to the calendar writeback rail, follow-up rail, listing output rail, recovery rail, appointment reminders, or general notices before clicking
+- the cleanup digest now also creates a persisted manual-run checklist, so the operator can run the pass, work individual rows as done / skipped / later / reopened, and keep progress visible in Acre without claiming scheduler or provider sync exists
 - `/agent/dashboard` now also hardens its client and cleanup shortcuts around those focused workbench routes, so `follow first`, `anchor now`, `duplicate review`, `viewing lane`, leadership cleanup, appointment writeback, and send-risk follow-through reopen the exact next lane with explicit `why now` and `next step` copy instead of behaving like broad summary links
 - dashboard appointment commitments now also reopen the exact appointment writeback route, so the launchpad and commitment stack can send the agent straight into the next calendar checkpoint instead of a broad calendar summary
 - dashboard appointment commitments now also choose a tighter calendar lane when the outside status already shows `reply due`, `awaiting confirmation`, `touch due`, `touch scheduled`, `writeback pending`, `reschedule requested`, or `externally confirmed`, and generic listing launchers now route to the remaining client, calendar, or Listing Studio surfaces instead of the removed `/agent/listings` workspace
@@ -382,6 +383,7 @@ Should support:
 - reminder delivery
 - unified cleanup review for duplicate merge, overdue follow-up, send-risk rescue, and near-term appointment pressure
 - leader-visible team cleanup review for overdue shared work, stale visible-scope dossiers, and quiet send trails
+- persisted manual cleanup-run checklist status for the current operator pass
 - roster and calendar writeback
 
 ## Tracking requirements

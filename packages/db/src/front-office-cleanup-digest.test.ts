@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import {
+  FrontOfficeCleanupRunItemStatus,
   NotificationCategory,
   NotificationEntityType,
   NotificationSeverity,
@@ -14,6 +15,7 @@ import {
   buildFrontOfficeCleanupDigestRunnerContract,
   buildFrontOfficeCleanupDigestRunActivityPayload,
   buildFrontOfficeCleanupDigestRunSummary,
+  createFrontOfficeCleanupRun,
   renderFrontOfficeCleanupDigestDeliveryDraft,
   renderFrontOfficeCleanupDigestDryRunOutput,
   renderFrontOfficeCleanupDigestReport,
@@ -22,6 +24,7 @@ import {
   renderFrontOfficeCleanupDigestRunnerContract,
   recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
   recordFrontOfficeCleanupDigestRunActivity,
+  updateFrontOfficeCleanupRunItemStatus,
 } from "./front-office-cleanup-digest.ts";
 import {
   activityLogActions,
@@ -194,6 +197,7 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
     },
     nextActionLabel: "Start with follow-up tasks",
     nextActionDetail: "Follow-up cleanup needs a quick owner check.",
+    activeRun: null,
     sections: [
       {
         key: "notifications",
@@ -553,6 +557,56 @@ digestIntegrationTest(
           (step) => step.key === "appointment_writeback",
         ),
       );
+      assert.equal(digest.activeRun, null);
+
+      const cleanupRun = await createFrontOfficeCleanupRun(prisma, {
+        organizationId: context.organization.id,
+        membershipId: context.membership.id,
+        officeId: context.office.id,
+        digest,
+      });
+
+      assert.equal(cleanupRun.status, "active");
+      assert.equal(cleanupRun.progress.totalCount, 4);
+      assert.equal(cleanupRun.progress.pendingCount, 4);
+      assert.equal(cleanupRun.progress.openCount, 4);
+      assert.equal(cleanupRun.progress.percentComplete, 0);
+      assert.equal(cleanupRun.items.length, 4);
+
+      const followUpRunItem = cleanupRun.items.find(
+        (item) => item.sourceKind === "follow_up_task",
+      );
+      assert.ok(followUpRunItem);
+
+      const updatedRun = await updateFrontOfficeCleanupRunItemStatus(prisma, {
+        organizationId: context.organization.id,
+        membershipId: context.membership.id,
+        itemId: followUpRunItem.id,
+        status: FrontOfficeCleanupRunItemStatus.completed,
+        timeZone: "America/New_York",
+      });
+
+      assert.ok(updatedRun);
+      assert.equal(updatedRun.progress.completedCount, 1);
+      assert.equal(updatedRun.progress.handledCount, 1);
+      assert.equal(updatedRun.progress.openCount, 3);
+      assert.equal(updatedRun.status, "active");
+      assert.equal(
+        updatedRun.items.find((item) => item.id === followUpRunItem.id)
+          ?.status,
+        "completed",
+      );
+
+      const digestWithRun = await buildFrontOfficeCleanupDigest({
+        organizationId: context.organization.id,
+        viewerMembershipId: context.membership.id,
+        officeId: context.office.id,
+        timeZone: "America/New_York",
+        now: new Date("2026-04-09T15:00:00.000Z"),
+      });
+
+      assert.equal(digestWithRun.activeRun?.id, cleanupRun.id);
+      assert.equal(digestWithRun.activeRun?.progress.handledCount, 1);
 
       await recordFrontOfficeCleanupDigestRunActivity(prisma, {
         organizationId: context.organization.id,

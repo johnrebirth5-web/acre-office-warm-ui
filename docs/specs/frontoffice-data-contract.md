@@ -28,6 +28,7 @@ That means:
 - Front Office should keep extending beyond Acre-only scheduling surfaces, moving from export-style bridges into stronger calendar / inbox writeback where it is truly supported on top of the current bridge-action log plus agent-managed external follow-up state
 - the next CRM pass should keep reducing first-call friction through stronger cleanup, deeper OCR-style intake assists, and eventually a more unified cross-surface cleanup center
 - the cleanup digest now exposes a first formal `manual cleanup pass` contract: each item carries an action label, destination label, and next-step detail; appointment continuity items route directly into the calendar writeback section with the tightest proven writeback lane, so external calendar / email / call results can be reconciled before the operator clears broader notifications
+- manual cleanup passes are now durable: `FrontOfficeCleanupRun` preserves the generated digest scope, summary counts, workflow metadata, and latest run state, while `FrontOfficeCleanupRunItem` keeps each checklist row at `pending / completed / skipped / revisit` so the operator can work the pass over time without implying background automation
 - automation should still stay safe and agent-approved first: connect systems and improve operational reach before any true auto-send behavior
 - the goal is to extend the now-explainable FO execution layer into the tools agents actually live in day to day
 
@@ -145,6 +146,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the center intentionally shows one highest-pressure cleanup signal per client first so the queue stays operational, while duplicate review remains a separate merge block because that action changes the record foundation itself
   - focused personal-cleanup, team-cleanup, appointment-reminder, and general-notice lanes now also expose section-level drill-down links that reopen the route directly into the requested pressure track while preserving the existing `activityView`, `cleanupFilter`, `teamCleanupFilter`, `appointmentFilter`, `noticeStreamFilter`, and `readState` query-string contract
   - this first center does not yet claim full office-wide cleanup management; it is the first unified FO surface on top of the current self-scoped queue plus visible-scope duplicate governance
+  - the cleanup digest rail now also creates and displays a persisted manual cleanup-run checklist, letting the operator mark rows done, skipped, later, or reopened inside Acre while keeping scheduler/provider sync explicitly inactive
 - send records now keep richer execution context instead of only `client + listing + channel`:
   - `FrontOfficeSendRecord` now also snapshots `clientStageLabel`, optional `appointmentId`, `appointmentTitle`, and `appointmentStartsAt`
   - `/agent/listings` now accepts appointment context in addition to client context, so sends can be recorded straight from a scheduled consultation/showing path

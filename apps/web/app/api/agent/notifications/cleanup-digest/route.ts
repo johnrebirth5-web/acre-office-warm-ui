@@ -2,6 +2,7 @@ import { hasAnyPermission } from "@acre/auth";
 import {
   buildFrontOfficeCleanupDigest,
   buildFrontOfficeCleanupDigestDeliveryDraft,
+  createFrontOfficeCleanupRun,
   prisma,
   recordFrontOfficeCleanupDigestRunActivity,
 } from "@acre/db";
@@ -22,6 +23,7 @@ type CleanupDigestRouteDependencies = {
   canViewCleanupDigest: typeof hasAnyPermission;
   getCleanupDigest: typeof buildFrontOfficeCleanupDigest;
   buildDeliveryDraft: typeof buildFrontOfficeCleanupDigestDeliveryDraft;
+  createCleanupRun: typeof createFrontOfficeCleanupRun;
   recordRunActivity: typeof recordFrontOfficeCleanupDigestRunActivity;
 };
 
@@ -39,6 +41,7 @@ function buildCleanupDigestResponse(input: {
   executionMode: "manual" | "manual-run";
   activityLabel?: string;
   manualOnlyDetail?: string;
+  run?: Awaited<ReturnType<typeof createFrontOfficeCleanupRun>>;
 }) {
   return {
     ok: true,
@@ -47,6 +50,7 @@ function buildCleanupDigestResponse(input: {
     manualOnlyDetail: input.manualOnlyDetail,
     mailThreadHref: "/api/agent/notifications/cleanup-digest/mail-thread",
     digest: input.digest,
+    run: input.run,
   };
 }
 
@@ -55,6 +59,7 @@ const cleanupDigestRouteDependencies: CleanupDigestRouteDependencies = {
   canViewCleanupDigest: hasAnyPermission,
   getCleanupDigest: buildFrontOfficeCleanupDigest,
   buildDeliveryDraft: buildFrontOfficeCleanupDigestDeliveryDraft,
+  createCleanupRun: createFrontOfficeCleanupRun,
   recordRunActivity: recordFrontOfficeCleanupDigestRunActivity,
 };
 
@@ -163,6 +168,12 @@ export async function handleCleanupDigestPost(
       timeZone,
     });
     const deliveryDraft = dependencies.buildDeliveryDraft(digest);
+    const run = await dependencies.createCleanupRun(prisma, {
+      organizationId: context.currentOrganization.id,
+      membershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      digest,
+    });
 
     await dependencies.recordRunActivity(prisma, {
       organizationId: context.currentOrganization.id,
@@ -179,6 +190,7 @@ export async function handleCleanupDigestPost(
         executionMode: "manual-run",
         activityLabel: "Cleanup digest run recorded",
         manualOnlyDetail: "Manual-only. No scheduler. No provider sync.",
+        run,
       }),
       {
         headers: {

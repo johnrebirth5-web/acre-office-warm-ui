@@ -871,6 +871,8 @@
   - `/api/metrics`
   - `/api/db/seeded-context`
   - `/api/agent/dashboard`
+  - `/api/agent/notifications/cleanup-digest`
+  - `/api/agent/notifications/cleanup-digest/run-items/:itemId`
   - `/api/office/dashboard`
   - `/api/office/transactions`
   - `/api/office/transactions/:transactionId`
@@ -976,7 +978,7 @@
   - `/change-password`
   - `/office/*` 服务端保护
   - 服务端可读取 `currentUser / currentMembership / currentOrganization / currentOffice / currentCredential`
-- 一份 `Prisma + PostgreSQL` schema，覆盖组织、用户、房源、CRM、通知、活动、资源、vendor、审计日志
+- 一份 `Prisma + PostgreSQL` schema，覆盖组织、用户、房源、CRM、通知、活动、FO cleanup run checklist、资源、vendor、审计日志
 - 一份 `Prisma + PostgreSQL` schema，当前也覆盖：
   - transactions / transaction contacts / transaction tasks
   - ledger accounts
