@@ -124,6 +124,36 @@ function buildAssetSrc(assetId: string | null, code: string) {
     : null;
 }
 
+function buildContactInitials(contact: PublicCollectionSnapshot["contact"]) {
+  return (
+    contact.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "A"
+  );
+}
+
+function ContactAvatar(props: {
+  className: string;
+  contact: PublicCollectionSnapshot["contact"];
+}) {
+  const { className, contact } = props;
+
+  if (contact.avatarUrl) {
+    return (
+      <img
+        alt={`${contact.name} avatar`}
+        className={className}
+        src={contact.avatarUrl}
+      />
+    );
+  }
+
+  return <div className={className}>{buildContactInitials(contact)}</div>;
+}
+
 function getGalleryAssetIds(listing: PublicCollectionListing) {
   const orderedIds = [
     listing.heroAssetId,
@@ -338,9 +368,10 @@ function ListingStudioCollectionDetailView(props: {
         </section>
 
         <section className="listing-studio-collection-share-detail-contact">
-          <div className="listing-studio-collection-share-footer-avatar">
-            {snapshot.contact.name.slice(0, 1).toUpperCase()}
-          </div>
+          <ContactAvatar
+            className="listing-studio-collection-share-footer-avatar"
+            contact={snapshot.contact}
+          />
           <h3>{isZh ? "想进一步了解这套房源？" : "Interested in this property?"}</h3>
           <p>
             {isZh
@@ -510,9 +541,10 @@ export function ListingStudioPublicCollectionClient(props: {
           </div>
 
           <div className="listing-studio-collection-share-agent-card">
-            <div className="listing-studio-collection-share-agent-avatar">
-              {snapshot.contact.name.slice(0, 1).toUpperCase()}
-            </div>
+            <ContactAvatar
+              className="listing-studio-collection-share-agent-avatar"
+              contact={snapshot.contact}
+            />
             <div>
               <strong>{snapshot.contact.name}</strong>
               <span>{snapshot.contact.title}</span>
@@ -621,9 +653,10 @@ export function ListingStudioPublicCollectionClient(props: {
         ) : null}
 
         <footer className="listing-studio-collection-share-footer">
-          <div className="listing-studio-collection-share-footer-avatar">
-            {snapshot.contact.name.slice(0, 1).toUpperCase()}
-          </div>
+          <ContactAvatar
+            className="listing-studio-collection-share-footer-avatar"
+            contact={snapshot.contact}
+          />
           <h2>{snapshot.contact.name}</h2>
           <p>{snapshot.contact.title}</p>
           <div className="listing-studio-collection-share-footer-actions">

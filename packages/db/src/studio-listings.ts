@@ -246,6 +246,7 @@ export type StudioListingPublicPackSnapshot = {
     title: string;
     phone: string;
     email: string;
+    avatarUrl: string | null;
   };
   capturedAtLabel: string;
 };
@@ -260,6 +261,7 @@ export type StudioListingPublicCollectionSnapshot = {
     title: string;
     phone: string;
     email: string;
+    avatarUrl: string | null;
   };
   listings: Array<{
     packId: string;
@@ -362,6 +364,11 @@ const studioListingPackDetailInclude = Prisma.validator<Prisma.StudioListingPack
       },
     },
   },
+  updatedByMembership: {
+    include: {
+      agentProfile: true,
+    },
+  },
 });
 
 type StudioListingPackRecord = Prisma.StudioListingPackGetPayload<{
@@ -389,6 +396,10 @@ type StudioListingSavedPackRecord = Prisma.StudioListingSavedPackGetPayload<{
     };
   };
 }>;
+
+function buildPublicContactAvatarUrl(record: StudioListingPackRecord | null | undefined) {
+  return record?.updatedByMembership?.agentProfile?.avatarUrl?.trim() || null;
+}
 
 export function configureStudioListingFileHelpers(helpers: ListingStudioFileHelpers) {
   fileHelpers = helpers;
@@ -3804,6 +3815,7 @@ export async function getStudioListingPublicPack(input: {
       title: detail.pack.contactTitle,
       phone: detail.pack.contactPhone,
       email: detail.pack.contactEmail,
+      avatarUrl: buildPublicContactAvatarUrl(record),
     },
     capturedAtLabel: record.snapshot.createdAt.toLocaleDateString("en-US", {
       month: "short",
@@ -3850,6 +3862,10 @@ export async function getStudioListingPublicCollection(input: {
       trimString(pack.contactPhone) ||
       trimString(pack.contactEmail),
   );
+  const primaryAvatarRecord =
+    primaryContactRecord && buildPublicContactAvatarUrl(primaryContactRecord)
+      ? primaryContactRecord
+      : listingRecords.find((pack) => buildPublicContactAvatarUrl(pack));
   const listings = listingRecords.map(
     (pack) => {
       const item = mapListItem(pack);
@@ -3904,6 +3920,7 @@ export async function getStudioListingPublicCollection(input: {
       title: primaryContactRecord?.contactTitle?.trim() || "Acre NY Realty Inc",
       phone: primaryContactRecord?.contactPhone?.trim() || "",
       email: primaryContactRecord?.contactEmail?.trim() || "",
+      avatarUrl: buildPublicContactAvatarUrl(primaryAvatarRecord),
     },
     listings,
   } satisfies StudioListingPublicCollectionSnapshot;

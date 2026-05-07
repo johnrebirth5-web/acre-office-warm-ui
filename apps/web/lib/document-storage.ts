@@ -52,6 +52,13 @@ type SaveStoredHrOnboardingFileInput = {
   bytes: Uint8Array;
 };
 
+type SaveStoredProfileAvatarFileInput = {
+  organizationId: string;
+  membershipId: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
 type SaveStoredTextInput = {
   organizationId: string;
   transactionId: string;
@@ -350,6 +357,17 @@ export async function saveStoredHrOnboardingFile(
   return saveScopedFile({
     organizationId: input.organizationId,
     scopeSegments: ["hr-onboarding", input.onboardingCaseId],
+    fileName: input.fileName,
+    bytes: input.bytes,
+  });
+}
+
+export async function saveStoredProfileAvatarFile(
+  input: SaveStoredProfileAvatarFileInput,
+): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["profile-avatars", input.membershipId],
     fileName: input.fileName,
     bytes: input.bytes,
   });

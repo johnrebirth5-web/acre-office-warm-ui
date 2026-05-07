@@ -176,6 +176,7 @@ export const zhCNMessages = {
     switcherLabel: "当前工作区",
     groups: {
       execution: "执行",
+      settings: "设置",
     },
     items: {
       dashboard: "工作台",
@@ -190,6 +191,7 @@ export const zhCNMessages = {
       projects: "项目签署",
       activity: "跟进动态",
       resources: "资源",
+      profileSettings: "个人资料",
       training: "培训",
     },
     shortcuts: {
