@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
@@ -40,6 +40,53 @@ type CleanupDigestSummary = {
   urgentCount?: number;
 };
 
+type CleanupDigestRunItemStatus =
+  | "pending"
+  | "completed"
+  | "skipped"
+  | "revisit";
+
+type CleanupDigestRunItem = {
+  actionDetail: string;
+  actionLabel: string;
+  destinationLabel: string;
+  detail: string;
+  dueAtLabel: string;
+  href: string;
+  id: string;
+  sortOrder: number;
+  status: CleanupDigestRunItemStatus;
+  statusLabel: string;
+  statusTone: "neutral" | "accent" | "success" | "warning" | "danger";
+  statusUpdatedAtLabel: string | null;
+  title: string;
+  tone: "neutral" | "accent" | "warning" | "danger";
+};
+
+type CleanupDigestRun = {
+  completedAtLabel: string | null;
+  createdAtLabel: string;
+  id: string;
+  items: CleanupDigestRunItem[];
+  progress: {
+    completedCount: number;
+    handledCount: number;
+    openCount: number;
+    pendingCount: number;
+    percentComplete: number;
+    revisitCount: number;
+    skippedCount: number;
+    totalCount: number;
+  };
+  scopeLabel: string;
+  status: "active" | "completed" | "archived";
+  statusLabel: string;
+  statusTone: "neutral" | "accent" | "success" | "warning" | "danger";
+  timeZone: string;
+  updatedAtLabel: string;
+  windowLabel: string;
+};
+
 type CleanupDigestWorkflowStep = {
   actionLabel: string;
   count: number;
@@ -61,6 +108,7 @@ type CleanupDigestWorkflow = {
 };
 
 type CleanupDigest = {
+  activeRun?: CleanupDigestRun | null;
   generatedAtLabel: string;
   nextActionDetail: string;
   nextActionLabel: string;
@@ -99,16 +147,27 @@ export function FrontOfficeCleanupDigestCard({
   const [isRefreshing, startRefreshing] = useTransition();
   const [isRunningManualDigest, setIsRunningManualDigest] = useState(false);
   const [isOpeningMailThread, setIsOpeningMailThread] = useState(false);
+  const [activeRun, setActiveRun] = useState<CleanupDigestRun | null>(
+    cleanupDigest.activeRun ?? null,
+  );
+  const [updatingRunItemId, setUpdatingRunItemId] = useState<string | null>(
+    null,
+  );
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [mailThreadMessage, setMailThreadMessage] = useState<string | null>(
     null,
   );
+  const [checklistMessage, setChecklistMessage] = useState<string | null>(null);
   const digestTone = getCleanupDigestTone(cleanupDigest.summary);
   const topSections = cleanupDigest.sections
     .filter((section) => section.count > 0)
     .slice(0, 2);
   const workflowSteps = cleanupDigest.workflow?.steps ?? [];
   const primaryWorkflowStep = workflowSteps[0] ?? null;
+
+  useEffect(() => {
+    setActiveRun(cleanupDigest.activeRun ?? null);
+  }, [cleanupDigest.activeRun]);
 
   async function runCleanupDigest() {
     setRunMessage(null);
@@ -122,11 +181,13 @@ export function FrontOfficeCleanupDigestCard({
       const payload = (await response.json().catch(() => null)) as {
         activityLabel?: string;
         digest?: {
+          activeRun?: CleanupDigestRun | null;
           nextActionDetail?: string;
           nextActionLabel?: string;
         };
         error?: string;
         manualOnlyDetail?: string;
+        run?: CleanupDigestRun;
       } | null;
 
       if (!response.ok) {
@@ -139,6 +200,9 @@ export function FrontOfficeCleanupDigestCard({
           payload?.activityLabel ?? "Summary refresh recorded.",
           payload?.manualOnlyDetail ??
             "Reviewed here only. Nothing runs on a schedule and nothing syncs automatically.",
+          payload?.run?.progress
+            ? `Checklist: ${payload.run.progress.handledCount}/${payload.run.progress.totalCount} handled.`
+            : null,
           cleanupDigest.workflow?.label
             ? `Workflow: ${cleanupDigest.workflow.label}.`
             : null,
@@ -150,6 +214,7 @@ export function FrontOfficeCleanupDigestCard({
           .filter(Boolean)
           .join(" "),
       );
+      setActiveRun(payload?.run ?? payload?.digest?.activeRun ?? null);
       router.refresh();
     } catch {
       setRunMessage("Could not refresh the summary.");
@@ -209,6 +274,61 @@ export function FrontOfficeCleanupDigestCard({
       setMailThreadMessage("Could not open the internal thread.");
     } finally {
       setIsOpeningMailThread(false);
+    }
+  }
+
+  async function updateCleanupRunItemStatus(
+    item: CleanupDigestRunItem,
+    status: CleanupDigestRunItemStatus,
+  ) {
+    setChecklistMessage(null);
+    setUpdatingRunItemId(item.id);
+
+    const params = new URLSearchParams({
+      timeZone: cleanupDigest.timeZone,
+    });
+
+    try {
+      const response = await fetch(
+        `/api/agent/notifications/cleanup-digest/run-items/${encodeURIComponent(
+          item.id,
+        )}?${params.toString()}`,
+        {
+          body: JSON.stringify({ status }),
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "PATCH",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        manualOnlyDetail?: string;
+        run?: CleanupDigestRun;
+      } | null;
+
+      if (!response.ok || !payload?.run) {
+        setChecklistMessage(
+          payload?.error ?? "Could not update the cleanup checklist item.",
+        );
+        return;
+      }
+
+      setActiveRun(payload.run);
+      setChecklistMessage(
+        [
+          `${item.title} marked ${status.replace(/_/g, " ")}.`,
+          payload.manualOnlyDetail ?? null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+      router.refresh();
+    } catch {
+      setChecklistMessage("Could not update the cleanup checklist item.");
+    } finally {
+      setUpdatingRunItemId(null);
     }
   }
 
@@ -373,6 +493,145 @@ export function FrontOfficeCleanupDigestCard({
       ) : null}
       {mailThreadMessage ? (
         <p className="front-office-record-supporting">{mailThreadMessage}</p>
+      ) : null}
+      {checklistMessage ? (
+        <p className="front-office-record-supporting">{checklistMessage}</p>
+      ) : null}
+
+      {activeRun ? (
+        <div className="office-queue-list">
+          <div className="list-row-meta front-office-record-meta">
+            <span>Checklist run</span>
+            <span>{activeRun.createdAtLabel}</span>
+            <span>{activeRun.windowLabel}</span>
+          </div>
+          <article
+            className={`list-row front-office-record tone-${activeRun.statusTone}`}
+          >
+            <div className="list-row-top front-office-record-head">
+              <div>
+                <strong>{activeRun.statusLabel}</strong>
+                <p>
+                  {activeRun.progress.handledCount}/
+                  {activeRun.progress.totalCount} handled ·{" "}
+                  {activeRun.progress.openCount} open ·{" "}
+                  {activeRun.progress.percentComplete}% complete
+                </p>
+              </div>
+              <StatusBadge tone={activeRun.statusTone}>
+                {activeRun.progress.openCount} open
+              </StatusBadge>
+            </div>
+            <div className="list-row-meta front-office-record-meta">
+              <span>{activeRun.scopeLabel}</span>
+              <span>Updated {activeRun.updatedAtLabel}</span>
+              <span>
+                Done {activeRun.progress.completedCount} · Skipped{" "}
+                {activeRun.progress.skippedCount} · Later{" "}
+                {activeRun.progress.revisitCount}
+              </span>
+            </div>
+          </article>
+
+          {activeRun.items.length ? (
+            activeRun.items.slice(0, 8).map((item) => {
+              const isUpdating = updatingRunItemId === item.id;
+              const isClosed =
+                item.status === "completed" || item.status === "skipped";
+
+              return (
+                <article
+                  className={`list-row front-office-record tone-${item.tone}`}
+                  key={item.id}
+                >
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <StatusBadge tone={item.statusTone}>
+                      {item.statusLabel}
+                    </StatusBadge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{item.dueAtLabel}</span>
+                    <span>{item.destinationLabel}</span>
+                    <span>
+                      {item.statusUpdatedAtLabel
+                        ? `Touched ${item.statusUpdatedAtLabel}`
+                        : item.actionDetail}
+                    </span>
+                  </div>
+                  <div className={styles.summaryPanelActions}>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={item.href}
+                    >
+                      {item.actionLabel}
+                    </FrontOfficeLink>
+                    {isClosed ? (
+                      <Button
+                        disabled={isUpdating}
+                        onClick={() => {
+                          void updateCleanupRunItemStatus(item, "pending");
+                        }}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        {isUpdating ? "Updating..." : "Reopen"}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          disabled={isUpdating}
+                          onClick={() => {
+                            void updateCleanupRunItemStatus(item, "completed");
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          Done
+                        </Button>
+                        <Button
+                          disabled={isUpdating}
+                          onClick={() => {
+                            void updateCleanupRunItemStatus(item, "skipped");
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          Skip
+                        </Button>
+                        {item.status !== "revisit" ? (
+                          <Button
+                            disabled={isUpdating}
+                            onClick={() => {
+                              void updateCleanupRunItemStatus(item, "revisit");
+                            }}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            Review later
+                          </Button>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <EmptyState
+              className="front-office-inline-empty"
+              description="The run is recorded, and there are no checklist rows in this pass."
+              title="Checklist clear"
+            />
+          )}
+        </div>
       ) : null}
 
       <div className="office-queue-list">

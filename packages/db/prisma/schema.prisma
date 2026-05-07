@@ -332,6 +332,26 @@ enum FrontOfficeSendMaterialType {
   listing_share
 }
 
+enum FrontOfficeCleanupRunStatus {
+  active
+  completed
+  archived
+}
+
+enum FrontOfficeCleanupRunItemKind {
+  notification
+  follow_up_task
+  client_reminder
+  appointment_continuity
+}
+
+enum FrontOfficeCleanupRunItemStatus {
+  pending
+  completed
+  skipped
+  revisit
+}
+
 enum ResourceType {
   training_video
   vendor_card
@@ -862,6 +882,8 @@ model Organization {
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
   frontOfficeHandoffDrafts              FrontOfficeHandoffDraft[]
+  frontOfficeCleanupRuns                FrontOfficeCleanupRun[]
+  frontOfficeCleanupRunItems            FrontOfficeCleanupRunItem[]
   followUpTasks                         FollowUpTask[]
   notifications                         Notification[]
   events                                Event[]
@@ -989,6 +1011,7 @@ model Office {
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
   frontOfficeHandoffDrafts              FrontOfficeHandoffDraft[]
+  frontOfficeCleanupRuns                FrontOfficeCleanupRun[]
   events                                Event[]
   resources                             Resource[]
   vendors                               Vendor[]
@@ -1116,6 +1139,7 @@ model Membership {
   appointmentsOwned                            Appointment[]
   clientStageHistoryEntries                    ClientStageHistory[]
   frontOfficeHandoffDrafts                     FrontOfficeHandoffDraft[]
+  frontOfficeCleanupRuns                       FrontOfficeCleanupRun[]
   tasksAssigned                                FollowUpTask[]
   notifications                                Notification[]
   eventsCreated                                Event[]
@@ -2064,6 +2088,67 @@ model FrontOfficeHandoffDraft {
   @@index([organizationId, clientId, status])
   @@index([organizationId, ownerMembershipId, status])
   @@index([organizationId, committedTransactionId])
+}
+
+model FrontOfficeCleanupRun {
+  id                       String                       @id @default(cuid())
+  organizationId           String
+  officeId                 String?
+  membershipId             String
+  status                   FrontOfficeCleanupRunStatus  @default(active)
+  scopeLabel               String
+  timeZone                 String
+  windowLabel              String
+  generatedAt              DateTime
+  totalCount               Int                          @default(0)
+  urgentCount              Int                          @default(0)
+  dueSoonCount             Int                          @default(0)
+  notificationCount        Int                          @default(0)
+  followUpTaskCount        Int                          @default(0)
+  clientReminderCount      Int                          @default(0)
+  appointmentCount         Int                          @default(0)
+  nextActionLabel          String
+  nextActionDetail         String
+  workflowJson             Json?
+  completedAt              DateTime?
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+  organization             Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                   Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership               Membership                   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  items                    FrontOfficeCleanupRunItem[]
+
+  @@index([organizationId, membershipId, status, createdAt], map: "FOCleanupRun_org_member_status_created_idx")
+  @@index([organizationId, officeId, status, createdAt], map: "FOCleanupRun_org_office_status_created_idx")
+}
+
+model FrontOfficeCleanupRunItem {
+  id                String                          @id @default(cuid())
+  organizationId    String
+  runId             String
+  sourceKind        FrontOfficeCleanupRunItemKind
+  sourceId          String
+  status            FrontOfficeCleanupRunItemStatus @default(pending)
+  title             String
+  detail            String
+  href              String
+  actionLabel       String
+  actionDetail      String
+  destinationLabel  String
+  dueAtLabel        String
+  tone              String
+  sortOrder         Int                             @default(0)
+  statusUpdatedAt   DateTime?
+  statusUpdatedById String?
+  note              String?
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
+  organization      Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  run               FrontOfficeCleanupRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sourceKind, sourceId], map: "FOCleanupRunItem_run_kind_source_key")
+  @@index([organizationId, runId, status], map: "FOCleanupRunItem_org_run_status_idx")
+  @@index([organizationId, sourceKind, sourceId], map: "FOCleanupRunItem_org_kind_source_idx")
 }
 
 model TransactionContact {

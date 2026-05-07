@@ -345,6 +345,10 @@
   - 浏览器端通过 `tesseract.js` 做首轮 OCR，随后本地解析 name / phone / email / source / stage / intent / budget / area / next follow-up / notes 建议
   - 当前不是 provider-backed OCR pipeline，不会自动建档，也不是 WeChat 官方集成
 - grounded `Front Office` AI suggestion layer 也已存在于 dossier / dashboard，但仍然是 agent-approved、no auto-send 的产品内建议层，不是外部 AI agent 平台集成
+- `Front Office` cleanup digest 已有持久化的 manual-run checklist：
+  - `FrontOfficeCleanupRun` 保存每次手动 digest 的 scope、统计、workflow metadata 和完成状态
+  - `FrontOfficeCleanupRunItem` 保存每条 cleanup row 的 `pending / completed / skipped / revisit` 状态
+  - 这仍然是 operator-driven workflow；当前没有 scheduler、外部邮件/日历 provider sync，状态变更只记录在 Acre
 - 当前 eSignature 已升级为平台级电子签署中心 MVP：
   - 内部准备工作区 + 公共签署页仍由本仓库自托管
   - 平台中心页是 `/office/signatures`，模板库是 `/office/signatures/templates`

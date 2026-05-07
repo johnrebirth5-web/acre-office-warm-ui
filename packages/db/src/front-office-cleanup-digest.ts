@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+import {
+  FrontOfficeCleanupRunItemStatus,
+  FrontOfficeCleanupRunStatus,
+  type FrontOfficeCleanupRunItemKind,
+  type FrontOfficeCleanupRunItemStatus as FrontOfficeCleanupRunItemStatusValue,
+  type FrontOfficeCleanupRunStatus as FrontOfficeCleanupRunStatusValue,
+  type Prisma,
+} from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel, resolveTimeZone } from "./date-time";
 import {
@@ -38,6 +46,13 @@ type FrontOfficeCleanupDigestItemKind =
   | "follow_up_task"
   | "client_reminder"
   | "appointment_continuity";
+
+type FrontOfficeCleanupRunRecord =
+  Prisma.FrontOfficeCleanupRunGetPayload<{
+    include: {
+      items: true;
+    };
+  }>;
 
 export type FrontOfficeCleanupDigestItem = {
   id: string;
@@ -89,6 +104,49 @@ export type FrontOfficeCleanupDigestWorkflow = {
   steps: FrontOfficeCleanupDigestWorkflowStep[];
 };
 
+export type FrontOfficeCleanupRunItemSnapshot = {
+  id: string;
+  sourceKind: FrontOfficeCleanupDigestItemKind;
+  sourceId: string;
+  status: FrontOfficeCleanupRunItemStatusValue;
+  statusLabel: string;
+  statusTone: FrontOfficeCleanupDigestTone | "success";
+  title: string;
+  detail: string;
+  href: string;
+  actionLabel: string;
+  actionDetail: string;
+  destinationLabel: string;
+  dueAtLabel: string;
+  tone: FrontOfficeCleanupDigestTone;
+  sortOrder: number;
+  statusUpdatedAtLabel: string | null;
+};
+
+export type FrontOfficeCleanupRunSnapshot = {
+  id: string;
+  status: FrontOfficeCleanupRunStatusValue;
+  statusLabel: string;
+  statusTone: FrontOfficeCleanupDigestTone | "success";
+  scopeLabel: string;
+  timeZone: string;
+  windowLabel: string;
+  createdAtLabel: string;
+  updatedAtLabel: string;
+  completedAtLabel: string | null;
+  progress: {
+    totalCount: number;
+    pendingCount: number;
+    completedCount: number;
+    skippedCount: number;
+    revisitCount: number;
+    handledCount: number;
+    openCount: number;
+    percentComplete: number;
+  };
+  items: FrontOfficeCleanupRunItemSnapshot[];
+};
+
 export type FrontOfficeCleanupDigest = {
   generatedAt: string;
   generatedAtLabel: string;
@@ -108,6 +166,7 @@ export type FrontOfficeCleanupDigest = {
   nextActionLabel: string;
   nextActionDetail: string;
   workflow: FrontOfficeCleanupDigestWorkflow;
+  activeRun: FrontOfficeCleanupRunSnapshot | null;
   sections: FrontOfficeCleanupDigestSection[];
 };
 
@@ -154,6 +213,24 @@ export type BuildFrontOfficeCleanupDigestInput = {
   timeZone?: string | null;
   now?: Date;
 };
+
+export type CreateFrontOfficeCleanupRunInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  digest: FrontOfficeCleanupDigest;
+};
+
+export type UpdateFrontOfficeCleanupRunItemStatusInput = {
+  organizationId: string;
+  membershipId: string;
+  itemId: string;
+  status: FrontOfficeCleanupRunItemStatusValue;
+  note?: string | null;
+  timeZone?: string | null;
+};
+
+type FrontOfficeCleanupRunWriter = Pick<typeof prisma, "$transaction">;
 
 type CleanupNotificationRecord = {
   id: string;
@@ -265,6 +342,162 @@ function getUrgencyTone(
   }
 
   return "neutral" as const;
+}
+
+function normalizeCleanupDigestTone(
+  tone: string,
+): FrontOfficeCleanupDigestTone {
+  if (
+    tone === "neutral" ||
+    tone === "accent" ||
+    tone === "warning" ||
+    tone === "danger"
+  ) {
+    return tone;
+  }
+
+  return "neutral";
+}
+
+function mapCleanupRunStatusLabel(status: FrontOfficeCleanupRunStatusValue) {
+  switch (status) {
+    case FrontOfficeCleanupRunStatus.completed:
+      return "Completed";
+    case FrontOfficeCleanupRunStatus.archived:
+      return "Archived";
+    case FrontOfficeCleanupRunStatus.active:
+    default:
+      return "In progress";
+  }
+}
+
+function mapCleanupRunStatusTone(
+  status: FrontOfficeCleanupRunStatusValue,
+): FrontOfficeCleanupDigestTone | "success" {
+  switch (status) {
+    case FrontOfficeCleanupRunStatus.completed:
+      return "success";
+    case FrontOfficeCleanupRunStatus.archived:
+      return "neutral";
+    case FrontOfficeCleanupRunStatus.active:
+    default:
+      return "accent";
+  }
+}
+
+function mapCleanupRunItemStatusLabel(
+  status: FrontOfficeCleanupRunItemStatusValue,
+) {
+  switch (status) {
+    case FrontOfficeCleanupRunItemStatus.completed:
+      return "Done";
+    case FrontOfficeCleanupRunItemStatus.skipped:
+      return "Skipped";
+    case FrontOfficeCleanupRunItemStatus.revisit:
+      return "Review later";
+    case FrontOfficeCleanupRunItemStatus.pending:
+    default:
+      return "Pending";
+  }
+}
+
+function mapCleanupRunItemStatusTone(
+  status: FrontOfficeCleanupRunItemStatusValue,
+): FrontOfficeCleanupDigestTone | "success" {
+  switch (status) {
+    case FrontOfficeCleanupRunItemStatus.completed:
+      return "success";
+    case FrontOfficeCleanupRunItemStatus.skipped:
+      return "neutral";
+    case FrontOfficeCleanupRunItemStatus.revisit:
+      return "warning";
+    case FrontOfficeCleanupRunItemStatus.pending:
+    default:
+      return "accent";
+  }
+}
+
+function flattenCleanupDigestItems(digest: FrontOfficeCleanupDigest) {
+  let sortOrder = 0;
+
+  return digest.sections.flatMap((section) =>
+    section.items.map((item) => ({
+      ...item,
+      sortOrder: sortOrder++,
+    })),
+  );
+}
+
+function buildFrontOfficeCleanupRunSnapshot(
+  run: FrontOfficeCleanupRunRecord,
+  timeZone: string,
+): FrontOfficeCleanupRunSnapshot {
+  const statusCounts = run.items.reduce(
+    (counts, item) => {
+      counts[item.status] += 1;
+      return counts;
+    },
+    {
+      [FrontOfficeCleanupRunItemStatus.pending]: 0,
+      [FrontOfficeCleanupRunItemStatus.completed]: 0,
+      [FrontOfficeCleanupRunItemStatus.skipped]: 0,
+      [FrontOfficeCleanupRunItemStatus.revisit]: 0,
+    } satisfies Record<FrontOfficeCleanupRunItemStatusValue, number>,
+  );
+  const itemTotalCount = run.items.length;
+  const totalCount = itemTotalCount || run.totalCount;
+  const handledCount =
+    statusCounts[FrontOfficeCleanupRunItemStatus.completed] +
+    statusCounts[FrontOfficeCleanupRunItemStatus.skipped];
+  const openCount =
+    statusCounts[FrontOfficeCleanupRunItemStatus.pending] +
+    statusCounts[FrontOfficeCleanupRunItemStatus.revisit];
+
+  return {
+    id: run.id,
+    status: run.status,
+    statusLabel: mapCleanupRunStatusLabel(run.status),
+    statusTone: mapCleanupRunStatusTone(run.status),
+    scopeLabel: run.scopeLabel,
+    timeZone: run.timeZone,
+    windowLabel: run.windowLabel,
+    createdAtLabel: formatDateTimeLabel(run.createdAt, { timeZone }),
+    updatedAtLabel: formatDateTimeLabel(run.updatedAt, { timeZone }),
+    completedAtLabel: run.completedAt
+      ? formatDateTimeLabel(run.completedAt, { timeZone })
+      : null,
+    progress: {
+      totalCount,
+      pendingCount: statusCounts[FrontOfficeCleanupRunItemStatus.pending],
+      completedCount: statusCounts[FrontOfficeCleanupRunItemStatus.completed],
+      skippedCount: statusCounts[FrontOfficeCleanupRunItemStatus.skipped],
+      revisitCount: statusCounts[FrontOfficeCleanupRunItemStatus.revisit],
+      handledCount,
+      openCount,
+      percentComplete:
+        totalCount > 0 ? Math.round((handledCount / totalCount) * 100) : 100,
+    },
+    items: run.items.map((item) => ({
+      id: item.id,
+      sourceKind: item.sourceKind,
+      sourceId: item.sourceId,
+      status: item.status,
+      statusLabel: mapCleanupRunItemStatusLabel(item.status),
+      statusTone: mapCleanupRunItemStatusTone(item.status),
+      title: item.title,
+      detail: item.detail,
+      href: item.href,
+      actionLabel: item.actionLabel,
+      actionDetail: item.actionDetail,
+      destinationLabel: item.destinationLabel,
+      dueAtLabel: item.dueAtLabel,
+      tone: normalizeCleanupDigestTone(item.tone),
+      sortOrder: item.sortOrder,
+      statusUpdatedAtLabel: item.statusUpdatedAt
+        ? formatDateTimeLabel(item.statusUpdatedAt, { timeZone })
+        : null,
+    })),
+  };
 }
 
 function sortItemsByUrgency(
@@ -1330,6 +1563,22 @@ export async function buildFrontOfficeCleanupDigest(
 
   const nextAction = pickNextAction(sections, summary);
   const workflow = buildFrontOfficeCleanupDigestWorkflow(sections);
+  const activeRun = await prisma.frontOfficeCleanupRun.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      status: {
+        not: FrontOfficeCleanupRunStatus.archived,
+      },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    include: {
+      items: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
 
   return {
     generatedAt: generatedAt.toISOString(),
@@ -1344,6 +1593,178 @@ export async function buildFrontOfficeCleanupDigest(
     nextActionLabel: nextAction.label,
     nextActionDetail: nextAction.detail,
     workflow,
+    activeRun: activeRun
+      ? buildFrontOfficeCleanupRunSnapshot(activeRun, timeZone)
+      : null,
     sections,
   };
+}
+
+export async function createFrontOfficeCleanupRun(
+  writer: FrontOfficeCleanupRunWriter,
+  input: CreateFrontOfficeCleanupRunInput,
+): Promise<FrontOfficeCleanupRunSnapshot> {
+  const digestItems = flattenCleanupDigestItems(input.digest);
+  const generatedAt = new Date(input.digest.generatedAt);
+  const completedAt = digestItems.length === 0 ? generatedAt : null;
+
+  return writer.$transaction(async (tx) => {
+    await tx.frontOfficeCleanupRun.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        officeId: input.officeId ?? null,
+        status: {
+          not: FrontOfficeCleanupRunStatus.archived,
+        },
+      },
+      data: {
+        status: FrontOfficeCleanupRunStatus.archived,
+      },
+    });
+
+    const run = await tx.frontOfficeCleanupRun.create({
+      data: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null,
+        membershipId: input.membershipId,
+        status:
+          digestItems.length > 0
+            ? FrontOfficeCleanupRunStatus.active
+            : FrontOfficeCleanupRunStatus.completed,
+        scopeLabel: input.digest.scopeLabel,
+        timeZone: input.digest.timeZone,
+        windowLabel: input.digest.windowLabel,
+        generatedAt,
+        totalCount: input.digest.summary.totalCount,
+        urgentCount: input.digest.summary.urgentCount,
+        dueSoonCount: input.digest.summary.dueSoonCount,
+        notificationCount: input.digest.summary.notificationCount,
+        followUpTaskCount: input.digest.summary.followUpTaskCount,
+        clientReminderCount: input.digest.summary.clientReminderCount,
+        appointmentCount: input.digest.summary.appointmentCount,
+        nextActionLabel: input.digest.nextActionLabel,
+        nextActionDetail: input.digest.nextActionDetail,
+        workflowJson: input.digest.workflow as unknown as Prisma.InputJsonValue,
+        completedAt,
+        ...(digestItems.length
+          ? {
+              items: {
+                create: digestItems.map((item) => ({
+                  organizationId: input.organizationId,
+                  sourceKind: item.kind as FrontOfficeCleanupRunItemKind,
+                  sourceId: item.id,
+                  title: item.title,
+                  detail: item.detail,
+                  href: item.href,
+                  actionLabel: item.actionLabel,
+                  actionDetail: item.actionDetail,
+                  destinationLabel: item.destinationLabel,
+                  dueAtLabel: item.dueAtLabel,
+                  tone: item.tone,
+                  sortOrder: item.sortOrder,
+                })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        items: {
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        },
+      },
+    });
+
+    return buildFrontOfficeCleanupRunSnapshot(run, input.digest.timeZone);
+  });
+}
+
+export async function updateFrontOfficeCleanupRunItemStatus(
+  writer: FrontOfficeCleanupRunWriter,
+  input: UpdateFrontOfficeCleanupRunItemStatusInput,
+): Promise<FrontOfficeCleanupRunSnapshot | null> {
+  const timeZone = resolveTimeZone(input.timeZone ?? null);
+
+  return writer.$transaction(async (tx) => {
+    const existingItem = await tx.frontOfficeCleanupRunItem.findFirst({
+      where: {
+        id: input.itemId,
+        organizationId: input.organizationId,
+        run: {
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          status: {
+            not: FrontOfficeCleanupRunStatus.archived,
+          },
+        },
+      },
+      select: {
+        runId: true,
+      },
+    });
+
+    if (!existingItem) {
+      return null;
+    }
+
+    const statusUpdatedAt = new Date();
+    const normalizedNote =
+      typeof input.note === "string" ? input.note.trim() || null : undefined;
+
+    await tx.frontOfficeCleanupRunItem.update({
+      where: {
+        id: input.itemId,
+      },
+      data: {
+        status: input.status,
+        statusUpdatedAt,
+        statusUpdatedById: input.membershipId,
+        ...(normalizedNote !== undefined ? { note: normalizedNote } : {}),
+      },
+    });
+
+    const runItems = await tx.frontOfficeCleanupRunItem.findMany({
+      where: {
+        runId: existingItem.runId,
+      },
+      select: {
+        status: true,
+      },
+    });
+    const openCount = runItems.filter(
+      (item) =>
+        item.status === FrontOfficeCleanupRunItemStatus.pending ||
+        item.status === FrontOfficeCleanupRunItemStatus.revisit,
+    ).length;
+    const nextRunStatus =
+      runItems.length > 0 && openCount === 0
+        ? FrontOfficeCleanupRunStatus.completed
+        : FrontOfficeCleanupRunStatus.active;
+
+    await tx.frontOfficeCleanupRun.update({
+      where: {
+        id: existingItem.runId,
+      },
+      data: {
+        status: nextRunStatus,
+        completedAt:
+          nextRunStatus === FrontOfficeCleanupRunStatus.completed
+            ? statusUpdatedAt
+            : null,
+      },
+    });
+
+    const run = await tx.frontOfficeCleanupRun.findUnique({
+      where: {
+        id: existingItem.runId,
+      },
+      include: {
+        items: {
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        },
+      },
+    });
+
+    return run ? buildFrontOfficeCleanupRunSnapshot(run, timeZone) : null;
+  });
 }
