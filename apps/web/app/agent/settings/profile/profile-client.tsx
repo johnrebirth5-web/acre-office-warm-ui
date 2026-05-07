@@ -37,6 +37,25 @@ type EmailRequestState = {
   notes: string;
 };
 
+type PreparedAvatarUpload = {
+  file: File;
+  originalName: string;
+  previewUrl: string;
+  sourceDimensions: string;
+  uploadSizeLabel: string;
+};
+
+const CLIENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const CLIENT_AVATAR_MIN_DIMENSION_PX = 256;
+const CLIENT_AVATAR_TARGET_SIZE_PX = 512;
+const CLIENT_AVATAR_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
 const commonTimezones = [
   "America/New_York",
   "America/Chicago",
@@ -90,6 +109,120 @@ function getEmailDomain(email: string) {
   return email.split("@")[1] ?? "acreny.us";
 }
 
+function formatAvatarBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+) {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), type, quality);
+  });
+}
+
+async function loadAvatarImage(file: File) {
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Avatar image could not be read."));
+      image.src = objectUrl;
+    });
+
+    return {
+      height: image.naturalHeight,
+      image,
+      objectUrl,
+      width: image.naturalWidth,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+async function prepareClientAvatarUpload(file: File, isZh: boolean) {
+  if (file.size > CLIENT_AVATAR_MAX_BYTES) {
+    throw new Error(
+      isZh
+        ? `头像文件需要小于 ${formatAvatarBytes(CLIENT_AVATAR_MAX_BYTES)}。`
+        : `Avatar uploads must be under ${formatAvatarBytes(CLIENT_AVATAR_MAX_BYTES)}.`,
+    );
+  }
+
+  if (!CLIENT_AVATAR_MIME_TYPES.has(file.type.toLowerCase())) {
+    throw new Error(isZh ? "请选择 JPG、PNG、WebP 或 GIF 图片。" : "Choose a JPG, PNG, WebP, or GIF image.");
+  }
+
+  const loadedImage = await loadAvatarImage(file);
+
+  try {
+    if (
+      loadedImage.width < CLIENT_AVATAR_MIN_DIMENSION_PX ||
+      loadedImage.height < CLIENT_AVATAR_MIN_DIMENSION_PX
+    ) {
+      throw new Error(
+        isZh
+          ? `头像尺寸至少需要 ${CLIENT_AVATAR_MIN_DIMENSION_PX}x${CLIENT_AVATAR_MIN_DIMENSION_PX}px。`
+          : `Avatar images must be at least ${CLIENT_AVATAR_MIN_DIMENSION_PX}x${CLIENT_AVATAR_MIN_DIMENSION_PX}px.`,
+      );
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = CLIENT_AVATAR_TARGET_SIZE_PX;
+    canvas.height = CLIENT_AVATAR_TARGET_SIZE_PX;
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error(isZh ? "无法处理头像图片。" : "Avatar image could not be processed.");
+    }
+
+    const cropSize = Math.min(loadedImage.width, loadedImage.height);
+    const cropX = (loadedImage.width - cropSize) / 2;
+    const cropY = (loadedImage.height - cropSize) / 2;
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(
+      loadedImage.image,
+      cropX,
+      cropY,
+      cropSize,
+      cropSize,
+      0,
+      0,
+      CLIENT_AVATAR_TARGET_SIZE_PX,
+      CLIENT_AVATAR_TARGET_SIZE_PX,
+    );
+
+    const blob = await canvasToBlob(canvas, "image/webp", 0.84);
+
+    if (!blob) {
+      throw new Error(isZh ? "无法压缩头像图片。" : "Avatar image could not be compressed.");
+    }
+
+    return {
+      file: new File([blob], "profile-avatar.webp", {
+        lastModified: Date.now(),
+        type: "image/webp",
+      }),
+      originalName: file.name,
+      sourceDimensions: `${loadedImage.width}x${loadedImage.height}`,
+      uploadSizeLabel: formatAvatarBytes(blob.size),
+    };
+  } finally {
+    URL.revokeObjectURL(loadedImage.objectUrl);
+  }
+}
+
 async function readErrorResponse(response: Response, fallback: string) {
   const body = (await response.json().catch(() => null)) as {
     error?: string;
@@ -116,9 +249,13 @@ export function AgentSettingsProfileClient({
   const [profileError, setProfileError] = useState("");
   const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [emailRequestError, setEmailRequestError] = useState("");
+  const [preparedAvatarUpload, setPreparedAvatarUpload] =
+    useState<PreparedAvatarUpload | null>(null);
   const avatarInitials = buildInitials(
     profileState.displayName || snapshot.profile.fullName,
   );
+  const displayedAvatarUrl =
+    preparedAvatarUpload?.previewUrl || profileState.avatarUrl;
   const timezoneOptions = buildUniqueOptions(
     profileState.timezone,
     commonTimezones,
@@ -133,6 +270,14 @@ export function AgentSettingsProfileClient({
       notes: "",
     });
   }, [snapshot]);
+
+  useEffect(() => {
+    return () => {
+      if (preparedAvatarUpload?.previewUrl) {
+        URL.revokeObjectURL(preparedAvatarUpload.previewUrl);
+      }
+    };
+  }, [preparedAvatarUpload]);
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({
@@ -187,10 +332,47 @@ export function AgentSettingsProfileClient({
     }
   }
 
-  async function handleAvatarUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0] ?? null;
+  async function handleAvatarSelection(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0] ?? null;
 
     if (!file) {
+      return;
+    }
+
+    setPendingAction("avatar-prepare");
+    setProfileError("");
+    setProfileMessage("");
+    setPreparedAvatarUpload(null);
+
+    try {
+      const preparedAvatar = await prepareClientAvatarUpload(file, isZh);
+      const previewUrl = URL.createObjectURL(preparedAvatar.file);
+      setPreparedAvatarUpload({
+        ...preparedAvatar,
+        previewUrl,
+      });
+      setProfileMessage(
+        isZh
+          ? "头像预览已裁切压缩，请确认上传。"
+          : "Avatar preview is cropped and compressed. Confirm upload to save it.",
+      );
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : isZh
+            ? "处理头像失败。"
+            : "Failed to prepare avatar.",
+      );
+    } finally {
+      input.value = "";
+      setPendingAction(null);
+    }
+  }
+
+  async function handlePreparedAvatarUpload() {
+    if (!preparedAvatarUpload) {
       return;
     }
 
@@ -200,7 +382,7 @@ export function AgentSettingsProfileClient({
 
     try {
       const formData = new FormData();
-      formData.set("avatar", file);
+      formData.set("avatar", preparedAvatarUpload.file);
 
       const response = await fetch("/api/office/account/avatar", {
         method: "POST",
@@ -219,6 +401,7 @@ export function AgentSettingsProfileClient({
       const body = (await response.json()) as { avatarUrl?: string };
       const nextAvatarUrl = body.avatarUrl ?? "";
       setProfileField("avatarUrl", nextAvatarUrl);
+      setPreparedAvatarUpload(null);
       setProfileMessage(isZh ? "头像已上传。" : "Avatar uploaded.");
     } catch (error) {
       setProfileError(
@@ -229,7 +412,6 @@ export function AgentSettingsProfileClient({
             : "Failed to upload avatar.",
       );
     } finally {
-      event.currentTarget.value = "";
       setPendingAction(null);
     }
   }
@@ -305,11 +487,11 @@ export function AgentSettingsProfileClient({
           >
             <div className="office-account-profile-shell">
               <div className="office-account-avatar-panel agent-settings-avatar-panel">
-                {profileState.avatarUrl ? (
+                {displayedAvatarUrl ? (
                   <img
                     alt={`${profileState.displayName || snapshot.profile.fullName} avatar`}
                     className="office-account-avatar-image"
-                    src={profileState.avatarUrl}
+                    src={displayedAvatarUrl}
                   />
                 ) : (
                   <div className="office-account-avatar-fallback" aria-hidden="true">
@@ -322,24 +504,62 @@ export function AgentSettingsProfileClient({
                   </strong>
                   <span>{snapshot.officeTeam.title}</span>
                   <span>{snapshot.officeTeam.officeName}</span>
-                </div>
-                <label className="agent-settings-avatar-upload">
-                  <input
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    disabled={pendingAction === "avatar"}
-                    onChange={handleAvatarUpload}
-                    type="file"
-                  />
                   <span>
-                    {pendingAction === "avatar"
-                      ? isZh
-                        ? "上传中..."
-                        : "Uploading..."
-                      : isZh
-                        ? "上传头像"
-                        : "Upload avatar"}
+                    {isZh
+                      ? `至少 ${CLIENT_AVATAR_MIN_DIMENSION_PX}x${CLIENT_AVATAR_MIN_DIMENSION_PX}px，上传后统一为 ${CLIENT_AVATAR_TARGET_SIZE_PX}x${CLIENT_AVATAR_TARGET_SIZE_PX} WebP。`
+                      : `At least ${CLIENT_AVATAR_MIN_DIMENSION_PX}x${CLIENT_AVATAR_MIN_DIMENSION_PX}px. Saved as ${CLIENT_AVATAR_TARGET_SIZE_PX}x${CLIENT_AVATAR_TARGET_SIZE_PX} WebP.`}
                   </span>
-                </label>
+                  {preparedAvatarUpload ? (
+                    <span className="agent-settings-avatar-note">
+                      {isZh
+                        ? `${preparedAvatarUpload.originalName} · ${preparedAvatarUpload.sourceDimensions} · ${preparedAvatarUpload.uploadSizeLabel}`
+                        : `${preparedAvatarUpload.originalName} · ${preparedAvatarUpload.sourceDimensions} · ${preparedAvatarUpload.uploadSizeLabel}`}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="agent-settings-avatar-actions">
+                  {preparedAvatarUpload ? (
+                    <Button
+                      disabled={pendingAction === "avatar"}
+                      onClick={handlePreparedAvatarUpload}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {pendingAction === "avatar"
+                        ? isZh
+                          ? "上传中..."
+                          : "Uploading..."
+                        : isZh
+                          ? "确认上传"
+                          : "Confirm upload"}
+                    </Button>
+                  ) : null}
+                  <label className="agent-settings-avatar-upload">
+                    <input
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      disabled={
+                        pendingAction === "avatar" ||
+                        pendingAction === "avatar-prepare"
+                      }
+                      onChange={handleAvatarSelection}
+                      type="file"
+                    />
+                    <span>
+                      {pendingAction === "avatar-prepare"
+                        ? isZh
+                          ? "处理中..."
+                          : "Preparing..."
+                        : isZh
+                          ? preparedAvatarUpload
+                            ? "重新选择"
+                            : "选择头像"
+                          : preparedAvatarUpload
+                            ? "Choose again"
+                            : "Choose avatar"}
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="office-form-grid office-form-grid-3">
@@ -499,11 +719,11 @@ export function AgentSettingsProfileClient({
           title={isZh ? "Listing Studio 预览" : "Listing Studio preview"}
         >
           <div className="agent-settings-listing-preview">
-            {profileState.avatarUrl ? (
+            {displayedAvatarUrl ? (
               <img
                 alt=""
                 className="agent-settings-listing-preview-avatar"
-                src={profileState.avatarUrl}
+                src={displayedAvatarUrl}
               />
             ) : (
               <div className="agent-settings-listing-preview-avatar" aria-hidden="true">

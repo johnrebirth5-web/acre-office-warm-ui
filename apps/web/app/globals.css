@@ -12138,8 +12138,23 @@ a {
 }
 
 .agent-settings-avatar-panel {
-  align-items: stretch;
+  display: grid;
+  align-items: center;
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.agent-settings-avatar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-settings-avatar-note {
+  color: var(--office-accent-strong) !important;
+  font-weight: 700;
 }
 
 .agent-settings-avatar-upload {
@@ -12684,6 +12699,11 @@ a {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .agent-settings-avatar-actions {
+    justify-content: flex-start;
+    justify-self: start;
   }
 
   .office-settings-card-grid,

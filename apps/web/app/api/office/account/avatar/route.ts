@@ -11,6 +11,8 @@ import {
 export const runtime = "nodejs";
 
 const PROFILE_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const PROFILE_AVATAR_MIN_DIMENSION_PX = 256;
+const PROFILE_AVATAR_TARGET_SIZE_PX = 512;
 const PROFILE_AVATAR_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -19,7 +21,22 @@ const PROFILE_AVATAR_MIME_TYPES = new Set([
   "image/gif",
 ]);
 
+type SharpFactory = (...args: any[]) => any;
+
+type NormalizedProfileAvatar =
+  | {
+      bytes: Uint8Array;
+      contentType: "image/webp";
+      fileName: "profile-avatar.webp";
+    }
+  | {
+      error: string;
+      status: 400;
+    };
+
 type ProfileAvatarRouteDependencies = {
+  importSharp?: () => Promise<SharpFactory>;
+  normalizeProfileAvatarImage?: typeof normalizeProfileAvatarImage;
   saveOfficeAccountAvatar?: typeof saveOfficeAccountAvatar;
   saveStoredProfileAvatarFile?: typeof saveStoredProfileAvatarFile;
 };
@@ -33,6 +50,50 @@ export function buildProfileAvatarUrl(storageKey: string) {
     .split(/[\\/]+/)
     .map((segment) => encodeURIComponent(segment))
     .join("/")}`;
+}
+
+export async function normalizeProfileAvatarImage(
+  file: File,
+  dependencies: Pick<ProfileAvatarRouteDependencies, "importSharp"> = {},
+): Promise<NormalizedProfileAvatar> {
+  try {
+    const sharp = await (dependencies.importSharp?.() ??
+      import("sharp").then((module) => module.default as SharpFactory));
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const image = sharp(inputBuffer, { animated: false, failOn: "error" }).rotate();
+    const metadata = await image.metadata();
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
+
+    if (
+      width < PROFILE_AVATAR_MIN_DIMENSION_PX ||
+      height < PROFILE_AVATAR_MIN_DIMENSION_PX
+    ) {
+      return {
+        error: `Avatar images must be at least ${PROFILE_AVATAR_MIN_DIMENSION_PX}x${PROFILE_AVATAR_MIN_DIMENSION_PX}px.`,
+        status: 400,
+      };
+    }
+
+    const outputBuffer = await image
+      .resize(PROFILE_AVATAR_TARGET_SIZE_PX, PROFILE_AVATAR_TARGET_SIZE_PX, {
+        fit: "cover",
+        position: "centre",
+      })
+      .webp({ quality: 84, smartSubsample: true })
+      .toBuffer();
+
+    return {
+      bytes: new Uint8Array(outputBuffer),
+      contentType: "image/webp",
+      fileName: "profile-avatar.webp",
+    };
+  } catch {
+    return {
+      error: "Avatar image could not be processed.",
+      status: 400,
+    };
+  }
 }
 
 export async function handleProfileAvatarPost(
@@ -79,12 +140,22 @@ export async function handleProfileAvatarPost(
     );
   }
 
+  const normalizedAvatar = await (dependencies.normalizeProfileAvatarImage ??
+    normalizeProfileAvatarImage)(file, dependencies);
+
+  if ("error" in normalizedAvatar) {
+    return NextResponse.json(
+      { error: normalizedAvatar.error },
+      { status: normalizedAvatar.status },
+    );
+  }
+
   const stored = await (dependencies.saveStoredProfileAvatarFile ??
     saveStoredProfileAvatarFile)({
     organizationId: context.currentOrganization.id,
     membershipId: context.currentMembership.id,
-    fileName: file.name,
-    bytes: new Uint8Array(await file.arrayBuffer()),
+    fileName: normalizedAvatar.fileName,
+    bytes: normalizedAvatar.bytes,
   });
   const avatarUrl = buildProfileAvatarUrl(stored.storageKey);
   const saved = await (dependencies.saveOfficeAccountAvatar ??
