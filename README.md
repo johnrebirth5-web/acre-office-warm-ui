@@ -1256,6 +1256,7 @@ Docker 本地开发说明：
 
 当前产品覆盖盘点：
 
+- 完整用户使用说明见 [docs/user-guide.md](./docs/user-guide.md)
 - `Front Office / Back Office` 当前模块覆盖与缺口基线见 [docs/specs/product-coverage-audit.md](./docs/specs/product-coverage-audit.md)
 - 这份文档用于回答“哪些模块已经 live、哪些还只是 MVP、哪些还没补齐”
 
