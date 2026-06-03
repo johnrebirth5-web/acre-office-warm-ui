@@ -1,133 +1,87 @@
 # Deployment
 
-## Purpose
+This public repository does not define a private production host, domain, server path, systemd unit, or managed database endpoint.
 
-This document is the single source of truth for the current production deployment line.
+Use this document as a generic deployment checklist for self-hosting Acre. Keep real deployment details in your own infrastructure configuration, secret manager, or private runbook.
 
-Use it only when the user explicitly asks for deployment or production sync work.
+## Deployment Model
 
-### Default Rule
+Acre is a Next.js application with a PostgreSQL database and Prisma migrations. A typical deployment needs:
 
-- local development and validation first
-- local `git commit`
-- push GitHub
-- deploy to `DigitalOcean` only when the user explicitly confirms it
-- local Docker compose is a development convenience, not the production runtime line
+- a Node.js runtime
+- a PostgreSQL database
+- environment variables from a secret manager or private environment file
+- persistent document storage if document workflows are enabled
+- optional external services for email, observability, Google integrations, QuickBooks, and rate limiting
 
-`GitHub` sync does not equal deployment.
+## Required Build Steps
 
-## Current default deployment truth
+From a clean checkout:
 
-### Repo and Remote
+```bash
+npm ci
+npm run db:generate
+npm run build
+```
 
-- Active local repo: `<repo-root>`
-- Active GitHub remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
+Before starting the deployed app, apply database migrations against the target database:
 
-### Public Entries
+```bash
+npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+```
 
-- Active public entry: `https://acresystem.us/`
-- Active login entry: `https://acresystem.us/login`
-- Direct fallback entry during DNS propagation or troubleshooting: `http://45.55.247.137:3105/`
+Then start the web application with your platform's process manager:
 
-### Runtime Facts
+```bash
+npm run start --workspace=@acre/web
+```
 
-- systemd service: `acre-ui-rebuild-web.service`
-- `WorkingDirectory`: `/opt/acre-ui-rebuild/app`
-- env file: `/etc/acre/acre-ui-rebuild.env`
-- observability 相关环境变量也放在这个 env file，例如 `ACRE_METRICS_TOKEN`、可选的 `PRISMA_SLOW_QUERY_MS` / `PRISMA_VERY_SLOW_QUERY_MS`、以及可选的 `SENTRY_*`
-- nginx config: `/etc/nginx/sites-available/acre-ui-rebuild.conf`
-- nginx upstream: `127.0.0.1:3206`
-- HTTPS/TLS: `certbot + nginx`, certificate for `acresystem.us` / `www.acresystem.us`
-- certificate renewal: `certbot.timer`
-- live app directory `/opt/acre-ui-rebuild/app` is not the source-of-truth git checkout, so do not assume `git pull` works there
+## Environment
 
-## Runtime truth precedence
+Start from [.env.example](../.env.example) and provide deployment-specific values through your hosting provider or secret manager.
 
-If any document, note, or remembered server detail conflicts with the above, treat the server runtime as the truth source:
+At minimum, production-like deployments usually need:
 
-- systemd `ExecStart`
-- the active nginx upstream
+- `DATABASE_URL`
+- `ACRE_SESSION_SECRET`
+- `ACRE_SETTINGS_ENCRYPTION_SECRET`
+- `ACRE_BASE_URL`
+- `ACRE_SECURE_COOKIES=true`
+- `ACRE_DOCUMENTS_STORAGE_DIR` or another storage integration
 
-Do not fall back to legacy `:80`, `acre-web`, or `/opt/acre/app` assumptions in the main operational path.
+Optional integrations include:
 
-## Default workflow
+- email and signature delivery
+- Google OAuth
+- QuickBooks OAuth
+- Sentry
+- Redis or Upstash rate limiting
+- Listing Studio extension store URL
 
-1. Develop and validate locally.
-2. Create a local `git commit`.
-3. Push the committed change to `origin`.
-4. Deploy to `DigitalOcean` only after explicit user confirmation.
+## Operational Checklist
 
-### Operational Rules
+1. Build from a clean checkout.
+2. Generate the Prisma client.
+3. Apply migrations.
+4. Start or restart the app through your process manager.
+5. Validate the login page, health endpoint, and one representative office workflow.
+6. Check logs for build, migration, auth, database, and storage errors.
+7. Keep deployment secrets outside Git.
 
-- deployment is a separate step from `git push`
-- do not treat GitHub sync as proof that production changed
-- do not use `Vercel` as the delivery target for this repo
-- when deployment is not explicitly requested, stop after local work and GitHub sync as directed by the task
+## What Not to Commit
 
-## Deployment line to follow when explicitly confirmed
+Do not commit:
 
-When a deployment is explicitly approved, use only this line:
+- production database URLs
+- private domains or public IP addresses
+- SSH targets or keys
+- server filesystem paths
+- process manager service names tied to private infrastructure
+- environment files containing real values
+- provider tokens or API keys
 
-1. Prepare a temporary checkout from GitHub `main` or the exact committed revision being deployed.
-2. In that temporary checkout, run:
-   - `npm ci`
-   - `npm run db:generate`
-   - `npx prisma migrate deploy --schema packages/db/prisma/schema.prisma` after loading `/etc/acre/acre-ui-rebuild.env`
-   - `npm run build`
-3. Only if those steps succeed, sync the built repo state into `/opt/acre-ui-rebuild/app`.
-4. Restore `/opt/acre-ui-rebuild/app` ownership to `acre:acre`.
-5. Restart `acre-ui-rebuild-web.service`.
-6. Validate through `https://acresystem.us/` and `https://acresystem.us/login`.
-7. If runtime behavior disagrees with docs, trust systemd `ExecStart` and the active nginx upstream.
+## Helper Scripts
 
-If DNS propagation is still in flight, direct fallback validation may temporarily use:
+Some scripts in `scripts/` are designed as configurable examples. They should be run only after setting explicit environment variables for your own infrastructure. Public defaults intentionally avoid private hostnames and server paths.
 
-- `http://45.55.247.137:3105/`
-- `http://45.55.247.137:3105/login`
-
-The preferred repo-root deployment command already validates the public HTTPS login first and falls back to the direct `:3105` login only if the public domain is temporarily unavailable from the operator network.
-
-### Practical operator note
-
-The current production line is:
-
-- temporary checkout/build directory
-- sync into `/opt/acre-ui-rebuild/app`
-- `systemctl restart acre-ui-rebuild-web.service`
-
-It is not:
-
-- `ssh -> cd /opt/acre-ui-rebuild/app -> git pull`
-
-### Expected timing
-
-A normal deployment may take around 1 to 3 minutes because it includes:
-
-- dependency install
-- Prisma client generation
-- Prisma migration deploy
-- Next.js production build
-- service restart
-
-### Preferred command
-
-From repo root, the preferred operator command is:
-
-- `npm run deploy:digitalocean`
-
-To deploy a specific already-pushed commit:
-
-- `npm run deploy:digitalocean -- <commit_sha>`
-
-## Legacy reference only
-
-These are historical references only. They are not the current default target:
-
-- `http://45.55.247.137/`
-- `acre-web`
-- `/opt/acre/app`
-- `/etc/acre/acre.env`
-- `/etc/nginx/sites-available/acre.conf`
-- nginx upstream `127.0.0.1:3000`
-
-If a legacy note conflicts with the current deployment line, ignore the legacy note and follow this file.
+Review each script before using it in a real deployment.

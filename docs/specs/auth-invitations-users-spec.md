@@ -63,7 +63,7 @@ This spec describes what is implemented now, not the eventual full auth platform
 ### Bootstrap admin
 
 - The system ensures a bootstrap admin account exists for:
-  - `office@acreny.us`
+  - `office-brokerage.test`
 - The bootstrap admin is an `office_admin`
 - Existing bootstrap account provisioning can be reused for a fresh setup/reset link instead of creating a duplicate account
 - The bootstrap password is stored only as a hash

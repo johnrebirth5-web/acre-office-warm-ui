@@ -8,9 +8,9 @@
 
 默认生产基线：
 
-- 应用目录：`/opt/acre-ui-rebuild/app`
-- 环境文件：`/etc/acre/acre-ui-rebuild.env`
-- systemd 服务：`acre-ui-rebuild-web.service`
+- 应用目录：`<deployment-app-dir>`
+- 环境文件：`<deployment-env-file>`
+- systemd 服务：`<app-service-name>`
 
 开始之前先做两件事：
 
@@ -40,7 +40,7 @@ git log --all -S '<old-db-password-fragment>'
 
 ### 预检
 
-- `/etc/acre/acre-ui-rebuild.env` 中存在当前 `ACRE_SESSION_SECRET`
+- `<deployment-env-file>` 中存在当前 `ACRE_SESSION_SECRET`
 - `ACRE_SESSION_SECRET_SECONDARY` 当前为空，或你明确知道可以覆盖它
 - `ACRE_SETTINGS_ENCRYPTION_SECRET` 已经配置；如果没有，先确认 SMTP / Signature Drive 设置在轮换后是否需要重新保存
 
@@ -49,14 +49,14 @@ git log --all -S '<old-db-password-fragment>'
 先在服务器上 dry-run：
 
 ```bash
-cd /opt/acre-ui-rebuild/app
+cd <deployment-app-dir>
 bash ./scripts/rotate-session-secret.sh
 ```
 
 确认输出无误后再 apply：
 
 ```bash
-cd /opt/acre-ui-rebuild/app
+cd <deployment-app-dir>
 sudo bash ./scripts/rotate-session-secret.sh --apply
 ```
 
@@ -64,8 +64,8 @@ sudo bash ./scripts/rotate-session-secret.sh --apply
 
 - 生成新的 `ACRE_SESSION_SECRET`
 - 把当前 primary 值写入 `ACRE_SESSION_SECRET_SECONDARY`
-- 为 `/etc/acre/acre-ui-rebuild.env` 创建时间戳备份
-- 重启 `acre-ui-rebuild-web.service`
+- 为 `<deployment-env-file>` 创建时间戳备份
+- 重启 `<app-service-name>`
 
 ### 兼容窗口
 
@@ -83,14 +83,14 @@ sudo bash ./scripts/rotate-session-secret.sh --apply
 如果应用重启后无法创建或验证 session：
 
 1. 恢复脚本生成的 env 备份文件
-2. 重启 `acre-ui-rebuild-web.service`
+2. 重启 `<app-service-name>`
 3. 检查 `/login`、邀请接受、强制改密三条路径是否恢复正常
 
 回滚命令示例：
 
 ```bash
-sudo cp /etc/acre/acre-ui-rebuild.env.bak.<timestamp> /etc/acre/acre-ui-rebuild.env
-sudo systemctl restart acre-ui-rebuild-web.service
+sudo cp <deployment-env-file>.bak.<timestamp> <deployment-env-file>
+sudo systemctl restart <app-service-name>
 ```
 
 ## 2. Resend API key 轮换
@@ -104,8 +104,8 @@ sudo systemctl restart acre-ui-rebuild-web.service
 
 1. 进入 Resend 控制台，定位当前 production key。
 2. 创建新的 production API key。
-3. 在应用侧先更新 `/etc/acre/acre-ui-rebuild.env` 中的 `ACRE_RESEND_API_KEY`。
-4. 重启 `acre-ui-rebuild-web.service`。
+3. 在应用侧先更新 `<deployment-env-file>` 中的 `ACRE_RESEND_API_KEY`。
+4. 重启 `<app-service-name>`。
 5. 用一封测试签署邮件或其他真实发送路径验证新 key 生效。
 6. 验证成功后，再在 Resend 控制台 revoke 旧 key。
 
@@ -131,8 +131,8 @@ sudo systemctl restart acre-ui-rebuild-web.service
 1. 生成新的高强度数据库密码。
 2. 使用现有管理账户连接 PostgreSQL。
 3. 执行 `ALTER USER acre_app WITH PASSWORD '...'`。
-4. 更新 `/etc/acre/acre-ui-rebuild.env` 中的 `DATABASE_URL`。
-5. 重启 `acre-ui-rebuild-web.service`。
+4. 更新 `<deployment-env-file>` 中的 `DATABASE_URL`。
+5. 重启 `<app-service-name>`。
 6. 验证 `/api/health`、登录、Office 列表页和至少一条数据库写路径。
 
 ### 预期空窗
@@ -153,9 +153,9 @@ sudo systemctl restart acre-ui-rebuild-web.service
 每次轮换结束后都要至少做以下 smoke checks：
 
 ```bash
-sudo systemctl status acre-ui-rebuild-web.service --no-pager
-curl -I https://acresystem.us/login
-curl -fsS https://acresystem.us/api/health | jq
+sudo systemctl status <app-service-name> --no-pager
+curl -I https://your-acre-domain.example.com/login
+curl -fsS https://your-acre-domain.example.com/api/health | jq
 ```
 
 然后补做一条真实业务路径：

@@ -4,9 +4,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-DEPLOY_HOST="${ACRE_DEPLOY_HOST:-root@45.55.247.137}"
-SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-$HOME/.ssh/acre_do_ed25519}"
-REMOTE_DOCUMENTS_ROOT="${ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT:-/var/lib/acre/documents}"
+DEPLOY_HOST="${ACRE_DEPLOY_HOST:-}"
+SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-}"
+REMOTE_DOCUMENTS_ROOT="${ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT:-}"
 
 LOCAL_WEB_SERVICE="${ACRE_LOCAL_WEB_SERVICE:-web}"
 LOCAL_DOCUMENTS_DIR="${ACRE_LOCAL_DOCUMENTS_DIR:-/app/.local-storage/documents}"
@@ -37,6 +37,12 @@ require_commands() {
   command -v rsync >/dev/null 2>&1 || fail "rsync is required."
   command -v ssh >/dev/null 2>&1 || fail "ssh is required."
   command -v tar >/dev/null 2>&1 || fail "tar is required."
+}
+
+require_remote_sync_config() {
+  [ -n "$DEPLOY_HOST" ] || fail "ACRE_DEPLOY_HOST is required."
+  [ -n "$SSH_KEY" ] || fail "ACRE_DEPLOY_SSH_KEY is required."
+  [ -n "$REMOTE_DOCUMENTS_ROOT" ] || fail "ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT is required."
 }
 
 ensure_local_web_running() {
@@ -71,6 +77,7 @@ main() {
   trap cleanup EXIT
 
   require_commands
+  require_remote_sync_config
   ensure_local_web_running
   stage_remote_documents
   replace_local_documents_volume

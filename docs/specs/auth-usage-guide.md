@@ -28,11 +28,11 @@
 
 当前正式 HTTPS 入口：
 
-- `https://acresystem.us/login`
+- `https://your-acre-domain.example.com/login`
 
-当前 DigitalOcean 入口：
+当前 self-hosted VM 入口：
 
-- `http://45.55.247.137:3105/login`
+- `http://<server-public-ip>:3105/login`
 
 注意：
 
@@ -104,7 +104,7 @@
 
 系统会确保存在一个 bootstrap admin：
 
-- 邮箱：`office@acreny.us`
+- 邮箱：`office-brokerage.test`
 - 角色：`office_admin`
 
 使用规则：

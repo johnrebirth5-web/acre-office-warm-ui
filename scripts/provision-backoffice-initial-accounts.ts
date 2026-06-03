@@ -20,76 +20,76 @@ type TeamSpec = {
   }>;
 };
 
-const invitationBaseUrl = process.env.ACRE_BASE_URL ?? "https://acresystem.us";
-const bootstrapEmail = "office@acreny.us";
+const invitationBaseUrl = process.env.ACRE_BASE_URL ?? "http://localhost:3105";
+const bootstrapEmail = "office@example-brokerage.test";
 
 const accountSpecs: AccountSpec[] = [
   {
-    email: "office@acreny.us",
-    firstName: "Feitong",
-    lastName: "Zhao",
+    email: "office@example-brokerage.test",
+    firstName: "Alex",
+    lastName: "Admin",
     role: "office_admin",
     title: "Office Admin",
     preserveActive: true
   },
   {
-    email: "cathy@acreny.us",
-    firstName: "Zihui",
-    lastName: "Huang",
+    email: "cathy@example-brokerage.test",
+    firstName: "Jordan",
+    lastName: "Owner",
     role: "owner",
     title: "Owner"
   },
   {
-    email: "pay@acreny.us",
-    firstName: "Zilong",
-    lastName: "Peng",
+    email: "pay@example-brokerage.test",
+    firstName: "Taylor",
+    lastName: "Accountant",
     role: "accountant",
     title: "Accountant"
   },
   {
-    email: "hr@acreny.us",
-    firstName: "Junjie",
-    lastName: "Gao",
+    email: "hr@example-brokerage.test",
+    firstName: "Morgan",
+    lastName: "HR",
     role: "human_resources",
     title: "Human Resources"
   },
   {
-    email: "yue.yu@acreny.us",
+    email: "yue.yu@example-brokerage.test",
     firstName: "Yue",
     lastName: "Yu",
     role: "team_lead",
     title: "Yue Team / Team Leader"
   },
   {
-    email: "yun@acreny.us",
+    email: "yun@example-brokerage.test",
     firstName: "Yunhao",
     lastName: "Teng",
     role: "agent",
     title: "Yue Team / Member"
   },
   {
-    email: "linfen@acreny.us",
+    email: "linfen@example-brokerage.test",
     firstName: "Linfen",
     lastName: "Ruan",
     role: "team_lead",
     title: "Candy Team / Team Leader"
   },
   {
-    email: "dcai@acreny.us",
+    email: "dcai@example-brokerage.test",
     firstName: "Ding",
     lastName: "Cai",
     role: "team_lead",
     title: "Candy Team / Junior Team Leader (Ding Team)"
   },
   {
-    email: "elaine@acreny.us",
+    email: "elaine@example-brokerage.test",
     firstName: "Shuyu",
     lastName: "Fang",
     role: "agent",
     title: "Candy Team / Junior Team Leader (Ding Team) / Member"
   },
   {
-    email: "jessie@acreny.us",
+    email: "jessie@example-brokerage.test",
     firstName: "Yu",
     lastName: "Pan",
     role: "agent",
@@ -101,22 +101,22 @@ const teamSpecs: TeamSpec[] = [
   {
     name: "Yue Team",
     memberships: [
-      { email: "yue.yu@acreny.us", role: "team_leader" },
-      { email: "yun@acreny.us", role: "member", reportsToEmail: "yue.yu@acreny.us" }
+      { email: "yue.yu@example-brokerage.test", role: "team_leader" },
+      { email: "yun@example-brokerage.test", role: "member", reportsToEmail: "yue.yu@example-brokerage.test" }
     ]
   },
   {
     name: "Candy Team",
     memberships: [
-      { email: "linfen@acreny.us", role: "team_leader" }
+      { email: "linfen@example-brokerage.test", role: "team_leader" }
     ]
   },
   {
     name: "Ding Team",
     parentTeamName: "Candy Team",
     memberships: [
-      { email: "dcai@acreny.us", role: "junior_team_leader" },
-      { email: "elaine@acreny.us", role: "member", reportsToEmail: "dcai@acreny.us" }
+      { email: "dcai@example-brokerage.test", role: "junior_team_leader" },
+      { email: "elaine@example-brokerage.test", role: "member", reportsToEmail: "dcai@example-brokerage.test" }
     ]
   }
 ];

@@ -254,14 +254,14 @@ ACRE_SESSION_SECRET_SECONDARY="<previous-generated-session-secret>"
 是否必填：
 
 - 非必填
-- 缺失时默认使用 `https://acresystem.us`
+- 建议在生产或共享环境显式设置为你的公开应用域名
 - 生产环境外发链接不应从本地 request origin、`localhost:3105`、或开发服务器地址派生
-- 本地开发环境如果使用本地数据库，不应发送指向生产域名的 remote signing email；这会生成“生产 URL + 本地 token”的无效链接。`send-remote` API 会阻止 loopback / `0.0.0.0` / 私网或 Tailscale request origin + public base URL 这个组合；本地测试请把 `ACRE_BASE_URL` 设为当前本地 app origin 并重启 dev，正式签署邮件请改到 `https://acresystem.us/agent/projects` 线上页面发送
+- 本地开发环境如果使用本地数据库，不应发送指向生产域名的 remote signing email；这会生成“生产 URL + 本地 token”的无效链接。`send-remote` API 会阻止 loopback / `0.0.0.0` / 私网或 Tailscale request origin + public base URL 这个组合；本地测试请把 `ACRE_BASE_URL` 设为当前本地 app origin 并重启 dev，正式签署邮件请改到 `https://your-acre-domain.example.com/agent/projects` 线上页面发送
 
 示例格式：
 
 ```env
-ACRE_BASE_URL="https://acresystem.us"
+ACRE_BASE_URL="https://your-acre-domain.example.com"
 ```
 
 缺失后的影响：
@@ -286,7 +286,7 @@ ACRE_BASE_URL="https://acresystem.us"
 ```env
 ACRE_GOOGLE_OAUTH_CLIENT_ID="<google-oauth-client-id>"
 ACRE_GOOGLE_OAUTH_CLIENT_SECRET="<google-oauth-client-secret>"
-ACRE_GOOGLE_OAUTH_REDIRECT_URL="https://acresystem.us/api/office/settings/google/callback"
+ACRE_GOOGLE_OAUTH_REDIRECT_URL="https://your-acre-domain.example.com/api/office/settings/google/callback"
 ```
 
 是否必填：
@@ -305,7 +305,7 @@ ACRE_GOOGLE_OAUTH_REDIRECT_URL="https://acresystem.us/api/office/settings/google
 Google OAuth redirect：
 
 - 生产 Google app 应登记：
-  `https://acresystem.us/api/office/settings/google/callback`
+  `https://your-acre-domain.example.com/api/office/settings/google/callback`
 - 本地测试如果使用本地 callback，需要在 Google app 中额外登记当前本地地址
 
 ### `ACRE_FINANCE_NOTIFICATION_EMAIL`
@@ -318,17 +318,17 @@ Google OAuth redirect：
 是否必填：
 
 - 非必填
-- 缺失时默认使用 `pay@acreny.us`
+- 缺失时默认使用 `pay@example-brokerage.test`
 
 示例格式：
 
 ```env
-ACRE_FINANCE_NOTIFICATION_EMAIL="pay@acreny.us"
+ACRE_FINANCE_NOTIFICATION_EMAIL="pay@example-brokerage.test"
 ```
 
 缺失后的影响：
 
-- 财务提醒仍会发送到默认邮箱 `pay@acreny.us`
+- 财务提醒仍会发送到默认邮箱 `pay@example-brokerage.test`
 
 ### QuickBooks Online unpaid bill sync
 
@@ -371,7 +371,7 @@ ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON='{
 可选变量：
 
 ```env
-ACRE_QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
+ACRE_QUICKBOOKS_REDIRECT_URI="https://your-acre-domain.example.com/api/office/settings/quickbooks/callback"
 ACRE_QUICKBOOKS_API_BASE_URL="https://quickbooks.api.intuit.com"
 ACRE_QUICKBOOKS_MINOR_VERSION="75"
 ```
@@ -398,13 +398,13 @@ ACRE_QUICKBOOKS_AGENT_COMMISSION_EXPENSE_ACCOUNT_ID="<quickbooks-agent-commissio
 
 Intuit Developer 生产 app 信息：
 
-- Host domain: `acresystem.us`
-- Launch URL: `https://acresystem.us/office/settings/quickbooks`
-- Connect / reconnect URL: `https://acresystem.us/api/office/settings/quickbooks/connect`
-- OAuth redirect URI: `https://acresystem.us/api/office/settings/quickbooks/callback`
-- Disconnect URL: `https://acresystem.us/api/office/settings/quickbooks/disconnect`
-- Privacy policy URL: `https://acresystem.us/legal/privacy`
-- Terms / EULA URL: `https://acresystem.us/legal/terms`
+- Host domain: `your-acre-domain.example.com`
+- Launch URL: `https://your-acre-domain.example.com/office/settings/quickbooks`
+- Connect / reconnect URL: `https://your-acre-domain.example.com/api/office/settings/quickbooks/connect`
+- OAuth redirect URI: `https://your-acre-domain.example.com/api/office/settings/quickbooks/callback`
+- Disconnect URL: `https://your-acre-domain.example.com/api/office/settings/quickbooks/disconnect`
+- Privacy policy URL: `https://your-acre-domain.example.com/legal/privacy`
+- Terms / EULA URL: `https://your-acre-domain.example.com/legal/terms`
 - `/office/settings/quickbooks` 管理 organization-level OAuth 连接状态和健康检查；payout bill posting 当前仍读取服务端 `ACRE_QUICKBOOKS_OFFICE_CONNECTIONS_JSON` 的 per-office company / account mapping。不要把 refresh token 复制进聊天、工单、PR 或代码仓库。
 
 ### `ACRE_METRICS_TOKEN`
@@ -432,7 +432,7 @@ ACRE_METRICS_TOKEN="replace-with-a-long-random-token"
 
 部署建议：
 
-- 生产环境应把它放进 `/etc/acre/acre-ui-rebuild.env`
+- 生产环境应把它放进 `<deployment-env-file>`
 - 不要把真实 token 写进仓库内 `.env.example`
 
 ### `QUICKBOOKS_CLIENT_ID`
@@ -512,24 +512,24 @@ QUICKBOOKS_ENVIRONMENT="sandbox"
 示例格式：
 
 ```env
-QUICKBOOKS_REDIRECT_URI="https://acresystem.us/api/office/settings/quickbooks/callback"
+QUICKBOOKS_REDIRECT_URI="https://your-acre-domain.example.com/api/office/settings/quickbooks/callback"
 ```
 
 QuickBooks production app URL checklist:
 
 - End-user license agreement URL:
-  `https://acresystem.us/legal/acre-back-office-eula`
+  `https://your-acre-domain.example.com/legal/acre-back-office-eula`
 - Privacy policy URL:
-  `https://acresystem.us/legal/acre-back-office-privacy`
-- Host domain: `acresystem.us`
+  `https://your-acre-domain.example.com/legal/acre-back-office-privacy`
+- Host domain: `your-acre-domain.example.com`
 - Launch URL:
-  `https://acresystem.us/office/settings/quickbooks`
+  `https://your-acre-domain.example.com/office/settings/quickbooks`
 - Disconnect URL:
-  `https://acresystem.us/quickbooks/disconnect`
+  `https://your-acre-domain.example.com/quickbooks/disconnect`
 - Connect/Reconnect URL:
-  `https://acresystem.us/quickbooks/connect`
+  `https://your-acre-domain.example.com/quickbooks/connect`
 - Hosted country: `United States`
-- Hosted IP address: `45.55.247.137` unless the production infrastructure changes
+- Hosted IP address: `<server-public-ip>` unless the production infrastructure changes
 
 ### `PRISMA_SLOW_QUERY_MS`
 
@@ -676,7 +676,7 @@ ACRE_RATE_LIMIT_BACKEND="memory"
 - 本地开发和单实例测试环境继续用 `memory`
 - 如果已经有可达的 Redis，可改用 `redis`
 - 多实例或会横向扩容的环境应改用 `upstash`
-- 当前 DigitalOcean 生产机如果要先避免进程重启清零，可使用 `ACRE_RATE_LIMIT_BACKEND="redis"` 并把 `ACRE_RATE_LIMIT_REDIS_URL` 指到现有 Redis，例如 `redis://127.0.0.1:6380/0`
+- 当前 self-hosted VM 生产机如果要先避免进程重启清零，可使用 `ACRE_RATE_LIMIT_BACKEND="redis"` 并把 `ACRE_RATE_LIMIT_REDIS_URL` 指到现有 Redis，例如 `redis://127.0.0.1:6380/0`
 - 如果显式设置为 `redis`，则必须同时提供 `ACRE_RATE_LIMIT_REDIS_URL`
 - 如果显式设置为 `upstash`，则必须同时提供 `ACRE_UPSTASH_REDIS_REST_URL` 和 `ACRE_UPSTASH_REDIS_REST_TOKEN`
 
@@ -885,7 +885,7 @@ ACRE_RESEND_API_KEY="replace-with-resend-api-key"
 
 - 不会导致应用报错
 - 但签署邮件会继续尝试走 SMTP transport
-- 在像 DigitalOcean 这类默认封锁出站 SMTP 端口的环境里，外部签署邮件可能无法送达
+- 在像 self-hosted VM 这类默认封锁出站 SMTP 端口的环境里，外部签署邮件可能无法送达
 
 ### `ACRE_SMTP_HOST`
 
@@ -997,7 +997,7 @@ ACRE_SMTP_PASSWORD="replace-with-smtp-password"
 示例格式：
 
 ```env
-ACRE_SIGNATURE_FROM_EMAIL="signatures@acresystem.us"
+ACRE_SIGNATURE_FROM_EMAIL="signatures@your-acre-domain.example.com"
 ```
 
 ### `ACRE_SIGNATURE_FROM_NAME`
@@ -1033,7 +1033,7 @@ ACRE_SIGNATURE_FROM_NAME="Acre Signatures"
 示例格式：
 
 ```env
-ACRE_SIGNATURE_REPLY_TO="agent@acresystem.us"
+ACRE_SIGNATURE_REPLY_TO="agent@your-acre-domain.example.com"
 ```
 
 ### `ACRE_DOCUMENTS_STORAGE_DIR`
@@ -1060,7 +1060,7 @@ ACRE_DOCUMENTS_STORAGE_DIR="/absolute/path/to/acre-documents"
 - 不会导致应用报错
 - 会使用默认本地目录
 - 当前新写入的 `storageKey` 会以 storage root 下的相对路径保存，避免把仓库目录写死进 metadata
-- 这适合当前单 Droplet 生产模型，但前提是目录必须是持久化磁盘路径，而不是 deploy 目录
+- 这适合当前单 Server 生产模型，但前提是目录必须是持久化磁盘路径，而不是 deploy 目录
 
 开发和生产差异：
 
@@ -1074,7 +1074,7 @@ ACRE_DOCUMENTS_STORAGE_DIR="/absolute/path/to/acre-documents"
 
 - 仅供本地开发使用
 - 当本地文档目录缺少某个文件时，允许本地 app 通过 `ssh` 从远端文档根目录按 `storageKey` 回源读取
-- 当前主要用于“本地直连 DO 数据库，但图片 / 文档文件仍保存在远端磁盘”的开发场景
+- 当前主要用于“本地直连远端数据库，但图片 / 文档文件仍保存在远端磁盘”的开发场景
 
 是否必填：
 
@@ -1084,7 +1084,7 @@ ACRE_DOCUMENTS_STORAGE_DIR="/absolute/path/to/acre-documents"
 示例格式：
 
 ```env
-ACRE_REMOTE_DOCUMENTS_SSH_TARGET="root@45.55.247.137"
+ACRE_REMOTE_DOCUMENTS_SSH_TARGET="<ssh-user>@<server-host>"
 ```
 
 ### `ACRE_REMOTE_DOCUMENTS_STORAGE_ROOT`
@@ -1351,7 +1351,7 @@ ACRE_ADMIN_CODEX_MODEL="gpt-5.5"
 用途：
 
 - `codex exec` 的工作目录
-- 生产默认随 Next.js service 工作目录运行，建议显式设置为 `/opt/acre-ui-rebuild/app`
+- 生产默认随 Next.js service 工作目录运行，建议显式设置为 `<deployment-app-dir>`
 - Codex 使用 `--sandbox read-only`、`--ask-for-approval never`、`--ephemeral`，管理员助手不应写代码、改数据库或部署
 
 是否必填：
@@ -1361,7 +1361,7 @@ ACRE_ADMIN_CODEX_MODEL="gpt-5.5"
 示例格式：
 
 ```env
-ACRE_ADMIN_CODEX_WORKDIR="/opt/acre-ui-rebuild/app"
+ACRE_ADMIN_CODEX_WORKDIR="<deployment-app-dir>"
 ```
 
 ### `ACRE_ADMIN_CODEX_TIMEOUT_SECONDS`
@@ -1480,7 +1480,7 @@ ACRE_ADMIN_CODEX_MAX_EXEC_OUTPUT_BYTES="524288"
 - 容器内部仍然固定使用 `postgresql://postgres:postgres@db:5432/acre`
 - 如果宿主机另一个服务占用了 `5433`，需要同步修改 compose 的 host 端口映射和宿主机 `.env.local`
 
-如果你当前 Docker 开发态直接依赖 `DigitalOcean` 远端数据库隧道，希望本地站点尽量持续在线，可以额外开一个终端长期运行：
+如果你当前 Docker 开发态显式配置了远端数据库隧道，并希望本地站点尽量持续在线，可以额外开一个终端长期运行：
 
 ```bash
 npm run docker:dev:keepalive
@@ -1488,20 +1488,20 @@ npm run docker:dev:keepalive
 
 这条 watchdog 会循环确保：
 
-- `root@45.55.247.137 -> 0.0.0.0:15432` 的 SSH 隧道仍然在线；Docker 容器经 `host.docker.internal:15432` 访问（OrbStack / Docker Desktop），宿主机工具仍可经 `127.0.0.1:15432` 访问
+- 当 `ACRE_DO_DB_TUNNEL_ENABLED=1` 且 `ACRE_DO_DB_TUNNEL_TARGET` 已设置时，远端数据库 SSH 隧道仍然在线；Docker 容器经 `host.docker.internal:15432` 访问（OrbStack / Docker Desktop），宿主机工具仍可经 `127.0.0.1:15432` 访问
 - `docker compose up -d` 的 `web + db` 服务维持运行
 - `http://localhost:3105/login` 可响应；如果检测失败，会自动 `docker compose restart web`
 
 当前 `macOS + OrbStack` 基线说明（历史上也支持 Colima/Lima，但当前基线早已切到 OrbStack，不要再把迁移到 OrbStack 当作待办排查项）：
 
 - `ssh -L` 默认只绑定 `localhost` 时，Docker 容器经 `host.docker.internal` 访问不到这条隧道
-- `scripts/docker-dev-keepalive.sh` 现在默认把 DO 数据库隧道绑定到 `0.0.0.0:15432`
+- `scripts/docker-dev-keepalive.sh` 默认不启用远端隧道；需要远端隧道时显式设置 `ACRE_DO_DB_TUNNEL_ENABLED=1`
 - 脚本会从 `db` 容器内探测 `host.docker.internal:15432`；如果容器侧探测失败，会自动重建隧道
 - 如需覆盖默认值，可设置 `ACRE_DO_DB_TUNNEL_BIND_HOST`、`ACRE_DO_DB_TUNNEL_CONTAINER_HOST`、`ACRE_DO_DB_TUNNEL_PROBE_SERVICE`
 
 ### 生产数据到本地的单向同步
 
-如果你需要把 `DigitalOcean` 线上最新数据拉到本地开发库，但又不希望本地写操作回写线上，可以使用：
+如果你需要把 `self-hosted VM` 线上最新数据拉到本地开发库，但又不希望本地写操作回写线上，可以使用：
 
 ```bash
 npm run db:sync:from-production
@@ -1509,8 +1509,8 @@ npm run db:sync:from-production
 
 当前同步行为：
 
-- 通过 `ssh` 连接默认生产主机 `root@45.55.247.137`
-- 从 `/etc/acre/acre-ui-rebuild.env` 读取生产 `DATABASE_URL`
+- 通过 `ssh` 连接 `ACRE_DEPLOY_HOST`
+- 从 `<deployment-env-file>` 读取生产 `DATABASE_URL`
 - 在远端仅执行 `pg_dump` 只读导出
 - 在本地 Docker `db` 容器里先导入 `prod_sync_stage` 临时 schema
 - 再把 stage 数据 upsert 合并进本地 `public` schema
@@ -1558,11 +1558,11 @@ npm run state:mirror:from-production
 以下变量是同步脚本的 operator override，不是 Web 应用 runtime 必填项：
 
 - `ACRE_DEPLOY_HOST`
-  - 默认 `root@45.55.247.137`
+  - 必填；例如 `<ssh-user>@<server-host>`
 - `ACRE_DEPLOY_SSH_KEY`
-  - 默认 `$HOME/.ssh/acre_do_ed25519`
+  - 必填；例如 `$HOME/.ssh/<deployment-key>`
 - `ACRE_DEPLOY_ENV_FILE`
-  - 默认 `/etc/acre/acre-ui-rebuild.env`
+  - 必填；例如 `<deployment-env-file>`
 - `ACRE_LOCAL_DB_SERVICE`
   - 默认 `db`
 - `ACRE_LOCAL_DB_HOST`
@@ -1595,12 +1595,12 @@ npm run state:mirror:from-production
 
 ## 生产环境建议
 
-当前默认生产基线是 `DigitalOcean + systemd + nginx`：
+常见自托管生产基线是 `self-hosted VM + systemd + nginx`：
 
 - 不要把 `.env.local` 提交到仓库
-- 服务器环境文件位于 `/etc/acre/acre-ui-rebuild.env`
-- 服务器应用目录位于 `/opt/acre-ui-rebuild/app`
-- 生产服务名是 `acre-ui-rebuild-web.service`
+- 服务器环境文件位于 `<deployment-env-file>`
+- 服务器应用目录位于 `<deployment-app-dir>`
+- 生产服务名是 `<app-service-name>`
 - 生产 `DATABASE_URL` 必须指向可用的 PostgreSQL 实例
 - 生产 `ACRE_SECURE_COOKIES` 应显式设为 `true`
 
@@ -1608,11 +1608,11 @@ npm run state:mirror:from-production
 
 | Secret | Source of truth | Compatibility window | Last rotated at |
 | --- | --- | --- | --- |
-| `ACRE_SESSION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | `30 days` via `ACRE_SESSION_SECRET_SECONDARY` | `<pending>` |
-| `ACRE_SETTINGS_ENCRYPTION_SECRET` | `/etc/acre/acre-ui-rebuild.env` | none; re-save SMTP / Signature Drive / QuickBooks only if decrypt fails | `<pending>` |
-| `ACRE_RESEND_API_KEY` | `/etc/acre/acre-ui-rebuild.env` + Resend dashboard | none | `<pending>` |
-| `QUICKBOOKS_CLIENT_SECRET` | `/etc/acre/acre-ui-rebuild.env` + Intuit developer app | reconnect QuickBooks after app-secret rotation | `<pending>` |
-| `DATABASE_URL` (`acre_app` password) | `/etc/acre/acre-ui-rebuild.env` + PostgreSQL role `acre_app` | until the app reconnects with the restarted process | `<pending>` |
+| `ACRE_SESSION_SECRET` | `<deployment-env-file>` | `30 days` via `ACRE_SESSION_SECRET_SECONDARY` | `<pending>` |
+| `ACRE_SETTINGS_ENCRYPTION_SECRET` | `<deployment-env-file>` | none; re-save SMTP / Signature Drive / QuickBooks only if decrypt fails | `<pending>` |
+| `ACRE_RESEND_API_KEY` | `<deployment-env-file>` + Resend dashboard | none | `<pending>` |
+| `QUICKBOOKS_CLIENT_SECRET` | `<deployment-env-file>` + Intuit developer app | reconnect QuickBooks after app-secret rotation | `<pending>` |
+| `DATABASE_URL` (`acre_app` password) | `<deployment-env-file>` + PostgreSQL role `acre_app` | until the app reconnects with the restarted process | `<pending>` |
 
 配套文档：
 
@@ -1624,10 +1624,10 @@ npm run state:mirror:from-production
 当 `.env` / `.env.local`、终端输出、截图、聊天记录或备份暴露了真实值时，按以下顺序处理：
 
 1. 先轮换外部系统里的真实凭据，再改代码仓库和本地环境
-2. `Resend`：吊销旧 `ACRE_RESEND_API_KEY`，生成新 key，并同步更新生产 `/etc/acre/acre-ui-rebuild.env`
-3. `PostgreSQL`：为 `acre_app` 执行 `ALTER USER ... WITH PASSWORD ...`，然后同步更新生产 `/etc/acre/acre-ui-rebuild.env`
+2. `Resend`：吊销旧 `ACRE_RESEND_API_KEY`，生成新 key，并同步更新生产 `<deployment-env-file>`
+3. `PostgreSQL`：为 `acre_app` 执行 `ALTER USER ... WITH PASSWORD ...`，然后同步更新生产 `<deployment-env-file>`
 4. `Session`：生成新的 `ACRE_SESSION_SECRET`，把旧值临时移到 `ACRE_SESSION_SECRET_SECONDARY`，等待当前 cookie 最大存活期过去后再删除 secondary
-5. 重启生产服务：`systemctl restart acre-ui-rebuild-web.service`
+5. 重启生产服务：`systemctl restart <app-service-name>`
 6. 如果历史上没有单独的 `ACRE_SETTINGS_ENCRYPTION_SECRET`，确认 SMTP / Signature Drive / QuickBooks 的已保存密钥仍可解密；必要时在新 secret 生效后重新保存这些设置
 7. 本地环境不要继续保留长期生产或共享环境 secret；优先迁移到 `1Password CLI`、`Doppler` 或其他外部 secret source
 

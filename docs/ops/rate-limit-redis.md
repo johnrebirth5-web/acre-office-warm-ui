@@ -18,7 +18,7 @@ ACRE_TRUSTED_PROXY_TIER="none"
 
 - `ACRE_RATE_LIMIT_BACKEND=redis` 会切到标准 Redis 后端
 - `ACRE_RATE_LIMIT_REDIS_URL` 支持 `redis://` 和 `rediss://`
-- 当前 DigitalOcean 生产机如继续使用现有本地 Redis，可先指向 `redis://127.0.0.1:6380/0`
+- 当前 self-hosted VM 生产机如继续使用现有本地 Redis，可先指向 `redis://127.0.0.1:6380/0`
 - 如果未来改到托管 Redis，只需要替换连接串，不需要改代码
 
 ## 本地验证方式
@@ -38,7 +38,7 @@ npx tsx --test apps/web/lib/rate-limit.test.ts
 
 ## 服务器切换步骤
 
-1. 编辑 `/etc/acre/acre-ui-rebuild.env`
+1. 编辑 `<deployment-env-file>`
 2. 写入：
 
 ```env
@@ -49,13 +49,13 @@ ACRE_RATE_LIMIT_REDIS_URL="redis://127.0.0.1:6380/0"
 3. 重启服务：
 
 ```bash
-sudo systemctl restart acre-ui-rebuild-web.service
+sudo systemctl restart <app-service-name>
 ```
 
 4. 验证：
 
 ```bash
-curl -s https://acresystem.us/api/health | jq .
+curl -s https://your-acre-domain.example.com/api/health | jq .
 ```
 
 然后对登录、邀请接受、改密、公开签字这些已接入限流的入口做一次正常访问确认。

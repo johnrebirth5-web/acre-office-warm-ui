@@ -4,9 +4,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-DEPLOY_HOST="${ACRE_DEPLOY_HOST:-root@45.55.247.137}"
-SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-$HOME/.ssh/acre_do_ed25519}"
-ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-/etc/acre/acre-ui-rebuild.env}"
+DEPLOY_HOST="${ACRE_DEPLOY_HOST:-}"
+SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-}"
+ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-}"
 
 LOCAL_DB_SERVICE="${ACRE_LOCAL_DB_SERVICE:-db}"
 LOCAL_DB_HOST="${ACRE_LOCAL_DB_HOST:-127.0.0.1}"
@@ -53,6 +53,12 @@ require_commands() {
   command -v docker >/dev/null 2>&1 || fail "docker is required."
   command -v ssh >/dev/null 2>&1 || fail "ssh is required."
   command -v perl >/dev/null 2>&1 || fail "perl is required."
+}
+
+require_remote_sync_config() {
+  [ -n "$DEPLOY_HOST" ] || fail "ACRE_DEPLOY_HOST is required."
+  [ -n "$SSH_KEY" ] || fail "ACRE_DEPLOY_SSH_KEY is required."
+  [ -n "$ENV_FILE" ] || fail "ACRE_DEPLOY_ENV_FILE is required."
 }
 
 ensure_local_db_running() {
@@ -265,6 +271,7 @@ cleanup_stage_schema() {
 
 main() {
   require_commands
+  require_remote_sync_config
   validate_identifier "$LOCAL_DB_SERVICE"
   validate_identifier "$LOCAL_DB_NAME"
   validate_identifier "$LOCAL_DB_USER"

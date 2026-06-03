@@ -4,9 +4,9 @@
 
 生产默认基线：
 
-- 环境文件：`/etc/acre/acre-ui-rebuild.env`
-- 服务：`acre-ui-rebuild-web.service`
-- 代码目录：`/opt/acre-ui-rebuild/app`
+- 环境文件：`<deployment-env-file>`
+- 服务：`<app-service-name>`
+- 代码目录：`<deployment-app-dir>`
 
 ## 0. 预检
 
@@ -24,15 +24,15 @@ git log --all -S '<old-db-password-fragment>'
 - [ ] 确认生产环境是否已经配置 `ACRE_SETTINGS_ENCRYPTION_SECRET`
 
 ```bash
-ssh root@45.55.247.137 "grep -n '^ACRE_SETTINGS_ENCRYPTION_SECRET=' /etc/acre/acre-ui-rebuild.env || true"
+ssh <ssh-user>@<server-host> "grep -n '^ACRE_SETTINGS_ENCRYPTION_SECRET=' <deployment-env-file> || true"
 ```
 
 ## 1. 登录到生产主机
 
 ```bash
-ssh root@45.55.247.137
-cd /opt/acre-ui-rebuild/app
-sudo cp /etc/acre/acre-ui-rebuild.env /etc/acre/acre-ui-rebuild.env.pre-rotation.$(date +%Y%m%d-%H%M%S)
+ssh <ssh-user>@<server-host>
+cd <deployment-app-dir>
+sudo cp <deployment-env-file> <deployment-env-file>.pre-rotation.$(date +%Y%m%d-%H%M%S)
 ```
 
 ## 2. Session secret 轮换
@@ -40,16 +40,16 @@ sudo cp /etc/acre/acre-ui-rebuild.env /etc/acre/acre-ui-rebuild.env.pre-rotation
 先 dry-run：
 
 ```bash
-cd /opt/acre-ui-rebuild/app
+cd <deployment-app-dir>
 bash ./scripts/rotate-session-secret.sh
 ```
 
 确认输出无误后 apply：
 
 ```bash
-cd /opt/acre-ui-rebuild/app
+cd <deployment-app-dir>
 sudo bash ./scripts/rotate-session-secret.sh --apply
-sudo systemctl status acre-ui-rebuild-web.service --no-pager
+sudo systemctl status <app-service-name> --no-pager
 ```
 
 验证：
@@ -61,8 +61,8 @@ sudo systemctl status acre-ui-rebuild-web.service --no-pager
 检查 env 文件：
 
 ```bash
-sudo grep -n '^ACRE_SESSION_SECRET=' /etc/acre/acre-ui-rebuild.env
-sudo grep -n '^ACRE_SESSION_SECRET_SECONDARY=' /etc/acre/acre-ui-rebuild.env
+sudo grep -n '^ACRE_SESSION_SECRET=' <deployment-env-file>
+sudo grep -n '^ACRE_SESSION_SECRET_SECONDARY=' <deployment-env-file>
 ```
 
 兼容窗口提醒：
@@ -86,7 +86,7 @@ sudo python3 -c '
 from pathlib import Path
 import sys
 
-env_file = Path("/etc/acre/acre-ui-rebuild.env")
+env_file = Path("<deployment-env-file>")
 new_value = sys.stdin.read().rstrip("\n")
 lines = env_file.read_text().splitlines()
 updated = []
@@ -106,8 +106,8 @@ env_file.write_text("\n".join(updated) + "\n")
 ' <<<"$NEW_RESEND_KEY"
 unset NEW_RESEND_KEY
 
-sudo systemctl restart acre-ui-rebuild-web.service
-sudo systemctl status acre-ui-rebuild-web.service --no-pager
+sudo systemctl restart <app-service-name>
+sudo systemctl status <app-service-name> --no-pager
 ```
 
 验证：
@@ -154,7 +154,7 @@ from pathlib import Path
 from urllib.parse import quote
 import sys
 
-env_file = Path("/etc/acre/acre-ui-rebuild.env")
+env_file = Path("<deployment-env-file>")
 new_password = quote(sys.stdin.read().rstrip("\n"), safe="")
 lines = env_file.read_text().splitlines()
 updated = []
@@ -176,8 +176,8 @@ env_file.write_text("\n".join(updated) + "\n")
 ' <<<"$NEW_DB_PASSWORD"
 unset NEW_DB_PASSWORD
 
-sudo systemctl restart acre-ui-rebuild-web.service
-sudo systemctl status acre-ui-rebuild-web.service --no-pager
+sudo systemctl restart <app-service-name>
+sudo systemctl status <app-service-name> --no-pager
 ```
 
 验证：
@@ -187,7 +187,7 @@ sudo systemctl status acre-ui-rebuild-web.service --no-pager
 - [ ] 完成后跑 `bash scripts/ops/smoke.sh`；如果输出 `FAIL`，按本 doc 的回滚段处理
 
 ```bash
-curl -fsS https://acresystem.us/api/health | jq
+curl -fsS https://your-acre-domain.example.com/api/health | jq
 ```
 
 - [ ] 登录 `/login`
@@ -197,9 +197,9 @@ curl -fsS https://acresystem.us/api/health | jq
 ## 5. 轮换后的统一 smoke checks
 
 ```bash
-curl -I https://acresystem.us/login
-curl -fsS https://acresystem.us/api/health | jq
-sudo journalctl -u acre-ui-rebuild-web.service -n 100 --no-pager
+curl -I https://your-acre-domain.example.com/login
+curl -fsS https://your-acre-domain.example.com/api/health | jq
+sudo journalctl -u <app-service-name> -n 100 --no-pager
 ```
 
 - [ ] 登录成功
@@ -214,12 +214,12 @@ sudo journalctl -u acre-ui-rebuild-web.service -n 100 --no-pager
 sudo python3 - <<'PY'
 from pathlib import Path
 
-env_file = Path("/etc/acre/acre-ui-rebuild.env")
+env_file = Path("<deployment-env-file>")
 lines = [line for line in env_file.read_text().splitlines() if not line.startswith("ACRE_SESSION_SECRET_SECONDARY=")]
 env_file.write_text("\n".join(lines) + "\n")
 PY
 
-sudo systemctl restart acre-ui-rebuild-web.service
+sudo systemctl restart <app-service-name>
 ```
 
 - [ ] 删除 `ACRE_SESSION_SECRET_SECONDARY`

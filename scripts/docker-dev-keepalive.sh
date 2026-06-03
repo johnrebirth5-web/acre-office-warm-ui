@@ -6,10 +6,10 @@ cd "$ROOT_DIR"
 
 CHECK_INTERVAL="${ACRE_DEV_KEEPALIVE_INTERVAL:-20}"
 HEALTH_URL="${ACRE_DEV_KEEPALIVE_URL:-http://localhost:3105/login}"
-TUNNEL_ENABLED="${ACRE_DO_DB_TUNNEL_ENABLED:-1}"
+TUNNEL_ENABLED="${ACRE_DO_DB_TUNNEL_ENABLED:-0}"
 TUNNEL_SOCKET="${ACRE_DO_DB_TUNNEL_SOCKET:-$HOME/.ssh/acre-do-db-tunnel.sock}"
-TUNNEL_TARGET="${ACRE_DO_DB_TUNNEL_TARGET:-root@45.55.247.137}"
-TUNNEL_KEY="${ACRE_DO_DB_TUNNEL_KEY:-$HOME/.ssh/acre_do_ed25519}"
+TUNNEL_TARGET="${ACRE_DO_DB_TUNNEL_TARGET:-}"
+TUNNEL_KEY="${ACRE_DO_DB_TUNNEL_KEY:-}"
 TUNNEL_BIND_HOST="${ACRE_DO_DB_TUNNEL_BIND_HOST:-0.0.0.0}"
 TUNNEL_LOCAL_PORT="${ACRE_DO_DB_TUNNEL_LOCAL_PORT:-15432}"
 TUNNEL_REMOTE_HOST="${ACRE_DO_DB_TUNNEL_REMOTE_HOST:-127.0.0.1}"
@@ -27,8 +27,13 @@ log() {
 }
 
 start_tunnel() {
+  if [ -z "$TUNNEL_TARGET" ]; then
+    log "ACRE_DO_DB_TUNNEL_TARGET is required when ACRE_DO_DB_TUNNEL_ENABLED=1."
+    exit 1
+  fi
+
   mkdir -p "$(dirname "$TUNNEL_SOCKET")"
-  log "Starting DO database tunnel on ${TUNNEL_BIND_HOST}:${TUNNEL_LOCAL_PORT}..."
+  log "Starting database tunnel on ${TUNNEL_BIND_HOST}:${TUNNEL_LOCAL_PORT}..."
   ssh "${SSH_ARGS[@]}" -M -S "$TUNNEL_SOCKET" -fnNT \
     -o BatchMode=yes \
     -o ExitOnForwardFailure=yes \
@@ -76,7 +81,7 @@ ensure_tunnel_reachable_from_compose() {
     return
   fi
 
-  log "DO database tunnel is not reachable from Docker via ${TUNNEL_CONTAINER_HOST}:${TUNNEL_LOCAL_PORT}; recreating tunnel..."
+  log "Database tunnel is not reachable from Docker via ${TUNNEL_CONTAINER_HOST}:${TUNNEL_LOCAL_PORT}; recreating tunnel..."
   stop_tunnel
   start_tunnel
 }
@@ -102,7 +107,7 @@ run_once() {
 
 trap 'log "Stopping keepalive loop."; exit 0' INT TERM
 
-log "Watching Docker dev + DO DB tunnel every ${CHECK_INTERVAL}s"
+log "Watching Docker dev environment every ${CHECK_INTERVAL}s"
 while true; do
   run_once
   sleep "$CHECK_INTERVAL"

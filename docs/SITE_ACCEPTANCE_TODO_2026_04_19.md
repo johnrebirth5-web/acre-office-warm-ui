@@ -8,9 +8,9 @@
 ## P0 — 本周内（阻塞 Phase 0 上线 / 高紧迫）
 
 - [ ] **P0-1**：按 `docs/RUNBOOK_DEPLOY_PHASE_0_AND_0_5.md` 执行 Phase 0 + 0.5 部署（步骤 1～5）
-- [ ] **P0-2**：在 droplet 上 `grep ACRE_RATE_LIMIT_BACKEND /etc/acre/acre-ui-rebuild.env`，确认是否 `upstash`。如果不是，先别水平扩容
+- [ ] **P0-2**：在 server 上 `grep ACRE_RATE_LIMIT_BACKEND <deployment-env-file>`，确认是否 `upstash`。如果不是，先别水平扩容
 - [ ] **P0-3**：跑 `bash scripts/ops/verify-branch-protection.sh --repo johnrebirth5-web/acre-office-warm-ui --branch main`，全 PASS 才能放心继续直推 main
-- [ ] **P0-4**：确认 `acresystem.us` 前面是否挂了 CDN/LB —— Phase 0 之后 `/api/health` 会在 db 慢的时候返回 503，LB 健康检查策略要兼容
+- [ ] **P0-4**：确认 `your-acre-domain.example.com` 前面是否挂了 CDN/LB —— Phase 0 之后 `/api/health` 会在 db 慢的时候返回 503，LB 健康检查策略要兼容
 
 ---
 
@@ -94,11 +94,11 @@ beforeSend(event) {
 
 ### P2-1 Phase 1.1 落地：Prisma 连接池调优
 **前置**：Phase 0 部署后跑 1～3 天，收集：
-- `/api/health` 返回的 `db.pool_max`（DigitalOcean managed PG 默认 100）
+- `/api/health` 返回的 `db.pool_max`（managed PostgreSQL 默认 100）
 - `/api/health` 返回的 `db.pool_in_use` 在峰值时的最大值
 - journalctl 里 `slow_query` 最常见的 SQL
 
-然后在 `/etc/acre/acre-ui-rebuild.env` 设：
+然后在 `<deployment-env-file>` 设：
 ```
 PRISMA_CONNECTION_LIMIT=<约 pool_in_use 峰值的 1.5 倍，且 < 0.5*pool_max>
 PRISMA_POOL_TIMEOUT=10
@@ -151,6 +151,6 @@ await Promise.all(
 
 1. `/api/health` JSON 的 `db.pool_max`
 2. `/api/health` JSON 的 `db.pool_in_use`（开 5 分钟看峰值）
-3. `journalctl -u acre-ui-rebuild-web.service --since "1 hour ago" | grep slow_query | head -10`
+3. `journalctl -u <app-service-name> --since "1 hour ago" | grep slow_query | head -10`
 4. 浏览器主观感受：图片切换是否瞬时（Phase 0.5 的 UX 验收）
 

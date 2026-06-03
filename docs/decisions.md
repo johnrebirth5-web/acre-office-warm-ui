@@ -347,7 +347,7 @@ Trade-off：
 - 写 API 当前只覆盖 `Transactions` 和 `Contacts` 的最小闭环
 - 没有测试
 - 没有异常监控
-- 已有真实 `DigitalOcean :3105` 线路，但整体生产能力仍处于过渡阶段
+- 已有真实 `self-hosted VM :3105` 线路，但整体生产能力仍处于过渡阶段
 - `@acre/backoffice` 目前同时承担“领域模型”和“临时数据源”两种职责
 - 当前 `Back Office` 页面虽然已经开始贴近 `Brokermint`，active `Front Office` feed 也已切到真实数据，但仍有一些边角流程、legacy helper 和非核心路径保留静态示例数据或简化交互，不应误判为已完全复刻完成
 - 文档文件当前采用本地文件系统 MVP，而不是对象存储；这适合开发和本地验证，不应误判为生产可用存储层

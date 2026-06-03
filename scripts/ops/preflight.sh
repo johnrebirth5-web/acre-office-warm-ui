@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV_FILE="/etc/acre/acre-ui-rebuild.env"
-SERVICE_NAME="acre-ui-rebuild-web.service"
-HEALTH_URL="https://acresystem.us/api/health"
+ENV_FILE=""
+SERVICE_NAME=""
+HEALTH_URL=""
 
 usage() {
   cat <<'EOF'
@@ -11,7 +11,7 @@ Usage:
   bash scripts/ops/preflight.sh [--env-file PATH] [--service NAME] [--health-url URL]
 
 Example:
-  bash scripts/ops/preflight.sh --env-file /etc/acre/acre-ui-rebuild.env --service acre-ui-rebuild-web.service --health-url https://acresystem.us/api/health
+  bash scripts/ops/preflight.sh --env-file <deployment-env-file> --service <app-service-name> --health-url https://your-acre-domain.example.com/api/health
 EOF
 }
 
@@ -97,6 +97,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -z "$ENV_FILE" || -z "$SERVICE_NAME" || -z "$HEALTH_URL" ]]; then
+  usage
+  exit 1
+fi
 
 if [[ -r "$ENV_FILE" ]]; then
   report_ok "env file is readable: $ENV_FILE"

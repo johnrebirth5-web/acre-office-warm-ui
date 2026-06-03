@@ -313,7 +313,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `Incoming updates` foundation still exists in the data/API layer, but the transaction detail page no longer shows that section by default.
   - nested transaction child routes now need to respect the parent transaction scope instead of resolving by child id alone.
-  - current single-Droplet deployment intentionally keeps local filesystem document storage, with production storage expected under `/var/lib/acre/documents`.
+  - current single-Server deployment intentionally keeps local filesystem document storage, with production storage expected under `/var/lib/acre/documents`.
   - `/office/signatures` now provides one cross-module signature center with status filtering, sender/recipient filtering, Drive sync visibility, and CSV export.
   - transaction documents can now launch external signature requests from the detail workspace with PDF-only field placement, drag/resize editing, multi-recipient routing, assigned signer ownership, Resend-or-SMTP email delivery, public recipient-token signing links, and signed-PDF archive output.
   - transaction signature authoring now starts with `Recipients and delivery`, then unlocks the PDF field-placement step after the request draft is saved, so multi-signer ownership is configured before fields are mapped.

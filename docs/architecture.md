@@ -280,7 +280,7 @@
 - 当前已经有 transaction、contact、task、activity、library、accounting、agent management、settings 等模块的 service-to-db 数据访问层
 - 当前 dashboard 业务指标也已有最小查询 service
 - 当前 transaction documents 和 office library documents 都使用本地文件系统 storage adapter，metadata 和 workflow 放在 Prisma
-- 当前单 Droplet 生产默认 document storage root 是 `/var/lib/acre/documents`，新写入的 storage key 以该 root 下的相对路径保存
+- 当前单 Server 生产默认 document storage root 是 `/var/lib/acre/documents`，新写入的 storage key 以该 root 下的相对路径保存
 - 当前没有 worker、queue、cron
 - `Listing Studio` 的导入链路当前仍是同步 route-handler 流程：
   - 扩展直接提交当前页面抓取结果
@@ -330,7 +330,7 @@
 当前真实接入状态：
 
 - `GitHub`：已接入，当前默认远程目标是 `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-- `DigitalOcean`：已接入，当前默认生产入口是 `https://acresystem.us/`，登录入口是 `https://acresystem.us/login`，服务是 `acre-ui-rebuild-web.service`
+- `self-hosted VM`：已接入，当前默认生产入口是 `https://your-acre-domain.example.com/`，登录入口是 `https://your-acre-domain.example.com/login`，服务是 `<app-service-name>`
 - `Vercel`：历史上可能存在绑定，但不是当前默认部署目标
 - `PostgreSQL / Prisma runtime`：代码已接入，本机已验证 local migrate + seed + query，但主页面和主 API 尚未切换到数据库
 - 对象存储：未实现

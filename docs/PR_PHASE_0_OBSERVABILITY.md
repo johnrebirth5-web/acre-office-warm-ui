@@ -26,7 +26,7 @@ Three things become visible after this lands:
 ## Behavior changes operators should know
 
 1. **`/api/health` HTTP status code changed.** Previously always returned 200. Now returns **503** when `status !== "ok"` (degraded pool stats, ping > 1000ms, or error). Uptime monitors and load-balancer health checks that expected 200 for "degraded" will now mark the node unhealthy in that window. If this is undesired, flip the route's `snapshot.status === "ok" ? 200 : 503` to always 200.
-2. **New required env var for `/api/metrics`.** `ACRE_METRICS_TOKEN` must be set in `/etc/acre/acre-ui-rebuild.env` for the metrics endpoint to return data. Unset → all requests 401.
+2. **New required env var for `/api/metrics`.** `ACRE_METRICS_TOKEN` must be set in `<deployment-env-file>` for the metrics endpoint to return data. Unset → all requests 401.
 3. **Slow query logs appear in journald.** Any query > 500ms produces a `[WARN]` JSON line with `kind: "slow_query"`. Above 2000ms it's `[ERROR] kind: "very_slow_query"`. Adjust thresholds via env if the defaults are too noisy.
 
 ## Explicitly out of scope (deferred to Phase 1)
@@ -46,7 +46,7 @@ Three things become visible after this lands:
 - [ ] Confirm `/api/metrics` returns 401 without `X-Metrics-Token`
 - [ ] Confirm `/api/metrics` returns Prometheus text with all 6 gauges when token matches
 - [ ] Confirm `pnpm build` (or `npm run build`) passes locally with `SENTRY_DSN` and `SENTRY_AUTH_TOKEN` both unset
-- [ ] After deploy: tail `journalctl -u acre-ui-rebuild-web.service | grep slow_query` for a few minutes, capture a baseline of which endpoints emit the most
+- [ ] After deploy: tail `journalctl -u <app-service-name> | grep slow_query` for a few minutes, capture a baseline of which endpoints emit the most
 - [ ] After `SENTRY_DSN` is configured: manually trigger `throw new Error("sentry-probe")` in a dev route and confirm it lands in Sentry
 
 ## Follow-ups (Phase 1 candidates, not in this PR)

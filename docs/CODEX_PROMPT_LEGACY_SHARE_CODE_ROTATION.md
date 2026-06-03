@@ -260,13 +260,13 @@ cd packages/db && npx prisma migrate diff \
 ## 部署后验证（部署时让 John 跑，不在 Codex 范围内）
 
 ```bash
-# 1. 部署前先快照 DB（DigitalOcean 控制台一键）
+# 1. 部署前先快照 DB（self-hosted VM 控制台一键）
 
 # 2. 部署
 npm run deploy:digitalocean -- <commit_sha>
 
 # 3. 验证 migration 跑过了，正好 3 条被轮换
-ssh root@45.55.247.137 'cd /opt/acre-ui-rebuild/app && DATABASE_URL=... npx prisma db execute --stdin <<<"
+ssh <ssh-user>@<server-host> 'cd <deployment-app-dir> && DATABASE_URL=... npx prisma db execute --stdin <<<"
   SELECT id, shareCode, legacyShareCode, legacyShareCodeExpiresAt
   FROM \"StudioListingPack\"
   WHERE \"legacyShareCode\" IS NOT NULL;
@@ -274,8 +274,8 @@ ssh root@45.55.247.137 'cd /opt/acre-ui-rebuild/app && DATABASE_URL=... npx pris
 # 期望：3 行；shareCode 长度 = 37（pack_ + 32），legacyShareCode 长度 <= 15
 
 # 4. 拿其中一条的 legacyShareCode（老链接）和 shareCode（新链接），分别 curl
-curl -sI https://acresystem.us/share/packs/<legacy_code>  # 期望 200，HTML 里有 "will be retired"
-curl -sI https://acresystem.us/share/packs/<new_strong_code>  # 期望 200，无 banner
+curl -sI https://your-acre-domain.example.com/share/packs/<legacy_code>  # 期望 200，HTML 里有 "will be retired"
+curl -sI https://your-acre-domain.example.com/share/packs/<new_strong_code>  # 期望 200，无 banner
 
 # 5. 把新强 URL 通知给 3 条 pack 的 owner（Slack/邮件，操作侧）
 ```

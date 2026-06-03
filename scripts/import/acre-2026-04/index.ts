@@ -250,8 +250,7 @@ async function loadExistingLegacyTransactionSourceKeys(organizationId: string) {
 }
 
 const repoRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const defaultSourceDirectory =
-  "/Users/openclaw_john/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/veryjohn_99bc/msg/file/2026-04";
+const defaultSourceDirectory = "";
 const defaultReportDirectory = resolve(repoRoot, ".local-storage/legacy-import-reports");
 const userFileConfigs: OfficeFileConfig[] = [
   {
@@ -353,6 +352,12 @@ function parseArgs(argv: string[]): ParsedArgs {
       supplementalSheetUrl = arg.slice("--supplemental-sheet-url=".length);
       continue;
     }
+  }
+
+  if (!sourceDir) {
+    throw new Error(
+      "A legacy import source directory is required. Set ACRE_LEGACY_IMPORT_SOURCE_DIR or pass --source-dir=<path>.",
+    );
   }
 
   return {

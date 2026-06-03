@@ -215,20 +215,20 @@ Behavior when the configured rate limit backend (Redis or Upstash) throws.
 
 ## 部署后验证（部署时让 John 跑）
 
-在 droplet 上：
+在 server 上：
 
 ```bash
 # 1. 确认当前 fail mode 是 open（或者不设，都等价）
-grep ACRE_RATE_LIMIT_FAIL_MODE /etc/acre/acre-ui-rebuild.env || echo "unset => open"
+grep ACRE_RATE_LIMIT_FAIL_MODE <deployment-env-file> || echo "unset => open"
 
 # 2. 临时 stop Redis 模拟故障
 sudo systemctl stop redis  # 或你现在用的 Redis service 名
 
 # 3. 走一次登录（应该还能走通，只是进 memory 后端）
-curl -s -o /dev/null -w 'login: %{http_code}\n' https://acresystem.us/login
+curl -s -o /dev/null -w 'login: %{http_code}\n' https://your-acre-domain.example.com/login
 
 # 4. 检查 journald 有没有看到 rate_limit_backend_failure 日志
-sudo journalctl -u acre-ui-rebuild-web.service --since "2 minutes ago" | grep rate_limit_backend_failure
+sudo journalctl -u <app-service-name> --since "2 minutes ago" | grep rate_limit_backend_failure
 
 # 5. 恢复 Redis
 sudo systemctl start redis

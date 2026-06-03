@@ -161,7 +161,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - when a fee exceeds the default threshold:
   - system marks it as approval-required
   - formal commission calculation is blocked until the fee is marked approved
-  - UI shows the approval instruction to email `cathy@acreny.us` and copy `pay@acreny.us`
+  - UI shows the approval instruction to email `cathy@example-brokerage.test` and copy `pay@example-brokerage.test`
 - prerequisite checks:
   - `client_referral` (`Internal Referral`) requires `Agent Referral Form` confirmed as signed and approved
   - `rebate` requires both `Rebate Agreement` signed and `Rebate Google Form` submitted

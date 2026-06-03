@@ -30,9 +30,9 @@ The extension only works on supported listing pages and only sends data to Acre 
 ## Store links
 
 - Support URL:
-  - `https://acresystem.us/login`
+  - `https://your-acre-domain.example.com/login`
 - Privacy policy URL:
-  - `https://acresystem.us/legal/listing-studio-extension-privacy`
+  - `https://your-acre-domain.example.com/legal/listing-studio-extension-privacy`
 
 ## Privacy form guidance
 

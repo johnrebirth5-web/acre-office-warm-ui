@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-ENV_FILE="/etc/acre/acre-ui-rebuild.env"
-SERVICE_NAME="acre-ui-rebuild-web.service"
+ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-}"
+SERVICE_NAME="${ACRE_DEPLOY_SERVICE:-}"
 DRY_RUN=1
 FORCE_OVERWRITE_SECONDARY=0
 SESSION_COMPATIBILITY_WINDOW_DAYS=30
@@ -18,12 +18,12 @@ Behavior:
   - In dry-run mode, the script never generates or prints a real replacement secret.
   - In apply mode, the script generates a new ACRE_SESSION_SECRET, moves the current
     primary value into ACRE_SESSION_SECRET_SECONDARY, writes the updated env file,
-    creates a timestamped backup, and restarts the configured systemd service.
+    creates a timestamped backup, and restarts the configured service.
 
 Options:
   --apply                      Execute the rotation. Without this flag the script only previews work.
-  --env-file <path>            Override the target EnvironmentFile path.
-  --service <name>             Override the systemd service name.
+  --env-file <path>            Target environment file path.
+  --service <name>             Target service name for restart.
   --force-overwrite-secondary  Replace an existing ACRE_SESSION_SECRET_SECONDARY value.
   --help                       Show this help message.
 EOF
@@ -156,6 +156,7 @@ require_apply_prerequisites() {
   [ -f "$ENV_FILE" ] || fail "Environment file not found: $ENV_FILE"
   [ -w "$ENV_FILE" ] || fail "Environment file is not writable: $ENV_FILE"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl is required in apply mode."
+  [ -n "$SERVICE_NAME" ] || fail "A service name is required in apply mode. Use --service or ACRE_DEPLOY_SERVICE."
 }
 
 main() {
@@ -189,6 +190,7 @@ main() {
     esac
   done
 
+  [ -n "$ENV_FILE" ] || fail "An environment file is required. Use --env-file or ACRE_DEPLOY_ENV_FILE."
   [ -f "$ENV_FILE" ] || fail "Environment file not found: $ENV_FILE"
 
   local current_primary=""
@@ -220,7 +222,11 @@ main() {
     log "[dry-run] Would create backup: $backup_path"
     log "[dry-run] Would write a new generated ACRE_SESSION_SECRET."
     log "[dry-run] Would move the current primary value into ACRE_SESSION_SECRET_SECONDARY."
-    log "[dry-run] Would restart systemd service: $SERVICE_NAME"
+    if [ -n "$SERVICE_NAME" ]; then
+      log "[dry-run] Would restart service: $SERVICE_NAME"
+    else
+      log "[dry-run] No service restart would be attempted because no service name was provided."
+    fi
     exit 0
   fi
 

@@ -41,7 +41,7 @@
 
 - 默认分支：沿用当前工作分支，除非任务明确要求分支策略
 - 默认远端：`origin = https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-- 默认部署目标：`DigitalOcean`
+- 默认部署目标：`self-hosted VM`
 - 不把 `Vercel` 当成当前默认交付目标
 - 不在未被明确要求时执行生产部署
 
@@ -279,7 +279,7 @@
   - signature email retry / drive sync retry
   - cleanup digest scheduler
 - **注意：**
-  - 默认部署目标是 `DigitalOcean`，不要以 `Vercel Cron` 作为默认方案
+  - 默认部署目标是 `self-hosted VM`，不要以 `Vercel Cron` 作为默认方案
 - **验收：**
   - 至少确定一种与当前部署模型兼容的 durable runner 方案
   - 对应 runbook 补全

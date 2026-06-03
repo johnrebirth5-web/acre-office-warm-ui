@@ -1,7 +1,7 @@
 # Acre 系统整体验收报告 — 2026-04-19
 
 > 这是一份"全站验收"快照，覆盖代码质量、性能 & 可扩展性、功能路径、近期改动回归风险四个维度。
-> **生产环境可用性检查未能完成** —— 我的沙箱被网络策略拦截，无法 WebFetch `acresystem.us`。这部分需要你在本地补齐，见第 5 节。
+> **生产环境可用性检查未能完成** —— 我的沙箱被网络策略拦截，无法 WebFetch `your-acre-domain.example.com`。这部分需要你在本地补齐，见第 5 节。
 >
 > 结论：**整体系统可交付、无 P0 阻断**，但有 3 条 **HIGH** 级别的安全/运维风险需要在下一个短迭代内解决，另外若干 **MEDIUM** 是技术债而非故障。
 
@@ -25,8 +25,8 @@
 ## 1. 系统总览
 
 ### 1.1 入口 & 部署
-- **主站** `acresystem.us`（单机 DigitalOcean Droplet `45.55.247.137`）→ `acre-ui-rebuild-web.service` systemd unit
-- **部署链路**：`npm run deploy:digitalocean -- <commit>` → SSH 到 droplet → 临时 clone → `npm ci` → `db:generate` → `prisma migrate deploy` → `next build` → rsync 到 `/opt/acre-ui-rebuild/app` → 重启 service → 校验 `/login`
+- **主站** `your-acre-domain.example.com`（单机 cloud VM `<server-public-ip>`）→ `<app-service-name>` systemd unit
+- **部署链路**：`npm run deploy:digitalocean -- <commit>` → SSH 到 server → 临时 clone → `npm ci` → `db:generate` → `prisma migrate deploy` → `next build` → rsync 到 `<deployment-app-dir>` → 重启 service → 校验 `/login`
 - **包管理**：npm（不是 pnpm，尽管仓库根有 `pnpm-workspace.yaml` 残留）；workspaces `apps/*`, `packages/*`
 - **关键技术栈**：Next 16.1.6、React 19.2.0、Prisma、PostgreSQL、Sentry 10、Zod 4、nodemailer、@react-pdf/renderer、pdfjs-dist、tesseract.js（OCR）
 
@@ -61,9 +61,9 @@
 #### HIGH-2 · Rate limit 默认是进程内 Map
 - **文件**：`apps/web/lib/rate-limit.ts:45`（`const rateLimitStore = new Map`）
 - **实现是对的**：支持 Upstash backend，开关是 `ACRE_RATE_LIMIT_BACKEND=upstash`
-- **风险**：**当前生产是不是开着 Upstash？** 如果不开（或 env 没设），多实例部署时速率限制只在单实例里有效，重启会清零。生产目前是单 droplet 单实例——可接受，但**一旦水平扩容就是个静默漏洞**
+- **风险**：**当前生产是不是开着 Upstash？** 如果不开（或 env 没设），多实例部署时速率限制只在单实例里有效，重启会清零。生产目前是单 server 单实例——可接受，但**一旦水平扩容就是个静默漏洞**
 - **建议**：
-  1. 去 droplet 上 `grep ACRE_RATE_LIMIT_BACKEND /etc/acre/acre-ui-rebuild.env`，确认是否设为 `upstash`
+  1. 去 server 上 `grep ACRE_RATE_LIMIT_BACKEND <deployment-env-file>`，确认是否设为 `upstash`
   2. 如果没有，在 Phase 1 做水平扩容之前补上 Upstash 或等价的中心化 store
 
 #### HIGH-3 · 文件上传缺失大小限制
@@ -71,7 +71,7 @@
   - `apps/web/app/api/listing-studio/listings/[packId]/assets/route.ts:38-51` — MIME 做了 `image/*` / `video/*` 白名单，但**没有 size 限制**。并且 `file.type && !...startsWith(...)` 的写法存在短路 bug —— 如果 `file.type` 为空串（某些浏览器上传裸 buffer 就是），会直接通过 MIME 校验
   - `apps/web/app/api/office/transactions/[transactionId]/documents/route.ts:48`（`saveStoredFile` 调用链）— 没见到 size 检查
   - `apps/web/app/api/office/mail/_helpers.ts` — mail 附件流：没看到 MIME / size 检查
-- **风险**：单次请求上传 1GB 文件会直接占满 droplet 磁盘和进程内存（因为 `await file.arrayBuffer()` 一次性读入内存）
+- **风险**：单次请求上传 1GB 文件会直接占满 server 磁盘和进程内存（因为 `await file.arrayBuffer()` 一次性读入内存）
 - **建议**：
   1. 在 `next.config.ts` 里设 `api.bodyParser = { sizeLimit: '25mb' }`（Next.js App Router 用 `export const maxDuration` + 检查 `request.headers.get('content-length')`）
   2. 在每个 upload route 顶部加 `const MAX_BYTES = 25 * 1024 * 1024; if (file.size > MAX_BYTES) return NextResponse.json({ error: "too_large" }, { status: 413 });`
@@ -97,7 +97,7 @@
 
 #### MEDIUM-2 · `.env.local` 含生产密钥驻留在开发机
 - **验证结果**：`.env.local` **没有被 git tracked**（`.gitignore` 正确排除了它），**不存在上报"commit 泄露"的问题**
-- 但是你本机 `/Users/openclaw_john/.../Acre_latest_clean/.env.local` 里确实有真 `DATABASE_URL` / `ACRE_RESEND_API_KEY` / `ACRE_SESSION_SECRET` / SSH target。这是**本机数据安全**问题不是仓库问题
+- 但是你本机 `<repo-root>/.env.local` 里确实有真 `DATABASE_URL` / `ACRE_RESEND_API_KEY` / `ACRE_SESSION_SECRET` / SSH target。这是**本机数据安全**问题不是仓库问题
 - **建议**：
   1. 考虑把 `.env.local` 里只留 dev 值，prod 值走 1Password / 密码管理器临时拷贝，用完即删
   2. 开启 FileVault 全盘加密（若未开）
@@ -185,20 +185,20 @@
 
 ## 5. 生产环境可用性 — ⚠️ 未能从沙箱验证
 
-我的沙箱被 egress proxy 拦截，无法直接访问 `https://acresystem.us`。下面 4 个命令请你在 **Mac 本地**跑，把输出回贴：
+我的沙箱被 egress proxy 拦截，无法直接访问 `https://your-acre-domain.example.com`。下面 4 个命令请你在 **Mac 本地**跑，把输出回贴：
 
 ```bash
 # 5.1 健康检查（当前 Phase 0 未部署，应当还是老版本响应体 —— 只有 status/service 没有 db/process 字段）
-curl -s https://acresystem.us/api/health | jq .
+curl -s https://your-acre-domain.example.com/api/health | jq .
 
 # 5.2 登录页存在
-curl -s -o /dev/null -w 'login page: %{http_code}\n' https://acresystem.us/login
+curl -s -o /dev/null -w 'login page: %{http_code}\n' https://your-acre-domain.example.com/login
 
 # 5.3 metrics 应当 404（还没部署 Phase 0）
-curl -s -o /dev/null -w 'metrics route: %{http_code}\n' https://acresystem.us/api/metrics
+curl -s -o /dev/null -w 'metrics route: %{http_code}\n' https://your-acre-domain.example.com/api/metrics
 
 # 5.4 SSL 证书有效期
-echo | openssl s_client -servername acresystem.us -connect acresystem.us:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -servername your-acre-domain.example.com -connect your-acre-domain.example.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
 **预期基线**（Phase 0 部署前）：
@@ -222,12 +222,12 @@ echo | openssl s_client -servername acresystem.us -connect acresystem.us:443 2>/
 | `fa5dd65` img 解码提示 | NONE | HTML 属性提示 |
 | `a49511c` 图片预加载 | LOW | `preloadedAssetIds` Set 不会无界增长（受 listing 内图片数约束） |
 | `a0d79bc` 观测路由测试 | LOW | 测试 + 文档 |
-| **`8c45609` Phase 0 观测** | **HIGH** | **`/api/health` 现在会在 degraded 时返回 503**。DigitalOcean Droplet 的外部 LB/监控如果不理解 503 含义，会错误地把实例标成"挂了"触发告警或移除。**部署前要先确认 acresystem.us 前面有没有挂 CDN/LB，以及它的 health check 策略** |
+| **`8c45609` Phase 0 观测** | **HIGH** | **`/api/health` 现在会在 degraded 时返回 503**。cloud VM 的外部 LB/监控如果不理解 503 含义，会错误地把实例标成"挂了"触发告警或移除。**部署前要先确认 your-acre-domain.example.com 前面有没有挂 CDN/LB，以及它的 health check 策略** |
 | `3274acb` 分支保护文档 | NONE | 纯文档 |
 | `1538405` 密钥轮换文档 | NONE | 纯文档 |
 
 ### Phase 0 部署前的必做核对
-1. **LB 健康检查兼容性**：如果 droplet 前面是 nginx/Cloudflare/DO Load Balancer，确认它对 `/api/health` 返回 503 的反应（能否只在连续 N 次失败才下线？）。如果是裸 droplet 直接 A 记录解析，这条没问题
+1. **LB 健康检查兼容性**：如果 server 前面是 nginx/Cloudflare/cloud load balancer，确认它对 `/api/health` 返回 503 的反应（能否只在连续 N 次失败才下线？）。如果是裸 server 直接 A 记录解析，这条没问题
 2. **`ACRE_METRICS_TOKEN` 已生成**（见 runbook 步骤 3）
 3. **`SENTRY_DSN` 已申请**（见 runbook 步骤 2）
 
@@ -265,7 +265,7 @@ echo | openssl s_client -servername acresystem.us -connect acresystem.us:443 2>/
 
 如果下列任何一项成立，**暂缓 Phase 0 部署**：
 
-1. `acresystem.us` 前面有 CDN/LB 且它的 health check 策略未审核
+1. `your-acre-domain.example.com` 前面有 CDN/LB 且它的 health check 策略未审核
 2. 生产 env 里 `ACRE_RATE_LIMIT_BACKEND` 不是 `upstash` 且你计划近期水平扩容
 3. `verify-branch-protection.sh` 输出有任何 `[FAIL]` 行
 

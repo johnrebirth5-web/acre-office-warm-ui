@@ -5,15 +5,32 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_REPO_URL="$(git -C "$ROOT_DIR" remote get-url origin)"
 
-DEPLOY_HOST="${ACRE_DEPLOY_HOST:-root@45.55.247.137}"
-SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-$HOME/.ssh/acre_do_ed25519}"
+DEPLOY_HOST="${ACRE_DEPLOY_HOST:-}"
+SSH_KEY="${ACRE_DEPLOY_SSH_KEY:-}"
 REPO_URL="${ACRE_DEPLOY_REPO_URL:-$DEFAULT_REPO_URL}"
-LIVE_DIR="${ACRE_DEPLOY_LIVE_DIR:-/opt/acre-ui-rebuild/app}"
-ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-/etc/acre/acre-ui-rebuild.env}"
-SERVICE_NAME="${ACRE_DEPLOY_SERVICE:-acre-ui-rebuild-web.service}"
-PUBLIC_LOGIN_URL="${ACRE_DEPLOY_LOGIN_URL:-https://acresystem.us/login}"
-FALLBACK_LOGIN_URL="${ACRE_DEPLOY_FALLBACK_LOGIN_URL:-http://45.55.247.137:3105/login}"
+LIVE_DIR="${ACRE_DEPLOY_LIVE_DIR:-}"
+ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-}"
+SERVICE_NAME="${ACRE_DEPLOY_SERVICE:-}"
+PUBLIC_LOGIN_URL="${ACRE_DEPLOY_LOGIN_URL:-}"
+FALLBACK_LOGIN_URL="${ACRE_DEPLOY_FALLBACK_LOGIN_URL:-}"
 COMMIT="${1:-$(git -C "$ROOT_DIR" rev-parse HEAD)}"
+
+require_env() {
+  local name="$1"
+  local value="$2"
+
+  if [ -z "$value" ]; then
+    echo "Missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+require_env ACRE_DEPLOY_HOST "$DEPLOY_HOST"
+require_env ACRE_DEPLOY_SSH_KEY "$SSH_KEY"
+require_env ACRE_DEPLOY_LIVE_DIR "$LIVE_DIR"
+require_env ACRE_DEPLOY_ENV_FILE "$ENV_FILE"
+require_env ACRE_DEPLOY_SERVICE "$SERVICE_NAME"
+require_env ACRE_DEPLOY_LOGIN_URL "$PUBLIC_LOGIN_URL"
 
 echo "Deploy host: $DEPLOY_HOST"
 echo "Deploy commit: $COMMIT"
@@ -67,5 +84,11 @@ if curl -fsSI "$PUBLIC_LOGIN_URL"; then
   exit 0
 fi
 
-echo "Primary public validation failed, trying fallback: $FALLBACK_LOGIN_URL" >&2
-curl -fsSI "$FALLBACK_LOGIN_URL"
+if [ -n "$FALLBACK_LOGIN_URL" ]; then
+  echo "Primary public validation failed, trying fallback: $FALLBACK_LOGIN_URL" >&2
+  curl -fsSI "$FALLBACK_LOGIN_URL"
+  exit 0
+fi
+
+echo "Primary public validation failed and no ACRE_DEPLOY_FALLBACK_LOGIN_URL was set." >&2
+exit 1

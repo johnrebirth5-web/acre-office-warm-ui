@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HEALTH_URL="https://acresystem.us/api/health"
-LOGIN_URL="https://acresystem.us/login"
-JOURNAL_SERVICE="acre-ui-rebuild-web.service"
+HEALTH_URL=""
+LOGIN_URL=""
+JOURNAL_SERVICE=""
 JOURNAL_WINDOW_MINUTES=5
 
 usage() {
@@ -12,7 +12,7 @@ Usage:
   bash scripts/ops/smoke.sh [--health-url URL] [--login-url URL] [--journal-service NAME] [--journal-window MINUTES]
 
 Example:
-  bash scripts/ops/smoke.sh --health-url https://acresystem.us/api/health --login-url https://acresystem.us/login --journal-service acre-ui-rebuild-web.service --journal-window 5
+  bash scripts/ops/smoke.sh --health-url https://your-acre-domain.example.com/api/health --login-url https://your-acre-domain.example.com/login --journal-service <app-service-name> --journal-window 5
 EOF
 }
 
@@ -59,6 +59,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -z "$HEALTH_URL" || -z "$LOGIN_URL" || -z "$JOURNAL_SERVICE" ]]; then
+  usage
+  exit 1
+fi
 
 if ! [[ "$JOURNAL_WINDOW_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
   printf '[FAIL] --journal-window must be a positive integer\n' >&2

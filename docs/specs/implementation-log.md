@@ -657,7 +657,7 @@
 - Working baseline normalized around:
   - local repo `<repo-root>`
   - GitHub remote `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-  - DigitalOcean default entry `http://45.55.247.137:3105/`
+  - self-hosted VM default entry `http://<server-public-ip>:3105/`
 - Internal auth now moved past seeded-email login:
   - bootstrap admin enforcement
   - invitation onboarding + password setup
@@ -732,28 +732,28 @@
   - Docker volumes persist PostgreSQL data, `node_modules`, Next cache, and local document storage
   - local Docker runtime currently uses `colima` on macOS
   - seeing the bottom-left `N` dev tools badge locally is expected while the app runs under `next dev`, even inside Docker
-- `/login` should never prefill demo credentials and now stays visually empty until the operator focuses the fields, reducing stale localhost/browser autofill from snapping back to a previously saved account like `office@acreny.us`
+- `/login` should never prefill demo credentials and now stays visually empty until the operator focuses the fields, reducing stale localhost/browser autofill from snapping back to a previously saved account like `office-brokerage.test`
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-- Default deployment line: `DigitalOcean :3105`
-- Default public entry: `https://acresystem.us/`
-- Default login entry: `https://acresystem.us/login`
-- Direct fallback entry during DNS propagation: `http://45.55.247.137:3105/`
+- Default deployment line: `self-hosted VM :3105`
+- Default public entry: `https://your-acre-domain.example.com/`
+- Default login entry: `https://your-acre-domain.example.com/login`
+- Direct fallback entry during DNS propagation: `http://<server-public-ip>:3105/`
 - Default production runtime:
-  - service `acre-ui-rebuild-web.service`
-  - WorkingDirectory `/opt/acre-ui-rebuild/app`
-  - env `/etc/acre/acre-ui-rebuild.env`
-  - nginx `/etc/nginx/sites-available/acre-ui-rebuild.conf`
+  - service `<app-service-name>`
+  - WorkingDirectory `<deployment-app-dir>`
+  - env `<deployment-env-file>`
+  - nginx `<nginx-site-config>`
   - upstream `127.0.0.1:3206`
   - TLS `certbot + nginx`
   - auto-renew `certbot.timer`
-- `GitHub` sync and `DigitalOcean` deployment are separate actions
+- `GitHub` sync and `self-hosted VM` deployment are separate actions
 - For deployment truth, `docs/deployment.md` is the canonical reference and runtime truth comes from systemd `ExecStart` plus the active nginx upstream
 - Preferred repo-root deployment command: `npm run deploy:digitalocean`
 - UI glassmorphism has been reduced on long-lived shells, headers, badges, and overlays to lower GPU/compositor pressure after reports of prolonged-session screen artifacting
-- `acresystem.us` / `www.acresystem.us` now terminate HTTPS at nginx with a Let's Encrypt certificate, and HTTP redirects to HTTPS
+- `your-acre-domain.example.com` / `www.your-acre-domain.example.com` now terminate HTTPS at nginx with a Let's Encrypt certificate, and HTTP redirects to HTTPS
 - Added recursive team hierarchy support so local and deployed databases upgrade legacy `lead / leader_i / leader_ii` memberships into `team_leader / junior_team_leader`, add `Team.parentTeamId`, and keep descendant-scope access working across `/office/settings/users`, `/office/transactions`, and `/office/reports`
 - Back Office account access is now tiered as `owner / office_admin / accountant / human_resources / team_lead / agent`, with server-side scope enforcement and finance redaction applied to dashboard, transactions, reports, exports, and agent views
-- Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `acreny.us` account batch plus invite-link output
+- Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `example-brokerage.test` account batch plus invite-link output
 - `Settings > Teams` now shows inherited parent-branch managers for leader rows and flags invalid root/child branch leader-role mismatches instead of silently displaying the first allowed option
 - Team labels and branch summaries now treat branch ownership consistently:
   - assignable team dropdowns always render `Team path · Leader: ...` and show `Leader: Unassigned` when a branch exists without an active owner
@@ -1005,13 +1005,13 @@
 - Tighten permissions, audit coverage, admin-managed configuration, and workflow state fidelity in existing modules
 - Keep hardening the minimal internal account system before adding forgot-password, email delivery, or 2FA
 - Keep filling practical module specs so future Codex runs can rely on repo docs instead of chat history
-- Plan future storage, job-runner, and integration upgrades only after the current single-Droplet baseline is fully normalized
+- Plan future storage, job-runner, and integration upgrades only after the current single-Server baseline is fully normalized
 
 ## Known limitations / open issues
 
 - Some routes and UI areas still carry transitional patterns even though the main Back Office flows are already Prisma-backed
 - After Prisma schema/client changes, the running Next dev server still needs an explicit restart or it may hold a stale Prisma Client in memory
-- The active deployment is still a simple single-Droplet line with no staging environment and no object storage
+- The active deployment is still a simple single-Server line with no staging environment and no object storage
 - Background job infrastructure is not yet established, so some reminders/automation remain manual or request-time only
 - External integrations remain intentionally absent:
   - MLS ingestion

@@ -1,6 +1,12 @@
 {
   "name": "acre",
+  "description": "Open-source real estate brokerage operations workspace and listing workflow toolkit.",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnrebirth5-web/acre-office-warm-ui.git"
+  },
   "packageManager": "npm@10.9.4",
   "workspaces": [
     "apps/*",

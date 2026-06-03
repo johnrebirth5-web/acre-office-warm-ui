@@ -45,8 +45,8 @@ npm run package --workspace=@acre/extension
 - host permissions 仅保留：
   - `StreetEasy`
   - `Zillow`
-  - `https://acresystem.us/*`
-  - `http://45.55.247.137:3105/*`
+  - `https://your-acre-domain.example.com/*`
+  - `http://<server-public-ip>:3105/*`
   - 本地开发 `localhost:3105` / `127.0.0.1:3105`
 
 注意：
@@ -90,7 +90,7 @@ npm run package --workspace=@acre/extension
 
 当前仓库已提供公开隐私页：
 
-- `https://acresystem.us/legal/listing-studio-extension-privacy`
+- `https://your-acre-domain.example.com/legal/listing-studio-extension-privacy`
 - 本地开发：
   - `http://localhost:3105/legal/listing-studio-extension-privacy`
 

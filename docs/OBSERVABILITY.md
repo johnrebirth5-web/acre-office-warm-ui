@@ -5,9 +5,9 @@
 - Prisma 慢查询日志由 `packages/db/src/client.ts` 在运行时输出到进程标准错误。
 - 本地开发直接看当前终端输出即可。
 - 生产环境通过 systemd/journald 查看：
-  - `journalctl -u acre-ui-rebuild-web.service`
-  - `journalctl -u acre-ui-rebuild-web.service | grep slow_query`
-  - `journalctl -u acre-ui-rebuild-web.service | grep very_slow_query`
+  - `journalctl -u <app-service-name>`
+  - `journalctl -u <app-service-name> | grep slow_query`
+  - `journalctl -u <app-service-name> | grep very_slow_query`
 - 默认阈值：
   - `PRISMA_SLOW_QUERY_MS=500`
   - `PRISMA_VERY_SLOW_QUERY_MS=2000`
@@ -44,7 +44,7 @@
   - `X-Metrics-Token: <ACRE_METRICS_TOKEN>`
 - 未配置 `ACRE_METRICS_TOKEN` 或 token 不匹配时返回 `401`。
 - 生产环境 token 来源：
-  - `/etc/acre/acre-ui-rebuild.env`
+  - `<deployment-env-file>`
 - 示例：
 
 ```bash

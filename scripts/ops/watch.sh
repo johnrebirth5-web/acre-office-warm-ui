@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_NAME="acre-ui-rebuild-web.service"
-HEALTH_URL="https://acresystem.us/api/health"
+SERVICE_NAME=""
+HEALTH_URL=""
 PROBE_INTERVAL=5
 JOURNAL_SINCE="now"
 
@@ -12,7 +12,7 @@ Usage:
   bash scripts/ops/watch.sh [--service NAME] [--health-url URL] [--probe-interval SECONDS] [--since SYSTEMD_SINCE]
 
 Example:
-  bash scripts/ops/watch.sh --service acre-ui-rebuild-web.service --health-url https://acresystem.us/api/health --probe-interval 5 --since "10 minutes ago"
+  bash scripts/ops/watch.sh --service <app-service-name> --health-url https://your-acre-domain.example.com/api/health --probe-interval 5 --since "10 minutes ago"
 EOF
 }
 
@@ -48,6 +48,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -z "$SERVICE_NAME" || -z "$HEALTH_URL" ]]; then
+  usage
+  exit 1
+fi
 
 if ! [[ "$PROBE_INTERVAL" =~ ^[1-9][0-9]*$ ]]; then
   printf '[FAIL] --probe-interval must be a positive integer\n' >&2

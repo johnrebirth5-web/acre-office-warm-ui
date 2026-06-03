@@ -119,9 +119,9 @@
 
 更新 `docs/` 下任意一处运维/onboarding 文档（若不存在则新建 `docs/OBSERVABILITY.md`），说明：
 
-1. 慢查询日志输出在哪（stdout/journalctl）、怎么筛（`journalctl -u acre-ui-rebuild-web.service | grep slow_query`）。
+1. 慢查询日志输出在哪（stdout/journalctl）、怎么筛（`journalctl -u <app-service-name> | grep slow_query`）。
 2. `/api/health` 新字段的含义。
-3. `/api/metrics` 的访问方式（含 `ACRE_METRICS_TOKEN` 获取途径——指向 `/etc/acre/acre-ui-rebuild.env`）。
+3. `/api/metrics` 的访问方式（含 `ACRE_METRICS_TOKEN` 获取途径——指向 `<deployment-env-file>`）。
 4. Sentry DSN 放在哪个环境变量、默认关闭的行为。
 
 ---

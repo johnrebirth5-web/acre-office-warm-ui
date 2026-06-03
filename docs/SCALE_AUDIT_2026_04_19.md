@@ -23,7 +23,7 @@
 ### 2.1 Prisma 连接池默认（严重度 3）
 
 - **证据**：`packages/db/src/client.ts:57-59`，`new PrismaClient()` 无任何配置；`DATABASE_URL` 里也没 `connection_limit` 参数。
-- **默认行为**：`connection_limit = num_physical_cpus * 2 + 1`。在 2-core DO droplet 上是 **5 条**，4-core 是 **9 条**。
+- **默认行为**：`connection_limit = num_physical_cpus * 2 + 1`。在 2-core DO server 上是 **5 条**，4-core 是 **9 条**。
 - **算账**：100 用户 × 每人每秒约 1 请求 × 每请求平均 5-8 次 Prisma 调用 = **500-800 个并发 DB 调用**排队抢 5-9 条连接。平均等待 100 秒+，客户端 30 秒超时，雪崩。
 - **没有 PgBouncer**：文档里 grep `pgbouncer` 零命中。
 
@@ -197,7 +197,7 @@ Prisma 把这些编译成多轮 roundtrip 或 `LEFT JOIN LATERAL`，每条路由
    - 每条 API 默认 take ≤ 50，前端改成 cursor 分页
 
 6. **PM2 cluster 或 Node cluster 模式**
-   - 改成 2-4 进程（根据 droplet 核数），Nginx upstream 挂多个内部端口
+   - 改成 2-4 进程（根据 server 核数），Nginx upstream 挂多个内部端口
    - 前提：先解决"内存 rate-limit 跨进程失效"——部署 Upstash（代码已经就绪）
 
 7. **Nginx 前置缓存 + CDN**

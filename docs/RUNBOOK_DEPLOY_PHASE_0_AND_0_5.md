@@ -1,6 +1,6 @@
 # Runbook — 部署 Phase 0 / Phase 0.5 + 验证分支保护
 
-> 我的沙箱没装 `gh`、没有 DigitalOcean droplet 的 SSH 钥匙、不能替你创建 Sentry 账号。
+> 我的沙箱没装 `gh`、没有 cloud VM 的 SSH 钥匙、不能替你创建 Sentry 账号。
 > 下面是**你本人需要执行**的每一步，按顺序来，10~20 分钟搞定。
 >
 > 建议在终端里开一个新窗口，一步一步复制粘贴。每步都有预期输出，对不上就停下来回报我。
@@ -9,7 +9,7 @@
 
 ## 步骤 1 — 验证分支保护（2 分钟）
 
-在你 **Mac 本地**（`/Users/.../Acre_latest_clean` 目录下）跑：
+在你 **Mac 本地**（`<repo-root>` 目录下）跑：
 
 ```bash
 bash scripts/ops/verify-branch-protection.sh \
@@ -48,7 +48,7 @@ Sentry 账号和项目得你自己在浏览器里弄，我没法代劳。按这�
 2. 用你的工作邮箱登录
 3. 创建新 Project：
    - Platform 选 **Next.js**
-   - Project name 写 `acre-ui-rebuild-web`（或你喜欢的名字）
+   - Project name 写 `acre-web-app`（或你喜欢的名字）
    - Alert frequency 选 `Alert me on every new issue`
 4. 创建完成后，Sentry 会直接展示安装步骤，里面有一行：
    ```
@@ -62,7 +62,7 @@ Sentry 账号和项目得你自己在浏览器里弄，我没法代劳。按这�
 
 ---
 
-## 步骤 3 — 先生成 metrics token，再在生产 droplet 上更新 env（5 分钟）
+## 步骤 3 — 先生成 metrics token，再在生产 server 上更新 env（5 分钟）
 
 先在你 **Mac 本地** 生成一个新的 metrics token，记下来，后面会用两次：
 
@@ -74,20 +74,20 @@ openssl rand -hex 32
 
 > **注意：** `ACRE_METRICS_TOKEN` 是生产环境密钥，不要把真实值写进仓库、runbook、公开 chat 或邮件。
 
-然后再 SSH 到 DigitalOcean droplet：
+然后再 SSH 到 cloud VM：
 
 ```bash
-ssh <你平时用的用户名>@<droplet-ip>
+ssh <你平时用的用户名>@<server-ip>
 ```
 
-然后在 droplet 上：
+然后在 server 上：
 
 ```bash
 # 1. 备份现有 env 文件
-sudo cp /etc/acre/acre-ui-rebuild.env /etc/acre/acre-ui-rebuild.env.bak.$(date +%Y%m%d%H%M%S)
+sudo cp <deployment-env-file> <deployment-env-file>.bak.$(date +%Y%m%d%H%M%S)
 
 # 2. 编辑
-sudo nano /etc/acre/acre-ui-rebuild.env
+sudo nano <deployment-env-file>
 ```
 
 **在文件末尾追加这 6 行**（替换 `SENTRY_DSN` 为步骤 2 拿到的真实 DSN，`ACRE_METRICS_TOKEN` 用你刚生成的新值）：
@@ -107,20 +107,20 @@ SENTRY_AUTH_TOKEN=
 
 ```bash
 # 这条不应该报错
-sudo bash -n -c 'set -a; source /etc/acre/acre-ui-rebuild.env; set +a'
+sudo bash -n -c 'set -a; source <deployment-env-file>; set +a'
 
 # 确认新增了 6 个值，每个都非空（除了 SENTRY_AUTH_TOKEN 可以空）
-sudo grep -E '^(ACRE_METRICS_TOKEN|PRISMA_SLOW_QUERY_MS|PRISMA_VERY_SLOW_QUERY_MS|SENTRY_DSN|SENTRY_TRACES_SAMPLE_RATE|SENTRY_AUTH_TOKEN)=' /etc/acre/acre-ui-rebuild.env
+sudo grep -E '^(ACRE_METRICS_TOKEN|PRISMA_SLOW_QUERY_MS|PRISMA_VERY_SLOW_QUERY_MS|SENTRY_DSN|SENTRY_TRACES_SAMPLE_RATE|SENTRY_AUTH_TOKEN)=' <deployment-env-file>
 ```
 
 ---
 
 ## 步骤 4 — 按仓库默认流程部署指定 commit（3 分钟）
 
-回到你 **Mac 本地仓库根目录** `/Users/openclaw_john/工作文件夹/Acre_latest_clean`，执行：
+回到你 **Mac 本地仓库根目录** `<repo-root>`，执行：
 
 ```bash
-cd /Users/openclaw_john/工作文件夹/Acre_latest_clean
+cd <repo-root>
 git log --oneline -5
 ```
 
@@ -143,22 +143,22 @@ npm run deploy:digitalocean -- 8c51304
 
 这条命令会按仓库当前认可的流程自动做这些事：
 
-- SSH 到 droplet
+- SSH 到 server
 - 在临时目录 clone 指定 commit
 - `npm ci`
 - `npm run db:generate`
-- 读取 `/etc/acre/acre-ui-rebuild.env` 后执行 `npx prisma migrate deploy`
+- 读取 `<deployment-env-file>` 后执行 `npx prisma migrate deploy`
 - `npm run build`
-- 把构建结果 rsync 到 `/opt/acre-ui-rebuild/app`
-- 重启 `acre-ui-rebuild-web.service`
-- 自动校验 `https://acresystem.us/login`
+- 把构建结果 rsync 到 `<deployment-app-dir>`
+- 重启 `<app-service-name>`
+- 自动校验 `https://your-acre-domain.example.com/login`
 
-> 不要在 live 目录里手动 `git fetch` / `git reset --hard`。当前仓库的正式部署文档明确要求走“临时 checkout/build -> sync 到 `/opt/acre-ui-rebuild/app`”这条线。
+> 不要在 live 目录里手动 `git fetch` / `git reset --hard`。当前仓库的正式部署文档明确要求走“临时 checkout/build -> sync 到 `<deployment-app-dir>`”这条线。
 
-如果脚本失败，再 SSH 到 droplet 看状态：
+如果脚本失败，再 SSH 到 server 看状态：
 
 ```bash
-sudo journalctl -u acre-ui-rebuild-web.service -n 100 --no-pager
+sudo journalctl -u <app-service-name> -n 100 --no-pager
 ```
 
 把最后 50 行贴给我。
@@ -167,12 +167,12 @@ sudo journalctl -u acre-ui-rebuild-web.service -n 100 --no-pager
 
 ## 步骤 5 — 生产环境验证（5 分钟）
 
-还在 droplet 上（或者回到你的 Mac 上）：
+还在 server 上（或者回到你的 Mac 上）：
 
 ### 5.1 /api/health 新字段
 
 ```bash
-curl -s https://acresystem.us/api/health | jq .
+curl -s https://your-acre-domain.example.com/api/health | jq .
 ```
 
 **预期看到**：
@@ -199,13 +199,13 @@ curl -s https://acresystem.us/api/health | jq .
 }
 ```
 
-如果 `pool_max` 是 100（DigitalOcean managed PG 默认），**记录一下**——这是 Phase 1 调优连接池时的上限参考。
+如果 `pool_max` 是 100（managed PostgreSQL 默认），**记录一下**——这是 Phase 1 调优连接池时的上限参考。
 
 ### 5.2 /api/metrics 新端点
 
 ```bash
 curl -s -H "X-Metrics-Token: <你在步骤 3 生成并写入 env 的 metrics token>" \
-  https://acresystem.us/api/metrics
+  https://your-acre-domain.example.com/api/metrics
 ```
 
 **预期看到** 6 组 Prometheus gauge（每组通常有 `# HELP`、`# TYPE` 和数值行）。确认 `nodejs_event_loop_lag_ms` 有值（通常是小于 10 的浮点数，新启动时可能是 0）。
@@ -213,17 +213,17 @@ curl -s -H "X-Metrics-Token: <你在步骤 3 生成并写入 env 的 metrics tok
 也测一下 401：
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://acresystem.us/api/metrics
+curl -s -o /dev/null -w '%{http_code}\n' https://your-acre-domain.example.com/api/metrics
 # 应该返回 401
 ```
 
 ### 5.3 Sentry 探针
 
-不要把 `curl https://acresystem.us/api/__nonexistent__` 当成 Sentry 探针。
+不要把 `curl https://your-acre-domain.example.com/api/__nonexistent__` 当成 Sentry 探针。
 
 - 那个请求大概率只会返回普通 `404`，不能证明当前接入的 `withApiGuard` / Prisma / global error boundary 已经成功上报到 Sentry。
 - 当前仓库里没有专门的生产 `sentry-probe` 路由，所以更稳妥的做法是：
-  - 先确认 `SENTRY_DSN` 已经写入 `/etc/acre/acre-ui-rebuild.env`
+  - 先确认 `SENTRY_DSN` 已经写入 `<deployment-env-file>`
   - 部署完成后打开 Sentry dashboard 的 Issues / Events 页面
   - 等下一次真实异常出现时确认它是否进入 Sentry
   - 如果你一定要做“显式探针”，建议单独开一个临时 probe commit，在受控路由里 `throw new Error("sentry-probe")`，验证后再回滚这个 probe commit
@@ -232,7 +232,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://acresystem.us/api/metrics
 
 ```bash
 # 让服务跑 2 分钟，然后看有没有 slow_query 记录
-sudo journalctl -u acre-ui-rebuild-web.service --since "5 minutes ago" | grep -E 'slow_query|very_slow_query' | head -20
+sudo journalctl -u <app-service-name> --since "5 minutes ago" | grep -E 'slow_query|very_slow_query' | head -20
 ```
 
 **预期**：可能有，也可能没有。
@@ -242,7 +242,7 @@ sudo journalctl -u acre-ui-rebuild-web.service --since "5 minutes ago" | grep -E
 
 ### 5.5 Phase 0.5 图片切换
 
-用浏览器访问 <https://acresystem.us/listing-studio/listings/cmo0yqyvo001ai6yr16xel3jm>：
+用浏览器访问 <https://your-acre-domain.example.com/listing-studio/listings/cmo0yqyvo001ai6yr16xel3jm>：
 
 1. 打开 DevTools → Network → Filter: `assets/`
 2. 首次加载后，应该看到 3 个 `/api/listing-studio/assets/...` 请求（当前图 + next + prev）
@@ -276,10 +276,10 @@ sudo journalctl -u acre-ui-rebuild-web.service --since "5 minutes ago" | grep -E
 
 ```bash
 # 把 env 文件回滚到备份
-sudo cp /etc/acre/acre-ui-rebuild.env.bak.<timestamp> /etc/acre/acre-ui-rebuild.env
+sudo cp <deployment-env-file>.bak.<timestamp> <deployment-env-file>
 
 # 代码回滚到 Phase 0 之前，按同一条正式部署链路重新部署旧 commit
-cd /Users/openclaw_john/工作文件夹/Acre_latest_clean
+cd <repo-root>
 npm run deploy:digitalocean -- 3274acb  # Make branch-protection drift visible
 ```
 
