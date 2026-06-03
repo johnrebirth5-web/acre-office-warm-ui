@@ -2,59 +2,94 @@
 
 An open-source real estate brokerage operations workspace and listing workflow toolkit.
 
-Acre is a Next.js monorepo for building brokerage office consoles, listing workflows, transaction pipelines, CRM-style operations tools, and agent support surfaces. It is intended to be a practical starter kit for teams that want to build vertical SaaS tools for real estate operations without starting from a blank application shell.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-ready-blue.svg)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black.svg)](https://nextjs.org/)
+[![Project Status](https://img.shields.io/badge/status-early%20open--source%20release-informational.svg)](#project-status)
+
+Acre is a public foundation for building real estate brokerage operations software. It combines a Next.js office console, listing workflow tools, transaction pipeline surfaces, CRM-style operations modules, role-aware permissions, Prisma-backed data services, shared UI primitives, and a Chrome extension workspace for listing capture flows.
+
+The project is designed for builders who need more than a generic admin template: it gives developers and brokerage operations teams a realistic starting point for vertical workflow software in real estate.
+
+## Why Acre Exists
+
+Many small and midsize brokerages still coordinate critical work through spreadsheets, inboxes, shared folders, generic CRMs, and disconnected point tools. Those tools can work for individual tasks, but they make it difficult to maintain a reliable operational picture across listings, transactions, agent support, documents, commissions, office activity, and client-facing materials.
+
+Acre exists to make that problem space easier to build in public.
+
+Instead of starting from a blank app shell, contributors can work from a concrete codebase with:
+
+- brokerage-specific workflow surfaces
+- listing and transaction domain boundaries
+- office-console navigation and module structure
+- role and permission foundations
+- a database-backed service layer
+- a reusable design system package
+- extension-to-app listing capture flows
+- public documentation for setup, security, and contribution
+
+The goal is not to claim that Acre is already a widely adopted platform. The goal is to provide a serious open-source baseline for an underserved operational domain.
 
 ## Open Source Positioning
 
-Acre is published as an open-source foundation for brokerage operations software. It keeps the project identity and real estate workflow focus, but the public repository should be treated as a reusable toolkit rather than a private company deployment.
+Acre is an open-source starter kit and toolkit for real estate operations software. It is not a private deployment note, a hosted SaaS promise, or a public brokerage marketing website.
 
-The codebase is useful for:
+The repository is useful for:
 
-- small real estate brokerages that need a customizable operations workspace
-- operations teams coordinating listings, transactions, documents, and office workflows
-- listing coordinators who want structured listing intake and sharing flows
-- agent support teams building internal tools for pipeline, CRM, and admin work
-- developers building vertical SaaS products for real estate operations
+- small brokerages that want a customizable internal operations workspace
+- operations teams coordinating listings, transactions, documents, tasks, and office workflows
+- listing coordinators building structured listing intake, review, sharing, and export processes
+- agent support teams building CRM-style follow-up, resource, notification, and admin workflows
+- developers building vertical SaaS tools for real estate brokerage operations
+- maintainers who want a realistic, domain-specific codebase for testing workflow, permission, and contributor automation patterns
 
-## Features
+## What Acre Provides
 
-- Office console for brokerage operations, including dashboard, pipeline, transactions, contacts, tasks, reports, notifications, settings, billing, accounting, HR, admin office, activity, and library surfaces.
-- Listing Studio workflows for saving, organizing, editing, sharing, and exporting listing packets.
-- Chrome extension workspace in `apps/extension` for saving supported external listing pages into Listing Studio.
-- Transaction workflow foundations, including transaction detail, contacts, finance, tasks/checklists, documents, forms, signatures, offers, and commission-related surfaces.
-- CRM and agent-support surfaces for contacts, client follow-up, resources, notifications, and front-office handoff flows.
-- Role and permission foundations in `packages/auth`.
-- Prisma-backed data layer and services in `packages/db`.
-- Shared office UI primitives in `packages/ui`.
-- Local Docker development environment for the web app and PostgreSQL.
+### Office Console
 
-The repository is not a public brokerage website template. It focuses on internal operations, listing workflows, and office tooling.
+Operational surfaces for brokerage teams, including dashboard, pipeline, transactions, contacts, tasks, reports, notifications, settings, billing, accounting, HR, admin office, activity, library, and resource workflows.
 
-## Why This Project Matters
+### Listing Studio
 
-Many small brokerages still run core operations through spreadsheets, email threads, shared folders, and disconnected point tools. That works for a while, but it becomes hard to track transaction status, listing material, agent support requests, document workflows, and office accountability in one place.
+Listing workflow foundations for saving, organizing, editing, sharing, exporting, and reviewing listing materials. These flows are intended to support listing coordinators, agents, and operations teams who need reusable packet and collection workflows.
 
-Acre provides a reusable foundation for listing workflows, transaction pipelines, and office operations. It gives developers a concrete starting point for building real estate operations software with a real application structure, a database layer, permissions, module boundaries, and workflow-oriented screens.
+### Transaction Operations
 
-For developers building vertical SaaS in real estate, this repo can help shorten the path from prototype to a specialized brokerage operations product.
+Transaction workflow foundations covering transaction detail pages, contacts, finance, tasks and checklists, documents, forms, signatures, offers, and commission-related surfaces.
 
-## Ecosystem Fit
+### CRM and Agent Support
 
-Real estate operations software is a practical but underserved vertical. Many small teams need workflow-specific tools, but the available choices often force them into generic CRMs, spreadsheet-heavy back-office processes, or closed products that are hard to adapt.
+CRM-style surfaces for contacts, client follow-up, agent resources, front-office handoff, operational notifications, and office support workflows.
 
-Acre is meant to give maintainers and contributors a reusable open-source baseline for that space: a real application shell, role-aware office workflows, listing and transaction modules, extension capture flows, and documentation that can grow with community feedback.
+### Chrome Extension Workspace
 
-The project is still early. It does not claim broad adoption, large download numbers, or production scale. Its value is in making a specialized operations domain easier to study, extend, and maintain in public.
+A Manifest V3 Chrome extension workspace in `apps/extension` for capturing supported external listing pages and sending listing context into Acre workflows.
 
-## Maintainer Use of Codex
+### Shared Platform Foundations
 
-The primary maintainer plans to use Codex for open-source maintenance work such as:
+- `packages/auth` for roles, permissions, and access helpers
+- `packages/db` for Prisma schema, migrations, seed data, and service-layer helpers
+- `packages/ui` for shared office UI primitives
+- npm workspaces and Turborepo for monorepo development
+- local Docker setup for PostgreSQL-backed development
 
-- triaging issues and turning vague workflow reports into reproducible tasks
-- reviewing pull requests for docs, tests, permissions, and workflow regressions
-- improving onboarding docs and keeping environment guidance safe for public contributors
-- generating focused tests around listing, transaction, CRM, and office-console behavior
-- identifying security-sensitive code paths and reducing the chance of secrets or private deployment notes reaching public docs
+## Project Principles
+
+- **Domain first:** Acre models real brokerage operations workflows rather than generic dashboard examples.
+- **Public by default:** Documentation should be safe for open-source readers and should avoid private hosts, credentials, deployment paths, or company-only operating notes.
+- **Composable foundations:** Modules should be useful as references even when adopters replace individual workflows.
+- **Contributor-friendly maintenance:** Issues, docs, tests, and small workflow improvements should be approachable without understanding the entire monorepo.
+- **Honest maturity:** Acre is active and early. APIs, module boundaries, UI details, and data contracts may change.
+
+## What This Is Not
+
+Acre is not:
+
+- a hosted production SaaS offering
+- a public real estate marketing website template
+- a claim of broad adoption, download volume, or production scale
+- a turnkey compliance solution for brokerage operations
+- a place for private deployment notes, production secrets, or customer data
 
 ## Architecture Overview
 
@@ -67,7 +102,7 @@ apps/
 
 packages/
   auth/          Roles, permissions, and access helpers
-  backoffice/    Domain/view-model helpers that still support some transitional flows
+  backoffice/    Domain/view-model helpers that support transitional flows
   db/            Prisma schema, seed data, migrations, and database services
   ui/            Shared office UI primitives
 
@@ -105,7 +140,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with local-only values. The default example is safe for local development and does not include production secrets.
+Edit `.env.local` with local-only values. The example file is intentionally safe for public development and does not include production credentials.
 
 Start local services:
 
@@ -120,7 +155,7 @@ The web app runs on:
 http://localhost:3105
 ```
 
-If you only want to run the Next.js app against an already available database, configure `DATABASE_URL` in `.env.local` and run:
+If you already have PostgreSQL available, configure `DATABASE_URL` in `.env.local` and run:
 
 ```bash
 npm run dev
@@ -165,7 +200,7 @@ Common local variables:
 
 See [docs/env.md](docs/env.md) for the longer environment reference.
 
-## Development Scripts
+## Development Workflow
 
 Root scripts from `package.json` include:
 
@@ -180,7 +215,7 @@ npm run docker:dev:logs
 npm run scan:secrets
 ```
 
-The project also includes focused workspace scripts, such as:
+Focused workspace scripts include:
 
 ```bash
 npm run build --workspace=@acre/web
@@ -188,24 +223,48 @@ npm run build --workspace=@acre/extension
 npm run typecheck --workspace=@acre/db
 ```
 
+Before opening a pull request, run the smallest validation set that matches the change. For shared code, auth, database, or workflow-critical changes, prefer broader validation.
+
 ## Project Status
 
 Acre is in active development and is an early open-source release.
 
-The current repository contains substantial brokerage workflow foundations, but APIs, data contracts, UI details, and internal module boundaries may change as the project matures. Treat it as a starter kit and development foundation, not a drop-in hosted product.
+The repository contains substantial brokerage workflow foundations, but it should be treated as a development foundation rather than a drop-in hosted product. APIs, internal modules, UI details, seed data, and data contracts may change while the public surface matures.
+
+Current priorities:
+
+- improve public onboarding and contributor documentation
+- stabilize core listing, transaction, and office workflow contracts
+- expand focused tests around permissions and workflow-critical APIs
+- continue replacing transitional paths with Prisma-backed services
+- clarify extension setup, integration boundaries, and safe deployment options
+
+## Maintainer Workflow
+
+Primary maintainer: `johnrebirth5-web`
+
+The maintainer is responsible for keeping the public repository safe, reviewable, and useful for contributors. That includes issue triage, pull request review, release hygiene, security-sensitive documentation review, and continued cleanup of workflow modules as the project matures.
+
+Codex and other maintainer automation can help with:
+
+- turning vague workflow reports into reproducible issues
+- reviewing documentation, tests, permissions, and route-level changes
+- generating focused regression tests for listing, transaction, CRM, and office-console behavior
+- checking public docs for secret-like values, private paths, or deployment-only details
+- reducing maintenance load while preserving human review for product and security decisions
 
 ## Roadmap
 
 The public roadmap is maintained in [ROADMAP.md](ROADMAP.md).
 
-Current themes:
+Roadmap themes include:
 
-- improve open-source onboarding and local setup
-- stabilize core transaction, listing, and office workflow contracts
-- continue replacing transitional/mock paths with Prisma-backed services
-- improve test coverage around permissions and workflow-critical APIs
-- document extension setup, integration boundaries, and deployment options
-- make the UI system easier for contributors to extend safely
+- contributor onboarding and local setup
+- Listing Studio workflow stability
+- transaction and office operations contracts
+- permission and access-control test coverage
+- Chrome extension setup and capture-flow documentation
+- shared UI primitives that are easier to extend safely
 
 ## Good First Issues
 
@@ -234,12 +293,6 @@ Before opening a PR:
 ## Security
 
 Please do not report vulnerabilities through public issues with exploit details. See [SECURITY.md](SECURITY.md) for the disclosure process and supported expectations.
-
-## Maintainer
-
-Primary maintainer: `johnrebirth5-web`
-
-Issues and pull requests are welcome. Please include enough context for maintainers and contributors to reproduce bugs, understand proposed changes, and review the impact.
 
 ## License
 
