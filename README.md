@@ -38,6 +38,24 @@ Acre provides a reusable foundation for listing workflows, transaction pipelines
 
 For developers building vertical SaaS in real estate, this repo can help shorten the path from prototype to a specialized brokerage operations product.
 
+## Ecosystem Fit
+
+Real estate operations software is a practical but underserved vertical. Many small teams need workflow-specific tools, but the available choices often force them into generic CRMs, spreadsheet-heavy back-office processes, or closed products that are hard to adapt.
+
+Acre is meant to give maintainers and contributors a reusable open-source baseline for that space: a real application shell, role-aware office workflows, listing and transaction modules, extension capture flows, and documentation that can grow with community feedback.
+
+The project is still early. It does not claim broad adoption, large download numbers, or production scale. Its value is in making a specialized operations domain easier to study, extend, and maintain in public.
+
+## Maintainer Use of Codex
+
+The primary maintainer plans to use Codex for open-source maintenance work such as:
+
+- triaging issues and turning vague workflow reports into reproducible tasks
+- reviewing pull requests for docs, tests, permissions, and workflow regressions
+- improving onboarding docs and keeping environment guidance safe for public contributors
+- generating focused tests around listing, transaction, CRM, and office-console behavior
+- identifying security-sensitive code paths and reducing the chance of secrets or private deployment notes reaching public docs
+
 ## Architecture Overview
 
 This repository uses npm workspaces and Turborepo.
